@@ -28,6 +28,8 @@ do
         _printf("[client] version ok\n");
     end
 
+    do TX_PROPOSE_send.build(&this.c.tcp);
+
     escape _SUCCESS;
     //await FOREVER;
 end

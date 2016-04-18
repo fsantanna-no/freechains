@@ -1,8 +1,15 @@
 #ifndef _COMON_CEU
 #define _COMON_CEU
 
-// MAGIC_* .. VERSION_*
-#define VERSION_NBYTES 5
+#define AWAIT_UNTIL(r,nxt)          \
+    if r.next < nxt then            \
+        loop do                     \
+            await r.ok;             \
+            if r.next >= nxt then   \
+                break;              \
+            end                     \
+        end                         \
+    end
 
 class MAGIC_VERSION_send with
     var _uv_tcp_t& tcp;
@@ -12,8 +19,8 @@ do
         this.tcp = &tcp;
     end
 
-    var u8[VERSION_NBYTES] version = [MAGIC_0, MAGIC_1,
-                                      VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH];
+    var byte[MAGIC_VERSION_BYTES] version =
+        [MAGIC_0, MAGIC_1, VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH];
     do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &version);
 end
 
@@ -25,28 +32,89 @@ do
         this.tcp = &tcp;
     end
 
-    var u8[VERSION_NBYTES] version;
-    var int n = 0;
+    var byte[MAGIC_VERSION_BYTES] version;
     var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&version);
-    loop do
-        var int n_ = await r.ok;
-        n = n + n_;
-        if n == VERSION_NBYTES then
-            if version[0] != MAGIC_0        or
-               version[1] != MAGIC_1        or
-               version[2] != VERSION_MAJOR  or
-               version[3] != VERSION_MINOR  or
-               version[4] != VERSION_PATCH
-            then
-                escape _ERR_VERSION;
-            end
-            break;
-        else/if n > VERSION_NBYTES then
-            escape _ERR_EXTRA_BYTES;
-        else
-            // read more
+    AWAIT_UNTIL(r,MAGIC_VERSION_BYTES);
+    if r.next == MAGIC_VERSION_BYTES then
+        if version[0] != MAGIC_0        or
+           version[1] != MAGIC_1        or
+           version[2] != VERSION_MAJOR  or
+           version[3] != VERSION_MINOR  or
+           version[4] != VERSION_PATCH
+        then
+            escape _ERR_VERSION;
         end
+    else/if r.next > MAGIC_VERSION_BYTES then
+        escape _ERR_EXTRA_BYTES;
+    else
+        _assert(0);
     end
+
+    // version ok
+    escape _SUCCESS;
+end
+
+class TX_PROPOSE_send with
+    var _uv_tcp_t& tcp;
+    function (_uv_tcp_t& tcp)=>TX_PROPOSE_send build;
+do
+    function (_uv_tcp_t& tcp)=>TX_PROPOSE_send build do
+        this.tcp = &tcp;
+    end
+
+    var byte[] bytes = [ 5, 1,2,3,4,5 ];
+    do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
+    _assert(0);
+end
+
+class TX_PROPOSE_recv with
+    var _uv_tcp_t& tcp;
+    function (_uv_tcp_t& tcp)=>TX_PROPOSE_recv build;
+do
+    function (_uv_tcp_t& tcp)=>TX_PROPOSE_recv build do
+        this.tcp = &tcp;
+    end
+
+    var u8[TX_PROPOSE_BYTES] bytes;
+    var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&bytes);
+    var int nxt = 0;
+
+    // BC_LEN, BC_DATA
+    do
+        var int off = nxt;
+        nxt = nxt + 1;
+        AWAIT_UNTIL(r,nxt);
+        var int bc_len = bytes[off];
+        _printf("BC_LEN = %d\n", bc_len);
+
+        off = off + 1;
+        nxt = nxt + bc_len;
+        AWAIT_UNTIL(r,nxt);
+        _printf("BC_DATA = [");
+        loop i in bc_len do
+            _printf("%2d", bytes[off+i]);
+        end
+        _printf(" ]\n");
+    end
+
+    // BLK_BACK_HASH
+#if 0
+    nxt = nxt + HASH_BYTES;
+    if now <= nxt then
+        now = AWAIT_MIN(r,nxt);
+    end
+
+    // DATA_PL_HASH
+    nxt = nxt + HASH_BYTES;
+    if now <= nxt then
+        now = AWAIT_MIN(r,nxt);
+    end
+
+    _assert(nxt >= now);
+    if nxt > now then
+        escape _ERR_EXTRA_BYTES;
+    end
+#endif
     escape _SUCCESS;
 end
 

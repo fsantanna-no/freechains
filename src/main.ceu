@@ -8,16 +8,23 @@
 #define VERSION_PATCH 0
 #define VERSION 0.0.0       // TODO stringify
 
+#define HASH_BYTES       32
+#define PUBKEY_BYTES_MAX 256     // TODO: why?
+
+#define MAGIC_VERSION_BYTES (1+1+1+1+1)
+#define TX_PROPOSE_BYTES    (1+PUBKEY_BYTES_MAX+1+HASH_BYTES+HASH_BYTES)
+
+
 #define UV_TCP_SERVER_HANDLER_CEU server.ceu
 #include "uv.ceu"
 
 /*
--- on connection
+-- MAGIC_VERSION
 MAGIC_0     MAGIC_1     VERSION_MAJOR   VERSION_MINOR   VERSION_PATCH
 1           1           1               1               1
 
 -- TX_PROPOSE
-BC_LEN      BC_DATA     N_ZEROS         BLK-BACK-HASH   DATA-PL-HASH
+BC_LEN      BC_DATA     N_ZEROS         BLK_BACK_HASH   DATA_PL_HASH
 1           bc_len      1               32              32
 
 */
@@ -30,7 +37,7 @@ native do
     };
     enum {
         MSG_NONE = 0,
-        MSG_SEND,
+        MSG_TX_PROPOSE,
     };
 end
 

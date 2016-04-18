@@ -21,6 +21,8 @@ do
         _printf("[server] version ok\n");
     end
 
+    do TX_PROPOSE_recv.build(&this.tcp);
+
     escape _SUCCESS;
 end
 
