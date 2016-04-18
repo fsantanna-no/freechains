@@ -12,7 +12,7 @@
 #define BC_DATA_BYTES   128
 
 #define MAGIC_VERSION_BYTES (1+1+1+1+1)
-#define TX_PROPOSE_BYTES    (1+BC_DATA_BYTES+1+HASH_BYTES+HASH_BYTES)
+#define CONTENTS_PUT_BYTES  (1+BC_DATA_BYTES+1+HASH_BYTES+HASH_BYTES)
 
 
 #define UV_TCP_SERVER_HANDLER_CEU server.ceu
@@ -23,11 +23,11 @@
 MAGIC_0     MAGIC_1     VERSION_MAJOR   VERSION_MINOR   VERSION_PATCH
 1           1           1               1               1
 
--- TX_PROPOSE
+-- CONTENTS_PUT
 BC_SIGNED?  BC_LEN      BC_DATA     ZEROS_N         BLK_BACK_HASH   CONTENTS_DATA_HASH
 1b          7b          bc_len      1               32              32
 
--- TX_CONTENTS
+-- CONTENTS_DATA
 NOUNCE      CONTENTS_LEN CONTENTS_DATA
 1           4 (1xU32)   contents_len
 */
@@ -40,7 +40,8 @@ native do
     };
     enum {
         MSG_NONE = 0,
-        MSG_TX_PROPOSE,
+        MSG_CONTENTS_PUT,
+        MSG_CONTENTS_DATA,
     };
 end
 

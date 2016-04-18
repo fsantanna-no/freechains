@@ -10,11 +10,11 @@
     uint16_t ntohs(uint16_t netshort);
 #endif
 
-class TX_PROPOSE_send with
+class CONTENTS_PUT_send with
     var _uv_tcp_t& tcp;
-    function (_uv_tcp_t& tcp)=>TX_PROPOSE_send build;
+    function (_uv_tcp_t& tcp)=>CONTENTS_PUT_send build;
 do
-    function (_uv_tcp_t& tcp)=>TX_PROPOSE_send build do
+    function (_uv_tcp_t& tcp)=>CONTENTS_PUT_send build do
         this.tcp = &tcp;
     end
     var byte[] bytes;
@@ -45,15 +45,17 @@ do
     // => BLK_BACK_HASH
     // => CONTENTS_DATA_HASH
     do
+        // TODO: BLK_BACK_HASH
         loop i in HASH_BYTES do
-            bytes = []..bytes..[0x00+i];
+            bytes = []..bytes..[0xEE];
         end
+        // TODO: CONTENTS_DATA_HASH
         loop i in HASH_BYTES do
-            bytes = []..bytes..[0x80+i];
+            bytes = []..bytes..[0xEE];
         end
     end
 
-    // => TX_PROPOSE
+    // => CONTENTS_PUT
     do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
 
     // <= OK?
@@ -73,11 +75,11 @@ do
     escape ok;
 end
 
-class TX_CONTENTS_send with
+class CONTENTS_DATA_send with
     var _uv_tcp_t& tcp;
-    function (_uv_tcp_t& tcp)=>TX_CONTENTS_send build;
+    function (_uv_tcp_t& tcp)=>CONTENTS_DATA_send build;
 do
-    function (_uv_tcp_t& tcp)=>TX_CONTENTS_send build do
+    function (_uv_tcp_t& tcp)=>CONTENTS_DATA_send build do
         this.tcp = &tcp;
     end
     var byte[] bytes;
@@ -92,7 +94,7 @@ do
     PUT_NETWORK_U32(bytes, $contents_data);
     bytes = []..bytes..contents_data;
 
-    // => TX_CONTENTS
+    // => CONTENTS_DATA
     do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
 
     escape _ERR_NONE;
@@ -116,12 +118,12 @@ do
         _printf("[client] version ok\n");
     end
 
-    // TX_PROPOSE_send
-    var int ret = do TX_PROPOSE_send.build(&this.c.tcp);
+    // CONTENTS_PUT_send
+    var int ret = do CONTENTS_PUT_send.build(&this.c.tcp);
 
-    // TX_CONTENTS
+    // CONTENTS_DATA
     if ret > 0 then
-        do TX_CONTENTS_send.build(&this.c.tcp);
+        do CONTENTS_DATA_send.build(&this.c.tcp);
     end
 
     escape _ERR_NONE;

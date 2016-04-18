@@ -3,15 +3,15 @@
 
 #include "client-server.ceu"
 
-class TX_PROPOSE_recv with
+class CONTENTS_PUT_recv with
     var _uv_tcp_t& tcp;
-    function (_uv_tcp_t& tcp)=>TX_PROPOSE_recv build;
+    function (_uv_tcp_t& tcp)=>CONTENTS_PUT_recv build;
 do
-    function (_uv_tcp_t& tcp)=>TX_PROPOSE_recv build do
+    function (_uv_tcp_t& tcp)=>CONTENTS_PUT_recv build do
         this.tcp = &tcp;
     end
 
-    var byte[TX_PROPOSE_BYTES] bytes;
+    var byte[CONTENTS_PUT_BYTES] bytes;
     var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&bytes);
 
     var int nxt = 0;
@@ -86,11 +86,11 @@ do
     escape 1;
 end
 
-class TX_CONTENTS_recv with
+class CONTENTS_DATA_recv with
     var _uv_tcp_t& tcp;
-    function (_uv_tcp_t& tcp)=>TX_CONTENTS_recv build;
+    function (_uv_tcp_t& tcp)=>CONTENTS_DATA_recv build;
 do
-    function (_uv_tcp_t& tcp)=>TX_CONTENTS_recv build do
+    function (_uv_tcp_t& tcp)=>CONTENTS_DATA_recv build do
         this.tcp = &tcp;
     end
 
@@ -159,9 +159,9 @@ do
         _printf("[server] version ok\n");
     end
 
-    var int ok = do TX_PROPOSE_recv.build(&this.tcp);
+    var int ok = do CONTENTS_PUT_recv.build(&this.tcp);
     if ok then
-        var int err = do TX_CONTENTS_recv.build(&this.tcp);
+        var int err = do CONTENTS_DATA_recv.build(&this.tcp);
         _assert(err == _ERR_NONE);
     end
 
