@@ -1,35 +1,40 @@
 #include "c.ceu"
 
-#define MAGIC_0 'P'
-#define MAGIC_1 'S'
-
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 0
-#define VERSION_PATCH 0
+#define VERSION_PATCH 1
 #define VERSION 0.0.0       // TODO stringify
 
 #define HASH_BYTES      32
 #define BC_DATA_BYTES   128
 
-#define MAGIC_VERSION_BYTES (1+1+1+1+1)
-#define CONTENTS_PUT_BYTES  (1+BC_DATA_BYTES+1+HASH_BYTES+HASH_BYTES)
+#define CONTENTS_PUT_BYTES  (1+1+1+1+BC_DATA_BYTES+1+HASH_BYTES+HASH_BYTES)
 
+#define AWAIT_UNTIL(r,nxt)          \
+    if r.next < nxt then            \
+        loop do                     \
+            await r.ok;             \
+            if r.next >= nxt then   \
+                break;              \
+            end                     \
+        end                         \
+    end
 
 #define UV_TCP_SERVER_HANDLER_CEU server.ceu
 #include "uv.ceu"
 
 /*
--- MAGIC_VERSION
-MAGIC_0     MAGIC_1     VERSION_MAJOR   VERSION_MINOR   VERSION_PATCH
-1           1           1               1               1
-
 -- CONTENTS_PUT
-BC_SIGNED?  BC_LEN      BC_DATA     ZEROS_N         BLK_BACK_HASH   CONTENTS_DATA_HASH
-1b          7b          bc_len      1               32              32
+VERSION_MAJOR   VERSION_MINOR   VERSION_PATCH
+1               1               1
+BC_SIGNED?      BC_LEN          BC_DATA
+1b              7b              bc_len
+ZEROS_N         BLK_BACK_HASH   CONTENTS_DATA_HASH
+1               32              32
 
 -- CONTENTS_DATA
-NOUNCE      CONTENTS_LEN CONTENTS_DATA
-1           4 (1xU32)   contents_len
+NOUNCE          CONTENTS_LEN    CONTENTS_DATA
+1               4 (1xU32)       contents_len
 */
 
 native do

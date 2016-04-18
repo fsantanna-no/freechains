@@ -1,15 +1,6 @@
 #ifndef _CLIENT_CEU
 #define _CLIENT_CEU
 
-#include "client-server.ceu"
-
-#if 0
-    uint32_t htonl(uint32_t hostlong);
-    uint16_t htons(uint16_t hostshort);
-    uint32_t ntohl(uint32_t netlong);
-    uint16_t ntohs(uint16_t netshort);
-#endif
-
 class CONTENTS_PUT_send with
     var _uv_tcp_t& tcp;
     function (_uv_tcp_t& tcp)=>CONTENTS_PUT_send build;
@@ -18,6 +9,14 @@ do
         this.tcp = &tcp;
     end
     var byte[] bytes;
+
+    // => VERSION
+    do
+        var int major = [[ APP.contents.version_t.major ]];
+        var int minor = [[ APP.contents.version_t.minor ]];
+        var int patch = [[ APP.contents.version_t.patch ]];
+        bytes = []..bytes..[major, minor, patch];
+    end
 
     // => BC_SIGNED?
     // => BC_LEN
@@ -106,16 +105,6 @@ class ClientConnected with
 do
     function (UV_TCP_Client& c)=>ClientConnected build do
         this.c = &c;
-    end
-
-    // VERSION
-    do
-        do MAGIC_VERSION_send.build(&this.c.tcp);
-        var int err = do MAGIC_VERSION_recv.build(&this.c.tcp);
-        if err then
-            escape err;
-        end
-        _printf("[client] version ok\n");
     end
 
     // CONTENTS_PUT_send

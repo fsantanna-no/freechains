@@ -1,4 +1,5 @@
 CONTENTS {
+    version   = '0.0.1',
     bc_signed = false,
     bc_len    = 0,
     bc_data   = nil,
