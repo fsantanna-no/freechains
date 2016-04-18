@@ -1,7 +1,7 @@
 #ifndef _CLIENT_CEU
 #define _CLIENT_CEU
 
-#include "common.ceu"
+#include "client-server.ceu"
 
 #if 0
     uint32_t htonl(uint32_t hostlong);

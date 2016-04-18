@@ -1,7 +1,7 @@
 #ifndef _SERVER_CEU
 #define _SERVER_CEU
 
-#include "common.ceu"
+#include "client-server.ceu"
 
 class UV_TCP_Server_Handler with
     var _uv_tcp_t& tcp;
