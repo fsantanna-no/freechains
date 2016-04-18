@@ -23,21 +23,21 @@ do
     // => BC_LEN
     // => BC_DATA
     do
-        var bool bc_signed = [[ CONTENTS.bc_signed ]];
-        var int  bc_len    = [[ CONTENTS.bc_len    ]];
+        var bool bc_signed = [[ APP.contents.bc_signed ]];
+        var int  bc_len    = [[ APP.contents.bc_len    ]];
         _assert(bc_len>=0 and bc_len<256);
         var u8 bc = (bc_len | (bc_signed<<7));
         bytes = []..bytes..[bc];
 
         if bc_len > 0 then
-            var char[] bc_data = [[ CONTENTS.bc_data ]];
+            var char[] bc_data = [[ APP.contents.bc_data ]];
             bytes = []..bytes..bc_data;
         end
     end
 
     // => ZEROS_N
     do
-        var int zeros_n = [[ CONTENTS.zeros_n ]];
+        var int zeros_n = [[ APP.contents.zeros_n ]];
         _assert(zeros_n>=0 and zeros_n<256);
         bytes = []..bytes..[zeros_n];
     end
@@ -90,7 +90,7 @@ do
 
     // => CONTENTS_LEN
     // => CONTENTS_DATA
-    var char[] contents_data = [[ CONTENTS.contents_data ]];
+    var char[] contents_data = [[ APP.contents.contents_data ]];
     PUT_NETWORK_U32(bytes, $contents_data);
     bytes = []..bytes..contents_data;
 
@@ -141,8 +141,8 @@ do
     end
 
     loop do
-        var char[] ip   = [[ client.peers[@this.i][1] ]];
-        var int    port = [[ client.peers[@this.i][2] ]];
+        var char[] ip   = [[ APP.client.peers[@this.i][1] ]];
+        var int    port = [[ APP.client.peers[@this.i][2] ]];
         var UV_TCP_Client c = UV_TCP_Client.build(&ip, port);
         var int status = await c.ok;
 
@@ -155,7 +155,7 @@ do
             _printf("Diconnected from %s:%d.\n", (_char&&)&&ip, port);
         end
 
-        var int dt = [[ client.time_connection_retry ]];
+        var int dt = [[ APP.client.time_connection_retry ]];
         await (dt)ms;
     end
 end

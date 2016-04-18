@@ -1,4 +1,4 @@
-CONTENTS = {
+CONTENTS {
     bc_signed = false,
     bc_len    = 0,
     bc_data   = nil,

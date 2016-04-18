@@ -51,23 +51,23 @@ var int        argc;
 var _char&& && argv;
 (argc, argv) = await OS_START;
 if argc < 2 then
-    _fprintf(_stderr, "Usage: %s <config.lua>\n", argv[0]);
+    _fprintf(_stderr, "Usage: %s (<src.lua>)+\n", argv[0]);
     _assert(0);
 end
 
-// load cfg=<config.lua>
-do
-    var char&& cfg = argv[1];
+// load *.lua files
+[[ dofile'src/common.lua' ]];
+loop i in argc-1 do
+    var char&& cfg = argv[i+1];
     [[
         dofile(@cfg)
-        dofile("cfg/contents-01.lua")
     ]];
 end
 
 // spawn one client for each cfg.peers
 do
     #include "client.ceu"
-    var int n = [[#client.peers]];
+    var int n = [[#APP.client.peers]];
     loop i in n do
         spawn Client.build(i+1);
     end
@@ -75,9 +75,9 @@ end
 
 // start one server
 do
-    var char[] ip      = [[ server.host[1] ]];
-    var int    port    = [[ server.host[2] ]];
-    var int    backlog = [[ server.backlog ]];
+    var char[] ip      = [[ APP.server.host[1] ]];
+    var int    port    = [[ APP.server.host[2] ]];
+    var int    backlog = [[ APP.server.backlog ]];
     do UV_TCP_Server.build(&ip, port, backlog);
 end
 
