@@ -28,7 +28,10 @@ do
         _printf("[client] version ok\n");
     end
 
-    do TX_PROPOSE_send.build(&this.c.tcp);
+    // TX_PROPOSE_send
+    var int ret = do TX_PROPOSE_send.build(&this.c.tcp);
+    // TX_DATA
+
 
     escape _SUCCESS;
     //await FOREVER;

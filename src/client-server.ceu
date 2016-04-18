@@ -1,5 +1,5 @@
-#ifndef _COMON_CEU
-#define _COMON_CEU
+#ifndef _CLIENT_SERVER_CEU
+#define _CLIENT_SERVER_CEU
 
 #define AWAIT_UNTIL(r,nxt)          \
     if r.next < nxt then            \
@@ -61,10 +61,37 @@ do
     function (_uv_tcp_t& tcp)=>TX_PROPOSE_send build do
         this.tcp = &tcp;
     end
+    var byte[] bytes;
 
-    var byte[] bytes = [ 5, 1,2,3,4,5 ];
+    // prepare "bytes"
+    do
+        bytes = [ 5, 1,2,3,4,5, 99 ];
+        loop i in HASH_BYTES do
+            bytes = []..bytes..[0x00+i];
+        end
+        loop i in HASH_BYTES do
+            bytes = []..bytes..[0x80+i];
+        end
+    end
+
+    // => TX_PROPOSE
     do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
-    _assert(0);
+
+    // <= OK?
+    var int ok = 0;
+    do
+        $bytes = 0;
+        var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&bytes);
+        AWAIT_UNTIL(r,1);
+        _assert(r.next >= 1);
+        if r.next > 1 then
+            escape _ERR_EXTRA_BYTES;
+        end
+        ok = bytes[0];
+    end
+    _printf("OK = %d\n", ok);
+
+    escape ok;
 end
 
 class TX_PROPOSE_recv with
@@ -77,17 +104,18 @@ do
 
     var u8[TX_PROPOSE_BYTES] bytes;
     var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&bytes);
-    var int nxt = 0;
 
-    // BC_LEN, BC_DATA
+    var int nxt = 0;
+    var int off = nxt;
+
+    // <= BC_LEN, BC_DATA
     do
-        var int off = nxt;
         nxt = nxt + 1;
         AWAIT_UNTIL(r,nxt);
         var int bc_len = bytes[off];
         _printf("BC_LEN = %d\n", bc_len);
 
-        off = off + 1;
+        off = nxt;
         nxt = nxt + bc_len;
         AWAIT_UNTIL(r,nxt);
         _printf("BC_DATA = [");
@@ -97,24 +125,49 @@ do
         _printf(" ]\n");
     end
 
-    // BLK_BACK_HASH
-#if 0
-    nxt = nxt + HASH_BYTES;
-    if now <= nxt then
-        now = AWAIT_MIN(r,nxt);
+    // <= N_ZEROS
+    do
+        off = nxt;
+        nxt = nxt + 1;
+        AWAIT_UNTIL(r,nxt);
+        var int n_zeros = bytes[off];
+        _printf("N_ZEROS = %d\n", n_zeros);
     end
 
-    // DATA_PL_HASH
-    nxt = nxt + HASH_BYTES;
-    if now <= nxt then
-        now = AWAIT_MIN(r,nxt);
+    // <= BLK_BACK_HASH
+    do
+        off = nxt;
+        nxt = nxt + HASH_BYTES;
+        AWAIT_UNTIL(r,nxt);
+        _printf("BLK_BACK_HASH = [");
+        loop i in HASH_BYTES do
+            _printf("%2X", bytes[off+i]);
+        end
+        _printf(" ]\n");
     end
 
-    _assert(nxt >= now);
-    if nxt > now then
+    // <= DATA_PL_HASH
+    do
+        off = nxt;
+        nxt = nxt + HASH_BYTES;
+        AWAIT_UNTIL(r,nxt);
+        _printf("DATA_PL_HASH = [");
+        loop i in HASH_BYTES do
+            _printf("%2X", bytes[off+i]);
+        end
+        _printf(" ]\n");
+    end
+
+    // == END
+    _assert(r.next >= nxt);
+    if r.next > nxt then
         escape _ERR_EXTRA_BYTES;
     end
-#endif
+
+    // TODO: check
+    bytes = [1];
+    do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
+
     escape _SUCCESS;
 end
 

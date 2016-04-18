@@ -8,11 +8,11 @@
 #define VERSION_PATCH 0
 #define VERSION 0.0.0       // TODO stringify
 
-#define HASH_BYTES       32
-#define PUBKEY_BYTES_MAX 256     // TODO: why?
+#define HASH_BYTES      32
+#define BC_DATA_BYTES   128
 
 #define MAGIC_VERSION_BYTES (1+1+1+1+1)
-#define TX_PROPOSE_BYTES    (1+PUBKEY_BYTES_MAX+1+HASH_BYTES+HASH_BYTES)
+#define TX_PROPOSE_BYTES    (1+BC_DATA_BYTES+1+HASH_BYTES+HASH_BYTES)
 
 
 #define UV_TCP_SERVER_HANDLER_CEU server.ceu
@@ -24,16 +24,16 @@ MAGIC_0     MAGIC_1     VERSION_MAJOR   VERSION_MINOR   VERSION_PATCH
 1           1           1               1               1
 
 -- TX_PROPOSE
-BC_LEN      BC_DATA     N_ZEROS         BLK_BACK_HASH   DATA_PL_HASH
-1           bc_len      1               32              32
+BC_SIGNED?  BC_LEN      BC_DATA     N_ZEROS         BLK_BACK_HASH   DATA_PL_HASH
+1b          7b          bc_len      1               32              32
 
 */
 
 native do
     enum {
-        SUCCESS = 0,
-        ERR_EXTRA_BYTES,
-        ERR_VERSION,
+        SUCCESS         =  0,
+        ERR_EXTRA_BYTES = -1,
+        ERR_VERSION     = -2,
     };
     enum {
         MSG_NONE = 0,
