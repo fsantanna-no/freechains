@@ -1,0 +1,47 @@
+#ifndef _COMON_CEU
+#define _COMON_CEU
+
+class SendVersion with
+    var _uv_tcp_t& tcp;
+    function (_uv_tcp_t& tcp)=>SendVersion build;
+do
+    function (_uv_tcp_t& tcp)=>SendVersion build do
+        this.tcp = &tcp;
+    end
+
+    var u8[3] version = [VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH];
+    do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &version);
+end
+
+class ReceiveVersion with
+    var _uv_tcp_t& tcp;
+    function (_uv_tcp_t& tcp)=>ReceiveVersion build;
+do
+    function (_uv_tcp_t& tcp)=>ReceiveVersion build do
+        this.tcp = &tcp;
+    end
+
+    var u8[3] version;
+    var int n = 0;
+    var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&version);
+    loop do
+        var int n_ = await r.ok;
+        n = n + n_;
+        if n == 3 then
+            if version[0] != VERSION_MAJOR or
+               version[1] != VERSION_MINOR or
+               version[2] != VERSION_PATCH
+            then
+                escape _ERR_VERSION;
+            end
+            break;
+        else/if n > 3 then
+            escape _ERR_EXTRA_BYTES;
+        else
+            // read more
+        end
+    end
+    escape _SUCCESS;
+end
+
+#endif

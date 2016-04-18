@@ -1,0 +1,65 @@
+#ifndef _CLIENT_CEU
+#define _CLIENT_CEU
+
+#include "common.ceu"
+
+#if 0
+    uint32_t htonl(uint32_t hostlong);
+    uint16_t htons(uint16_t hostshort);
+    uint32_t ntohl(uint32_t netlong);
+    uint16_t ntohs(uint16_t netshort);
+#endif
+
+class ClientConnected with
+    var UV_TCP_Client& c;
+    function (UV_TCP_Client& c)=>ClientConnected build;
+do
+    function (UV_TCP_Client& c)=>ClientConnected build do
+        this.c = &c;
+    end
+
+    // VERSION
+    do
+        do SendVersion.build(&this.c.tcp);
+        var int err = do ReceiveVersion.build(&this.c.tcp);
+        if err then
+            escape err;
+        end
+        _printf("[client] version ok\n");
+    end
+
+    escape _SUCCESS;
+    //await FOREVER;
+end
+
+class Client with
+    input:
+        var int i;
+
+    function (int i)=>Client build;
+do
+    function (int i)=>Client build do
+        this.i = i;
+    end
+
+    loop do
+        var char[] ip   = [[ client.peers[@this.i][1] ]];
+        var int    port = [[ client.peers[@this.i][2] ]];
+        var UV_TCP_Client c = UV_TCP_Client.build(&ip, port);
+        var int status = await c.ok;
+
+        if status == 0 then
+            _printf("Connected to %s:%d.\n", (_char&&)&&ip, port);
+            watching c do
+                var int ret = do ClientConnected.build(&c);
+                _printf("Error: %d\n", ret);
+            end
+            _printf("Diconnected from %s:%d.\n", (_char&&)&&ip, port);
+        end
+
+        var int dt = [[ client.time_connection_retry ]];
+        await (dt)ms;
+    end
+end
+
+#endif

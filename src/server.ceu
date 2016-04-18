@@ -1,0 +1,27 @@
+#ifndef _SERVER_CEU
+#define _SERVER_CEU
+
+#include "common.ceu"
+
+class UV_TCP_Server_Handler with
+    var _uv_tcp_t& tcp;
+    function (_uv_tcp_t& tcp)=>UV_TCP_Server_Handler build;
+do
+    function (_uv_tcp_t& tcp)=>UV_TCP_Server_Handler build do
+        this.tcp = &tcp;
+    end
+
+    // VERSION
+    do
+        var int err = do ReceiveVersion.build(&this.tcp);
+        if err then
+            escape err;
+        end
+        do SendVersion.build(&this.tcp);
+        _printf("[server] version ok\n");
+    end
+
+    escape _SUCCESS;
+end
+
+#endif
