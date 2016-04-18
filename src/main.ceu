@@ -24,7 +24,7 @@ MAGIC_0     MAGIC_1     VERSION_MAJOR   VERSION_MINOR   VERSION_PATCH
 1           1           1               1               1
 
 -- TX_PROPOSE
-BC_SIGNED?  BC_LEN      BC_DATA     N_ZEROS         BLK_BACK_HASH   CONTENTS_DATA_HASH
+BC_SIGNED?  BC_LEN      BC_DATA     ZEROS_N         BLK_BACK_HASH   CONTENTS_DATA_HASH
 1b          7b          bc_len      1               32              32
 
 -- TX_CONTENTS
@@ -59,6 +59,7 @@ do
     var char&& cfg = argv[1];
     [[
         dofile(@cfg)
+        dofile("cfg/contents-01.lua")
     ]];
 end
 

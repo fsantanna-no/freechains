@@ -35,13 +35,13 @@ do
         _printf(" ]\n");
     end
 
-    // <= N_ZEROS
+    // <= ZEROS_N
     do
         off = nxt;
         nxt = nxt + 1;
         AWAIT_UNTIL(r,nxt);
-        var int n_zeros = bytes[off];
-        _printf("N_ZEROS = %d\n", n_zeros);
+        var int zeros_n = bytes[off];
+        _printf("ZEROS_N = %d\n", zeros_n);
     end
 
     // <= BLK_BACK_HASH
@@ -78,7 +78,7 @@ do
     //  - ainda não tenho CONTENTS_DATA_HASH?
     //  - quero essa BC?
     //      - quero mesmo que unsigned?
-    //  - quero com n_zeros < K?
+    //  - quero com zeros_n < K?
     //  - BLK_BACK_HASH é suficientemente recente?
     bytes = [1];
     do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
@@ -120,7 +120,21 @@ do
         off = nxt;
         nxt = nxt + contents_len;
         AWAIT_UNTIL(r,nxt);
-        _printf("CONTENTS_DATA = %s\n", (_char&&)&&(((_byte&&)&&bytes)[off]));
+
+        // TODO: trick to print the contents
+        if $bytes <= nxt then
+            $bytes := $bytes + 1;
+        end
+        var byte old = bytes[nxt];
+        bytes[nxt] = '\0';
+        _printf("CONTENTS_DATA = %s", (_char&&)&&(((_byte&&)&&bytes)[off]));
+        bytes[nxt] = old;
+    end
+
+    // == END
+    _assert(r.next >= nxt);
+    if r.next > nxt then
+        escape _ERR_EXTRA_BYTES;
     end
 
     escape _ERR_NONE;

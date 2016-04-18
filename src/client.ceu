@@ -19,9 +19,32 @@ do
     end
     var byte[] bytes;
 
-    // prepare "bytes"
+    // => BC_SIGNED?
+    // => BC_LEN
+    // => BC_DATA
     do
-        bytes = [ 5, 1,2,3,4,5, 99 ];
+        var bool bc_signed = [[ CONTENTS.bc_signed ]];
+        var int  bc_len    = [[ CONTENTS.bc_len    ]];
+        _assert(bc_len>=0 and bc_len<256);
+        var u8 bc = (bc_len | (bc_signed<<7));
+        bytes = []..bytes..[bc];
+
+        if bc_len > 0 then
+            var char[] bc_data = [[ CONTENTS.bc_data ]];
+            bytes = []..bytes..bc_data;
+        end
+    end
+
+    // => ZEROS_N
+    do
+        var int zeros_n = [[ CONTENTS.zeros_n ]];
+        _assert(zeros_n>=0 and zeros_n<256);
+        bytes = []..bytes..[zeros_n];
+    end
+
+    // => BLK_BACK_HASH
+    // => CONTENTS_DATA_HASH
+    do
         loop i in HASH_BYTES do
             bytes = []..bytes..[0x00+i];
         end
@@ -57,11 +80,17 @@ do
     function (_uv_tcp_t& tcp)=>TX_CONTENTS_send build do
         this.tcp = &tcp;
     end
+    var byte[] bytes;
 
-    var char[] payload = [] .. "ola mundo!";
-    var byte[] bytes = [99];
-    PUT_NETWORK_U32(bytes, $payload+1);
-    bytes = []..bytes..payload..['\0'];
+    // => NOUNCE
+    var u8 nounce = 0;
+    bytes = []..bytes..[nounce];
+
+    // => CONTENTS_LEN
+    // => CONTENTS_DATA
+    var char[] contents_data = [[ CONTENTS.contents_data ]];
+    PUT_NETWORK_U32(bytes, $contents_data);
+    bytes = []..bytes..contents_data;
 
     // => TX_CONTENTS
     do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
