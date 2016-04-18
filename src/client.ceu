@@ -20,8 +20,8 @@ do
 
     // VERSION
     do
-        do SendVersion.build(&this.c.tcp);
-        var int err = do ReceiveVersion.build(&this.c.tcp);
+        do MAGIC_VERSION_send.build(&this.c.tcp);
+        var int err = do MAGIC_VERSION_recv.build(&this.c.tcp);
         if err then
             escape err;
         end

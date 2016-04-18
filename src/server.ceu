@@ -13,11 +13,11 @@ do
 
     // VERSION
     do
-        var int err = do ReceiveVersion.build(&this.tcp);
+        var int err = do MAGIC_VERSION_recv.build(&this.tcp);
         if err then
             escape err;
         end
-        do SendVersion.build(&this.tcp);
+        do MAGIC_VERSION_send.build(&this.tcp);
         _printf("[server] version ok\n");
     end
 

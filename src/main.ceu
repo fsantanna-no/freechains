@@ -11,6 +11,17 @@
 #define UV_TCP_SERVER_HANDLER_CEU server.ceu
 #include "uv.ceu"
 
+/*
+-- on connection
+MAGIC_0     MAGIC_1     VERSION_MAJOR   VERSION_MINOR   VERSION_PATCH
+1           1           1               1               1
+
+-- TX_PROPOSE
+BC_LEN      BC_DATA     N_ZEROS         BLK-BACK-HASH   DATA-PL-HASH
+1           bc_len      1               32              32
+
+*/
+
 native do
     enum {
         SUCCESS = 0,

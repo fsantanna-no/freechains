@@ -4,11 +4,11 @@
 // MAGIC_* .. VERSION_*
 #define VERSION_NBYTES 5
 
-class SendVersion with
+class MAGIC_VERSION_send with
     var _uv_tcp_t& tcp;
-    function (_uv_tcp_t& tcp)=>SendVersion build;
+    function (_uv_tcp_t& tcp)=>MAGIC_VERSION_send build;
 do
-    function (_uv_tcp_t& tcp)=>SendVersion build do
+    function (_uv_tcp_t& tcp)=>MAGIC_VERSION_send build do
         this.tcp = &tcp;
     end
 
@@ -17,11 +17,11 @@ do
     do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &version);
 end
 
-class ReceiveVersion with
+class MAGIC_VERSION_recv with
     var _uv_tcp_t& tcp;
-    function (_uv_tcp_t& tcp)=>ReceiveVersion build;
+    function (_uv_tcp_t& tcp)=>MAGIC_VERSION_recv build;
 do
-    function (_uv_tcp_t& tcp)=>ReceiveVersion build do
+    function (_uv_tcp_t& tcp)=>MAGIC_VERSION_recv build do
         this.tcp = &tcp;
     end
 
