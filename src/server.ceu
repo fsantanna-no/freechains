@@ -56,12 +56,12 @@ do
         _printf(" ]\n");
     end
 
-    // <= DATA_PL_HASH
+    // <= CONTENTS_DATA_HASH
     do
         off = nxt;
         nxt = nxt + HASH_BYTES;
         AWAIT_UNTIL(r,nxt);
-        _printf("DATA_PL_HASH = [");
+        _printf("CONTENTS_DATA_HASH = [");
         loop i in HASH_BYTES do
             _printf("%2X", bytes[off+i]);
         end
@@ -75,7 +75,7 @@ do
     end
 
     // TODO: check
-    //  - ainda não tenho DATA_PL_HASH?
+    //  - ainda não tenho CONTENTS_DATA_HASH?
     //  - quero essa BC?
     //      - quero mesmo que unsigned?
     //  - quero com n_zeros < K?
@@ -86,11 +86,11 @@ do
     escape 1;
 end
 
-class TX_DATA_recv with
+class TX_CONTENTS_recv with
     var _uv_tcp_t& tcp;
-    function (_uv_tcp_t& tcp)=>TX_DATA_recv build;
+    function (_uv_tcp_t& tcp)=>TX_CONTENTS_recv build;
 do
-    function (_uv_tcp_t& tcp)=>TX_DATA_recv build do
+    function (_uv_tcp_t& tcp)=>TX_CONTENTS_recv build do
         this.tcp = &tcp;
     end
 
@@ -108,19 +108,19 @@ do
         _printf("NOUNCE = %d\n", nounce);
     end
 
-    // <= DATA_LEN
-    // <= DATA_PL
+    // <= CONTENTS_LEN
+    // <= CONTENTS_DATA
     do
         off = nxt;
         nxt = nxt + sizeof(u32);
         AWAIT_UNTIL(r,nxt);
-        var u32 data_len = GET_HOST_U32(bytes,off);
-        _printf("DATA_LEN = %d\n", data_len);
+        var u32 contents_len = GET_HOST_U32(bytes,off);
+        _printf("CONTENTS_LEN = %d\n", contents_len);
 
         off = nxt;
-        nxt = nxt + data_len;
+        nxt = nxt + contents_len;
         AWAIT_UNTIL(r,nxt);
-        _printf("DATA_PL = %s\n", (_char&&)&&(((_byte&&)&&bytes)[off]));
+        _printf("CONTENTS_DATA = %s\n", (_char&&)&&(((_byte&&)&&bytes)[off]));
     end
 
     escape _ERR_NONE;
@@ -147,7 +147,7 @@ do
 
     var int ok = do TX_PROPOSE_recv.build(&this.tcp);
     if ok then
-        var int err = do TX_DATA_recv.build(&this.tcp);
+        var int err = do TX_CONTENTS_recv.build(&this.tcp);
         _assert(err == _ERR_NONE);
     end
 

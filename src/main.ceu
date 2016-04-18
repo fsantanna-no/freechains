@@ -24,12 +24,12 @@ MAGIC_0     MAGIC_1     VERSION_MAJOR   VERSION_MINOR   VERSION_PATCH
 1           1           1               1               1
 
 -- TX_PROPOSE
-BC_SIGNED?  BC_LEN      BC_DATA     N_ZEROS         BLK_BACK_HASH   DATA_PL_HASH
+BC_SIGNED?  BC_LEN      BC_DATA     N_ZEROS         BLK_BACK_HASH   CONTENTS_DATA_HASH
 1b          7b          bc_len      1               32              32
 
--- TX_DATA
-NOUNCE      DATA_LEN    DATA_PL
-1           4 (1xU32)   data_len
+-- TX_CONTENTS
+NOUNCE      CONTENTS_LEN CONTENTS_DATA
+1           4 (1xU32)   contents_len
 */
 
 native do

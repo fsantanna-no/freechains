@@ -50,11 +50,11 @@ do
     escape ok;
 end
 
-class TX_DATA_send with
+class TX_CONTENTS_send with
     var _uv_tcp_t& tcp;
-    function (_uv_tcp_t& tcp)=>TX_DATA_send build;
+    function (_uv_tcp_t& tcp)=>TX_CONTENTS_send build;
 do
-    function (_uv_tcp_t& tcp)=>TX_DATA_send build do
+    function (_uv_tcp_t& tcp)=>TX_CONTENTS_send build do
         this.tcp = &tcp;
     end
 
@@ -63,7 +63,7 @@ do
     PUT_NETWORK_U32(bytes, $payload+1);
     bytes = []..bytes..payload..['\0'];
 
-    // => TX_DATA
+    // => TX_CONTENTS
     do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
 
     escape _ERR_NONE;
@@ -90,9 +90,9 @@ do
     // TX_PROPOSE_send
     var int ret = do TX_PROPOSE_send.build(&this.c.tcp);
 
-    // TX_DATA
+    // TX_CONTENTS
     if ret > 0 then
-        do TX_DATA_send.build(&this.c.tcp);
+        do TX_CONTENTS_send.build(&this.c.tcp);
     end
 
     escape _ERR_NONE;
