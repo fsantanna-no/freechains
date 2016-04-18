@@ -10,6 +10,65 @@
     uint16_t ntohs(uint16_t netshort);
 #endif
 
+class TX_PROPOSE_send with
+    var _uv_tcp_t& tcp;
+    function (_uv_tcp_t& tcp)=>TX_PROPOSE_send build;
+do
+    function (_uv_tcp_t& tcp)=>TX_PROPOSE_send build do
+        this.tcp = &tcp;
+    end
+    var byte[] bytes;
+
+    // prepare "bytes"
+    do
+        bytes = [ 5, 1,2,3,4,5, 99 ];
+        loop i in HASH_BYTES do
+            bytes = []..bytes..[0x00+i];
+        end
+        loop i in HASH_BYTES do
+            bytes = []..bytes..[0x80+i];
+        end
+    end
+
+    // => TX_PROPOSE
+    do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
+
+    // <= OK?
+    var int ok = 0;
+    do
+        $bytes = 0;
+        var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&bytes);
+        AWAIT_UNTIL(r,1);
+        _assert(r.next >= 1);
+        if r.next > 1 then
+            escape _ERR_EXTRA_BYTES;
+        end
+        ok = bytes[0];
+    end
+    _printf("OK = %d\n", ok);
+
+    escape ok;
+end
+
+class TX_DATA_send with
+    var _uv_tcp_t& tcp;
+    function (_uv_tcp_t& tcp)=>TX_DATA_send build;
+do
+    function (_uv_tcp_t& tcp)=>TX_DATA_send build do
+        this.tcp = &tcp;
+    end
+
+    var char[] payload = [] .. "ola mundo!";
+    var byte[] bytes = [99];
+    PUT_NETWORK_U32(bytes, $payload+1);
+    bytes = []..bytes..payload..['\0'];
+
+    // => TX_DATA
+    do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
+
+    escape _ERR_NONE;
+end
+
 class ClientConnected with
     var UV_TCP_Client& c;
     function (UV_TCP_Client& c)=>ClientConnected build;
@@ -30,10 +89,13 @@ do
 
     // TX_PROPOSE_send
     var int ret = do TX_PROPOSE_send.build(&this.c.tcp);
+
     // TX_DATA
+    if ret > 0 then
+        do TX_DATA_send.build(&this.c.tcp);
+    end
 
-
-    escape _SUCCESS;
+    escape _ERR_NONE;
     //await FOREVER;
 end
 

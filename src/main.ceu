@@ -27,11 +27,14 @@ MAGIC_0     MAGIC_1     VERSION_MAJOR   VERSION_MINOR   VERSION_PATCH
 BC_SIGNED?  BC_LEN      BC_DATA     N_ZEROS         BLK_BACK_HASH   DATA_PL_HASH
 1b          7b          bc_len      1               32              32
 
+-- TX_DATA
+NOUNCE      DATA_LEN    DATA_PL
+1           4 (1xU32)   data_len
 */
 
 native do
     enum {
-        SUCCESS         =  0,
+        ERR_NONE        =  0,
         ERR_EXTRA_BYTES = -1,
         ERR_VERSION     = -2,
     };

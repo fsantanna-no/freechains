@@ -3,6 +3,129 @@
 
 #include "client-server.ceu"
 
+class TX_PROPOSE_recv with
+    var _uv_tcp_t& tcp;
+    function (_uv_tcp_t& tcp)=>TX_PROPOSE_recv build;
+do
+    function (_uv_tcp_t& tcp)=>TX_PROPOSE_recv build do
+        this.tcp = &tcp;
+    end
+
+    var byte[TX_PROPOSE_BYTES] bytes;
+    var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&bytes);
+
+    var int nxt = 0;
+    var int off = nxt;
+
+    // <= BC_LEN
+    // <= BC_DATA
+    do
+        nxt = nxt + 1;
+        AWAIT_UNTIL(r,nxt);
+        var int bc_len = bytes[off];
+        _printf("BC_LEN = %d\n", bc_len);
+
+        off = nxt;
+        nxt = nxt + bc_len;
+        AWAIT_UNTIL(r,nxt);
+        _printf("BC_DATA = [");
+        loop i in bc_len do
+            _printf("%2d", bytes[off+i]);
+        end
+        _printf(" ]\n");
+    end
+
+    // <= N_ZEROS
+    do
+        off = nxt;
+        nxt = nxt + 1;
+        AWAIT_UNTIL(r,nxt);
+        var int n_zeros = bytes[off];
+        _printf("N_ZEROS = %d\n", n_zeros);
+    end
+
+    // <= BLK_BACK_HASH
+    do
+        off = nxt;
+        nxt = nxt + HASH_BYTES;
+        AWAIT_UNTIL(r,nxt);
+        _printf("BLK_BACK_HASH = [");
+        loop i in HASH_BYTES do
+            _printf("%2X", bytes[off+i]);
+        end
+        _printf(" ]\n");
+    end
+
+    // <= DATA_PL_HASH
+    do
+        off = nxt;
+        nxt = nxt + HASH_BYTES;
+        AWAIT_UNTIL(r,nxt);
+        _printf("DATA_PL_HASH = [");
+        loop i in HASH_BYTES do
+            _printf("%2X", bytes[off+i]);
+        end
+        _printf(" ]\n");
+    end
+
+    // == END
+    _assert(r.next >= nxt);
+    if r.next > nxt then
+        escape _ERR_EXTRA_BYTES;
+    end
+
+    // TODO: check
+    //  - ainda não tenho DATA_PL_HASH?
+    //  - quero essa BC?
+    //      - quero mesmo que unsigned?
+    //  - quero com n_zeros < K?
+    //  - BLK_BACK_HASH é suficientemente recente?
+    bytes = [1];
+    do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
+
+    escape 1;
+end
+
+class TX_DATA_recv with
+    var _uv_tcp_t& tcp;
+    function (_uv_tcp_t& tcp)=>TX_DATA_recv build;
+do
+    function (_uv_tcp_t& tcp)=>TX_DATA_recv build do
+        this.tcp = &tcp;
+    end
+
+    var byte[] bytes;
+    var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&bytes);
+
+    var int nxt = 0;
+    var int off = nxt;
+
+    // <= NOUNCE
+    do
+        nxt = nxt + 1;
+        AWAIT_UNTIL(r,nxt);
+        var int nounce = bytes[off];
+        _printf("NOUNCE = %d\n", nounce);
+    end
+
+    // <= DATA_LEN
+    // <= DATA_PL
+    do
+        off = nxt;
+        nxt = nxt + sizeof(u32);
+        AWAIT_UNTIL(r,nxt);
+        var u32 data_len = GET_HOST_U32(bytes,off);
+        _printf("DATA_LEN = %d\n", data_len);
+
+        off = nxt;
+        nxt = nxt + data_len;
+        AWAIT_UNTIL(r,nxt);
+        _printf("DATA_PL = %s\n", (_char&&)&&(((_byte&&)&&bytes)[off]));
+    end
+
+    escape _ERR_NONE;
+end
+
 class UV_TCP_Server_Handler with
     var _uv_tcp_t& tcp;
     function (_uv_tcp_t& tcp)=>UV_TCP_Server_Handler build;
@@ -17,13 +140,18 @@ do
         if err then
             escape err;
         end
-        do MAGIC_VERSION_send.build(&this.tcp);
+        err = do MAGIC_VERSION_send.build(&this.tcp);
+        _assert(err == _ERR_NONE);
         _printf("[server] version ok\n");
     end
 
-    do TX_PROPOSE_recv.build(&this.tcp);
+    var int ok = do TX_PROPOSE_recv.build(&this.tcp);
+    if ok then
+        var int err = do TX_DATA_recv.build(&this.tcp);
+        _assert(err == _ERR_NONE);
+    end
 
-    escape _SUCCESS;
+    escape _ERR_NONE;
 end
 
 #endif
