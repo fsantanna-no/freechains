@@ -4,10 +4,12 @@
 interface Message with
     var byte[] bytes;
     var u32[]  offs;
+    var int    err;
 end
 
 class Message_0_0_prepare with
     interface Message;
+    var int err = _ERR_NONE;
 do
     // => MESSAGE
     do
@@ -68,8 +70,8 @@ do
 
     offs = []..offs..[$bytes];
 
-do await FOREVER; end
-    escape _ERR_NONE;
+    this.err = _ERR_NONE;
+    await FOREVER;
 end
 
 class PeerSend with
@@ -96,7 +98,6 @@ do
             var u32 starting = 0;
             loop i in $this.message.offs do
                 // => offs[i]
-_printf("[client] > %d\n", i);
                 var u32 excluding = this.message.offs[i];
                 do UV_Stream_Write.build2(&_UV_STREAM_ALIAS(c.tcp),
                                           &this.message.bytes,
@@ -116,7 +117,6 @@ _printf("[client] > %d\n", i);
                     end
                     ok = recv[0];
                 end
-_printf("[client] < %d\n", i);
             end
         end
         escape _ERR_NONE;
@@ -133,6 +133,7 @@ do
     loop i in n do
         [[ MSG = APP.messages[@i+1] ]];
         var Message_0_0_prepare msg;
+        _assert(msg.err == _ERR_NONE);
 
         var int n = [[#APP.client.peers]];
         loop i in n do
@@ -141,7 +142,6 @@ do
         loop i in n do
             await 1s;//this.ok;
         end
-await FOREVER;
     end
 
     await FOREVER;
