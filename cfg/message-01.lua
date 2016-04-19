@@ -1,5 +1,5 @@
-CONTENTS {
-    version   = '0.0.1',
+MESSAGE {
+    id        = '0.0',
     bc_signed = false,
     bc_len    = 0,
     bc_data   = nil,

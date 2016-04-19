@@ -1,7 +1,7 @@
 APP = {
     server   = {},
     client   = {},
-    commands = {},
+    messages = {},
 }
 
 function SERVER (t)
@@ -16,14 +16,11 @@ function CLIENT (t)
     end
 end
 
-function CONTENTS (t)
-    local major,minor,patch = string.match(t.version,'(%d+)%.(%d+)%.(%d+)')
-    t.version_t = {
+function MESSAGE (t)
+    local major,minor = string.match(t.id,'(%d+)%.(%d+)')
+    t.id_t = {
         major = major,
         minor = minor,
-        patch = patch,
     }
-    t.command = 'contents'
-    APP.commands[#APP.commands+1] = t
-    --APP.contents = t
+    APP.messages[#APP.messages+1] = t
 end

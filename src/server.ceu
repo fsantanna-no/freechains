@@ -15,21 +15,21 @@ do
     var int nxt = 0;
     var int off = 0;
 
-    // <= VERSION
-_printf("1\n");
+    // <= MESSAGE
     do
         off = nxt;
-        nxt = nxt + 1+1+1;
+        nxt = nxt + 1+1+1+1;
         AWAIT_UNTIL(r,nxt);
-_printf("2\n");
 
-        if bytes[off+0] != VERSION_MAJOR  or
-           bytes[off+1] != VERSION_MINOR  or
-           bytes[off+2] != VERSION_PATCH
+        if bytes[off+0] != MESSAGE_MAGIC_0  or
+           bytes[off+1] != MESSAGE_MAGIC_1  or
+           bytes[off+2] != MESSAGE_MAJOR    or
+           bytes[off+3] != MESSAGE_MINOR
         then
-            escape _ERR_VERSION;
+            escape _ERR_MESSAGE;
         end
-        _printf("VERSION = [%d %d %d]\n", bytes[off+0], bytes[off+1], bytes[off+2]);
+        _printf("MESSAGE = [%d %d %d %d]\n",
+                bytes[off+0], bytes[off+1], bytes[off+2], bytes[off+3]);
     end
 
     // <= BC_LEN

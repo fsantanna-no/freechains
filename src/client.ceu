@@ -33,16 +33,13 @@ do
     if status == 0 then
         _printf("Connected to %s:%d.\n", (_char&&)&&ip, port);
         watching c do
-_printf("1: %d/%d\n", off, $bytes);
             // => CONTENTS_PUT
             do UV_Stream_Write.build2(&_UV_STREAM_ALIAS(c.tcp), &bytes, 0, off);
-_printf("2\n");
 
             // <= OK?
             var int ok = 0;
             do
                 var byte[] recv;
-_printf("3\n");
                 var UV_Stream_Read r = 
                 UV_Stream_Read.build(&_UV_STREAM_ALIAS(c.tcp),&recv);
                 AWAIT_UNTIL(r,1);
@@ -68,40 +65,39 @@ _printf("3\n");
     escape _ERR_DISCONNECTED;
 end
 
-class CONTENTS with
+class Message_0_0 with
     pool Peer[]& peers;
 do
     var byte[] bytes;
 
     //////////////////////////////////////////////////////////////////////////
 
-    // => VERSION
+    // => MESSAGE
     do
-        var int major = [[ CMD.version_t.major ]];
-        var int minor = [[ CMD.version_t.minor ]];
-        var int patch = [[ CMD.version_t.patch ]];
-        bytes = []..bytes..[major, minor, patch];
+        var int major = [[ MSG.id_t.major ]];
+        var int minor = [[ MSG.id_t.minor ]];
+        bytes = []..bytes..[MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, major, minor];
     end
 
     // => BC_SIGNED?
     // => BC_LEN
     // => BC_DATA
     do
-        var bool bc_signed = [[ CMD.bc_signed ]];
-        var int  bc_len    = [[ CMD.bc_len    ]];
+        var bool bc_signed = [[ MSG.bc_signed ]];
+        var int  bc_len    = [[ MSG.bc_len    ]];
         _assert(bc_len>=0 and bc_len<256);
         var u8 bc = (bc_len | (bc_signed<<7));
         bytes = []..bytes..[bc];
 
         if bc_len > 0 then
-            var char[] bc_data = [[ CMD.bc_data ]];
+            var char[] bc_data = [[ MSG.bc_data ]];
             bytes = []..bytes..bc_data;
         end
     end
 
     // => ZEROS_N
     do
-        var int zeros_n = [[ CMD.zeros_n ]];
+        var int zeros_n = [[ MSG.zeros_n ]];
         _assert(zeros_n>=0 and zeros_n<256);
         bytes = []..bytes..[zeros_n];
     end
@@ -131,7 +127,7 @@ do
 
     // => CONTENTS_LEN
     // => CONTENTS_DATA
-    var char[] contents_data = [[ CMD.contents_data ]];
+    var char[] contents_data = [[ MSG.contents_data ]];
     PUT_NETWORK_U32(bytes, $contents_data);
     bytes = []..bytes..contents_data;
 
@@ -151,18 +147,12 @@ class Client with
 do
     pool Peer[] peers;
 
-    var int n = [[ #APP.commands ]];
+    var int n = [[ #APP.messages ]];
     loop i in n do
-        [[ CMD = APP.commands[@i+1] ]];
-        var char[] command = [[ CMD.command ]];
-        if _strcmp((_char&&)&&command,"contents") == 0 then
-            _printf("contents\n");
-            do CONTENTS with
-                this.peers = &peers;
-            end;
-        else
-            _assert(0);
-        end
+        [[ MSG = APP.messages[@i+1] ]];
+        do Message_0_0 with
+            this.peers = &peers;
+        end;
     end
 
     await FOREVER;
