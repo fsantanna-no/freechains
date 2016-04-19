@@ -18,10 +18,15 @@ do
         bytes = []..bytes..[MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, major, minor];
     end
 
+    // => BC_ZEROS
     // => BC_SIGNED?
     // => BC_LEN
     // => BC_DATA
     do
+        var int bc_zeros = [[ MSG.bc_zeros ]];
+        _assert(bc_zeros>=0 and bc_zeros<256);
+        bytes = []..bytes..[bc_zeros];
+
         var bool bc_signed = [[ MSG.bc_signed ]];
         var int  bc_len    = [[ MSG.bc_len    ]];
         _assert(bc_len>=0 and bc_len<256);
@@ -34,39 +39,61 @@ do
         end
     end
 
-    // => ZEROS_N
+    // => PAYLOAD_HASH
     do
-        var int zeros_n = [[ MSG.zeros_n ]];
-        _assert(zeros_n>=0 and zeros_n<256);
-        bytes = []..bytes..[zeros_n];
+        loop i in HASH_BYTES do
+            if i==0 or i==HASH_BYTES-1 then
+                bytes = []..bytes..[0xEE];  // TODO
+            else
+                bytes = []..bytes..[0xFF];  // TODO
+            end
+        end
     end
 
-    // => BLK_BACK_HASH
-    // => CONTENTS_DATA_HASH
-    do
-        // TODO: BLK_BACK_HASH
-        loop i in HASH_BYTES do
-            bytes = []..bytes..[0xEE];
-        end
-        // TODO: CONTENTS_DATA_HASH
-        loop i in HASH_BYTES do
-            bytes = []..bytes..[0xEE];
-        end
-    end
 
     offs = []..offs..[$bytes];
 
     //////////////////////////////////////////////////////////////////////////
 
-    // => NOUNCE
-    var u8 nounce = 99;
-    bytes = []..bytes..[nounce];
+    // => PoW
+    do
+        var u32 pow = 0xEEFFFFEE;       // TODO
+        PUT_NETWORK_U32(bytes, pow);
+    end
 
-    // => CONTENTS_LEN
-    // => CONTENTS_DATA
-    var char[] contents_data = [[ MSG.contents_data ]];
-    PUT_NETWORK_U32(bytes, $contents_data);
-    bytes = []..bytes..contents_data;
+    // => PoS
+    do
+        var u8 pos = 0xEE;              // TODO
+        bytes = []..bytes..[pos];
+    end
+
+    // => BACK_HASH
+    do
+        loop i in HASH_BYTES do
+            if i==0 or i==HASH_BYTES-1 then
+                bytes = []..bytes..[0xEE];  // TODO
+            else
+                bytes = []..bytes..[0xFF];  // TODO
+            end
+        end
+    end
+
+    // => TAIL_HASH
+    do
+        loop i in HASH_BYTES do
+            if i==0 or i==HASH_BYTES-1 then
+                bytes = []..bytes..[0xEE];  // TODO
+            else
+                bytes = []..bytes..[0xFF];  // TODO
+            end
+        end
+    end
+
+    // => PAYLOAD_LEN
+    // => PAYLOAD
+    var char[] payload = [[ MSG.payload ]];
+    PUT_NETWORK_U32(bytes, $payload);
+    bytes = []..bytes..payload;
 
     offs = []..offs..[$bytes];
 
@@ -80,20 +107,20 @@ end
 
 class PeerSend with
 input:
-    var int i;
+    var int peer_i;
     var Message&      message;
     var PeerListener& listener;
 
     function (int i, Message& message, PeerListener& listener)=>PeerSend build;
 do
     function (int i, Message& message, PeerListener& listener)=>PeerSend build do
-        this.i        = i;
+        this.peer_i   = i;
         this.message  = &message;
         this.listener = &listener;
     end
 
-    var char[] ip   = [[ APP.client.peers[@this.i][1] ]];
-    var int    port = [[ APP.client.peers[@this.i][2] ]];
+    var char[] ip   = [[ APP.client.peers[@this.peer_i][1] ]];
+    var int    port = [[ APP.client.peers[@this.peer_i][2] ]];
     _printf("[client] Connecting to %s:%d.\n", (_char&&)&&ip, port);
     var UV_TCP_Client c = UV_TCP_Client.build(&ip, port);
     var int status = await c.ok;
@@ -134,19 +161,19 @@ end
 class Client with
     interface PeerListener;
 do
-    var int n = [[ #APP.messages ]];
+    var int ni = [[ #APP.messages ]];
 
-    loop i in n do
+    loop i in ni do
         [[ MSG = APP.messages[@i+1] ]];
         var Message_0_0_prepare msg;
         _assert(msg.err == _ERR_NONE);
 
         _printf("[client] Sending message...\n");
-        var int n = [[#APP.client.peers]];
-        loop i in n do
-            spawn PeerSend.build(i+1, &msg, &this);
+        var int nj = [[#APP.client.peers]];
+        loop j in nj do
+            spawn PeerSend.build(j+1, &msg, &this);
         end
-        loop i in n do
+        loop j in nj do
             var int err = await this.ok;
             _printf("[client]\tpeer %d\n", err);
         end

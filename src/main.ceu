@@ -8,8 +8,6 @@
 #define HASH_BYTES      32
 #define BC_DATA_BYTES   128
 
-#define CONTENTS_PUT_BYTES  (1+1+1+1+BC_DATA_BYTES+1+HASH_BYTES+HASH_BYTES)
-
 #define AWAIT_UNTIL(r,nxt)          \
     if r.next < nxt then            \
         loop do                     \
@@ -25,16 +23,45 @@
 #include "client.ceu"
 
 /*
--- CONTENTS
-MESSAGE_MAGIC_0 MESSAGE_MAGIC_1 MESSAGE_MAJOR   MESSAGE_MINOR
-1               1               1               1
-BC_SIGNED?      BC_LEN          BC_DATA
-1b              7b              bc_len
-ZEROS_N         BLK_BACK_HASH   CONTENTS_DATA_HASH
-1               32              32
---
-NOUNCE          CONTENTS_LEN    CONTENTS_DATA
-1               4 (1xU32)       contents_len
+///////////////////////////////////////////////////////////////////////////////
+// client proposes message
+///////////////////////////////////////////////////////////////////////////////
+// identifies this message (protocol, version)
+//  a server may refuse or behave differently
+MESSAGE_MAGIC_0  1        // 'P'
+MESSAGE_MAGIC_1  1        // 'S'
+MESSAGE_MAJOR    1
+MESSAGE_MINOR    1
+// identifies the blockchain for this message
+//  a server may not be interested in this blockchain
+BC_ZEROS         1        // number of required zeros for PoWs
+BC_SIGNED?       1b       // message must be signed and checked
+BC_LEN           7b       // number of bytes for the BC identifier
+BC_DATA          <BC_LEN> // BC identifier (pubkey?, topic?) (if signed, must be pubkey)
+// identifies the data for this message
+//  a server may have this payload
+PAYLOAD_HASH     32       // TODO hash of the payload
+///////////////////////////////////////////////////////////////////////////////
+// server responds 0/1
+// client completes message
+///////////////////////////////////////////////////////////////////////////////
+//  H = hash[PoW .. BACK_HASH .. PAYLOAD_HASH]
+PoW              4 u32    // nonce for H
+PoS              1        // value of random jump in the BC
+BACK_HASH        32       // immutable: a past hash at most TODO jumps away from PAYLOAD_HASH
+TAIL_HASH        32       // mutable: immediate past hash which creates the chain
+PAYLOAD_LEN      4 u32    // number of bytes to read next for the payload
+PAYLOAD          <PAYLOAD_LEN>
+///////////////////////////////////////////////////////////////////////////////
+//  - H must have BC_ZEROS leading zeros
+//  - on creation, BACK_HASH=TAIL_HASH, but nodes can change TAIL_HASH to 
+//    reorder the chain
+//  - since H uses BACK_HASH, an attacker cannot preprocess a side chain and 
+//    attach it to a recent node to force a fork
+//  - PoS = BACK_HASH - H(mapped to full memory from BACK_HASH to genesis)
+//      - force nodes willing to publish to keep all data
+//          - in BTC, miners need to check funds looking all the way back
+///////////////////////////////////////////////////////////////////////////////
 */
 
 native do
@@ -43,11 +70,6 @@ native do
         ERR_EXTRA_BYTES  = -1,
         ERR_MESSAGE      = -2,
         ERR_DISCONNECTED = -3,
-    };
-    enum {
-        MSG_NONE = 0,
-        MSG_CONTENTS_PUT,
-        MSG_CONTENTS_DATA,
     };
 end
 
