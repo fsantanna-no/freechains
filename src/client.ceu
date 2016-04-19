@@ -74,16 +74,22 @@ do
     await FOREVER;
 end
 
+interface PeerListener with
+    event int ok;
+end
+
 class PeerSend with
 input:
     var int i;
-    var Message& message;
+    var Message&      message;
+    var PeerListener& listener;
 
-    function (int i, Message& message)=>PeerSend build;
+    function (int i, Message& message, PeerListener& listener)=>PeerSend build;
 do
-    function (int i, Message& message)=>PeerSend build do
-        this.i       = i;
-        this.message = &message;
+    function (int i, Message& message, PeerListener& listener)=>PeerSend build do
+        this.i        = i;
+        this.message  = &message;
+        this.listener = &listener;
     end
 
     var char[] ip   = [[ APP.client.peers[@this.i][1] ]];
@@ -127,6 +133,7 @@ do
 end
 
 class Client with
+    interface PeerListener;
 do
     var int n = [[ #APP.messages ]];
 
@@ -135,16 +142,19 @@ do
         var Message_0_0_prepare msg;
         _assert(msg.err == _ERR_NONE);
 
+        _printf("[client] Sending message...\n");
         var int n = [[#APP.client.peers]];
         loop i in n do
-            spawn PeerSend.build(i+1, &msg);
+            spawn PeerSend.build(i+1, &msg, &this);
         end
         loop i in n do
-            await 1s;//this.ok;
+            var int err = await this.ok;
+            _printf("[client]\tpeer %d\n", err);
         end
+        _printf("[client] Send OK!\n");
     end
 
-    await FOREVER;
+    escape _ERR_NONE;
 end
 
 #endif
