@@ -1,77 +1,14 @@
 #ifndef _CLIENT_CEU
 #define _CLIENT_CEU
 
-class ClientConnected with
-    var UV_TCP_Client& c;
-    function (UV_TCP_Client& c)=>ClientConnected build;
-do
-    function (UV_TCP_Client& c)=>ClientConnected build do
-        this.c = &c;
-    end
-end
-
-class Peer with
-    var byte[]& bytes;
-input:
-    var int i;
-    var u32 off;
-
-    function (int i, byte[]& bytes, u32 off)=>Peer build;
-do
-    function (int i, byte[]& bytes, u32 off)=>Peer build do
-        this.i     = i;
-        this.bytes = &bytes;
-        this.off   = off;
-    end
-
-    var char[] ip   = [[ APP.client.peers[@this.i][1] ]];
-    var int    port = [[ APP.client.peers[@this.i][2] ]];
-        _printf("Connecting to %s:%d.\n", (_char&&)&&ip, port);
-    var UV_TCP_Client c = UV_TCP_Client.build(&ip, port);
-    var int status = await c.ok;
-
-    if status == 0 then
-        _printf("Connected to %s:%d.\n", (_char&&)&&ip, port);
-        watching c do
-            // => CONTENTS_PUT
-            do UV_Stream_Write.build2(&_UV_STREAM_ALIAS(c.tcp), &bytes, 0, off);
-
-            // <= OK?
-            var int ok = 0;
-            do
-                var byte[] recv;
-                var UV_Stream_Read r = 
-                UV_Stream_Read.build(&_UV_STREAM_ALIAS(c.tcp),&recv);
-                AWAIT_UNTIL(r,1);
-                _assert(r.next >= 1);
-                if r.next > 1 then
-                    escape _ERR_EXTRA_BYTES;
-                end
-                ok = recv[0];
-            end
-            _printf("OK = %d\n", ok);
-
-            // => CONTENTS_DATA
-            do UV_Stream_Write.build2(&_UV_STREAM_ALIAS(c.tcp), &bytes, off, $bytes);
-
-            escape _ERR_NONE;
-        end
-    end
-
-        //var int dt = [[ APP.client.time_connection_retry ]];
-        //await (dt)ms;
-
-    _printf("Diconnected from %s:%d.\n", (_char&&)&&ip, port);
-    escape _ERR_DISCONNECTED;
-end
-
-class Message_0_0 with
-    pool Peer[]& peers;
-do
+interface Message with
     var byte[] bytes;
+    var u32[]  offs;
+end
 
-    //////////////////////////////////////////////////////////////////////////
-
+class Message_0_0_prepare with
+    interface Message;
+do
     // => MESSAGE
     do
         var int major = [[ MSG.id_t.major ]];
@@ -115,9 +52,7 @@ do
         end
     end
 
-    //////////////////////////////////////////////////////////////////////////
-
-    var u32 off = $bytes;
+    offs = []..offs..[$bytes];
 
     //////////////////////////////////////////////////////////////////////////
 
@@ -131,28 +66,82 @@ do
     PUT_NETWORK_U32(bytes, $contents_data);
     bytes = []..bytes..contents_data;
 
-    //////////////////////////////////////////////////////////////////////////
+    offs = []..offs..[$bytes];
 
-    var int n = [[#APP.client.peers]];
-    loop i in n do
-_printf(">>> %d/%d\n", off, $bytes);
-        spawn Peer.build(i+1, &bytes, off) in this.peers;
+do await FOREVER; end
+    escape _ERR_NONE;
+end
+
+class PeerSend with
+input:
+    var int i;
+    var Message& message;
+
+    function (int i, Message& message)=>PeerSend build;
+do
+    function (int i, Message& message)=>PeerSend build do
+        this.i       = i;
+        this.message = &message;
     end
 
-await 5s;
-    escape _ERR_NONE;
+    var char[] ip   = [[ APP.client.peers[@this.i][1] ]];
+    var int    port = [[ APP.client.peers[@this.i][2] ]];
+    _printf("[client] Connecting to %s:%d.\n", (_char&&)&&ip, port);
+    var UV_TCP_Client c = UV_TCP_Client.build(&ip, port);
+    var int status = await c.ok;
+
+    if status == 0 then
+        _printf("[client] Connected to %s:%d.\n", (_char&&)&&ip, port);
+        watching c do
+            var u32 starting = 0;
+            loop i in $this.message.offs do
+                // => offs[i]
+_printf("[client] > %d\n", i);
+                var u32 excluding = this.message.offs[i];
+                do UV_Stream_Write.build2(&_UV_STREAM_ALIAS(c.tcp),
+                                          &this.message.bytes,
+                                          starting, excluding);
+                starting = excluding;
+
+                // <= OK?
+                var int ok = 0;
+                do
+                    var byte[] recv;
+                    var UV_Stream_Read r = 
+                    UV_Stream_Read.build(&_UV_STREAM_ALIAS(c.tcp),&recv);
+                    AWAIT_UNTIL(r,1);
+                    _assert(r.next >= 1);
+                    if r.next > 1 then
+                        escape _ERR_EXTRA_BYTES;
+                    end
+                    ok = recv[0];
+                end
+_printf("[client] < %d\n", i);
+            end
+        end
+        escape _ERR_NONE;
+    end
+
+    _printf("[client] Diconnected from %s:%d.\n", (_char&&)&&ip, port);
+    escape _ERR_DISCONNECTED;
 end
 
 class Client with
 do
-    pool Peer[] peers;
-
     var int n = [[ #APP.messages ]];
+
     loop i in n do
         [[ MSG = APP.messages[@i+1] ]];
-        do Message_0_0 with
-            this.peers = &peers;
-        end;
+        var Message_0_0_prepare msg;
+
+        var int n = [[#APP.client.peers]];
+        loop i in n do
+            spawn PeerSend.build(i+1, &msg);
+        end
+        loop i in n do
+            await 1s;//this.ok;
+        end
+await FOREVER;
     end
 
     await FOREVER;
