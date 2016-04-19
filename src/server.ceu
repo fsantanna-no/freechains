@@ -90,19 +90,23 @@ do
         escape _ERR_EXTRA_BYTES;
     end
 
-    // TODO: check
-    //  - ainda não tenho CONTENTS_DATA_HASH?
-    //  - quero essa BC?
-    //      - quero mesmo que unsigned?
-    //  - quero com zeros_n < K?
-    //  - BLK_BACK_HASH é suficientemente recente?
-    bytes = [1];
-    do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
+    // == CHECK
+    do
+        // TODO: check
+        //  - ainda não tenho CONTENTS_DATA_HASH?
+        //  - quero essa BC?
+        //      - quero mesmo que unsigned?
+        //  - quero com zeros_n < K?
+        //  - BLK_BACK_HASH é suficientemente recente?
+        var byte[1] send = [1];
+        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
+    end
 
     //////////////////////////////////////////////////////////////////////////
 
     // <= NOUNCE
     do
+        off = nxt;
         nxt = nxt + 1;
         AWAIT_UNTIL(r,nxt);
         var int nounce = bytes[off];
@@ -123,13 +127,11 @@ do
         AWAIT_UNTIL(r,nxt);
 
         // TODO: trick to print the contents
-        if $bytes <= nxt then
-            $bytes := $bytes + 1;
-        end
-        var byte old = bytes[nxt];
+        _assert($bytes == nxt);
+        $bytes := $bytes + 1;
         bytes[nxt] = '\0';
         _printf("[server] CONTENTS_DATA = %s", (_char&&)&&(((_byte&&)&&bytes)[off]));
-        bytes[nxt] = old;
+        $bytes = $bytes - 1;
     end
 
     // == END
@@ -138,14 +140,13 @@ do
         escape _ERR_EXTRA_BYTES;
     end
 
-    // TODO: check
-    //  - ainda não tenho CONTENTS_DATA_HASH?
-    //  - quero essa BC?
-    //      - quero mesmo que unsigned?
-    //  - quero com zeros_n < K?
-    //  - BLK_BACK_HASH é suficientemente recente?
-    bytes = [1];
-    do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
+    // == CHECK
+    do
+        // TODO: check
+        //  - tudo casa?
+        var byte[1] send = [1];
+        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
+    end
 
     escape _ERR_NONE;
 end

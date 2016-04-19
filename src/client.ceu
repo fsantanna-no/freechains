@@ -59,7 +59,7 @@ do
     //////////////////////////////////////////////////////////////////////////
 
     // => NOUNCE
-    var u8 nounce = 0;
+    var u8 nounce = 99;
     bytes = []..bytes..[nounce];
 
     // => CONTENTS_LEN
@@ -108,14 +108,12 @@ do
                 do UV_Stream_Write.build2(&_UV_STREAM_ALIAS(c.tcp),
                                           &this.message.bytes,
                                           starting, excluding);
-                starting = excluding;
 
                 // <= OK?
                 var int ok = 0;
                 do
                     var byte[] recv;
-                    var UV_Stream_Read r = 
-                    UV_Stream_Read.build(&_UV_STREAM_ALIAS(c.tcp),&recv);
+                    var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(c.tcp),&recv);
                     AWAIT_UNTIL(r,1);
                     _assert(r.next >= 1);
                     if r.next > 1 then
@@ -123,6 +121,7 @@ do
                     end
                     ok = recv[0];
                 end
+                starting = excluding;
             end
         end
         escape _ERR_NONE;
