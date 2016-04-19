@@ -23,6 +23,7 @@ function CONTENTS (t)
         minor = minor,
         patch = patch,
     }
-    --APP.commands[#APP.commands] = t
-    APP.contents = t
+    t.command = 'contents'
+    APP.commands[#APP.commands+1] = t
+    --APP.contents = t
 end

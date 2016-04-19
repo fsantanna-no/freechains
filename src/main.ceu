@@ -3,7 +3,7 @@
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 0
 #define VERSION_PATCH 1
-#define VERSION 0.0.0       // TODO stringify
+#define VERSION 0.0.1       // TODO stringify
 
 #define HASH_BYTES      32
 #define BC_DATA_BYTES   128
@@ -22,26 +22,27 @@
 
 #define UV_TCP_SERVER_HANDLER_CEU server.ceu
 #include "uv.ceu"
+#include "client.ceu"
 
 /*
--- CONTENTS_PUT
+-- CONTENTS
 VERSION_MAJOR   VERSION_MINOR   VERSION_PATCH
 1               1               1
 BC_SIGNED?      BC_LEN          BC_DATA
 1b              7b              bc_len
 ZEROS_N         BLK_BACK_HASH   CONTENTS_DATA_HASH
 1               32              32
-
--- CONTENTS_DATA
+--
 NOUNCE          CONTENTS_LEN    CONTENTS_DATA
 1               4 (1xU32)       contents_len
 */
 
 native do
     enum {
-        ERR_NONE        =  0,
-        ERR_EXTRA_BYTES = -1,
-        ERR_VERSION     = -2,
+        ERR_NONE         =  0,
+        ERR_EXTRA_BYTES  = -1,
+        ERR_VERSION      = -2,
+        ERR_DISCONNECTED = -3,
     };
     enum {
         MSG_NONE = 0,
@@ -69,20 +70,14 @@ loop i in argc-1 do
     ]];
 end
 
-// spawn one client for each cfg.peers
-do
-    #include "client.ceu"
-    var int n = [[#APP.client.peers]];
-    loop i in n do
-        spawn Client.build(i+1);
-    end
-end
-
-// start one server
-do
+par/or do
+    do Client;
+    await FOREVER;
+with
     var char[] ip      = [[ APP.server.host[1] ]];
     var int    port    = [[ APP.server.host[2] ]];
     var int    backlog = [[ APP.server.backlog ]];
+    _printf("Listening in %s:%d.\n", (_char&&)&&ip, port);
     do UV_TCP_Server.build(&ip, port, backlog);
 end
 

@@ -16,10 +16,12 @@ do
     var int off = 0;
 
     // <= VERSION
+_printf("1\n");
     do
         off = nxt;
         nxt = nxt + 1+1+1;
         AWAIT_UNTIL(r,nxt);
+_printf("2\n");
 
         if bytes[off+0] != VERSION_MAJOR  or
            bytes[off+1] != VERSION_MINOR  or
