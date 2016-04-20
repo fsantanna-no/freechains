@@ -19,14 +19,16 @@
     end
 
 interface IMessage with
+output:
     var byte[] bytes;
     var u32[]  offs;
     var int    err;
 end
 
-#define UV_TCP_SERVER_HANDLER_CEU server.ceu
 #include "uv.ceu"
 #include "client.ceu"
+#define UV_TCP_SERVER_HANDLER_CEU server.ceu
+#include "uv-server.ceu"
 
 /*
 ///////////////////////////////////////////////////////////////////////////////
