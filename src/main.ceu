@@ -5,8 +5,8 @@
 #define MESSAGE_MAJOR   0
 #define MESSAGE_MINOR   0
 
-#define HASH_BYTES      32
-#define BC_DATA_BYTES   128
+#define HASH_BYTES       32
+#define CHAIN_DATA_BYTES 128
 
 #define AWAIT_UNTIL(r,nxt)          \
     if r.next < nxt then            \
@@ -43,9 +43,9 @@ MESSAGE_MAJOR    1
 MESSAGE_MINOR    1
 // identifies the blockchain for this message
 //  a server may not be interested in this blockchain
-BC_SIGNED?       1b       // message must be signed and checked
-BC_LEN           7b       // number of bytes for the BC identifier
-BC_DATA          <BC_LEN> // BC identifier (pubkey?, topic?) (if signed, must be pubkey)
+CHAIN_SIGNED?    1b       // message must be signed and checked
+CHAIN_LEN        7b       // number of bytes for the CHAIN identifier
+CHAIN_DATA       <CHAIN_LEN> // CHAIN identifier (pubkey?, topic?) (if signed, must be pubkey)
 // identifies the data for this message
 //  a server may already have this payload and refuse it
 HASH_0s          32       // TODO hash of the payload
@@ -53,15 +53,15 @@ HASH_0s          32       // TODO hash of the payload
 // server responds 0/1
 // client completes message
 ///////////////////////////////////////////////////////////////////////////////
-//  HASH_0s = hash[PoW .. BC_SIGNED .. BC_DATA .. BACK_HASH .. PAYLOAD_HASH]
+//  HASH_0s = hash[PoW .. CHAIN_SIGNED .. CHAIN_DATA .. BACK_HASH ..  PAYLOAD_HASH]
 PoW              4 u32    // nonce for HASH_0s
-PoS              1        // value of random jump (based on HASH_0s) in the BC
+PoS              1        // value of random jump (based on HASH_0s) in the CHAIN
 BACK_HASH        32       // immutable: a past hash at most TODO jumps away from PAYLOAD_HASH
 TAIL_HASH        32       // mutable: immediate past hash which creates the chain
 PAYLOAD_LEN      4 u32    // number of bytes to read next for the payload
 PAYLOAD          <PAYLOAD_LEN>
 ///////////////////////////////////////////////////////////////////////////////
-//  - HASH_0s: the number of leading 0s + BC_SIGNED + BC_DATA idenditifies the target BC
+//  - HASH_0s: the number of leading 0s + CHAIN_SIGNED + CHAIN_DATA idenditifies the target CHAIN
 //  - on creation, BACK_HASH=TAIL_HASH, but nodes can change TAIL_HASH to 
 //    reorder the chain
 //  - since HASH_0s uses BACK_HASH, an attacker cannot preprocess a side chain 

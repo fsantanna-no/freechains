@@ -2,7 +2,7 @@ APP = {
     server    = {},  -- server configurations
     client    = {},  -- client configurations
     hashes_0s = {},  -- hashes owned
-    messages  = {},  -- pending messages
+    messages  = {},  -- pending messages to transmit
 }
 
 function SERVER (t)

@@ -17,19 +17,19 @@ do
                          [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, major, minor];
     end
 
-    // => BC_SIGNED?
-    // => BC_LEN
-    // => BC_DATA
+    // => CHAIN_SIGNED?
+    // => CHAIN_LEN
+    // => CHAIN_DATA
     do
-        var bool bc_signed = [[ MSG.bc_signed ]];
-        var int  bc_len    = [[ MSG.bc_len    ]];
-        _assert(bc_len>=0 and bc_len<256);
-        var u8 bc = (bc_len | (bc_signed<<7));
-        this.msg.bytes = []..this.msg.bytes..[bc];
+        var bool chain_signed = [[ MSG.chain_signed ]];
+        var int  chain_len    = [[ MSG.chain_len    ]];
+        _assert(chain_len>=0 and chain_len<256);
+        var u8 chain = (chain_len | (chain_signed<<7));
+        this.msg.bytes = []..this.msg.bytes..[chain];
 
-        if bc_len > 0 then
-            var char[] bc_data = [[ MSG.bc_data ]];
-            this.msg.bytes = []..this.msg.bytes..bc_data;
+        if chain_len > 0 then
+            var char[] chain_data = [[ MSG.chain_data ]];
+            this.msg.bytes = []..this.msg.bytes..chain_data;
         end
     end
 
