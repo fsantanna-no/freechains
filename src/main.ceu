@@ -2,8 +2,6 @@
 
 #define MESSAGE_MAGIC_0 'P'
 #define MESSAGE_MAGIC_1 'S'
-#define MESSAGE_MAJOR   0
-#define MESSAGE_MINOR   0
 
 #define HASH_BYTES       32
 #define CHAIN_DATA_BYTES 128

@@ -3,19 +3,19 @@
 
 native do
     enum {
-        MESSAGE00_OK = 1,
-        MESSAGE00_HAVE,
+        MESSAGE10_OK = 1,
+        MESSAGE10_HAVE,
     };
 end
 
-class Message00_receive with
+class Message10_receive with
 input:
     var _uv_tcp_t& tcp;
     var Message&   msg;
 
-    function (_uv_tcp_t& tcp, Message& msg)=>Message00_receive build;
+    function (_uv_tcp_t& tcp, Message& msg)=>Message10_receive build;
 do
-    function (_uv_tcp_t& tcp, Message& msg)=>Message00_receive build do
+    function (_uv_tcp_t& tcp, Message& msg)=>Message10_receive build do
         this.tcp = &tcp;
         this.msg = &msg;
     end
@@ -34,8 +34,8 @@ do
 
         if this.msg.bytes[off+0] != MESSAGE_MAGIC_0  or
            this.msg.bytes[off+1] != MESSAGE_MAGIC_1  or
-           this.msg.bytes[off+2] != MESSAGE_MAJOR    or
-           this.msg.bytes[off+3] != MESSAGE_MINOR
+           this.msg.bytes[off+2] != 1                or
+           this.msg.bytes[off+3] != 0
         then
             escape _ERR_MESSAGE;
         end
@@ -110,7 +110,7 @@ do
         do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
 
         if have then
-            escape _MESSAGE00_HAVE;
+            escape _MESSAGE10_HAVE;
         end
     end
 
@@ -195,7 +195,7 @@ do
         do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
     end
 
-    escape _MESSAGE00_OK;
+    escape _MESSAGE10_OK;
 end
 
 class UV_TCP_Server_Handler with
@@ -207,12 +207,12 @@ do
     end
 
     var Message msg;
-    var int ret = do Message00_receive.build(&this.tcp, &msg);
+    var int ret = do Message10_receive.build(&this.tcp, &msg);
     _assert(ret > _ERR_NONE);
-    if ret == _MESSAGE00_HAVE then
+    if ret == _MESSAGE10_HAVE then
         _assert($msg.offs == 1);
     else
-        _assert(ret == _MESSAGE00_OK);
+        _assert(ret == _MESSAGE10_OK);
         _assert($msg.offs == 2);
         var int err = do PeersSend.run(&msg);
         _assert(err == _ERR_NONE);
