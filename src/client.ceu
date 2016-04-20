@@ -3,13 +3,19 @@
 
 class Message_0_0_prepare with
     interface IMessage;
-    var int err = _ERR_NONE;
+
+    function (byte[]& bytes, byte[]& offs)=>Message_0_0_prepare build;
 do
+    function (byte[]& bytes, byte[]& offs)=>Message_0_0_prepare build do
+        this.bytes = &bytes;
+        this.offs  = &offs;
+    end
+
     // => MESSAGE
     do
         var int major = [[ MSG.id_t.major ]];
         var int minor = [[ MSG.id_t.minor ]];
-        bytes = []..bytes..[MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, major, minor];
+        this.bytes = []..bytes..[MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, major, minor];
     end
 
     // => BC_SIGNED?
@@ -20,11 +26,11 @@ do
         var int  bc_len    = [[ MSG.bc_len    ]];
         _assert(bc_len>=0 and bc_len<256);
         var u8 bc = (bc_len | (bc_signed<<7));
-        bytes = []..bytes..[bc];
+        this.bytes = []..bytes..[bc];
 
         if bc_len > 0 then
             var char[] bc_data = [[ MSG.bc_data ]];
-            bytes = []..bytes..bc_data;
+            this.bytes = []..bytes..bc_data;
         end
     end
 
@@ -32,37 +38,37 @@ do
     do
         loop i in HASH_BYTES do
             if i==0 or i==HASH_BYTES-1 then
-                bytes = []..bytes..[0xEE];  // TODO
+                this.bytes = []..bytes..[0xEE];  // TODO
             else
-                bytes = []..bytes..[0xFF];  // TODO
+                this.bytes = []..bytes..[0xFF];  // TODO
             end
         end
     end
 
 
-    this.offs = []..this.offs..[$bytes];
+    this.offs = []..offs..[$this.bytes];
 
     //////////////////////////////////////////////////////////////////////////
 
     // => PoW
     do
         var u32 pow = 0xEEFFFFEE;       // TODO
-        PUT_NETWORK_U32(bytes, pow);
+        PUT_NETWORK_U32(this.bytes, pow);
     end
 
     // => PoS
     do
         var u8 pos = 0xEE;              // TODO
-        bytes = []..bytes..[pos];
+        this.bytes = []..bytes..[pos];
     end
 
     // => BACK_HASH
     do
         loop i in HASH_BYTES do
             if i==0 or i==HASH_BYTES-1 then
-                bytes = []..bytes..[0xEE];  // TODO
+                this.bytes = []..bytes..[0xEE];  // TODO
             else
-                bytes = []..bytes..[0xFF];  // TODO
+                this.bytes = []..bytes..[0xFF];  // TODO
             end
         end
     end
@@ -71,9 +77,9 @@ do
     do
         loop i in HASH_BYTES do
             if i==0 or i==HASH_BYTES-1 then
-                bytes = []..bytes..[0xEE];  // TODO
+                this.bytes = []..bytes..[0xEE];  // TODO
             else
-                bytes = []..bytes..[0xFF];  // TODO
+                this.bytes = []..bytes..[0xFF];  // TODO
             end
         end
     end
@@ -81,13 +87,12 @@ do
     // => PAYLOAD_LEN
     // => PAYLOAD
     var char[] payload = [[ MSG.payload ]];
-    PUT_NETWORK_U32(bytes, $payload);
-    bytes = []..bytes..payload;
+    PUT_NETWORK_U32(this.bytes, $payload);
+    this.bytes = []..bytes..payload;
 
-    this.offs = []..this.offs..[$bytes];
+    this.offs = []..offs..[$this.bytes];
 
-    this.err = _ERR_NONE;
-    await FOREVER;
+    escape _ERR_NONE;
 end
 
 interface PeerListener with
@@ -158,7 +163,6 @@ do
         this.message = &msg;
     end
 
-    _assert(message.err == _ERR_NONE);
     _printf("[client] Broadcasting message...\n");
     var int n = [[#APP.client.peers]];
     loop i in n do
@@ -179,8 +183,11 @@ do
 
     loop i in ni do
         [[ MSG = APP.messages[@i+1] ]];
-        var Message_0_0_prepare msg;
-        _assert(msg.err == _ERR_NONE);
+        var byte[] bytes;
+        var byte[] offs;
+        var Message msg = Message.build(&bytes,&offs);
+        var int err = do Message_0_0_prepare.build(&bytes,&offs);
+        _assert(err == _ERR_NONE);
         do PeersSend.run(&msg);
     end
 

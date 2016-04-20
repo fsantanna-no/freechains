@@ -19,10 +19,20 @@
     end
 
 interface IMessage with
-output:
-    var byte[] bytes;
-    var u32[]  offs;
-    var int    err;
+input/output:
+    var byte[]& bytes;
+    var byte[]& offs;
+end
+
+class Message with
+    interface IMessage;
+    function (byte[]& bytes, byte[]& offs)=>Message build;
+do
+    function (byte[]& bytes, byte[]& offs)=>Message build do
+        this.bytes = &bytes;
+        this.offs  = &offs;
+    end
+    await FOREVER;
 end
 
 #include "uv.ceu"
