@@ -183,8 +183,13 @@ do
     loop i in ni do
         [[ MSG = APP.messages[@i+1] ]];
         var Message msg;
-        var int err = do Message00_prepare.build(&msg);
-        _assert(err == _ERR_NONE);
+        var bool is_00 = [[ MSG.id=='0.0' ]];
+        if is_00 then
+            var int err = do Message00_prepare.build(&msg);
+            _assert(err == _ERR_NONE);
+        else
+            _assert(0);  // message not supported
+        end
         do PeersSend.run(&msg);
     end
 
