@@ -1,6 +1,29 @@
 #ifndef _CLIENT_CEU
 #define _CLIENT_CEU
 
+#include "sodium.ceu"
+
+native do
+    // calculate the number of leading zero bits in "bytes"
+    // 00abcdef...  => 2
+    int leading_zeros (byte* bytes, int len) {
+        int i, j;
+        int zeros = 0;
+        for (i=0; i<len; i++) {             // loop over "bytes"
+            byte b = bytes[i];
+            for (j=0; j<8; j++) {           // loop over each bit
+                if ((b & (1<<j)) != 0) {
+                    return zeros;
+                } else {
+                    zeros++;
+                }
+            }
+        }
+        return zeros;
+    }
+end
+
+
 class Message10_prepare with
     var Message& msg;
     function (Message& msg)=>Message10_prepare build;
@@ -19,22 +42,65 @@ do
 
     // => CHAIN_SIGNED?
     // => CHAIN_LEN
-    // => CHAIN_DATA
+    // => CHAIN_KEY
+    var bool chain_signed;
+    var char[] chain_key;
     do
-        var bool chain_signed = [[ MSG.chain_signed ]];
-        var int  chain_len    = [[ MSG.chain_len    ]];
-        _assert(chain_len>=0 and chain_len<256);
-        var u8 chain = (chain_len | (chain_signed<<7));
-        this.msg.bytes = []..this.msg.bytes..[chain];
+        chain_signed = [[ MSG.chain.signed ]];
+        chain_key    = [[ MSG.chain.key ]];
 
-        if chain_len > 0 then
-            var char[] chain_data = [[ MSG.chain_data ]];
-            this.msg.bytes = []..this.msg.bytes..chain_data;
-        end
+        var int chain_len = [[ string.len(MSG.chain.key) ]];
+        _assert(chain_len>=0 and chain_len<CHAIN_KEY_BYTES);
+
+        var u8 chain = (chain_len | (chain_signed<<7));
+        this.msg.bytes = []..this.msg.bytes..[chain]..chain_key;
     end
 
     // => PAYLOAD_HASH
     do
+        // generate MSG.hash_0s
+        do
+            var char[HASH_BYTES] tail_hash = [[ MSG.chain.config.head ]];
+            var char[]           payload   = [[ MSG.payload ]];
+
+            var char[] plain =
+                [ 0,0,0,0 ]      ..     // PoW nonce
+                [ chain_signed ] ..
+                chain_key        ..
+                tail_hash        ..
+                payload          ;
+
+            var char[HASH_BYTES] hash;
+            var u32 nonce = 0;
+
+            var int s = 0;
+            par/or do
+                every 1s do
+                    s = s + 1;
+                end
+            with
+                async/thread (plain,hash,nonce) do
+                    var int zeros_wanted = 25;//[[ MSG.chain.zeros ]];
+                    var int zeros_found  = 0;
+
+                    $hash := HASH_BYTES;
+                    loop do
+                        _crypto_generichash((_byte&&)(_char&&)&&hash, HASH_BYTES,
+                                            (_byte&&)(_char&&)&&plain, $plain,
+                                            null, 0);
+                        zeros_found = _leading_zeros((_char&&)&&hash, $hash);
+                        if zeros_found >= zeros_wanted then
+                            break;
+                        end
+                        nonce = nonce + 1;
+                        PUT_NETWORK_U32(plain, 0, nonce);
+                    end
+                end
+            end
+_printf("===> %ds\n", s);
+        end
+
+        // read MSG.hash_0s
         loop i in HASH_BYTES do
             if i==0 or i==HASH_BYTES-1 then
                 this.msg.bytes = []..this.msg.bytes..[0xEE];  // TODO
@@ -52,7 +118,7 @@ do
     // => PoW
     do
         var u32 pow = 0xEEFFFFEE;       // TODO
-        PUT_NETWORK_U32(this.msg.bytes, pow);
+        PUT_NETWORK_U32(this.msg.bytes, $this.msg.bytes, pow);
     end
 
     // => PoS
@@ -86,7 +152,7 @@ do
     // => PAYLOAD_LEN
     // => PAYLOAD
     var char[] payload = [[ MSG.payload ]];
-    PUT_NETWORK_U32(this.msg.bytes, $payload);
+    PUT_NETWORK_U32(this.msg.bytes, $this.msg.bytes, $payload);
     this.msg.bytes = []..this.msg.bytes..payload;
 
     this.msg.offs = []..this.msg.offs..[$this.msg.bytes];

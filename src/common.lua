@@ -1,7 +1,8 @@
 APP = {
     server    = {},  -- server configurations
     client    = {},  -- client configurations
-    hashes_0s = {},  -- hashes owned
+    chains    = {},  -- chains configurations
+    hashes_0s = {},  -- blocks in memory
     messages  = {},  -- pending messages to transmit
 }
 
@@ -17,6 +18,22 @@ function CLIENT (t)
     end
 end
 
+function CHAINS (t)
+    for k, tid in pairs(t) do
+        assert(type(tid) == 'table')
+        APP.chains[k] = tid
+        if k == '' then
+            assert(tid.signed == false)
+        end
+        for i=0, #tid do
+            local tz = tid[i]
+            assert(type(tz) == 'table')
+            assert(type(tz.head)=='string' and
+                   string.len(tz.head)==32)
+        end
+    end
+end
+
 function HASHES_0s (t)
     --
 end
@@ -27,5 +44,14 @@ function MESSAGE (t)
         major = major,
         minor = minor,
     }
+    if t.id == '1.0' then
+        assert(type(t.chain)=='table')
+        assert(type(t.chain.zeros=='number'))
+        assert(type(t.chain.signed=='bool'))
+
+        local tid = assert(APP.chains[t.chain.key])
+        assert(#tid >= t.chain.zeros)
+        t.chain.config = tid[t.chain.zeros]
+    end
     APP.messages[#APP.messages+1] = t
 end
