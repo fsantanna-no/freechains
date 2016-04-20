@@ -1,7 +1,8 @@
 APP = {
-    server   = {},
-    client   = {},
-    messages = {},
+    server    = {},  -- server configurations
+    client    = {},  -- client configurations
+    hashes_0s = {},  -- hashes owned
+    messages  = {},  -- pending messages
 }
 
 function SERVER (t)
@@ -14,6 +15,10 @@ function CLIENT (t)
     for k, v in pairs(t) do
         APP.client[k] = v
     end
+end
+
+function HASHES_0s (t)
+    --
 end
 
 function MESSAGE (t)

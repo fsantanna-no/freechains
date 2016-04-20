@@ -1,14 +1,21 @@
 #ifndef _SERVER_CEU
 #define _SERVER_CEU
 
-class Message_0_0_receive with
+native do
+    enum {
+        MESSAGE00_OK = 1,
+        MESSAGE00_HAVE,
+    };
+end
+
+class Message00_receive with
 input:
     var _uv_tcp_t& tcp;
     var Message&   msg;
 
-    function (_uv_tcp_t& tcp, Message& msg)=>Message_0_0_receive build;
+    function (_uv_tcp_t& tcp, Message& msg)=>Message00_receive build;
 do
-    function (_uv_tcp_t& tcp, Message& msg)=>Message_0_0_receive build do
+    function (_uv_tcp_t& tcp, Message& msg)=>Message00_receive build do
         this.tcp = &tcp;
         this.msg = &msg;
     end
@@ -65,13 +72,16 @@ do
     end
 
     // <= PAYLOAD_HASH
+    var char[] hash_0s;
     do
         off = nxt;
         nxt = nxt + HASH_BYTES;
         AWAIT_UNTIL(r,nxt);
         _printf("[server] PAYLOAD_HASH = [");
         loop i in HASH_BYTES do
-            _printf("%2X", this.msg.bytes[off+i]);
+            var byte v = this.msg.bytes[off+i];
+            hash_0s = []..hash_0s..[v];
+            _printf("%2X", v);
         end
         _printf(" ]\n");
     end
@@ -87,13 +97,21 @@ do
         this.msg.offs = []..this.msg.offs..[nxt];
 
         // TODO: check
-        //  - ainda não tenho PAYLOAD_HASH?
         //  - quero essa BC?
         //      - quero mesmo que unsigned?
         //  - quero com bc_zeros < K?
         //  - BLK_BACK_HASH é suficientemente recente?
-        var byte[1] send = [1];
+
+        var bool have = [[ APP.hashes_0s[@hash_0s] ]];
+        [[ APP.hashes_0s[@hash_0s] = true ]];
+        var bool want = (not have);
+
+        var byte[1] send = [want];
         do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
+
+        if have then
+            escape _MESSAGE00_HAVE;
+        end
     end
 
     //////////////////////////////////////////////////////////////////////////
@@ -177,7 +195,7 @@ do
         do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
     end
 
-    escape _ERR_NONE;
+    escape _MESSAGE00_OK;
 end
 
 class UV_TCP_Server_Handler with
@@ -189,12 +207,13 @@ do
     end
 
     var Message msg;
-    do
-        var int err = do Message_0_0_receive.build(&this.tcp, &msg);
+    var int ret = do Message00_receive.build(&this.tcp, &msg);
+    _assert(ret > _ERR_NONE);
+    if ret == _MESSAGE00_HAVE then
+        _assert($msg.offs == 1);
+    else
+        _assert(ret == _MESSAGE00_OK);
         _assert($msg.offs == 2);
-        _assert(err == _ERR_NONE);
-    end
-    do
         var int err = do PeersSend.run(&msg);
         _assert(err == _ERR_NONE);
     end

@@ -2,7 +2,7 @@
 # EDIT
 ###############################################################################
 
-C_FLAGS ?= -DCEU_DEBUG
+C_FLAGS ?= -DCEU_DEBUG -DDEBUG
 UV_DIR = /data/ceu/ceu-libuv
 #UV_DIR ?= $(error set absolute path to "<ceu-sdl>" repository)
 
