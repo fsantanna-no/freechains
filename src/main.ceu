@@ -3,8 +3,8 @@
 #define MESSAGE_MAGIC_0 'P'
 #define MESSAGE_MAGIC_1 'S'
 
-#define HASH_BYTES       32
-#define CHAIN_DATA_BYTES 128
+#define HASH_BYTES      32
+#define CHAIN_KEY_BYTES 128
 
 #define AWAIT_UNTIL(r,nxt)          \
     if r.next < nxt then            \
@@ -43,7 +43,8 @@ MESSAGE_MINOR    1
 //  a server may not be interested in this blockchain
 CHAIN_SIGNED?    1b       // message must be signed and checked
 CHAIN_LEN        7b       // number of bytes for the CHAIN identifier
-CHAIN_DATA       <CHAIN_LEN> // CHAIN identifier (pubkey?, topic?) (if signed, must be pubkey)
+CHAIN_KEY        <CHAIN_LEN> // CHAIN identifier (pubkey?, topic?) (if signed, 
+must be pubkey)
 // identifies the data for this message
 //  a server may already have this payload and refuse it
 HASH_0s          32       // TODO hash of the payload
@@ -51,15 +52,15 @@ HASH_0s          32       // TODO hash of the payload
 // server responds 0/1
 // client completes message
 ///////////////////////////////////////////////////////////////////////////////
-//  HASH_0s = hash[PoW .. CHAIN_SIGNED .. CHAIN_DATA .. BACK_HASH ..  PAYLOAD_HASH]
+//  HASH_0s = hash[PoW .. CHAIN_SIGNED .. CHAIN_KEY .. BACK_HASH ..  PAYLOAD]
 PoW              4 u32    // nonce for HASH_0s
 PoS              1        // value of random jump (based on HASH_0s) in the CHAIN
-BACK_HASH        32       // immutable: a past hash at most TODO jumps away from PAYLOAD_HASH
+BACK_HASH        32       // immutable: a past hash at most TODO jumps away from HASH_0s
 TAIL_HASH        32       // mutable: immediate past hash which creates the chain
 PAYLOAD_LEN      4 u32    // number of bytes to read next for the payload
 PAYLOAD          <PAYLOAD_LEN>
 ///////////////////////////////////////////////////////////////////////////////
-//  - HASH_0s: the number of leading 0s + CHAIN_SIGNED + CHAIN_DATA idenditifies the target CHAIN
+//  - HASH_0s: the number of leading 0s + CHAIN_SIGNED + CHAIN_KEY idenditifies the target CHAIN
 //  - on creation, BACK_HASH=TAIL_HASH, but nodes can change TAIL_HASH to 
 //    reorder the chain
 //  - since HASH_0s uses BACK_HASH, an attacker cannot preprocess a side chain 
