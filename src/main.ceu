@@ -18,6 +18,12 @@
         end                         \
     end
 
+interface Message with
+    var byte[] bytes;
+    var u32[]  offs;
+    var int    err;
+end
+
 #define UV_TCP_SERVER_HANDLER_CEU server.ceu
 #include "uv.ceu"
 #include "client.ceu"
@@ -34,31 +40,30 @@ MESSAGE_MAJOR    1
 MESSAGE_MINOR    1
 // identifies the blockchain for this message
 //  a server may not be interested in this blockchain
-BC_ZEROS         1        // number of required zeros for PoWs
 BC_SIGNED?       1b       // message must be signed and checked
 BC_LEN           7b       // number of bytes for the BC identifier
 BC_DATA          <BC_LEN> // BC identifier (pubkey?, topic?) (if signed, must be pubkey)
 // identifies the data for this message
-//  a server may have this payload
-PAYLOAD_HASH     32       // TODO hash of the payload
+//  a server may already have this payload and refuse it
+0s_HASH          32       // TODO hash of the payload
 ///////////////////////////////////////////////////////////////////////////////
 // server responds 0/1
 // client completes message
 ///////////////////////////////////////////////////////////////////////////////
-//  H = hash[PoW .. BACK_HASH .. PAYLOAD_HASH]
-PoW              4 u32    // nonce for H
-PoS              1        // value of random jump in the BC
+//  0s_HASH = hash[PoW .. BC_SIGNED .. BC_DATA .. BACK_HASH .. PAYLOAD_HASH]
+PoW              4 u32    // nonce for 0s_HASH
+PoS              1        // value of random jump (based on 0s_HASH) in the BC
 BACK_HASH        32       // immutable: a past hash at most TODO jumps away from PAYLOAD_HASH
 TAIL_HASH        32       // mutable: immediate past hash which creates the chain
 PAYLOAD_LEN      4 u32    // number of bytes to read next for the payload
 PAYLOAD          <PAYLOAD_LEN>
 ///////////////////////////////////////////////////////////////////////////////
-//  - H must have BC_ZEROS leading zeros
+//  - 0s_HASH: the number of leading 0s + BC_SIGNED + BC_DATA idenditifies the target BC
 //  - on creation, BACK_HASH=TAIL_HASH, but nodes can change TAIL_HASH to 
 //    reorder the chain
-//  - since H uses BACK_HASH, an attacker cannot preprocess a side chain and 
-//    attach it to a recent node to force a fork
-//  - PoS = BACK_HASH - H(mapped to full memory from BACK_HASH to genesis)
+//  - since 0s_HASH uses BACK_HASH, an attacker cannot preprocess a side chain 
+//    and attach it to a recent node to force a fork
+//  - PoS = BACK_HASH - 0s_HASH(mapped to full memory from BACK_HASH to genesis)
 //      - force nodes willing to publish to keep all data
 //          - in BTC, miners need to check funds looking all the way back
 ///////////////////////////////////////////////////////////////////////////////

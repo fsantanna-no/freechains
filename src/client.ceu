@@ -1,12 +1,6 @@
 #ifndef _CLIENT_CEU
 #define _CLIENT_CEU
 
-interface Message with
-    var byte[] bytes;
-    var u32[]  offs;
-    var int    err;
-end
-
 class Message_0_0_prepare with
     interface Message;
     var int err = _ERR_NONE;
@@ -18,15 +12,10 @@ do
         bytes = []..bytes..[MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, major, minor];
     end
 
-    // => BC_ZEROS
     // => BC_SIGNED?
     // => BC_LEN
     // => BC_DATA
     do
-        var int bc_zeros = [[ MSG.bc_zeros ]];
-        _assert(bc_zeros>=0 and bc_zeros<256);
-        bytes = []..bytes..[bc_zeros];
-
         var bool bc_signed = [[ MSG.bc_signed ]];
         var int  bc_len    = [[ MSG.bc_len    ]];
         _assert(bc_len>=0 and bc_len<256);
@@ -51,7 +40,7 @@ do
     end
 
 
-    offs = []..offs..[$bytes];
+    this.offs = []..this.offs..[$bytes];
 
     //////////////////////////////////////////////////////////////////////////
 
@@ -95,7 +84,7 @@ do
     PUT_NETWORK_U32(bytes, $payload);
     bytes = []..bytes..payload;
 
-    offs = []..offs..[$bytes];
+    this.offs = []..this.offs..[$bytes];
 
     this.err = _ERR_NONE;
     await FOREVER;

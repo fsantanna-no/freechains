@@ -9,7 +9,7 @@ do
         this.tcp = &tcp;
     end
 
-    var byte[1024] bytes;
+    var byte[] bytes;
     var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&bytes);
 
     var int nxt = 0;
@@ -32,17 +32,10 @@ do
                 bytes[off+0], bytes[off+1], bytes[off+2], bytes[off+3]);
     end
 
-    // <= BC_ZEROS
     // <= BC_SIGNED?
     // <= BC_LEN
     // <= BC_DATA
     do
-        off = nxt;
-        nxt = nxt + 1;
-        AWAIT_UNTIL(r,nxt);
-        var int bc_zeros = bytes[off];
-        _printf("[server] BC_ZEROS  = %d\n", bc_zeros);
-
         off = nxt;
         nxt = nxt + 1;
         AWAIT_UNTIL(r,nxt);
