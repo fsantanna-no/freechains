@@ -2,14 +2,17 @@
 #define _SERVER_CEU
 
 class Message_0_0_receive with
+input:
     var _uv_tcp_t& tcp;
+output:
+    var byte[] bytes;
+
     function (_uv_tcp_t& tcp)=>Message_0_0_receive build;
 do
     function (_uv_tcp_t& tcp)=>Message_0_0_receive build do
         this.tcp = &tcp;
     end
 
-    var byte[] bytes;
     var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&bytes);
 
     var int nxt = 0;

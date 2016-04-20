@@ -2,7 +2,7 @@
 #define _CLIENT_CEU
 
 class Message_0_0_prepare with
-    interface Message;
+    interface IMessage;
     var int err = _ERR_NONE;
 do
     // => MESSAGE
@@ -97,12 +97,12 @@ end
 class PeerSend with
 input:
     var int peer_i;
-    var Message&      message;
+    var IMessage&     message;
     var PeerListener& listener;
 
-    function (int i, Message& message, PeerListener& listener)=>PeerSend build;
+    function (int i, IMessage& message, PeerListener& listener)=>PeerSend build;
 do
-    function (int i, Message& message, PeerListener& listener)=>PeerSend build do
+    function (int i, IMessage& message, PeerListener& listener)=>PeerSend build do
         this.peer_i   = i;
         this.message  = &message;
         this.listener = &listener;
@@ -147,8 +147,33 @@ do
     escape _ERR_DISCONNECTED;
 end
 
-class Client with
+class PeersSend with
     interface PeerListener;
+input:
+    var IMessage& message;
+
+    function (IMessage& msg)=>PeersSend run;
+do
+    function (IMessage& msg)=>PeersSend run do
+        this.message = &msg;
+    end
+
+    _assert(message.err == _ERR_NONE);
+    _printf("[client] Broadcasting message...\n");
+    var int n = [[#APP.client.peers]];
+    loop i in n do
+        spawn PeerSend.build(i+1, &message, &this);
+    end
+    loop i in n do
+        var int err = await this.ok;
+        _printf("[client]\tpeer %d\n", err);
+    end
+    _printf("[client] Broadcast OK!\n");
+
+    escape _ERR_NONE;
+end
+
+class Client with
 do
     var int ni = [[ #APP.messages ]];
 
@@ -156,17 +181,7 @@ do
         [[ MSG = APP.messages[@i+1] ]];
         var Message_0_0_prepare msg;
         _assert(msg.err == _ERR_NONE);
-
-        _printf("[client] Sending message...\n");
-        var int nj = [[#APP.client.peers]];
-        loop j in nj do
-            spawn PeerSend.build(j+1, &msg, &this);
-        end
-        loop j in nj do
-            var int err = await this.ok;
-            _printf("[client]\tpeer %d\n", err);
-        end
-        _printf("[client] Send OK!\n");
+        do PeersSend.run(&msg);
     end
 
     escape _ERR_NONE;

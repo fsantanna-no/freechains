@@ -18,7 +18,7 @@
         end                         \
     end
 
-interface Message with
+interface IMessage with
     var byte[] bytes;
     var u32[]  offs;
     var int    err;
