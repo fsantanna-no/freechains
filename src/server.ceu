@@ -2,20 +2,19 @@
 #define _SERVER_CEU
 
 class Message_0_0_receive with
-    interface IMessage;
-
 input:
     var _uv_tcp_t& tcp;
+    var Message&   msg;
 
-    function (_uv_tcp_t& tcp, byte[]& bytes, byte[]& offs)=>Message_0_0_receive build;
+    function (_uv_tcp_t& tcp, Message& msg)=>Message_0_0_receive build;
 do
-    function (_uv_tcp_t& tcp, byte[]& bytes, byte[]& offs)=>Message_0_0_receive build do
-        this.tcp   = &tcp;
-        this.bytes = &bytes;
-        this.offs  = &offs;
+    function (_uv_tcp_t& tcp, Message& msg)=>Message_0_0_receive build do
+        this.tcp = &tcp;
+        this.msg = &msg;
     end
 
-    var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&bytes);
+    var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),
+                                                &this.msg.bytes);
 
     var int nxt = 0;
     var int off = 0;
@@ -26,15 +25,18 @@ do
         nxt = nxt + 1+1+1+1;
         AWAIT_UNTIL(r,nxt);
 
-        if bytes[off+0] != MESSAGE_MAGIC_0  or
-           bytes[off+1] != MESSAGE_MAGIC_1  or
-           bytes[off+2] != MESSAGE_MAJOR    or
-           bytes[off+3] != MESSAGE_MINOR
+        if this.msg.bytes[off+0] != MESSAGE_MAGIC_0  or
+           this.msg.bytes[off+1] != MESSAGE_MAGIC_1  or
+           this.msg.bytes[off+2] != MESSAGE_MAJOR    or
+           this.msg.bytes[off+3] != MESSAGE_MINOR
         then
             escape _ERR_MESSAGE;
         end
         _printf("[server] MESSAGE = [%d %d %d %d]\n",
-                bytes[off+0], bytes[off+1], bytes[off+2], bytes[off+3]);
+                this.msg.bytes[off+0],
+                this.msg.bytes[off+1],
+                this.msg.bytes[off+2],
+                this.msg.bytes[off+3]);
     end
 
     // <= BC_SIGNED?
@@ -44,7 +46,7 @@ do
         off = nxt;
         nxt = nxt + 1;
         AWAIT_UNTIL(r,nxt);
-        var u8 v = bytes[off];
+        var u8 v = this.msg.bytes[off];
         var bool bc_signed = (v>>7);
         var int  bc_len    = (v&0x7F);
         _printf("[server] BC_SIGNED = %d\n", bc_signed);
@@ -55,7 +57,7 @@ do
         AWAIT_UNTIL(r,nxt);
         _printf("[server] BC_DATA   = [");
         loop i in bc_len do
-            _printf("%2d", bytes[off+i]);
+            _printf("%2d", this.msg.bytes[off+i]);
         end
         _printf(" ]\n");
 
@@ -69,7 +71,7 @@ do
         AWAIT_UNTIL(r,nxt);
         _printf("[server] PAYLOAD_HASH = [");
         loop i in HASH_BYTES do
-            _printf("%2X", bytes[off+i]);
+            _printf("%2X", this.msg.bytes[off+i]);
         end
         _printf(" ]\n");
     end
@@ -82,7 +84,7 @@ do
 
     // == CHECK
     do
-        this.offs = []..this.offs..[nxt];
+        this.msg.offs = []..this.msg.offs..[nxt];
 
         // TODO: check
         //  - ainda não tenho PAYLOAD_HASH?
@@ -101,7 +103,7 @@ do
         off = nxt;
         nxt = nxt + sizeof(u32);
         AWAIT_UNTIL(r,nxt);
-        var u32 pow = GET_HOST_U32(bytes,off);
+        var u32 pow = GET_HOST_U32(this.msg.bytes,off);
         _printf("[server] POW = %X\n", pow);
     end
 
@@ -110,7 +112,7 @@ do
         off = nxt;
         nxt = nxt + 1;
         AWAIT_UNTIL(r,nxt);
-        var int pos = bytes[off];
+        var int pos = this.msg.bytes[off];
         _printf("[server] POS = %X\n", pos);
     end
 
@@ -121,7 +123,7 @@ do
         AWAIT_UNTIL(r,nxt);
         _printf("[server] BACK_HASH = [");
         loop i in HASH_BYTES do
-            _printf("%2X", bytes[off+i]);
+            _printf("%2X", this.msg.bytes[off+i]);
         end
         _printf(" ]\n");
     end
@@ -133,7 +135,7 @@ do
         AWAIT_UNTIL(r,nxt);
         _printf("[server] TAIL_HASH = [");
         loop i in HASH_BYTES do
-            _printf("%2X", bytes[off+i]);
+            _printf("%2X", this.msg.bytes[off+i]);
         end
         _printf(" ]\n");
     end
@@ -144,7 +146,7 @@ do
         off = nxt;
         nxt = nxt + sizeof(u32);
         AWAIT_UNTIL(r,nxt);
-        var u32 payload_len = GET_HOST_U32(bytes,off);
+        var u32 payload_len = GET_HOST_U32(this.msg.bytes,off);
         _printf("[server] PAYLOAD_LEN = %d\n", payload_len);
 
         off = nxt;
@@ -152,11 +154,11 @@ do
         AWAIT_UNTIL(r,nxt);
 
         // TODO: trick to print the payload as string
-        _assert($bytes == nxt);
-        $bytes := $bytes + 1;
-        bytes[nxt] = '\0';
-        _printf("[server] PAYLOAD = %s", (_char&&)&&(((_byte&&)&&bytes)[off]));
-        $bytes = $bytes - 1;
+        _assert($this.msg.bytes == nxt);
+        $this.msg.bytes := $this.msg.bytes + 1;
+        this.msg.bytes[nxt] = '\0';
+        _printf("[server] PAYLOAD = %s", (_char&&)&&(((_byte&&)&&this.msg.bytes)[off]));
+        $this.msg.bytes = $this.msg.bytes - 1;
     end
 
     // == END
@@ -167,7 +169,7 @@ do
 
     // == CHECK
     do
-        this.offs = []..this.offs..[nxt];
+        this.msg.offs = []..this.msg.offs..[nxt];
 
         // TODO: check
         //  - tudo casa?
@@ -186,17 +188,13 @@ do
         this.tcp = &tcp;
     end
 
-    var byte[] bytes;
-    var byte[] offs;
-    var Message msg = Message.build(&bytes,&offs);
-
+    var Message msg;
     do
-        var int err = do Message_0_0_receive.build(&this.tcp, &bytes, &offs);
-        _assert($offs == 2);
+        var int err = do Message_0_0_receive.build(&this.tcp, &msg);
+        _assert($msg.offs == 2);
         _assert(err == _ERR_NONE);
     end
     do
-_printf(">>>\n");
         var int err = do PeersSend.run(&msg);
         _assert(err == _ERR_NONE);
     end

@@ -18,20 +18,11 @@
         end                         \
     end
 
-interface IMessage with
-input/output:
-    var byte[]& bytes;
-    var byte[]& offs;
-end
-
 class Message with
-    interface IMessage;
-    function (byte[]& bytes, byte[]& offs)=>Message build;
+output/input:
+    var byte[] bytes;
+    var byte[] offs;
 do
-    function (byte[]& bytes, byte[]& offs)=>Message build do
-        this.bytes = &bytes;
-        this.offs  = &offs;
-    end
     await FOREVER;
 end
 

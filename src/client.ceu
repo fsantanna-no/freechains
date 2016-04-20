@@ -2,20 +2,19 @@
 #define _CLIENT_CEU
 
 class Message_0_0_prepare with
-    interface IMessage;
-
-    function (byte[]& bytes, byte[]& offs)=>Message_0_0_prepare build;
+    var Message& msg;
+    function (Message& msg)=>Message_0_0_prepare build;
 do
-    function (byte[]& bytes, byte[]& offs)=>Message_0_0_prepare build do
-        this.bytes = &bytes;
-        this.offs  = &offs;
+    function (Message& msg)=>Message_0_0_prepare build do
+        this.msg = &msg;
     end
 
     // => MESSAGE
     do
         var int major = [[ MSG.id_t.major ]];
         var int minor = [[ MSG.id_t.minor ]];
-        this.bytes = []..bytes..[MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, major, minor];
+        this.msg.bytes = []..this.msg.bytes..
+                         [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, major, minor];
     end
 
     // => BC_SIGNED?
@@ -26,11 +25,11 @@ do
         var int  bc_len    = [[ MSG.bc_len    ]];
         _assert(bc_len>=0 and bc_len<256);
         var u8 bc = (bc_len | (bc_signed<<7));
-        this.bytes = []..bytes..[bc];
+        this.msg.bytes = []..this.msg.bytes..[bc];
 
         if bc_len > 0 then
             var char[] bc_data = [[ MSG.bc_data ]];
-            this.bytes = []..bytes..bc_data;
+            this.msg.bytes = []..this.msg.bytes..bc_data;
         end
     end
 
@@ -38,37 +37,37 @@ do
     do
         loop i in HASH_BYTES do
             if i==0 or i==HASH_BYTES-1 then
-                this.bytes = []..bytes..[0xEE];  // TODO
+                this.msg.bytes = []..this.msg.bytes..[0xEE];  // TODO
             else
-                this.bytes = []..bytes..[0xFF];  // TODO
+                this.msg.bytes = []..this.msg.bytes..[0xFF];  // TODO
             end
         end
     end
 
 
-    this.offs = []..offs..[$this.bytes];
+    this.msg.offs = []..this.msg.offs..[$this.msg.bytes];
 
     //////////////////////////////////////////////////////////////////////////
 
     // => PoW
     do
         var u32 pow = 0xEEFFFFEE;       // TODO
-        PUT_NETWORK_U32(this.bytes, pow);
+        PUT_NETWORK_U32(this.msg.bytes, pow);
     end
 
     // => PoS
     do
         var u8 pos = 0xEE;              // TODO
-        this.bytes = []..bytes..[pos];
+        this.msg.bytes = []..this.msg.bytes..[pos];
     end
 
     // => BACK_HASH
     do
         loop i in HASH_BYTES do
             if i==0 or i==HASH_BYTES-1 then
-                this.bytes = []..bytes..[0xEE];  // TODO
+                this.msg.bytes = []..this.msg.bytes..[0xEE];  // TODO
             else
-                this.bytes = []..bytes..[0xFF];  // TODO
+                this.msg.bytes = []..this.msg.bytes..[0xFF];  // TODO
             end
         end
     end
@@ -77,9 +76,9 @@ do
     do
         loop i in HASH_BYTES do
             if i==0 or i==HASH_BYTES-1 then
-                this.bytes = []..bytes..[0xEE];  // TODO
+                this.msg.bytes = []..this.msg.bytes..[0xEE];  // TODO
             else
-                this.bytes = []..bytes..[0xFF];  // TODO
+                this.msg.bytes = []..this.msg.bytes..[0xFF];  // TODO
             end
         end
     end
@@ -87,10 +86,10 @@ do
     // => PAYLOAD_LEN
     // => PAYLOAD
     var char[] payload = [[ MSG.payload ]];
-    PUT_NETWORK_U32(this.bytes, $payload);
-    this.bytes = []..bytes..payload;
+    PUT_NETWORK_U32(this.msg.bytes, $payload);
+    this.msg.bytes = []..this.msg.bytes..payload;
 
-    this.offs = []..offs..[$this.bytes];
+    this.msg.offs = []..this.msg.offs..[$this.msg.bytes];
 
     escape _ERR_NONE;
 end
@@ -102,14 +101,14 @@ end
 class PeerSend with
 input:
     var int peer_i;
-    var IMessage&     message;
+    var Message&      msg;
     var PeerListener& listener;
 
-    function (int i, IMessage& message, PeerListener& listener)=>PeerSend build;
+    function (int i, Message& msg, PeerListener& listener)=>PeerSend build;
 do
-    function (int i, IMessage& message, PeerListener& listener)=>PeerSend build do
+    function (int i, Message& msg, PeerListener& listener)=>PeerSend build do
         this.peer_i   = i;
-        this.message  = &message;
+        this.msg      = &msg;
         this.listener = &listener;
     end
 
@@ -123,11 +122,11 @@ do
         _printf("[client] Connected to %s:%d.\n", (_char&&)&&ip, port);
         watching c do
             var u32 starting = 0;
-            loop i in $this.message.offs do
+            loop i in $this.msg.offs do
                 // => offs[i]
-                var u32 excluding = this.message.offs[i];
+                var u32 excluding = this.msg.offs[i];
                 do UV_Stream_Write.build2(&_UV_STREAM_ALIAS(c.tcp),
-                                          &this.message.bytes,
+                                          &this.msg.bytes,
                                           starting, excluding);
 
                 // <= OK?
@@ -155,18 +154,18 @@ end
 class PeersSend with
     interface PeerListener;
 input:
-    var IMessage& message;
+    var Message& msg;
 
-    function (IMessage& msg)=>PeersSend run;
+    function (Message& msg)=>PeersSend run;
 do
-    function (IMessage& msg)=>PeersSend run do
-        this.message = &msg;
+    function (Message& msg)=>PeersSend run do
+        this.msg = &msg;
     end
 
     _printf("[client] Broadcasting message...\n");
     var int n = [[#APP.client.peers]];
     loop i in n do
-        spawn PeerSend.build(i+1, &message, &this);
+        spawn PeerSend.build(i+1, &this.msg, &this);
     end
     loop i in n do
         var int err = await this.ok;
@@ -183,10 +182,8 @@ do
 
     loop i in ni do
         [[ MSG = APP.messages[@i+1] ]];
-        var byte[] bytes;
-        var byte[] offs;
-        var Message msg = Message.build(&bytes,&offs);
-        var int err = do Message_0_0_prepare.build(&bytes,&offs);
+        var Message msg;
+        var int err = do Message_0_0_prepare.build(&msg);
         _assert(err == _ERR_NONE);
         do PeersSend.run(&msg);
     end
