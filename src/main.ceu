@@ -47,27 +47,29 @@ CHAIN_KEY        <CHAIN_LEN> // CHAIN identifier (pubkey?, topic?) (if signed,
 must be pubkey)
 // identifies the data for this message
 //  a server may already have this payload and refuse it
-HASH_0s          32       // TODO hash of the payload
+BLOCK_HASH       32       // hash of the proposed block
 ///////////////////////////////////////////////////////////////////////////////
 // server responds 0/1
 // client completes message
 ///////////////////////////////////////////////////////////////////////////////
-//  HASH_0s = hash[PoW .. CHAIN_SIGNED .. CHAIN_KEY .. TAIL_HASH ..  PAYLOAD]
-PoW              4 u32    // nonce for HASH_0s
-PoS              1        // value of random jump (based on HASH_0s) in the CHAIN
-BACK_HASH        32       // immutable: a past hash at most TODO jumps away from HASH_0s
+//  BLOCK_HASH = hash[PoW .. CHAIN_SIGNED .. CHAIN_KEY .. TAIL_HASH ..  PAYLOAD]
+PoW              4 u32    // nonce for BLOCK_HASH
+PoS              1        // value of random jump (based on BLOCK_HASH) in the CHAIN
+BACK_HASH        32       // immutable: a past hash at most TODO jumps away from BLOCK_HASH
 TAIL_HASH        32       // mutable: immediate past hash which creates the chain
 PAYLOAD_LEN      4 u32    // number of bytes to read next for the payload
 PAYLOAD          <PAYLOAD_LEN>
 ///////////////////////////////////////////////////////////////////////////////
-//  - HASH_0s: the number of leading 0s + CHAIN_SIGNED + CHAIN_KEY idenditifies the target CHAIN
-//  - on creation, BACK_HASH=TAIL_HASH, but nodes can change TAIL_HASH to 
-//    reorder the chain
-//  - since HASH_0s uses BACK_HASH, an attacker cannot preprocess a side chain 
-//    and attach it to a recent node to force a fork
-//  - PoS = BACK_HASH - HASH_0s(mapped to full memory from BACK_HASH to genesis)
-//      - force nodes willing to publish to keep all data
-//          - in BTC, miners need to check funds looking all the way back
+    - BLOCK_HASH: the number of leading 0s + CHAIN_SIGNED + CHAIN_KEY 
+      idenditifies the target CHAIN
+    - on creation, BACK_HASH=TAIL_HASH, but nodes can change TAIL_HASH to 
+      reorder the chain
+    - since BLOCK_HASH uses BACK_HASH, an attacker cannot preprocess a side 
+      chain and attach it to a recent node to force a fork
+    - PoS = BACK_HASH - BLOCK_HASH(mapped to full memory from BACK_HASH to 
+      genesis)
+        - force nodes willing to publish to keep all data
+            - in BTC, miners need to check funds looking all the way back
 ///////////////////////////////////////////////////////////////////////////////
 */
 

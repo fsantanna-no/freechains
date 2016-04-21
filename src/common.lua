@@ -1,9 +1,9 @@
 APP = {
-    server    = {},  -- server configurations
-    client    = {},  -- client configurations
-    chains    = {},  -- chains configurations
-    hashes_0s = {},  -- blocks in memory
-    messages  = {},  -- pending messages to transmit
+    server   = {},  -- server configurations
+    client   = {},  -- client configurations
+    chains   = {},  -- chains configurations
+    blocks   = {},  -- blocks in memory
+    messages = {},  -- pending messages to transmit
 }
 
 function SERVER (t)
@@ -34,7 +34,7 @@ function CHAINS (t)
     end
 end
 
-function HASHES_0s (t)
+function BLOCKS (t)
     --
 end
 

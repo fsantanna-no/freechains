@@ -28,5 +28,5 @@ CHAINS {
 }
 
 -- blocks in memory
-HASHES_0s {
+BLOCKS {
 }

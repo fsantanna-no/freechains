@@ -71,8 +71,8 @@ do
         _printf("\n");
     end
 
-    // <= PAYLOAD_HASH
-    var char[] hash_0s;
+    // <= BLOCK_HASH
+    var char[] block_hash;
     do
         off = nxt;
         nxt = nxt + HASH_BYTES;
@@ -80,7 +80,7 @@ do
         _printf("[server] PAYLOAD_HASH = [");
         loop i in HASH_BYTES do
             var byte v = this.msg.bytes[off+i];
-            hash_0s = []..hash_0s..[v];
+            block_hash = []..block_hash..[v];
             _printf("%2X", v);
         end
         _printf(" ]\n");
@@ -100,10 +100,10 @@ do
         //  - quero essa CHAIN?
         //      - quero mesmo que unsigned?
         //  - quero com chain_zeros < K?
-        //  - BLK_BACK_HASH é suficientemente recente?
+        //  - BACK_HASH é suficientemente recente?
 
-        var bool have = [[ APP.hashes_0s[@hash_0s] ]];
-        [[ APP.hashes_0s[@hash_0s] = true ]];
+        var bool have = [[ APP.blocks[@block_hash] ]];
+        [[ APP.blocks[@block_hash] = true ]];
         var bool want = (not have);
 
         var byte[1] send = [want];

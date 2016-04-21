@@ -56,13 +56,13 @@ do
         this.msg.bytes = []..this.msg.bytes..[chain]..chain_key;
     end
 
-    // => PAYLOAD_HASH (async/thread)
+    // => BLOCK_HASH (async/thread)
     var char[HASH_BYTES] tail_hash = [[ MSG.chain.config.head ]];
     var char[]           payload   = [[ MSG.payload ]];
     var u32              nonce     = 0;
     do
         // calculate nonce for the leading zeros
-        var char[HASH_BYTES] hash;
+        var char[HASH_BYTES] block_hash;
         var char[] plain =
             [ 0,0,0,0 ]      ..     // PoW nonce
             [ chain_signed ] ..
@@ -77,16 +77,16 @@ do
                 _fflush(_stdout);
             end
         with
-            async/thread (plain,hash,nonce) do
+            async/thread (plain,block_hash,nonce) do
                 var int zeros_wanted = 22;//[[ MSG.chain.zeros ]];
                 var int zeros_found  = 0;
 
-                $hash := HASH_BYTES;
+                $block_hash := HASH_BYTES;
                 loop do
-                    _crypto_generichash((_byte&&)(_char&&)&&hash, HASH_BYTES,
+                    _crypto_generichash((_byte&&)(_char&&)&&block_hash, HASH_BYTES,
                                         (_byte&&)(_char&&)&&plain, $plain,
                                         null, 0);
-                    zeros_found = _leading_zeros((_char&&)&&hash, $hash);
+                    zeros_found = _leading_zeros((_char&&)&&block_hash, $block_hash);
                     if zeros_found >= zeros_wanted then
                         break;
                     end
@@ -95,8 +95,8 @@ do
                 end
             end
         end
-        _printf("\n[client] HASH = %dms\n", ms);
-        this.msg.bytes = []..this.msg.bytes..hash;
+        _printf("\n[client] BLOCK_HASH = %dms\n", ms);
+        this.msg.bytes = []..this.msg.bytes..block_hash;
     end
 
     this.msg.offs = []..this.msg.offs..[$this.msg.bytes];
