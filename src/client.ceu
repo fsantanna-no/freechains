@@ -3,35 +3,76 @@
 
 #include "sodium.ceu"
 
-class Message10_prepare with
-    var Message& msg;
-    function (Message& msg)=>Message10_prepare build;
+class Message10_send with
+    var _uv_tcp_t& tcp;
+    function (_uv_tcp_t& tcp)=>Message10_send run;
 do
-    function (Message& msg)=>Message10_prepare build do
-        this.msg = &msg;
+    function (_uv_tcp_t& tcp)=>Message10_send run do
+        this.tcp = &tcp;
     end
+
+    var byte[] bytes;
 
     // => MESSAGE
     do
         var int major = [[ MSG.id_t.major ]];
         var int minor = [[ MSG.id_t.minor ]];
-        this.msg.bytes = []..this.msg.bytes..
+        this.bytes = []..this.bytes..
                          [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, major, minor];
     end
 
-    // => CHAIN_SIGNED?
+    // => CHAIN_ZEROS
     // => CHAIN_LEN
     // => CHAIN_KEY
-    var int zeros = [[ MSG.chain.zeros ]];
+    var int chain_zeros = [[ MSG.chain.zeros ]];
     var char[] chain_key;
     do
         chain_key = [[ MSG.chain.key ]];
 
-        var int chain_len = [[ string.len(MSG.chain.key) ]];
-        _assert(chain_len>=0 and chain_len<CHAIN_KEY_BYTES);
+        var u32 chain_len = [[ string.len(MSG.chain.key) ]];
+        _assert(chain_len<CHAIN_KEY_BYTES);
 
-        var u8 chain = (chain_len | ((zeros==256)<<7));
-        this.msg.bytes = []..this.msg.bytes..[chain]..chain_key;
+        this.bytes = []..this.bytes..[chain_zeros,(u8)chain_len]..chain_key;
+    end
+
+    do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &this.bytes);
+
+    //////////////////////////////////////////////////////////////////////////
+
+    // <= ACK
+    var int err = _ERR_NONE;
+    do
+        var byte[] recv;
+        var UV_Stream_Read reader =
+                UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&recv);
+        AWAIT_UNTIL(reader,1);
+        err = recv[0];
+
+        if reader.next > 1 then
+            _assert(0);     // TODO: global event to kill connection
+            escape _ERR_EXTRA_BYTES;
+        end
+    end
+
+    _printf("[client] ACK = %d\n", err);
+    if err == _MESSAGE10_NOTSUB then
+        escape err;
+    end
+
+    _assert(0);
+
+    //////////////////////////////////////////////////////////////////////////
+
+    escape _ERR_NONE;
+end
+
+#if 0
+class T with
+    var Message& msg;
+    function (Message& msg)=>T build;
+do
+    function (Message& msg)=>T build do
+        this.msg = &msg;
     end
 
     // => PAYLOAD_LEN
@@ -48,7 +89,7 @@ do
         var byte[HASH_BYTES] block_hash;
         var byte[] plain =
             [ 0,0,0,0 ]     ..     // PoW nonce
-            [ zeros==256 ]  ..     // is signed?
+            [ chain_zeros==256 ]  ..     // is signed?
             chain_key       ..
             tail_hash       ..     // BACK_HASH (immutable)
             payload         ;
@@ -61,7 +102,7 @@ do
                 _fflush(_stdout);
             end
         with
-            var u8 zeros_wanted = (u8)zeros;    // 256=>0
+            var u8 zeros_wanted = (u8)chain_zeros;    // 256=>0
             async/thread (plain,block_hash,nonce,zeros_wanted) do
                 var int zeros_found = 0;
                 $block_hash := HASH_BYTES;
@@ -114,6 +155,7 @@ do
 
     escape _ERR_NONE;
 end
+#endif
 
 interface PeerListener with
     event int ok;
@@ -122,14 +164,12 @@ end
 class PeerSend with
 input:
     var int peer_i;
-    var Message&      msg;
     var PeerListener& listener;
 
-    function (int i, Message& msg, PeerListener& listener)=>PeerSend build;
+    function (int i, PeerListener& listener)=>PeerSend run;
 do
-    function (int i, Message& msg, PeerListener& listener)=>PeerSend build do
+    function (int i, PeerListener& listener)=>PeerSend run do
         this.peer_i   = i;
-        this.msg      = &msg;
         this.listener = &listener;
     end
 
@@ -138,46 +178,25 @@ do
     _printf("[client] Connecting to %s:%d.\n", (_char&&)&&ip, port);
     var UV_TCP_Client c = UV_TCP_Client.build(&ip, port);
 
-    var s8 err =
+    var bool is_10 = [[ MSG.id=='1.0' ]];
+    // ...
+
+    var int err =
     do
-        var s8 err_ = await c.ok;
+        var int err_ = await c.ok;
         if err_ != _ERR_NONE then
             escape err_;
         end
 
         _printf("[client] Connected to %s:%d.\n", (_char&&)&&ip, port);
         watching c do
-            var u32 starting = 0;
-            loop i in $this.msg.offs do
-                // => offs[i]
-                var u32 excluding = this.msg.offs[i];
-                do UV_Stream_Write.build2(&_UV_STREAM_ALIAS(c.tcp),
-                                          &this.msg.bytes,
-                                          starting, excluding);
-
-                // last ACK is never sent, so don't await below
-                if i == $this.msg.offs-1 then
-                    _assert(excluding == $this.msg.bytes);
-                    break;
-                end
-
-                // <= OK?
-                do
-                    var byte[] recv;
-                    var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(c.tcp),&recv);
-                    AWAIT_UNTIL(r,1);
-                    _assert(r.next >= 1);
-                    if r.next > 1 then
-                        escape _ERR_EXTRA_BYTES;
-                    end
-                    var s8 err_ = recv[0];
-                    if err_ != _ERR_NONE then
-                        escape err_;
-                    end
-                end
-                starting = excluding;
+            var int err_ = _ERR_NONE;
+            if is_10 then
+                err_ = do Message10_send.run(&c.tcp);
+            else
+                // ...
             end
-            escape _ERR_NONE;
+            escape err_;
         end
         escape _ERR_DISCONNECTED;
     end;
@@ -187,51 +206,29 @@ do
     escape err;
 end
 
-class PeersSend with
+class Client with
     interface PeerListener;
-input:
-    var Message& msg;
-
-    function (Message& msg)=>PeersSend run;
 do
-    function (Message& msg)=>PeersSend run do
-        this.msg = &msg;
+    [[ MSG = APP.message ]];
+    var bool has = [[ MSG~=nil ]];
+    if not has then
+        await FOREVER;
     end
+
+    var bool is_10 = [[ MSG.id=='1.0' ]];
+    _assert(is_10);  // message not supported
 
     _printf("[client] Broadcasting message...\n");
     var int n = [[#APP.client.peers]];
     loop i in n do
-        spawn PeerSend.build(i+1, &this.msg, &this);
+        var PeerSend&&? p = spawn PeerSend.run(i+1, &this);
+        _assert(p! != null);
     end
     loop i in n do
         var int err = await this.ok;
         _printf("[client] peer %d\n", err);
     end
     _printf("[client] Broadcast OK!\n");
-
-    escape _ERR_NONE;
-end
-
-class Client with
-do
-    var int ni = [[ #APP.messages ]];
-
-    if ni == 0 then
-        await FOREVER;
-    end
-
-    loop i in ni do
-        [[ MSG = APP.messages[@i+1] ]];
-        var Message msg;
-        var bool is_10 = [[ MSG.id=='1.0' ]];
-        if is_10 then
-            var int err = do Message10_prepare.build(&msg);
-            _assert(err == _ERR_NONE);
-        else
-            _assert(0);  // message not supported
-        end
-        do PeersSend.run(&msg);
-    end
 
     escape _ERR_NONE;
 end

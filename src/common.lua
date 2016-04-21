@@ -55,7 +55,8 @@ function MESSAGE (t)
         local cfg = assert(APP.chains[t.chain.key],t.chain.key)
         assert(t.chain.zeros >= cfg.zeros)
     end
-    APP.messages[#APP.messages+1] = t
+    assert(not APP.message)
+    APP.message = t
 end
 
 function hex_dump(buf)

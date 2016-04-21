@@ -1,10 +1,11 @@
 #include "c.ceu"
 
+#define MESSAGE_BYTES   4
 #define MESSAGE_MAGIC_0 'P'
 #define MESSAGE_MAGIC_1 'S'
 
 #define HASH_BYTES      32
-#define CHAIN_KEY_BYTES 128
+#define CHAIN_KEY_BYTES 256
 
 native @pure _leading_zeros();
 native do
@@ -13,6 +14,10 @@ native do
         ERR_EXTRA_BYTES  = -1,
         ERR_MESSAGE      = -2,
         ERR_DISCONNECTED = -3,
+    };
+
+    enum {
+        MESSAGE10 = 1,
     };
 
     enum {
@@ -67,11 +72,12 @@ end
 
 /*
 - MESSAGE_*:    obligatory
+- CHAIN_*:      avoids sequence of unsubscribed hashes
+    - ok: not sub
+--
 - BLOCK_HASH:   client will typically guess correctly
     - ok: have
 ---
-- CHAIN_*:      .
-    - ok: not sub
 - PAYLOAD_LEN
     - ok: too big
 ---
@@ -101,8 +107,8 @@ MESSAGE_MAJOR    1
 MESSAGE_MINOR    1
 // identifies the blockchain for this message
 //  a server may not be interested in this blockchain
-CHAIN_SIGNED?    1b       // message must be signed and checked
-CHAIN_LEN        7b       // number of bytes for the CHAIN identifier
+CHAIN_ZEROS      1        // number of zeros to be trasmitted (or signed)
+CHAIN_LEN        1        // number of bytes for the CHAIN identifier
 CHAIN_KEY        <CHAIN_LEN> // CHAIN identifier (pubkey?, topic?) (if signed, must be pubkey)
 // identifies the data for this message
 //  a server may already have this payload and refuse it
