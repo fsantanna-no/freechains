@@ -1,0 +1,8 @@
+MESSAGE {
+    id = '1.0',
+    chain = {
+        key   = '',
+        zeros = 0,
+    },
+    payload = string.rep('.',1025),
+}
