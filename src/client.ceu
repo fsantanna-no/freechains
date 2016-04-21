@@ -137,9 +137,14 @@ do
     var int    port = [[ APP.client.peers[@this.peer_i][2] ]];
     _printf("[client] Connecting to %s:%d.\n", (_char&&)&&ip, port);
     var UV_TCP_Client c = UV_TCP_Client.build(&ip, port);
-    var int status = await c.ok;
 
-    if status == 0 then
+    var s8 err =
+    do
+        var s8 err_ = await c.ok;
+        if err_ != _ERR_NONE then
+            escape err_;
+        end
+
         _printf("[client] Connected to %s:%d.\n", (_char&&)&&ip, port);
         watching c do
             var u32 starting = 0;
@@ -157,27 +162,29 @@ do
                 end
 
                 // <= OK?
-                var int ok = 0;
                 do
                     var byte[] recv;
                     var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(c.tcp),&recv);
                     AWAIT_UNTIL(r,1);
                     _assert(r.next >= 1);
                     if r.next > 1 then
-                        emit listener.ok => _ERR_EXTRA_BYTES;
                         escape _ERR_EXTRA_BYTES;
                     end
-                    ok = recv[0];
+                    var s8 err_ = recv[0];
+                    if err_ != _ERR_NONE then
+                        escape err_;
+                    end
                 end
                 starting = excluding;
             end
+            escape _ERR_NONE;
         end
-        emit listener.ok => _ERR_NONE;
-        escape _ERR_NONE;
-    end
+        escape _ERR_DISCONNECTED;
+    end;
 
-    _printf("[client] Diconnected from %s:%d.\n", (_char&&)&&ip, port);
-    escape _ERR_DISCONNECTED;
+    _printf("[client] Diconnected from %s:%d => %d\n", (_char&&)&&ip, port, err);
+    emit listener.ok => err;
+    escape err;
 end
 
 class PeersSend with
