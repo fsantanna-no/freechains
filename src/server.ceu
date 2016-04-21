@@ -99,11 +99,11 @@ do
         _ceu_vector_copy_buffer(&&block_hash, 0,
                                 (_byte&&)&&this.msg.bytes[off], HASH_BYTES);
         [[
+            MSG.block_hash = @block_hash
             print('[server] BLOCK_HASH = {')
-            print(hex_dump(@block_hash))
+            print(hex_dump(MSG.block_hash))
             print('}')
         ]];
-        [[ MSG.block_hash = @block_hash ]];
     end
     _assert($block_hash == HASH_BYTES);
 
@@ -179,11 +179,11 @@ do
         _ceu_vector_copy_buffer(&&back_hash, 0,
                                 (_byte&&)&&this.msg.bytes[off], HASH_BYTES);
         [[
+            MSG.back_hash = @back_hash
             print('[server] BACK_HASH = {')
-            print(hex_dump(@back_hash))
+            print(hex_dump(MSG.back_hash))
             print('}')
         ]];
-        [[ MSG.back_hash = @back_hash ]];
 
         // [check] BACK_HASH is young enough? [no ACK]
         do
@@ -212,11 +212,11 @@ do
         _ceu_vector_copy_buffer(&&tail_hash, 0,
                                 (_byte&&)&&this.msg.bytes[off], HASH_BYTES);
         [[
+            MSG.tail_hash = @tail_hash
             print('[server] TAIL_HASH = {')
-            print(hex_dump(@tail_hash))
+            print(hex_dump(MSG.tail_hash))
             print('}')
         ]];
-        [[ MSG.tail_hash = @tail_hash ]];
     end
     _assert($tail_hash == HASH_BYTES);
 
@@ -233,12 +233,15 @@ do
         nxt = nxt + payload_len;
         AWAIT_UNTIL(r,nxt);
 
-        // TODO: trick to print the payload as string
-        _assert($this.msg.bytes == nxt);
-        $this.msg.bytes := $this.msg.bytes + 1;
-        this.msg.bytes[nxt] = '\0';
-        _printf("[server] PAYLOAD = %s", (_char&&)&&(((_byte&&)&&this.msg.bytes)[off]));
-        $this.msg.bytes = $this.msg.bytes - 1;
+        var byte[] payload;
+        $payload := payload_len;
+        _ceu_vector_copy_buffer(&&payload, 0,
+                                &&(((_byte&&)&&this.msg.bytes)[off]),
+                                payload_len);
+        [[
+            MSG.payload = @payload
+            print('[server] PAYLOAD = '..MSG.payload)
+        ]];
     end
 
     // == END
