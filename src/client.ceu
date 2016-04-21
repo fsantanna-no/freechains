@@ -42,16 +42,11 @@ do
     // <= ACK
     var int err = _ERR_NONE;
     do
-        var byte[] recv;
+        var byte[1] recv;
         var UV_Stream_Read reader =
                 UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&recv);
         AWAIT_UNTIL(reader,1);
         err = recv[0];
-
-        if reader.next > 1 then
-            _assert(0);     // TODO: global event to kill connection
-            escape _ERR_EXTRA_BYTES;
-        end
     end
 
     _printf("[client] ACK = %d\n", err);
@@ -198,6 +193,7 @@ do
             end
             escape err_;
         end
+// TODO: usar erro de c
         escape _ERR_DISCONNECTED;
     end;
 

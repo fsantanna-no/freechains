@@ -11,9 +11,8 @@ native @pure _leading_zeros();
 native do
     enum {
         ERR_NONE         =  0,
-        ERR_EXTRA_BYTES  = -1,
-        ERR_MESSAGE      = -2,
-        ERR_DISCONNECTED = -3,
+        ERR_MESSAGE      = -1,
+        ERR_DISCONNECTED = -2,
     };
 
     enum {
@@ -118,7 +117,7 @@ BLOCK_HASH       32       // hash of the proposed block
 // server responds 0/1
 // client completes message
 ///////////////////////////////////////////////////////////////////////////////
-// BLOCK_HASH = hash[PoW..CHAIN_SIGNED..CHAIN_KEY..BACK_HASH..PAYLOAD]
+// BLOCK_HASH = hash[PoW..BACK_HASH..PAYLOAD]
 PoW              4 u32    // nonce for BLOCK_HASH
 PoS              1        // value of random jump (based on BLOCK_HASH) in the CHAIN
 BACK_HASH        32       // immutable: a past hash at most TODO jumps away from BLOCK_HASH
@@ -126,8 +125,8 @@ TAIL_HASH        32       // mutable: immediate past hash which creates the chai
 PAYLOAD          <PAYLOAD_LEN>
 TODO-SIGNATURE
 ///////////////////////////////////////////////////////////////////////////////
-    - BLOCK_HASH: the number of leading 0s + CHAIN_SIGNED + CHAIN_KEY 
-      idenditifies the target CHAIN
+    - BLOCK_HASH: univocally identifies a specific message that was sent to
+                  a specific back pointer, which implies a specific chain
     - on creation, BACK_HASH=TAIL_HASH, but nodes can change TAIL_HASH to 
       reorder the chain
     - since BLOCK_HASH uses BACK_HASH, an attacker cannot preprocess a side 
