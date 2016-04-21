@@ -29,12 +29,13 @@ local meta = {
 function CHAINS (t)
     for k, tid in pairs(t) do
         APP.chains[k] = tid
-        assert(type(tid) == 'table')
-        assert(type(tid.zeros) == 'number')
-        if k == '' then
-            assert(tid.zeros < 256)
+        if type(tid) == 'table' then
+            assert(type(tid.zeros) == 'number')
+            if k == '' then
+                assert(tid.zeros < 256)
+            end
+            tid.heads = setmetatable({}, meta)
         end
-        tid.heads = setmetatable({}, meta)
     end
 end
 

@@ -3,9 +3,9 @@
 
 native do
     enum {
-        MESSAGE10_OK = 1,
-        MESSAGE10_HAVE,
-        MESSAGE10_NOTSUB,
+        MESSAGE10_HAVE = 1, // [ok ACK] server already has it
+        MESSAGE10_NOTSUB,   // [no ACK] server is not subscribed to its chain
+        MESSAGE10_BACK_HASH_JUMP_LIMIT,
     };
 end
 
@@ -41,8 +41,9 @@ do
     var int off = 0;
 
     // <= MESSAGE
+    // TODO: with other message, move to outside the class
     do
-        // - [check] Is this message '1.0'?
+        // [check] Is this message '1.0'? [no ACK]
 
         off = nxt;
         nxt = nxt + 1+1+1+1;
@@ -114,42 +115,33 @@ do
     // == CHECK
     // => ACK
     do
-        // - [check] Do I have this message hash?
+        // [check] Do I have this message hash? [ok ACK]
 
         var bool have = [[ APP.blocks[@block_hash] ]];
         [[ APP.blocks[@block_hash] = true ]];
 
-        var int ret = _ERR_NONE;
+        // [check] Am I subscribed to the message chain? [no ACK]
+        // [check] Does the message has the required zeros? [no ACK]
 
-        // - [check] Am I subscribed to the message chain?
-        // - [check] Does the message has the required zeros?
-
-        if have then
-            ret = _MESSAGE10_HAVE;
-        else
-            ret = _MESSAGE10_NOTSUB;
+        if not have then
             [[ CHAIN = APP.chains[@chain_key] ]];
             var bool is_sub = [[ CHAIN ~= nil ]];
             if is_sub then
                 var int zeros = _leading_zeros((_byte&&)&&block_hash, HASH_BYTES);
                 is_sub = [[ CHAIN.zeros <= @zeros ]];
-                if is_sub then
-                    ret = _ERR_NONE;
-                end
                 [[ MSG.chain.zeros = @zeros ]];
+            end
+            if not is_sub then
+                escape _MESSAGE10_NOTSUB;   // no ACK
             end
         end
 
-        if ret == _ERR_NONE then
-            ret = _MESSAGE10_OK;
-        end
-
-        var byte[1] send = [ret == _MESSAGE10_OK];
+        var byte[1] send = [not have];
         this.msg.offs = []..this.msg.offs..[nxt];
         do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
 
-        if ret != _MESSAGE10_OK then
-            escape ret;
+        if have then
+            escape _MESSAGE10_HAVE;
         end
     end
 
@@ -191,6 +183,21 @@ do
             print('}')
         ]];
         [[ MSG.back_hash = @back_hash ]];
+
+        // [check] BACK_HASH is young enough? [no ACK]
+        do
+#if 0
+            var int n = [[ APP.chains.BACK_HASH_JUMP_LIMIT ]];
+            [[ HEAD = APP.chains[MSG.chain.key].heads[MSG.chain.zeros] ]];
+            loop i in n do
+                var bool is_eq = [[ HEAD == MSG.back_hash ]];
+                if is_eq then
+                    xxx
+                end
+               [[ HEAD = APP ]]
+            end
+#endif
+        end
     end
     _assert($back_hash == HASH_BYTES);
 
@@ -241,7 +248,7 @@ do
 
     this.msg.offs = []..this.msg.offs..[nxt];
 
-    escape _MESSAGE10_OK;
+    escape _ERR_NONE;
 end
 
 class Message10_link with
@@ -271,12 +278,14 @@ do
 
     var Message msg;
     var int ret = do Message10_receive.build(&this.tcp, &msg);
-    _assert(ret > _ERR_NONE);
+    _assert(ret >= _ERR_NONE);
     _printf("[server] ret = %d\n", ret);
-    if ret==_MESSAGE10_HAVE or ret==_MESSAGE10_NOTSUB then
+    if ret==_MESSAGE10_HAVE then
         _assert($msg.offs == 1);
+    else/if ret==_MESSAGE10_NOTSUB then
+        _assert($msg.offs == 0);
     else
-        _assert(ret == _MESSAGE10_OK);
+        _assert(ret == _ERR_NONE);
         _assert($msg.offs == 2);
         var int err = do Message10_link.build(&msg);
         if err == _ERR_NONE then
