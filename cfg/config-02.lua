@@ -9,10 +9,12 @@ CLIENT {
 }
 
 CHAINS {
+    ['news'] = {            -- chain id
+        zeros = 0,          -- unsigned,
+        --heads = {},       -- head hash for each sub-chain
+    },
     ['fsantanna'] = {       -- chain id
-        [true] = {
-            zeros = 22,
-        },
-        [false] = false,
+        zeros = 256,        -- signed,
+        --heads = {},       -- head hash for each sub-chain
     },
 }

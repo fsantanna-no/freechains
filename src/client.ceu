@@ -22,34 +22,31 @@ do
     // => CHAIN_SIGNED?
     // => CHAIN_LEN
     // => CHAIN_KEY
-    var bool chain_signed = false;
+    var int zeros = [[ MSG.chain.zeros ]];
     var char[] chain_key;
     do
-        chain_signed = [[ MSG.chain.signed ]];
-        chain_key    = [[ MSG.chain.key ]];
+        chain_key = [[ MSG.chain.key ]];
 
         var int chain_len = [[ string.len(MSG.chain.key) ]];
         _assert(chain_len>=0 and chain_len<CHAIN_KEY_BYTES);
 
-        var u8 chain = (chain_len | (chain_signed<<7));
+        var u8 chain = (chain_len | ((zeros==256)<<7));
         this.msg.bytes = []..this.msg.bytes..[chain]..chain_key;
     end
 
     // => BLOCK_HASH (async/thread)
-    var char[HASH_BYTES] tail_hash = [[ MSG.chain.config[@chain_signed].heads[
-                                            MSG.chain.zeros
-                                        ] ]];
+    var char[HASH_BYTES] tail_hash = [[ MSG.chain.heads[MSG.chain.zeros] ]];
     var char[]           payload   = [[ MSG.payload ]];
     var u32              nonce     = 0;
     do
         // calculate nonce for the leading zeros
         var char[HASH_BYTES] block_hash;
         var char[] plain =
-            [ 0,0,0,0 ]      ..     // PoW nonce
-            [ chain_signed ] ..
-            chain_key        ..
-            tail_hash        ..     // BACK_HASH (immutable)
-            payload          ;
+            [ 0,0,0,0 ]     ..     // PoW nonce
+            [ zeros==256 ]  ..     // is signed?
+            chain_key       ..
+            tail_hash       ..     // BACK_HASH (immutable)
+            payload         ;
         var int ms = 0;
         par/or do
             every 100ms do
@@ -58,7 +55,7 @@ do
                 _fflush(_stdout);
             end
         with
-            var int zeros_wanted = [[ MSG.chain.zeros ]];
+            var u8 zeros_wanted = (u8)zeros;    // 256=>0
             async/thread (plain,block_hash,nonce,zeros_wanted) do
                 var int zeros_found = 0;
                 $block_hash := HASH_BYTES;

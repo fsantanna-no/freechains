@@ -16,10 +16,7 @@ CLIENT {
 -- chains configurations
 CHAINS {
     [''] = {                -- global chain (cannot be signed)
-        [true] = false,     -- messages are signed
-        [false] = {         -- messages are not signed
-            zeros = 0,
-        },
+        zeros = 0,          -- receive messages with 0 leading zeros in the hash
         --mode = 'pub'      -- only publishes messages (storage required)
         --mode = 'sub'      -- only listen for messages (storeage not required)
         --mode = 'pub/sub'?

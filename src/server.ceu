@@ -21,19 +21,6 @@ do
         this.msg = &msg;
     end
 
-    [[
-        MSG = {
-            id = '1.0',
-            chain = {
-                --config = nil,
-                key    = nil,
-                signed = nil,
-                zeros  = nil,
-            },
-            payload = nil,
-        }
-    ]]
-
     var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),
                                                 &this.msg.bytes);
 
@@ -71,7 +58,7 @@ do
         AWAIT_UNTIL(r,nxt);
         var u8 v = this.msg.bytes[off];
         chain_signed = (v>>7);
-        var int  chain_len = (v&0x7F);
+        var int chain_len = (v&0x7F);
         _printf("[server] CHAIN_SIGNED = %d\n", chain_signed);
         _printf("[server] CHAIN_LEN    = %d\n", chain_len);
 
@@ -128,7 +115,6 @@ do
             [[ CHAIN = APP.chains[@chain_key] ]];
             var bool is_sub = [[ CHAIN ~= nil ]];
             if is_sub then
-                [[ CHAIN = assert(CHAIN[@chain_signed]) ]];
                 var int zeros = _leading_zeros((_byte&&)&&block_hash, HASH_BYTES);
                 is_sub = [[ CHAIN.zeros <= @zeros ]];
                 if is_sub then

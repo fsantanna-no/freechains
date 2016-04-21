@@ -30,25 +30,11 @@ function CHAINS (t)
     for k, tid in pairs(t) do
         APP.chains[k] = tid
         assert(type(tid) == 'table')
+        assert(type(tid.zeros) == 'number')
         if k == '' then
-            assert(tid[true] == false)
+            assert(tid.zeros < 256)
         end
-        for _, signed in ipairs{true,false} do
-            local tsig = tid[signed]
-            if tsig == false then
-                tsig = {}
-                tid[signed] = tsig
-            else
-                assert(type(tsig) == 'table')
-                assert(type(tsig.zeros) == 'number')
-            end
-            tsig.heads = {}
-            setmetatable(tsig.heads, meta)
-        end
-        if k~='' and tid[false].zeros then
-            -- asserts that if "unsigned" is sub'ed, than "signed" must also be
-            assert(tid[true].zeros and tid[false].zeros<=tid[true].zeros)
-        end
+        tid.heads = setmetatable({}, meta)
     end
 end
 
@@ -64,12 +50,13 @@ function MESSAGE (t)
     }
     if t.id == '1.0' then
         assert(type(t.chain)=='table')
-        assert(type(t.chain.zeros=='number'))
-        assert(type(t.chain.signed=='bool'))
+        assert(type(t.chain.zeros)=='number')
 
-        t.chain.config = assert(APP.chains[t.chain.key],t.chain.key)
-        assert(type(t.chain.config) == 'table')
-        assert(t.chain.config[true]~=nil and t.chain.config[false]~=nil)
+        local cfg = assert(APP.chains[t.chain.key],t.chain.key)
+        assert(t.chain.zeros >= cfg.zeros)
+
+        t.chain.heads = cfg.heads
+        assert(type(t.chain.heads) == 'table')
     end
     APP.messages[#APP.messages+1] = t
 end

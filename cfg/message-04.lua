@@ -2,10 +2,10 @@ MESSAGE {
     id = '1.0',
     chain = {
         --config = nil,
-        key   = '',
-        zeros = 0,
+        key   = 'fsantanna',
+        zeros = 256,            -- signed
     },
     payload = [[
-Olá Mundo!
+Francisco Sant'Anna
 ]],
 }
