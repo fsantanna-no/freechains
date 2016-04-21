@@ -59,6 +59,7 @@ BACK_HASH        32       // immutable: a past hash at most TODO jumps away from
 TAIL_HASH        32       // mutable: immediate past hash which creates the chain
 PAYLOAD_LEN      4 u32    // number of bytes to read next for the payload
 PAYLOAD          <PAYLOAD_LEN>
+TODO-SIGNATURE
 ///////////////////////////////////////////////////////////////////////////////
     - BLOCK_HASH: the number of leading 0s + CHAIN_SIGNED + CHAIN_KEY 
       idenditifies the target CHAIN

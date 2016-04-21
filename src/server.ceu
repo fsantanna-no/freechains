@@ -20,6 +20,19 @@ do
         this.msg = &msg;
     end
 
+    [[
+        MSG = {
+            id = '1.0',
+            chain = {
+                --config = nil,
+                key    = nil,
+                signed = nil,
+                zeros  = nil,
+            },
+            payload = nil,
+        }
+    ]]
+
     var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),
                                                 &this.msg.bytes);
 
@@ -62,13 +75,10 @@ do
         off = nxt;
         nxt = nxt + chain_len;
         AWAIT_UNTIL(r,nxt);
-        _printf("[server] CHAIN_KEY    = [");
-        loop i in chain_len do
-            _printf("%2d", this.msg.bytes[off+i]);
-        end
-        _printf(" ]\n");
-
-        _printf("\n");
+        var char[] chain_id;
+        $chain_id := chain_len;
+        _strncpy((_char&&)&&chain_id, (_char&&)&&this.msg.bytes[off], chain_len);
+        _printf("[server] CHAIN_KEY    = %s\n", (_char&&)&&chain_id);
     end
 
     // <= BLOCK_HASH
@@ -190,13 +200,13 @@ do
     escape _MESSAGE10_OK;
 end
 
-class Message10_check with
+class Message10_link with
 input:
     var Message& msg;
 
-    function (Message& msg)=>Message10_check build;
+    function (Message& msg)=>Message10_link build;
 do
-    function (Message& msg)=>Message10_check build do
+    function (Message& msg)=>Message10_link build do
         this.msg = &msg;
     end
 
@@ -222,7 +232,7 @@ do
     else
         _assert(ret == _MESSAGE10_OK);
         _assert($msg.offs == 2);
-        var int err = do Message10_check.build(&msg);
+        var int err = do Message10_link.build(&msg);
         if err == _ERR_NONE then
             err = do PeersSend.run(&msg);
             _assert(err == _ERR_NONE);

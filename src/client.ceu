@@ -78,7 +78,7 @@ do
             end
         with
             async/thread (plain,block_hash,nonce) do
-                var int zeros_wanted = 22;//[[ MSG.chain.zeros ]];
+                var int zeros_wanted = [[ MSG.chain.zeros ]];
                 var int zeros_found  = 0;
 
                 $block_hash := HASH_BYTES;
