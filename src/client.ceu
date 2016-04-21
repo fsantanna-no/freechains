@@ -34,9 +34,14 @@ do
         this.msg.bytes = []..this.msg.bytes..[chain]..chain_key;
     end
 
+    // => PAYLOAD_LEN
+    var char[] payload = [[ MSG.payload ]];
+    do
+        PUT_NETWORK_U32(this.msg.bytes, $this.msg.bytes, $payload);
+    end
+
     // => BLOCK_HASH (async/thread)
     var char[HASH_BYTES] tail_hash = [[ APP.chains[MSG.chain.key].heads[MSG.chain.zeros] ]];
-    var char[]           payload   = [[ MSG.payload ]];
     var u32              nonce     = 0;
     do
         // calculate nonce for the leading zeros
@@ -47,6 +52,7 @@ do
             chain_key       ..
             tail_hash       ..     // BACK_HASH (immutable)
             payload         ;
+
         var int ms = 0;
         par/or do
             every 100ms do
@@ -99,10 +105,8 @@ do
         this.msg.bytes = []..this.msg.bytes..tail_hash; // TAIL_HASH
     end
 
-    // => PAYLOAD_LEN
     // => PAYLOAD
     do
-        PUT_NETWORK_U32(this.msg.bytes, $this.msg.bytes, $payload);
         this.msg.bytes = []..this.msg.bytes..payload;
     end
 

@@ -59,7 +59,11 @@ end
 
 /*
 ///////////////////////////////////////////////////////////////////////////////
-// client proposes message
+// client proposes message to the server
+    - type of message, server checks before anything else
+    - chain_*, server checks if it is subscribing to this
+    - payload_len, server may not want big messages from untrusted clients
+    - block_hash, server may already have it
 ///////////////////////////////////////////////////////////////////////////////
 // identifies this message (protocol, version)
 //  a server may refuse or behave differently
@@ -71,10 +75,10 @@ MESSAGE_MINOR    1
 //  a server may not be interested in this blockchain
 CHAIN_SIGNED?    1b       // message must be signed and checked
 CHAIN_LEN        7b       // number of bytes for the CHAIN identifier
-CHAIN_KEY        <CHAIN_LEN> // CHAIN identifier (pubkey?, topic?) (if signed, 
-must be pubkey)
+CHAIN_KEY        <CHAIN_LEN> // CHAIN identifier (pubkey?, topic?) (if signed, must be pubkey)
 // identifies the data for this message
 //  a server may already have this payload and refuse it
+PAYLOAD_LEN      4 u32    // number of bytes to read next for the payload
 BLOCK_HASH       32       // hash of the proposed block
 ///////////////////////////////////////////////////////////////////////////////
 // server responds 0/1
@@ -85,7 +89,6 @@ PoW              4 u32    // nonce for BLOCK_HASH
 PoS              1        // value of random jump (based on BLOCK_HASH) in the CHAIN
 BACK_HASH        32       // immutable: a past hash at most TODO jumps away from BLOCK_HASH
 TAIL_HASH        32       // mutable: immediate past hash which creates the chain
-PAYLOAD_LEN      4 u32    // number of bytes to read next for the payload
 PAYLOAD          <PAYLOAD_LEN>
 TODO-SIGNATURE
 ///////////////////////////////////////////////////////////////////////////////
