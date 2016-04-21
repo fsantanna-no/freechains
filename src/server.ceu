@@ -5,6 +5,7 @@ native do
     enum {
         MESSAGE10_HAVE = 1, // [ok ACK] server already has it
         MESSAGE10_NOTSUB,   // [no ACK] server is not subscribed to its chain
+        MESSAGE10_POW_FAIL, // [no ACK] block hash does not match the given PoW
         MESSAGE10_BACK_HASH_JUMP_LIMIT, // TODO:
         MESSAGE10_PAYLOAD_LEN_LIMIT,    // TODO: move PAYLOAD_LEN to header
     };
@@ -115,6 +116,7 @@ do
 
     // == CHECK
     // => ACK
+    var int zeros = 0;
     do
         // [check] Do I have this message hash? [ok ACK]
 
@@ -128,7 +130,7 @@ do
             [[ CHAIN = APP.chains[@chain_key] ]];
             var bool is_sub = [[ CHAIN ~= nil ]];
             if is_sub then
-                var int zeros = _leading_zeros((_byte&&)&&block_hash, HASH_BYTES);
+                zeros = _leading_zeros((_byte&&)&&block_hash, HASH_BYTES);
                 is_sub = [[ CHAIN.zeros <= @zeros ]];
                 [[ MSG.chain.zeros = @zeros ]];
             end
@@ -149,11 +151,12 @@ do
     //////////////////////////////////////////////////////////////////////////
 
     // <= PoW
+    var u32 pow = 0;
     do
         off = nxt;
         nxt = nxt + sizeof(u32);
         AWAIT_UNTIL(r,nxt);
-        var u32 pow = GET_HOST_U32(this.msg.bytes,off);
+        pow = GET_HOST_U32(this.msg.bytes,off);
         _printf("[server] POW = %X\n", pow);
         [[ MSG.pow = @pow ]];
     end
@@ -222,6 +225,7 @@ do
 
     // <= PAYLOAD_LEN
     // <= PAYLOAD
+    var byte[] payload;
     do
         off = nxt;
         nxt = nxt + sizeof(u32);
@@ -233,7 +237,6 @@ do
         nxt = nxt + payload_len;
         AWAIT_UNTIL(r,nxt);
 
-        var byte[] payload;
         $payload := payload_len;
         _ceu_vector_copy_buffer(&&payload, 0,
                                 &&(((_byte&&)&&this.msg.bytes)[off]),
@@ -242,6 +245,26 @@ do
             MSG.payload = @payload
             print('[server] PAYLOAD = '..MSG.payload)
         ]];
+    end
+
+    // [check] BLOCK_HASH is correct? [no ACK]
+    do
+        var byte[] plain;
+        $plain := sizeof(u32);
+        PUT_NETWORK_U32(plain, 0, pow);
+        plain = []..plain..[zeros]..chain_key..back_hash..payload;
+
+        var byte[] hash;
+        $hash := HASH_BYTES;
+        _crypto_generichash((_byte&&)&&hash, HASH_BYTES,
+                            (_byte&&)&&plain, $plain,
+                            null, 0);
+
+        var int ret = _memcmp((_byte&&)&&block_hash, (_byte&&)&&hash, HASH_BYTES);
+        _printf("[server] POW = %d\n", ret==0);
+        if ret != 0 then
+            escape _MESSAGE10_POW_FAIL;
+        end
     end
 
     // == END

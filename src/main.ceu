@@ -80,7 +80,7 @@ BLOCK_HASH       32       // hash of the proposed block
 // server responds 0/1
 // client completes message
 ///////////////////////////////////////////////////////////////////////////////
-//  BLOCK_HASH = hash[PoW .. CHAIN_SIGNED .. CHAIN_KEY .. TAIL_HASH ..  PAYLOAD]
+// BLOCK_HASH = hash[PoW..CHAIN_SIGNED..CHAIN_KEY..BACK_HASH..PAYLOAD]
 PoW              4 u32    // nonce for BLOCK_HASH
 PoS              1        // value of random jump (based on BLOCK_HASH) in the CHAIN
 BACK_HASH        32       // immutable: a past hash at most TODO jumps away from BLOCK_HASH

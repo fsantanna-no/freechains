@@ -40,8 +40,8 @@ do
     var u32              nonce     = 0;
     do
         // calculate nonce for the leading zeros
-        var char[HASH_BYTES] block_hash;
-        var char[] plain =
+        var byte[HASH_BYTES] block_hash;
+        var byte[] plain =
             [ 0,0,0,0 ]     ..     // PoW nonce
             [ zeros==256 ]  ..     // is signed?
             chain_key       ..
@@ -60,10 +60,10 @@ do
                 var int zeros_found = 0;
                 $block_hash := HASH_BYTES;
                 loop do
-                    _crypto_generichash((_byte&&)(_char&&)&&block_hash, HASH_BYTES,
-                                        (_byte&&)(_char&&)&&plain, $plain,
+                    _crypto_generichash((_byte&&)&&block_hash, HASH_BYTES,
+                                        (_byte&&)&&plain, $plain,
                                         null, 0);
-                    zeros_found = _leading_zeros((_char&&)&&block_hash, $block_hash);
+                    zeros_found = _leading_zeros((_byte&&)&&block_hash, $block_hash);
                     if zeros_found >= zeros_wanted then
                         break;
                     end
