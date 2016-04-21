@@ -209,6 +209,7 @@ do
     var Message msg;
     var int ret = do Message10_receive.build(&this.tcp, &msg);
     _assert(ret > _ERR_NONE);
+    _printf("[server] ret = %d\n", ret);
     if ret == _MESSAGE10_HAVE then
         _assert($msg.offs == 1);
     else

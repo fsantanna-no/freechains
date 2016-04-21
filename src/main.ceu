@@ -52,7 +52,7 @@ HASH_0s          32       // TODO hash of the payload
 // server responds 0/1
 // client completes message
 ///////////////////////////////////////////////////////////////////////////////
-//  HASH_0s = hash[PoW .. CHAIN_SIGNED .. CHAIN_KEY .. BACK_HASH ..  PAYLOAD]
+//  HASH_0s = hash[PoW .. CHAIN_SIGNED .. CHAIN_KEY .. TAIL_HASH ..  PAYLOAD]
 PoW              4 u32    // nonce for HASH_0s
 PoS              1        // value of random jump (based on HASH_0s) in the CHAIN
 BACK_HASH        32       // immutable: a past hash at most TODO jumps away from HASH_0s

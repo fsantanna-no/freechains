@@ -56,60 +56,48 @@ do
         this.msg.bytes = []..this.msg.bytes..[chain]..chain_key;
     end
 
-    // => PAYLOAD_HASH
+    // => PAYLOAD_HASH (async/thread)
+    var char[HASH_BYTES] tail_hash = [[ MSG.chain.config.head ]];
+    var char[]           payload   = [[ MSG.payload ]];
+    var u32              nonce     = 0;
     do
-        // generate MSG.hash_0s
-        do
-            var char[HASH_BYTES] tail_hash = [[ MSG.chain.config.head ]];
-            var char[]           payload   = [[ MSG.payload ]];
+        // calculate nonce for the leading zeros
+        var char[HASH_BYTES] hash;
+        var char[] plain =
+            [ 0,0,0,0 ]      ..     // PoW nonce
+            [ chain_signed ] ..
+            chain_key        ..
+            tail_hash        ..     // BACK_HASH (immutable)
+            payload          ;
+        var int ms = 0;
+        par/or do
+            every 100ms do
+                ms = ms + 100;
+                _printf(".");
+                _fflush(_stdout);
+            end
+        with
+            async/thread (plain,hash,nonce) do
+                var int zeros_wanted = 22;//[[ MSG.chain.zeros ]];
+                var int zeros_found  = 0;
 
-            var char[] plain =
-                [ 0,0,0,0 ]      ..     // PoW nonce
-                [ chain_signed ] ..
-                chain_key        ..
-                tail_hash        ..
-                payload          ;
-
-            var char[HASH_BYTES] hash;
-            var u32 nonce = 0;
-
-            var int s = 0;
-            par/or do
-                every 1s do
-                    s = s + 1;
-                end
-            with
-                async/thread (plain,hash,nonce) do
-                    var int zeros_wanted = 25;//[[ MSG.chain.zeros ]];
-                    var int zeros_found  = 0;
-
-                    $hash := HASH_BYTES;
-                    loop do
-                        _crypto_generichash((_byte&&)(_char&&)&&hash, HASH_BYTES,
-                                            (_byte&&)(_char&&)&&plain, $plain,
-                                            null, 0);
-                        zeros_found = _leading_zeros((_char&&)&&hash, $hash);
-                        if zeros_found >= zeros_wanted then
-                            break;
-                        end
-                        nonce = nonce + 1;
-                        PUT_NETWORK_U32(plain, 0, nonce);
+                $hash := HASH_BYTES;
+                loop do
+                    _crypto_generichash((_byte&&)(_char&&)&&hash, HASH_BYTES,
+                                        (_byte&&)(_char&&)&&plain, $plain,
+                                        null, 0);
+                    zeros_found = _leading_zeros((_char&&)&&hash, $hash);
+                    if zeros_found >= zeros_wanted then
+                        break;
                     end
+                    nonce = nonce + 1;
+                    PUT_NETWORK_U32(plain, 0, nonce);
                 end
             end
-_printf("===> %ds\n", s);
         end
-
-        // read MSG.hash_0s
-        loop i in HASH_BYTES do
-            if i==0 or i==HASH_BYTES-1 then
-                this.msg.bytes = []..this.msg.bytes..[0xEE];  // TODO
-            else
-                this.msg.bytes = []..this.msg.bytes..[0xFF];  // TODO
-            end
-        end
+        _printf("\n[client] HASH = %dms\n", ms);
+        this.msg.bytes = []..this.msg.bytes..hash;
     end
-
 
     this.msg.offs = []..this.msg.offs..[$this.msg.bytes];
 
@@ -117,8 +105,7 @@ _printf("===> %ds\n", s);
 
     // => PoW
     do
-        var u32 pow = 0xEEFFFFEE;       // TODO
-        PUT_NETWORK_U32(this.msg.bytes, $this.msg.bytes, pow);
+        PUT_NETWORK_U32(this.msg.bytes, $this.msg.bytes, nonce);
     end
 
     // => PoS
@@ -127,33 +114,20 @@ _printf("===> %ds\n", s);
         this.msg.bytes = []..this.msg.bytes..[pos];
     end
 
-    // => BACK_HASH
+    // => BACK_HASH (immutable, see above)
+    // => TAIL_HASH (mutable in further forwards)
     do
-        loop i in HASH_BYTES do
-            if i==0 or i==HASH_BYTES-1 then
-                this.msg.bytes = []..this.msg.bytes..[0xEE];  // TODO
-            else
-                this.msg.bytes = []..this.msg.bytes..[0xFF];  // TODO
-            end
-        end
-    end
-
-    // => TAIL_HASH
-    do
-        loop i in HASH_BYTES do
-            if i==0 or i==HASH_BYTES-1 then
-                this.msg.bytes = []..this.msg.bytes..[0xEE];  // TODO
-            else
-                this.msg.bytes = []..this.msg.bytes..[0xFF];  // TODO
-            end
-        end
+        // TODO: on creation is not required
+        this.msg.bytes = []..this.msg.bytes..tail_hash; // BACK_HASH
+        this.msg.bytes = []..this.msg.bytes..tail_hash; // TAIL_HASH
     end
 
     // => PAYLOAD_LEN
     // => PAYLOAD
-    var char[] payload = [[ MSG.payload ]];
-    PUT_NETWORK_U32(this.msg.bytes, $this.msg.bytes, $payload);
-    this.msg.bytes = []..this.msg.bytes..payload;
+    do
+        PUT_NETWORK_U32(this.msg.bytes, $this.msg.bytes, $payload);
+        this.msg.bytes = []..this.msg.bytes..payload;
+    end
 
     this.msg.offs = []..this.msg.offs..[$this.msg.bytes];
 
