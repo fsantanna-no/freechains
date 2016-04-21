@@ -169,6 +169,12 @@ do
                                           &this.msg.bytes,
                                           starting, excluding);
 
+                // last ACK is never sent, so don't await below
+                if i == $this.msg.offs then
+                    _assert(excluding == $this.msg.bytes);
+                    break;
+                end
+
                 // <= OK?
                 var int ok = 0;
                 do

@@ -185,17 +185,24 @@ do
         escape _ERR_EXTRA_BYTES;
     end
 
-    // == CHECK
-    do
-        this.msg.offs = []..this.msg.offs..[nxt];
-
-        // TODO: check
-        //  - tudo casa?
-        var byte[1] send = [1];
-        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
-    end
+    this.msg.offs = []..this.msg.offs..[nxt];
 
     escape _MESSAGE10_OK;
+end
+
+class Message10_check with
+input:
+    var Message& msg;
+
+    function (Message& msg)=>Message10_check build;
+do
+    function (Message& msg)=>Message10_check build do
+        this.msg = &msg;
+    end
+
+    // == CHECK
+    do
+    end
 end
 
 class UV_TCP_Server_Handler with
@@ -215,8 +222,11 @@ do
     else
         _assert(ret == _MESSAGE10_OK);
         _assert($msg.offs == 2);
-        var int err = do PeersSend.run(&msg);
-        _assert(err == _ERR_NONE);
+        var int err = do Message10_check.build(&msg);
+        if err == _ERR_NONE then
+            err = do PeersSend.run(&msg);
+            _assert(err == _ERR_NONE);
+        end
     end
 end
 
