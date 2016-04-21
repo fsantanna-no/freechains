@@ -21,6 +21,19 @@ do
         this.msg = &msg;
     end
 
+    [[
+        MSG = {
+            id = '1.0',
+            chain = {
+                key    = nil,
+                zeros  = nil,
+            },
+            block_hash = nil,
+            back_hash  = nil,
+            tail_hash  = nil,
+        }
+    ]];
+
     var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),
                                                 &this.msg.bytes);
 
@@ -29,6 +42,8 @@ do
 
     // <= MESSAGE
     do
+        // - [check] Is this message '1.0'?
+
         off = nxt;
         nxt = nxt + 1+1+1+1;
         AWAIT_UNTIL(r,nxt);
@@ -68,6 +83,8 @@ do
         $chain_key := chain_len;
         _strncpy((_char&&)&&chain_key, (_char&&)&&this.msg.bytes[off], chain_len);
         _printf("[server] CHAIN_KEY    = %s\n", (_char&&)&&chain_key);
+
+        [[ MSG.chain.key = @chain_key ]];
     end
 
     // <= BLOCK_HASH
@@ -84,6 +101,7 @@ do
             print(hex_dump(@block_hash))
             print('}')
         ]];
+        [[ MSG.block_hash = @block_hash ]];
     end
     _assert($block_hash == HASH_BYTES);
 
@@ -96,21 +114,19 @@ do
     // == CHECK
     // => ACK
     do
-        // TODO: check
-        //  - quero essa CHAIN?
-        //      - quero mesmo que unsigned?
-        //  - quero com chain_zeros < K?
-        //  - BACK_HASH é suficientemente recente?
+        // - [check] Do I have this message hash?
 
         var bool have = [[ APP.blocks[@block_hash] ]];
         [[ APP.blocks[@block_hash] = true ]];
 
         var int ret = _ERR_NONE;
 
+        // - [check] Am I subscribed to the message chain?
+        // - [check] Does the message has the required zeros?
+
         if have then
             ret = _MESSAGE10_HAVE;
         else
-            // check if subscribed, to not/signed, and to that level
             ret = _MESSAGE10_NOTSUB;
             [[ CHAIN = APP.chains[@chain_key] ]];
             var bool is_sub = [[ CHAIN ~= nil ]];
@@ -120,6 +136,7 @@ do
                 if is_sub then
                     ret = _ERR_NONE;
                 end
+                [[ MSG.chain.zeros = @zeros ]];
             end
         end
 
@@ -134,7 +151,6 @@ do
         if ret != _MESSAGE10_OK then
             escape ret;
         end
-
     end
 
     //////////////////////////////////////////////////////////////////////////
@@ -146,40 +162,55 @@ do
         AWAIT_UNTIL(r,nxt);
         var u32 pow = GET_HOST_U32(this.msg.bytes,off);
         _printf("[server] POW = %X\n", pow);
+        [[ MSG.pow = @pow ]];
     end
 
     // <= PoS
+    // TODO: check
     do
         off = nxt;
         nxt = nxt + 1;
         AWAIT_UNTIL(r,nxt);
         var int pos = this.msg.bytes[off];
         _printf("[server] POS = %X\n", pos);
+        [[ MSG.pos = @pos ]];
     end
 
     // <= BACK_HASH
+    var byte[HASH_BYTES] back_hash;
     do
         off = nxt;
         nxt = nxt + HASH_BYTES;
         AWAIT_UNTIL(r,nxt);
-        _printf("[server] BACK_HASH = [");
-        loop i in HASH_BYTES do
-            _printf("%2X", this.msg.bytes[off+i]);
-        end
-        _printf(" ]\n");
+        $back_hash := HASH_BYTES;
+        _ceu_vector_copy_buffer(&&back_hash, 0,
+                                (_byte&&)&&this.msg.bytes[off], HASH_BYTES);
+        [[
+            print('[server] BACK_HASH = {')
+            print(hex_dump(@back_hash))
+            print('}')
+        ]];
+        [[ MSG.back_hash = @back_hash ]];
     end
+    _assert($back_hash == HASH_BYTES);
 
     // <= TAIL_HASH
+    var byte[HASH_BYTES] tail_hash;
     do
         off = nxt;
         nxt = nxt + HASH_BYTES;
         AWAIT_UNTIL(r,nxt);
-        _printf("[server] TAIL_HASH = [");
-        loop i in HASH_BYTES do
-            _printf("%2X", this.msg.bytes[off+i]);
-        end
-        _printf(" ]\n");
+        $tail_hash := HASH_BYTES;
+        _ceu_vector_copy_buffer(&&tail_hash, 0,
+                                (_byte&&)&&this.msg.bytes[off], HASH_BYTES);
+        [[
+            print('[server] TAIL_HASH = {')
+            print(hex_dump(@tail_hash))
+            print('}')
+        ]];
+        [[ MSG.tail_hash = @tail_hash ]];
     end
+    _assert($tail_hash == HASH_BYTES);
 
     // <= PAYLOAD_LEN
     // <= PAYLOAD
@@ -225,6 +256,8 @@ do
 
     // == CHECK
     do
+        [[ HEAD = APP.chains[MSG.chain.key].heads[MSG.chain.zeros] ]];
+        var bool same = [[ HEAD == MSG.block_hash ]];
     end
 end
 
