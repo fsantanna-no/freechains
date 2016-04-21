@@ -15,6 +15,14 @@ native do
         ERR_DISCONNECTED = -3,
     };
 
+    enum {
+        MESSAGE10_HAVE = 1,             // [ok ACK] already has it
+        MESSAGE10_PAYLOAD_LEN_LIMIT,    // [ok ACK] too big for untrusted client
+        MESSAGE10_NOTSUB,               // [ok ACK] not subscribed to this chain
+        MESSAGE10_POW_FAIL,             // [no ACK] block hash does not match the given PoW
+        MESSAGE10_BACK_HASH_JUMP_LIMIT, // [ok ACK] TODO:
+    };
+
     // calculate the number of leading zero bits in "bytes"
     // 00abcdef...  => 2
     int leading_zeros (byte* bytes, int len) {
@@ -58,6 +66,26 @@ end
 #include "uv-server.ceu"
 
 /*
+- MESSAGE_*:    obligatory
+- BLOCK_HASH:   client will typically guess correctly
+    - ok: have
+---
+- CHAIN_*:      .
+    - ok: not sub
+- PAYLOAD_LEN
+    - ok: too big
+---
+- POW
+- BACK_HASH
+- PAYLOAD
+    - no: no match
+- TAIL_HASH
+    - ok: need it
+- POS
+    - no: no match
+===
+- TODO: sig
+
 ///////////////////////////////////////////////////////////////////////////////
 // client proposes message to the server
     - type of message, server checks before anything else

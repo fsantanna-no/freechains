@@ -1,16 +1,6 @@
 #ifndef _SERVER_CEU
 #define _SERVER_CEU
 
-native do
-    enum {
-        MESSAGE10_HAVE = 1,             // [ok ACK] already has it
-        MESSAGE10_PAYLOAD_LEN_LIMIT,    // [ok ACK] too big for untrusted client
-        MESSAGE10_NOTSUB,               // [ok ACK] not subscribed to this chain
-        MESSAGE10_POW_FAIL,             // [no ACK] block hash does not match the given PoW
-        MESSAGE10_BACK_HASH_JUMP_LIMIT, // [ok ACK] TODO:
-    };
-end
-
 class Message10_receive with
 input:
     var _uv_tcp_t& tcp;
