@@ -109,8 +109,6 @@ do
     // == CHECK
     // => ACK
     do
-        this.msg.offs = []..this.msg.offs..[nxt];
-
         // TODO: check
         //  - quero essa CHAIN?
         //      - quero mesmo que unsigned?
@@ -144,6 +142,7 @@ do
         end
 
         var byte[1] send = [ret == _MESSAGE10_OK];
+        this.msg.offs = []..this.msg.offs..[nxt];
         do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
 
         if ret != _MESSAGE10_OK then

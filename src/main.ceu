@@ -123,7 +123,7 @@ end
 
 par/or do
     do Client;
-    await FOREVER;
+    //await FOREVER;
 with
     var char[] ip      = [[ APP.server.host[1] ]];
     var int    port    = [[ APP.server.host[2] ]];
@@ -132,5 +132,5 @@ with
     do UV_TCP_Server.build(&ip, port, backlog);
 end
 
-_assert(0);
+//_assert(0);
 escape 0;

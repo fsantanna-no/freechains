@@ -58,10 +58,9 @@ do
                 _fflush(_stdout);
             end
         with
-            async/thread (plain,block_hash,nonce) do
-                var int zeros_wanted = [[ MSG.chain.zeros ]];
-                var int zeros_found  = 0;
-
+            var int zeros_wanted = [[ MSG.chain.zeros ]];
+            async/thread (plain,block_hash,nonce,zeros_wanted) do
+                var int zeros_found = 0;
                 $block_hash := HASH_BYTES;
                 loop do
                     _crypto_generichash((_byte&&)(_char&&)&&block_hash, HASH_BYTES,
@@ -151,7 +150,7 @@ do
                                           starting, excluding);
 
                 // last ACK is never sent, so don't await below
-                if i == $this.msg.offs then
+                if i == $this.msg.offs-1 then
                     _assert(excluding == $this.msg.bytes);
                     break;
                 end
@@ -164,6 +163,7 @@ do
                     AWAIT_UNTIL(r,1);
                     _assert(r.next >= 1);
                     if r.next > 1 then
+                        emit listener.ok => _ERR_EXTRA_BYTES;
                         escape _ERR_EXTRA_BYTES;
                     end
                     ok = recv[0];
@@ -171,6 +171,7 @@ do
                 starting = excluding;
             end
         end
+        emit listener.ok => _ERR_NONE;
         escape _ERR_NONE;
     end
 
@@ -196,7 +197,7 @@ do
     end
     loop i in n do
         var int err = await this.ok;
-        _printf("[client]\tpeer %d\n", err);
+        _printf("[client] peer %d\n", err);
     end
     _printf("[client] Broadcast OK!\n");
 
@@ -206,6 +207,10 @@ end
 class Client with
 do
     var int ni = [[ #APP.messages ]];
+
+    if ni == 0 then
+        await FOREVER;
+    end
 
     loop i in ni do
         [[ MSG = APP.messages[@i+1] ]];
