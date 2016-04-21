@@ -35,7 +35,7 @@ do
     end
 
     // => BLOCK_HASH (async/thread)
-    var char[HASH_BYTES] tail_hash = [[ MSG.chain.heads[MSG.chain.zeros] ]];
+    var char[HASH_BYTES] tail_hash = [[ APP.chains[MSG.chain.key].heads[MSG.chain.zeros] ]];
     var char[]           payload   = [[ MSG.payload ]];
     var u32              nonce     = 0;
     do

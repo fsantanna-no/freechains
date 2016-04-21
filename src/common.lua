@@ -51,12 +51,8 @@ function MESSAGE (t)
     if t.id == '1.0' then
         assert(type(t.chain)=='table')
         assert(type(t.chain.zeros)=='number')
-
         local cfg = assert(APP.chains[t.chain.key],t.chain.key)
         assert(t.chain.zeros >= cfg.zeros)
-
-        t.chain.heads = cfg.heads
-        assert(type(t.chain.heads) == 'table')
     end
     APP.messages[#APP.messages+1] = t
 end
