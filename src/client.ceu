@@ -3,27 +3,6 @@
 
 #include "sodium.ceu"
 
-native do
-    // calculate the number of leading zero bits in "bytes"
-    // 00abcdef...  => 2
-    int leading_zeros (byte* bytes, int len) {
-        int i, j;
-        int zeros = 0;
-        for (i=0; i<len; i++) {             // loop over "bytes"
-            byte b = bytes[i];
-            for (j=0; j<8; j++) {           // loop over each bit
-                if ((b & (1<<j)) != 0) {
-                    return zeros;
-                } else {
-                    zeros++;
-                }
-            }
-        }
-        return zeros;
-    }
-end
-
-
 class Message10_prepare with
     var Message& msg;
     function (Message& msg)=>Message10_prepare build;
@@ -43,7 +22,7 @@ do
     // => CHAIN_SIGNED?
     // => CHAIN_LEN
     // => CHAIN_KEY
-    var bool chain_signed;
+    var bool chain_signed = false;
     var char[] chain_key;
     do
         chain_signed = [[ MSG.chain.signed ]];
@@ -57,7 +36,9 @@ do
     end
 
     // => BLOCK_HASH (async/thread)
-    var char[HASH_BYTES] tail_hash = [[ MSG.chain.config.head ]];
+    var char[HASH_BYTES] tail_hash = [[ MSG.chain.config[@chain_signed].heads[
+                                            MSG.chain.zeros
+                                        ] ]];
     var char[]           payload   = [[ MSG.payload ]];
     var u32              nonce     = 0;
     do

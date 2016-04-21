@@ -16,14 +16,13 @@ CLIENT {
 -- chains configurations
 CHAINS {
     [''] = {                -- global chain (cannot be signed)
-        --signed = true,    -- messages are signed
-        signed = false,     -- messages are not signed
+        [true] = false,     -- messages are signed
+        [false] = {         -- messages are not signed
+            zeros = 0,
+        },
         --mode = 'pub'      -- only publishes messages (storage required)
         --mode = 'sub'      -- only listen for messages (storeage not required)
         --mode = 'pub/sub'?
-        [0] = {                 -- chain-00
-            head = string.rep('\0',32), -- current chain head
-        },
     },
 }
 

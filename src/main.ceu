@@ -6,6 +6,34 @@
 #define HASH_BYTES      32
 #define CHAIN_KEY_BYTES 128
 
+native @pure _leading_zeros();
+native do
+    enum {
+        ERR_NONE         =  0,
+        ERR_EXTRA_BYTES  = -1,
+        ERR_MESSAGE      = -2,
+        ERR_DISCONNECTED = -3,
+    };
+
+    // calculate the number of leading zero bits in "bytes"
+    // 00abcdef...  => 2
+    int leading_zeros (byte* bytes, int len) {
+        int i, j;
+        int zeros = 0;
+        for (i=0; i<len; i++) {             // loop over "bytes"
+            byte b = bytes[i];
+            for (j=0; j<8; j++) {           // loop over each bit
+                if ((b & (1<<j)) != 0) {
+                    return zeros;
+                } else {
+                    zeros++;
+                }
+            }
+        }
+        return zeros;
+    }
+end
+
 #define AWAIT_UNTIL(r,nxt)          \
     if r.next < nxt then            \
         loop do                     \
@@ -73,15 +101,6 @@ TODO-SIGNATURE
             - in BTC, miners need to check funds looking all the way back
 ///////////////////////////////////////////////////////////////////////////////
 */
-
-native do
-    enum {
-        ERR_NONE         =  0,
-        ERR_EXTRA_BYTES  = -1,
-        ERR_MESSAGE      = -2,
-        ERR_DISCONNECTED = -3,
-    };
-end
 
 input (int, _char&& &&) OS_START;
 

@@ -5,6 +5,7 @@ native do
     enum {
         MESSAGE10_OK = 1,
         MESSAGE10_HAVE,
+        MESSAGE10_NOTSUB,
     };
 end
 
@@ -62,39 +63,42 @@ do
     // <= CHAIN_SIGNED?
     // <= CHAIN_LEN
     // <= CHAIN_KEY
+    var char[] chain_key;
+    var bool chain_signed = false;
     do
         off = nxt;
         nxt = nxt + 1;
         AWAIT_UNTIL(r,nxt);
         var u8 v = this.msg.bytes[off];
-        var bool chain_signed = (v>>7);
-        var int  chain_len    = (v&0x7F);
+        chain_signed = (v>>7);
+        var int  chain_len = (v&0x7F);
         _printf("[server] CHAIN_SIGNED = %d\n", chain_signed);
         _printf("[server] CHAIN_LEN    = %d\n", chain_len);
 
         off = nxt;
         nxt = nxt + chain_len;
         AWAIT_UNTIL(r,nxt);
-        var char[] chain_id;
-        $chain_id := chain_len;
-        _strncpy((_char&&)&&chain_id, (_char&&)&&this.msg.bytes[off], chain_len);
-        _printf("[server] CHAIN_KEY    = %s\n", (_char&&)&&chain_id);
+        $chain_key := chain_len;
+        _strncpy((_char&&)&&chain_key, (_char&&)&&this.msg.bytes[off], chain_len);
+        _printf("[server] CHAIN_KEY    = %s\n", (_char&&)&&chain_key);
     end
 
     // <= BLOCK_HASH
-    var char[] block_hash;
+    var byte[HASH_BYTES] block_hash;
     do
         off = nxt;
         nxt = nxt + HASH_BYTES;
         AWAIT_UNTIL(r,nxt);
-        _printf("[server] PAYLOAD_HASH = [");
-        loop i in HASH_BYTES do
-            var byte v = this.msg.bytes[off+i];
-            block_hash = []..block_hash..[v];
-            _printf("%2X", v);
-        end
-        _printf(" ]\n");
+        $block_hash := HASH_BYTES;
+        _ceu_vector_copy_buffer(&&block_hash, 0,
+                                (_byte&&)&&this.msg.bytes[off], HASH_BYTES);
+        [[
+            print('[server] BLOCK_HASH = {')
+            print(hex_dump(@block_hash))
+            print('}')
+        ]];
     end
+    _assert($block_hash == HASH_BYTES);
 
     // == END
     _assert(r.next >= nxt);
@@ -103,6 +107,7 @@ do
     end
 
     // == CHECK
+    // => ACK
     do
         this.msg.offs = []..this.msg.offs..[nxt];
 
@@ -114,14 +119,37 @@ do
 
         var bool have = [[ APP.blocks[@block_hash] ]];
         [[ APP.blocks[@block_hash] = true ]];
-        var bool want = (not have);
 
-        var byte[1] send = [want];
-        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
+        var int ret = _ERR_NONE;
 
         if have then
-            escape _MESSAGE10_HAVE;
+            ret = _MESSAGE10_HAVE;
+        else
+            // check if subscribed, to not/signed, and to that level
+            ret = _MESSAGE10_NOTSUB;
+            [[ CHAIN = APP.chains[@chain_key] ]];
+            var bool is_sub = [[ CHAIN ~= nil ]];
+            if is_sub then
+                [[ CHAIN = assert(CHAIN[@chain_signed]) ]];
+                var int zeros = _leading_zeros((_byte&&)&&block_hash, HASH_BYTES);
+                is_sub = [[ CHAIN.zeros <= @zeros ]];
+                if is_sub then
+                    ret = _ERR_NONE;
+                end
+            end
         end
+
+        if ret == _ERR_NONE then
+            ret = _MESSAGE10_OK;
+        end
+
+        var byte[1] send = [ret == _MESSAGE10_OK];
+        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
+
+        if ret != _MESSAGE10_OK then
+            escape ret;
+        end
+
     end
 
     //////////////////////////////////////////////////////////////////////////
@@ -227,7 +255,7 @@ do
     var int ret = do Message10_receive.build(&this.tcp, &msg);
     _assert(ret > _ERR_NONE);
     _printf("[server] ret = %d\n", ret);
-    if ret == _MESSAGE10_HAVE then
+    if ret==_MESSAGE10_HAVE or ret==_MESSAGE10_NOTSUB then
         _assert($msg.offs == 1);
     else
         _assert(ret == _MESSAGE10_OK);

@@ -18,18 +18,36 @@ function CLIENT (t)
     end
 end
 
+local meta = {
+    __index = function (t,k)
+        if type(k) == 'number' then
+            return string.rep('\0',32) -- genesis block
+        end
+    end,
+}
+
 function CHAINS (t)
     for k, tid in pairs(t) do
-        assert(type(tid) == 'table')
         APP.chains[k] = tid
+        assert(type(tid) == 'table')
         if k == '' then
-            assert(tid.signed == false)
+            assert(tid[true] == false)
         end
-        for i=0, #tid do
-            local tz = tid[i]
-            assert(type(tz) == 'table')
-            assert(type(tz.head)=='string' and
-                   string.len(tz.head)==32)
+        for _, signed in ipairs{true,false} do
+            local tsig = tid[signed]
+            if tsig == false then
+                tsig = {}
+                tid[signed] = tsig
+            else
+                assert(type(tsig) == 'table')
+                assert(type(tsig.zeros) == 'number')
+            end
+            tsig.heads = {}
+            setmetatable(tsig.heads, meta)
+        end
+        if k~='' and tid[false].zeros then
+            -- asserts that if "unsigned" is sub'ed, than "signed" must also be
+            assert(tid[true].zeros and tid[false].zeros<=tid[true].zeros)
         end
     end
 end
@@ -49,19 +67,24 @@ function MESSAGE (t)
         assert(type(t.chain.zeros=='number'))
         assert(type(t.chain.signed=='bool'))
 
-        local tid = assert(APP.chains[t.chain.key])
-        assert(#tid >= t.chain.zeros)
-        t.chain.config = tid[t.chain.zeros]
+        t.chain.config = assert(APP.chains[t.chain.key],t.chain.key)
+        assert(type(t.chain.config) == 'table')
+        assert(t.chain.config[true]~=nil and t.chain.config[false]~=nil)
     end
     APP.messages[#APP.messages+1] = t
 end
 
 function hex_dump(buf)
-  for byte=1, #buf, 16 do
-     local chunk = buf:sub(byte, byte+15)
-     io.write(string.format('%08X  ',byte-1))
-     chunk:gsub('.', function (c) io.write(string.format('%02X ',string.byte(c))) end)
-     io.write(string.rep(' ',3*(16-#chunk)))
-     io.write(' ',chunk:gsub('%c','.'),"\n") 
-  end
+    local ret = ''
+    for byte=1, #buf, 16 do
+        local chunk = buf:sub(byte, byte+15)
+        ret = ret .. string.format('%08X  ',byte-1)
+        chunk:gsub('.',
+            function (c)
+                ret = ret .. string.format('%02X ',string.byte(c))
+            end)
+        ret = ret .. string.rep(' ',3*(16-#chunk))
+        ret = ret .. ' '..chunk:gsub('%c','.')..'\n'
+    end
+    return ret
 end
