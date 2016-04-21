@@ -2,6 +2,7 @@
 SERVER {
     host = { '127.0.0.1', '8330' },
     backlog = 128,
+    message10_payload_len_limit = 1000,   -- max payload length for untrusted clients
 }
 
 -- client configurations

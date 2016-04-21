@@ -5,7 +5,8 @@ native do
     enum {
         MESSAGE10_HAVE = 1, // [ok ACK] server already has it
         MESSAGE10_NOTSUB,   // [no ACK] server is not subscribed to its chain
-        MESSAGE10_BACK_HASH_JUMP_LIMIT,
+        MESSAGE10_BACK_HASH_JUMP_LIMIT, // TODO:
+        MESSAGE10_PAYLOAD_LEN_LIMIT,    // TODO: move PAYLOAD_LEN to header
     };
 end
 
