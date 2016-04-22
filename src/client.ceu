@@ -45,7 +45,7 @@ do
         var byte[1] recv;
         var UV_Stream_Read reader =
                 UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&recv);
-        AWAIT_UNTIL(reader,1);
+        do UV_Stream_ReadUntil.run(&reader, 1);
         err = recv[0];
     end
 

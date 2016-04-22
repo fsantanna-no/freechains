@@ -31,7 +31,7 @@ do
     var u8 chain_zeros = 0;
     var u8 chain_len   = 0;
     do
-        AWAIT_UNTIL(reader, off+2);
+        do UV_Stream_ReadUntil.run(&reader, off+2);
         chain_zeros = bytes[off+0];
         chain_len   = bytes[off+1];
         _printf("[server] CHAIN_ZEROS = %d\n",  chain_zeros);
@@ -45,7 +45,7 @@ do
     var char[] chain_key;
     do
         reader.max = off+chain_len;
-        AWAIT_UNTIL(reader, off+chain_len);
+        do UV_Stream_ReadUntil.run(&reader, off+chain_len);
         $chain_key := chain_len;
         native @pure _OFF();
         native do
@@ -99,7 +99,7 @@ _assert(0); // TODO test it
         var byte[HASH_BYTES] bs;
         var UV_Stream_Read reader =
                 UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bs);
-        AWAIT_UNTIL(reader,0);
+        do UV_Stream_ReadUntil.run(&reader, 0);
 
         // [check] Do I have this message hash? [ok ACK]
         var bool have = [[ APP.blocks[@bs] ]];
@@ -145,7 +145,6 @@ end
         [[ MSG.chain.zeros = @zeros ]];
     end
     _assert($block_hash == HASH_BYTES);
-#endif
 
 class Message10_receive_ with
 input:
@@ -261,9 +260,8 @@ do//err
         off = nxt;
         nxt = nxt + HASH_BYTES;
         AWAIT_UNTIL(r,nxt);
-        $block_hash := HASH_BYTES;
         _ceu_vector_copy_buffer(&&block_hash, 0,
-                                (_byte&&)&&this.msg.bytes[off], HASH_BYTES);
+                                (_byte&&)&&this.msg.bytes[off], HASH_BYTES,1);
         [[
             MSG.block_hash = @block_hash
             print('[server] BLOCK_HASH = {')
@@ -345,9 +343,8 @@ end;//err
         off = nxt;
         nxt = nxt + HASH_BYTES;
         AWAIT_UNTIL(r,nxt);
-        $back_hash := HASH_BYTES;
         _ceu_vector_copy_buffer(&&back_hash, 0,
-                                (_byte&&)&&this.msg.bytes[off], HASH_BYTES);
+                                (_byte&&)&&this.msg.bytes[off], HASH_BYTES,1);
         [[
             MSG.back_hash = @back_hash
             print('[server] BACK_HASH = {')
@@ -378,9 +375,8 @@ end;//err
         off = nxt;
         nxt = nxt + HASH_BYTES;
         AWAIT_UNTIL(r,nxt);
-        $tail_hash := HASH_BYTES;
         _ceu_vector_copy_buffer(&&tail_hash, 0,
-                                (_byte&&)&&this.msg.bytes[off], HASH_BYTES);
+                                (_byte&&)&&this.msg.bytes[off], HASH_BYTES,1);
         [[
             MSG.tail_hash = @tail_hash
             print('[server] TAIL_HASH = {')
@@ -397,10 +393,9 @@ end;//err
         nxt = nxt + payload_len;
         AWAIT_UNTIL(r,nxt);
 
-        $payload := payload_len;
         _ceu_vector_copy_buffer(&&payload, 0,
                                 &&(((_byte&&)&&this.msg.bytes)[off]),
-                                payload_len);
+                                payload_len, 1);
         [[
             MSG.payload = @payload
             print('[server] PAYLOAD = '..MSG.payload)
@@ -454,6 +449,7 @@ do
         var bool same = [[ HEAD == MSG.block_hash ]];
     end
 end
+#endif
 
 class Message10_recv with
 input:
@@ -524,7 +520,7 @@ do
             UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
 
     // <= MESSAGE
-    AWAIT_UNTIL(this.reader, MESSAGE_BYTES);
+    do UV_Stream_ReadUntil.run(&this.reader, MESSAGE_BYTES);
 
     _printf("[server] MESSAGE = [%d %d %d %d]\n",
                 bytes[0], bytes[1], bytes[2], bytes[3]);

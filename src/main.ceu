@@ -47,16 +47,6 @@ native do
     }
 end
 
-#define AWAIT_UNTIL(r,nxt)          \
-    if r.next < nxt then            \
-        loop do                     \
-            await r.ok;             \
-            if r.next >= nxt then   \
-                break;              \
-            end                     \
-        end                         \
-    end
-
 class Message with
 output/input:
     var byte[] bytes;
