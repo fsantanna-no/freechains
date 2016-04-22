@@ -39,7 +39,7 @@ do
 
     //////////////////////////////////////////////////////////////////////////
 
-    // <= ACK
+    // <= ACK-chain
     var int err = _ERR_NONE;
     do
         var byte[1] recv;
@@ -49,7 +49,7 @@ do
         err = recv[0];
     end
 
-    _printf("[client] ACK = %d\n", err);
+    _printf("[client] ACK-chain = %d\n", err);
     if err == _MESSAGE10_NOTSUB then
         escape err;
     end
@@ -58,7 +58,18 @@ do
 
     //////////////////////////////////////////////////////////////////////////
 
+#if 0
+    loop do
+TODO
+        var char[HASH_BYTES] tail_hash = [[ 
+                                APP.chains[MSG.chain.key].heads[MSG.chain.zeros]
+                             ]];
+        [[ MSG.tail_hash = @tail_hash ]];
+    end
+
+
     escape _ERR_NONE;
+#endif
 end
 
 #if 0

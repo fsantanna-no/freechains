@@ -68,46 +68,84 @@ do
     escape err;
 end
 
-class Message10_01_hashes with
+class Message10_01_oldest_hash with
 input:
     var _uv_tcp_t& tcp;
+input/output:
+    var byte[HASH_BYTES]& bytes;
 
-    function (_uv_tcp_t& tcp)=>Message10_01_hashes receive;
+    function (_uv_tcp_t& tcp, byte[HASH_BYTES]& bytes)=>Message10_01_oldest_hash receive;
 do
-    function (_uv_tcp_t& tcp)=>Message10_01_hashes receive do
-        this.tcp = &tcp;
+    function (_uv_tcp_t& tcp, byte[HASH_BYTES]& bytes)=>Message10_01_oldest_hash receive do
+        this.tcp   = &tcp;
+        this.bytes = &bytes;
     end
 
-    var byte[] bytes;
+    // <= HASH
+    // => ACK:
+    //      - MESSAGE10_HAVE_YES: found common
+    //      - MESSAGE10_HAVE_NO:  keep sending
 
-    // receive a sequence of hashes until I own tail_hash
+    var byte[HASH_BYTES] bytes_up;  // save closest
+    var int n_bytes = 0;
+    loop i do
+        var u32 limit = [[ APP.server.message10_payload_len_limit ]];
+        if n_bytes > limit then
+_assert(0); // TODO test it
+            escape _MESSAGE10_PAYLOAD_LEN_LIMIT;
+        end
+        n_bytes = n_bytes + HASH_BYTES;
+
+        var byte[HASH_BYTES] bs;
+        var UV_Stream_Read reader =
+                UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bs);
+        AWAIT_UNTIL(reader,0);
+
+        // [check] Do I have this message hash? [ok ACK]
+        var bool have = [[ APP.blocks[@bs] ]];
+        _printf("[server] ACK-have = %d\n", have);
+await 1s;
+        var byte[1] send;
+        if have then
+            send = [_MESSAGE10_HAVE_YES ];
+        else
+            send = [_MESSAGE10_HAVE_NO  ];
+        end
+        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
+
+        if not have then
+            // I don't have the previous message copied to "this.bytes"
+            escape _MESSAGE10_HAVE_NO;
+        else/if i==0 then
+            // first iteration, I already have all messages...
+            escape _MESSAGE10_HAVE_YES;
+        end
+
+        this.bytes = []..bs; // this can be the oldest missing
+    end
+    _assert(0);
+end
 
 #if 0
-    var u32 off = MESSAGE_BYTES;
-    loop do
-        var byte[] bytes;
-        var UV_Stream_Read reader =
-                UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
-        AWAIT_UNTIL(reader,off);
+        [[ APP.blocks[@block_hash] = true ]];
+        [[
+            MSG.block_hash = @block_hash
+            print('[server] BLOCK_HASH = {')
+            print(hex_dump(MSG.block_hash))
+            print('}')
+        ]];
 
-
-
-        off = off + HASH_BYTES;
+        // [check] Does the message has the required zeros for my interest? [ok 
+        // ACK]
+        zeros = _leading_zeros((_byte&&)&&block_hash, HASH_BYTES);
+        var bool is_sub = [[ CHAIN.zeros <= @zeros ]];
+        if not is_sub then
+            escape _MESSAGE10_NOTSUB;   // ok ACK
+        end
+        [[ MSG.chain.zeros = @zeros ]];
     end
-
-    _printf("[server] MESSAGE = [%d %d %d %d]\n",
-                bytes[0], bytes[1], bytes[2], bytes[3]);
-
-    var bool ok = ( bytes[0]==MESSAGE_MAGIC_0 and
-                    bytes[1]==MESSAGE_MAGIC_1 );
-
-    if ok and bytes[2]==1 and bytes[3]==0 then
-        escape _MESSAGE10;
-    else
-        escape _ERR_MESSAGE;
-    end
+    _assert($block_hash == HASH_BYTES);
 #endif
-end
 
 class Message10_receive_ with
 input:
@@ -237,7 +275,7 @@ do//err
         var bool have = [[ APP.blocks[@block_hash] ]];
         [[ APP.blocks[@block_hash] = true ]];
         if have then
-            escape _MESSAGE10_HAVE;
+            escape _MESSAGE10_HAVE_YES;
         end
 
         // [check] Does the message has the required zeros for my interest? [ok ACK]
@@ -438,7 +476,7 @@ do
     // bytes/reader received from message partially parsed
     var int err = do Message10_00_chain.receive(&bytes,&reader);
     do
-        _printf("[server] ACK = %d\n", err);
+        _printf("[server] ACK-chain = %d\n", err);
         var byte[1] send = [err];
         do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
     end
@@ -452,18 +490,22 @@ do
 
     // new bytes/reader inside
     // bytes/reader received from message partially parsed
-    err = do Message10_01_hashes.receive(&tcp);
-    do
-        _printf("[server] ACK = %d\n", err);
-        var byte[1] send = [err];
-        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
-    end
-// TODO
-    if err == _MESSAGE10_NOTSUB then
-        escape err;
+    loop do
+        var byte[HASH_BYTES] bytes;
+        err = do Message10_01_oldest_hash.receive(&tcp,&bytes);
+        _printf("[server] ACK-oldest = %d\n", err);
+        if err == _MESSAGE10_HAVE_NO then
+            break;
+        end
+
+        [[
+            print('OLDEST')
+            print(hex_dump(@bytes))
+        ]];
+await FOREVER;
     end
 
-    _assert(err == _ERR_NONE);
+    _assert(err==_ERR_NONE or err==_MESSAGE10_HAVE_NO);
     escape err;
 end
 

@@ -20,7 +20,8 @@ native do
     };
 
     enum {
-        MESSAGE10_HAVE = 1,             // [ok ACK] already has it
+        MESSAGE10_HAVE_YES = 1,         // [ok ACK] already has it
+        MESSAGE10_HAVE_NO,              // [ok ACK] keep sending
         MESSAGE10_PAYLOAD_LEN_LIMIT,    // [ok ACK] too big for untrusted client
         MESSAGE10_NOTSUB,               // [ok ACK] not subscribed to this chain
         MESSAGE10_POW_FAIL,             // [no ACK] block hash does not match the given PoW
