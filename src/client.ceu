@@ -17,7 +17,7 @@ do
     // <= NEW HEAD
     // <= OLD.up_hash = NEW
     do
-        var char[] tail_hash__payload = [[ MSG.payload..MSG.payload ]];
+        var char[] tail_hash__payload = [[ MSG.tail_hash..MSG.payload ]];
         var byte[] plain = [0,0,0,0]..tail_hash__payload;
 
         // calculate nonce for the leading zeros
@@ -36,7 +36,9 @@ do
             async/thread (plain,block_hash,nonce,zeros_wanted) do
                 var int zeros_found = 0;
                 $block_hash := HASH_BYTES;
-                loop do
+                var u32 ii = 0;
+                loop i do
+                    ii = ii + 1;
                     _crypto_generichash((_byte&&)&&block_hash, HASH_BYTES,
                                         (_byte&&)&&plain, $plain,
                                         null, 0);
@@ -45,7 +47,9 @@ do
                         break;
                     end
                     nonce = nonce + 1;
+                    PUT_NETWORK_U32(plain, 0, nonce);
                 end
+                _printf("[client] POW rounds: %d\n", ii);
             end
             [[
                 MSG.pow        = @nonce
