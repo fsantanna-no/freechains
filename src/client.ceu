@@ -289,14 +289,28 @@ do
         _assert(is_10);  // message not supported
     end
 
-    _printf("[client] Broadcasting messages...\n");
     var int ps = [[#APP.client.peers]];
+    var int ps_ok = 0;
     loop i in ps do
-        [[ PEER = APP.client.peers[@(i+1)] ]];
-        var PeerSend&&? p = spawn PeerSend.run(&this);
-        _assert(p! != null);
+        [[
+            PEER = APP.client.peers[@(i+1)]
+            ok = false
+            for _, chain in ipairs(PEER.chains) do
+                if chain.key==MSG.chain.key and chain.zeros<=MSG.chain.zeros then
+                    ok = true
+                    break
+                end
+            end
+        ]];
+        var bool ok = [[ ok ]];
+        if ok then
+            ps_ok = ps_ok + 1;
+            var PeerSend&&? p = spawn PeerSend.run(&this);
+            _assert(p! != null);
+        end
     end
-    loop i in ps do
+    _printf("[client] Broadcasting messages to %d peer(s)...\n", ps_ok);
+    loop i in ps_ok do
         var int err = await this.ok;
         _printf("[client] peer %d\n", err);
     end
