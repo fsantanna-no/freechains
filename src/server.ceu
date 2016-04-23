@@ -112,21 +112,22 @@ _assert(0); // TODO test it
             payload_len = GET_HOST_U32(bs, HASH_BYTES);
 
             [[
-                CUR = {
-                    hash = @hash,
-                    len  = @payload_len,
-                }
+                MSG.block_hash  = @hash
+                MSG.payload_len = @payload_len
+                if MSG.up_hash then
+                    APP.blocks[MSG.up_hash].tail_hash = MSG.block_hash
+                end
             ]];
         end
 
         [[
-            print('[server] BLOCK_HASH ['..@i..'] = '..CUR.len..' {')
-            print(hex_dump(CUR.hash))
+            print('[server] BLOCK_HASH ['..@i..'] = '..MSG.payload_len..' {')
+            print(hex_dump(MSG.block_hash))
             print('}')
         ]];
 
         // [check] Do I have this message hash? [ok ACK]
-        var bool have = [[ APP.blocks[CUR.hash] ]];
+        var bool have = [[ APP.blocks[MSG.block_hash] ]];
         _printf("[server] OLD-have? [0/1] = %d\n", have);
 
         var byte[1] send;
@@ -138,11 +139,7 @@ _assert(0); // TODO test it
                 err  = _MESSAGE10_HAVE_YES;
             else
                 // further iterations, I don't have the previous message
-                [[
-                    MSG.tail_hash   = CUR.hash
-                    MSG.block_hash  = OLD.hash
-                    MSG.payload_len = OLD.len
-                ]];
+                [[ MSG = APP.blocks[MSG.up_hash] ]];
                 err = _MESSAGE10_HAVE_NO;
             end
         else/if payload_len > limit then
@@ -150,11 +147,15 @@ _assert(0); // TODO test it
             send = [ _MESSAGE10_PAYLOAD_LEN_LIMIT ];
             err = _MESSAGE10_PAYLOAD_LEN_LIMIT;
         else
-            // I don't have this message, which was copied to "this.bytes"
-            // because it might be the last one I don't have.
+            // I don't have this message
             // OK: continue to the next
             send = [ _MESSAGE10_HAVE_NO  ];
-            [[ OLD = CUR ]];
+            [[
+                APP.blocks[MSG.block_hash] = MSG
+                MSG = {
+                    up_hash = MSG.block_hash,   -- client will transmit all MSG.up.up...
+                }
+            ]];
         end
         do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
 
@@ -261,7 +262,8 @@ do
         off = off + 1;
     end
 
-_assert(0);
+    escape _ERR_NONE;
+
     // [check] BLOCK_HASH is correct? [no ACK]
 #if 0
     do
@@ -333,8 +335,16 @@ do
     end
 
     // receive oldest block that I don't have
-    do
+    loop i do
+        _printf("[server] Receiving %d...\n", i);
         var int err = do Message10_02_block.receive(&tcp);
+        _assert(err == _ERR_NONE);
+        var bool up = [[ MSG.up_hash~=nil ]];
+        if up then
+            [[ MSG = assert(APP.blocks[MSG.up_hash]) ]];
+        else
+            break;
+        end
     end
 
 _assert(0);

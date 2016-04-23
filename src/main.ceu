@@ -1,3 +1,15 @@
+#if 0
+- parse de 2 mensagens para ligalas, depois transmite a primeira
+    server tem que pegar as duas e ligalas, depois retransmitir a outro
+    server
+    - verificar blocos, backs, pos
+# BLOCK vs MSG
+# esquema de nomes bc/path/, pega mais recente, bc/path/^..., git
+# aquivos plain, + arquivos meta em lua/binario
+# Message prepare do client pode ter todos os campos necessarios para o send
+#	evita *muitas* copias
+#endif
+
 #include "c.ceu"
 
 #define MESSAGE_BYTES   4

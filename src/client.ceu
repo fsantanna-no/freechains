@@ -5,19 +5,13 @@
 
 class Message10_parse with
 do
-    // <= tail_hash
-    // <= back_hash
-    [[
-        MSG.tail_hash = APP.chains[MSG.chain.key].heads[MSG.chain.zeros]
-        MSG.back_hash = MSG.tail_hash
-    ]];
-
     // <= block_hash
     // <= pow
     // <= NEW HEAD
     // <= OLD.up_hash = NEW
     do
-        var char[] tail_hash__payload = [[ MSG.tail_hash..MSG.payload ]];
+        [[ HEAD_HASH = APP.chains[MSG.chain.key].heads[MSG.chain.zeros] ]];
+        var char[] tail_hash__payload = [[ HEAD_HASH..MSG.payload ]];
         var byte[] plain = [0,0,0,0]..tail_hash__payload;
 
         // calculate nonce for the leading zeros
@@ -52,13 +46,16 @@ do
                 _printf("[client] POW rounds: %d\n", ii);
             end
             [[
+                -- i'm in the database
                 MSG.pow        = @nonce
                 MSG.block_hash = @block_hash
-                local head_hash = APP.chains[MSG.chain.key].heads[MSG.chain.zeros]
-                local head_block = assert(APP.blocks[head_hash])
-                head_block.up_hash = MSG.block_hash
-                APP.chains[MSG.chain.key].heads[MSG.chain.zeros] = MSG.block_hash
                 APP.blocks[MSG.block_hash] = MSG
+
+                -- i'm the head now: relink
+                APP.chains[MSG.chain.key].heads[MSG.chain.zeros] = MSG.block_hash
+                APP.blocks[HEAD_HASH].up_hash = MSG.block_hash  -- prv->up=me
+                MSG.tail_hash = HEAD_HASH                       -- me->tail=prv
+                MSG.back_hash = HEAD_HASH
             ]];
         end
         _printf("\n[client] BLOCK_HASH = %dms\n", ms);
@@ -128,7 +125,7 @@ do
     // <= BLOCK_HASH
     // <= BLOCK_LEN
     // 
-    [[ UP = MSG ]]; // when remote has [[MSG]], it wants [[UP]]
+    var int n_to_transmit = 0;
     loop i do
         // <= both
         do
@@ -139,12 +136,13 @@ do
         end
 
         // => ACK-chain
+        var int ret = _ERR_NONE;
         do
             var byte[1] recv;
             var UV_Stream_Read reader =
                     UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&recv);
             do UV_Stream_ReadUntil.run(&reader, 1);
-            var int ret = recv[0];
+            ret = recv[0];
 
             _printf("[client] ACK-hashes[%d] = %d {\n", i, ret);
             [[ print(hex_dump(MSG.block_hash)) ]];
@@ -159,29 +157,30 @@ do
                     // remote has all my messages
                     escape _MESSAGE10_HAVE_YES;
                 else
-                    // remote didn't have [[UP]]
-                    break;  // OK: proceed to complete [[UP]] send
+                    // remote have this, but not this.up
+                    n_to_transmit = i;
+                    break;  // OK: proceed to complete this.up send
                 end
             else
                 escape _ERR_REMOTE_BUG_OR_MALICIOUS;
             end
         end
+        _assert(ret == _MESSAGE10_HAVE_NO);
 
-        [[
-            UP  = MSG
-            MSG = APP.blocks[MSG.tail_hash]
-        ]];
+        [[ MSG = APP.blocks[MSG.tail_hash] ]];
         var bool has = [[ MSG~=nil ]];
         if not has then
             escape _ERR_REMOTE_BUG_OR_MALICIOUS;  // remote must have genesis
         end
     end
-    [[ MSG = UP ]];
+    [[ MSG = APP.blocks[MSG.up_hash] ]];
 
     //////////////////////////////////////////////////////////////////////////
 
     // <= BLOCK
-    do
+    // send MSG, MSG.up, MSG.up.up, ...
+    _printf("[client] I will transmit %d message(s)...\n", n_to_transmit);
+    loop i do
         var byte[] bytes;
 
         // <= PoW
@@ -212,7 +211,14 @@ do
 #endif
         end
 
+        _printf("[client] Transmitting %d...\n", i);
         do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
+
+        [[ MSG = APP.blocks[MSG.up_hash] ]];
+        var bool up = [[ MSG~=nil ]];
+        if not up then
+            break;
+        end
     end
 
     escape _ERR_NONE;
@@ -300,10 +306,4 @@ do
     escape _ERR_NONE;   // trasmitted messages
 end
 
-#endif
-
-#if 0
-- parse de 2 mensagens para ligalas, depois transmite a primeira
-    server tem que pegar as duas e ligalas, depois retransmitir a outro
-    server
 #endif
