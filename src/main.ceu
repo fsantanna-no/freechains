@@ -150,8 +150,10 @@ loop i in argc-1 do
 end
 
 par/or do
-    do Client;
-    //await FOREVER;
+    var int err = do Client;
+    if err != _ERR_NONE then
+        await FOREVER;
+    end
 with
     var char[] ip      = [[ APP.server.host[1] ]];
     var int    port    = [[ APP.server.host[2] ]];

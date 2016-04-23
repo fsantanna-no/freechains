@@ -53,19 +53,13 @@ function BLOCKS (t)
 end
 
 function MESSAGE (t)
-    local major,minor = string.match(t.id,'(%d+)%.(%d+)')
-    t.id_t = {
-        major = major,
-        minor = minor,
-    }
     if t.id == '1.0' then
         assert(type(t.chain)=='table')
         assert(type(t.chain.zeros)=='number')
         local cfg = assert(APP.chains[t.chain.key],t.chain.key)
         assert(t.chain.zeros >= cfg.zeros)
     end
-    assert(not APP.message)
-    APP.message = t
+    APP.messages[#APP.messages+1] = t
 end
 
 function hex_dump(buf)

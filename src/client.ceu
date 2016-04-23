@@ -86,8 +86,9 @@ do
 
         // message
         do
-            var int major = [[ MSG.id_t.major ]];
-            var int minor = [[ MSG.id_t.minor ]];
+            [[ major,minor = string.match(MSG.id,'(%d+)%.(%d+)') ]]
+            var int major = [[ major ]];
+            var int minor = [[ minor ]];
             bytes = []..bytes..[MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, major, minor];
         end
 
@@ -145,7 +146,9 @@ do
             do UV_Stream_ReadUntil.run(&reader, 1);
             var int ret = recv[0];
 
-            _printf("[client] ACK-hashes[%d] = %d\n", i, ret);
+            _printf("[client] ACK-hashes[%d] = %d {\n", i, ret);
+            [[ print(hex_dump(MSG.block_hash)) ]];
+            [[ print'}' ]];
             if ret == _MESSAGE10_PAYLOAD_LEN_LIMIT then
                 // remote thinks it is too big
                 escape _MESSAGE10_PAYLOAD_LEN_LIMIT;
@@ -268,31 +271,39 @@ end
 class Client with
     interface PeerListener;
 do
-    [[ MSG = APP.message ]];
-    var bool has = [[ MSG~=nil ]];
-    if not has then
-        await FOREVER;
+    var int ms = [[ #APP.messages ]];
+    if ms == 0 then
+        escape -1;      // no messages
     end
 
-    // <= MSG
-    do Message10_parse;
+    loop i in ms do
+        [[ MSG = APP.messages[@i+1] ]];
 
-    var bool is_10 = [[ MSG.id=='1.0' ]];
-    _assert(is_10);  // message not supported
+        // <= MSG
+        do Message10_parse;
+        var bool is_10 = [[ MSG.id=='1.0' ]];
+        _assert(is_10);  // message not supported
+    end
 
-    _printf("[client] Broadcasting message...\n");
-    var int n = [[#APP.client.peers]];
-    loop i in n do
+    _printf("[client] Broadcasting messages...\n");
+    var int ps = [[#APP.client.peers]];
+    loop i in ps do
         var PeerSend&&? p = spawn PeerSend.run(i+1, &this);
         _assert(p! != null);
     end
-    loop i in n do
+    loop i in ps do
         var int err = await this.ok;
         _printf("[client] peer %d\n", err);
     end
-    _printf("[client] Broadcast OK!\n");
+    _printf("[client] Broadcasts OK!\n");
 
-    escape _ERR_NONE;
+    escape _ERR_NONE;   // trasmitted messages
 end
 
+#endif
+
+#if 0
+- parse de 2 mensagens para ligalas, depois transmite a primeira
+    server tem que pegar as duas e ligalas, depois retransmitir a outro
+    server
 #endif
