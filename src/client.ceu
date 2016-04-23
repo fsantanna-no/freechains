@@ -240,8 +240,8 @@ do
         this.listener = &listener;
     end
 
-    var char[] ip   = [[ APP.client.peers[@this.peer_i][1] ]];
-    var int    port = [[ APP.client.peers[@this.peer_i][2] ]];
+    var char[] ip   = [[ APP.client.peers[@this.peer_i].host[1] ]];
+    var int    port = [[ APP.client.peers[@this.peer_i].host[2] ]];
     _printf("[client] Connecting to %s:%d.\n", (_char&&)&&ip, port);
     var UV_TCP_Client c = UV_TCP_Client.build(&ip, port);
 
