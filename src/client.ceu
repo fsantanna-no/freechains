@@ -10,7 +10,9 @@ do
     // <= NEW HEAD
     // <= OLD.up_hash = NEW
     do
-        [[ HEAD_HASH = APP.chains[MSG.chain.key].heads[MSG.chain.zeros] ]];
+        [[
+            HEAD_HASH = APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros]
+        ]];
         var char[] tail_hash__payload = [[ HEAD_HASH..MSG.payload ]];
         var byte[] plain = [0,0,0,0]..tail_hash__payload;
 
@@ -52,7 +54,7 @@ do
                 APP.blocks[MSG.block_hash] = MSG
 
                 -- i'm the head now: relink
-                APP.chains[MSG.chain.key].heads[MSG.chain.zeros] = MSG.block_hash
+                APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] = MSG.block_hash
                 APP.blocks[HEAD_HASH].up_hash = MSG.block_hash  -- prv->up=me
                 MSG.tail_hash = HEAD_HASH                       -- me->tail=prv
                 MSG.back_hash = HEAD_HASH

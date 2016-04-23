@@ -15,18 +15,6 @@ APP = {
     messages = {},  -- pending messages to transmit
 }
 
-function SERVER (t)
-    for k,v in pairs(t) do
-        APP.server[k] = v
-    end
-end
-
-function CLIENT (t)
-    for k, v in pairs(t) do
-        APP.client[k] = v
-    end
-end
-
 local meta = {
     __index = function (t,k)
         if type(k) == 'number' then
@@ -35,15 +23,41 @@ local meta = {
     end,
 }
 
-function CHAINS (t)
-    for k, tid in pairs(t) do
-        APP.chains[k] = tid
-        if type(tid) == 'table' then
-            assert(type(tid.zeros) == 'number')
-            if k == '' then
-                assert(tid.zeros < 256)
-            end
-            tid.heads = setmetatable({}, meta)
+local function chain_parse (key, chain)
+    assert(type(chain) == 'table')
+    chain.key = key
+    assert(type(chain.zeros) == 'number')
+    if k == '' then
+        assert(chain.zeros < 256)
+    end
+    chain.heads = setmetatable({}, meta)
+end
+
+function SERVER (t)
+    assert(type(t) == 'table')
+    for k,v in pairs(t) do
+        APP.server[k] = v
+    end
+    t = APP.server
+    assert(type(t.chains) == 'table')
+    for key,chain in pairs(t.chains) do
+        chain_parse(key, chain)
+    end
+end
+
+function CLIENT (t)
+    assert(type(t) == 'table')
+    for k, v in pairs(t) do
+        APP.client[k] = v
+    end
+    t = APP.client
+    assert(type(t.peers) == 'table')
+
+    for _, peer in ipairs(t.peers) do
+        assert(type(peer) == 'table')
+        assert(type(peer.chains) == 'table')
+        for key,chain in pairs(peer.chains) do
+            chain_parse(key, chain)
         end
     end
 end
@@ -56,7 +70,7 @@ function MESSAGE (t)
     if t.id == '1.0' then
         assert(type(t.chain)=='table')
         assert(type(t.chain.zeros)=='number')
-        local cfg = assert(APP.chains[t.chain.key],t.chain.key)
+        local cfg = assert(APP.server.chains[t.chain.key],t.chain.key)
         assert(t.chain.zeros >= cfg.zeros)
     end
     APP.messages[#APP.messages+1] = t

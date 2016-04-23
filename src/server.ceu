@@ -58,7 +58,7 @@ do
         _printf("[server] CHAIN_KEY   = %s\n", (_char&&)&&chain_key);
 
         // [check] Am I subscribed to the message chain?
-        [[ CHAIN = APP.chains[@chain_key] ]];
+        [[ CHAIN = APP.server.chains[@chain_key] ]];
         var bool is_sub = [[ CHAIN~=nil and CHAIN.zeros<=@chain_zeros ]];
         if not is_sub then
             err = _MESSAGE10_NOTSUB;    // OK ACK
@@ -211,8 +211,8 @@ do
 #if 1
             _printf("TODO: BLOCK_HASH young enough?\n");
 #else
-            var int n = [[ APP.chains.BACK_HASH_JUMP_LIMIT ]];
-            [[ HEAD = APP.chains[MSG.chain.key].heads[MSG.chain.zeros] ]];
+            var int n = [[ APP.server.chains.BACK_HASH_JUMP_LIMIT ]];
+            [[ HEAD = APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] ]];
             loop i in n do
                 var bool is_eq = [[ HEAD == MSG.back_hash ]];
                 if is_eq then
