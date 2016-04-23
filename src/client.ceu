@@ -295,8 +295,8 @@ do
         [[
             PEER = APP.client.peers[@(i+1)]
             ok = false
-            for _, chain in ipairs(PEER.chains) do
-                if chain.key==MSG.chain.key and chain.zeros<=MSG.chain.zeros then
+            for key, chain in pairs(PEER.chains) do
+                if key==MSG.chain.key and chain.zeros<=MSG.chain.zeros then
                     ok = true
                     break
                 end
