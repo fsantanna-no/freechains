@@ -358,67 +358,65 @@ do
 
     [[
         -- COMPARE THE TWO CHAINS
+        --  - remote: possible fork from remote host
+        --  - common: local chain starting from block in common with remote
 
-        local head_hash = APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros]
-        local common_hash = APP.blocks[FORK_HASH].tail_hash
+        local remote = APP.blocks[FORK_HASH]
+        local common = APP.blocks[remote.tail_hash]
 
-        local cur_len = APP.chain_length(head_hash, common_hash)
-        local new_len = APP.chain_length(MSG.block_hash, common_hash)
-        print('[server] CUR='..cur_len..' vs NEW='..new_len)
+        remote = APP.chain_base_head_len(remote)
+        common = APP.chain_base_head_len(common)
+        assert(remote.len > 0)
+        print('[server] COM='..common.len..' vs NEW='..remote.len)
 
-        local small_hash, big_hash
-        if new_len > cur_len then
-            small_hash, big_hash = head_hash, MSG.block_hash
+        local SRC, DST
+        if remote.len >= common.len then
+            -- ">=" because remote also has common_hash
+            DST, SRC = remote, common
         else
-            small_hash, big_hash = MSG.block_hash, head_hash
+            DST, SRC = common, remote
         end
-        assert(new_len > 0)
 
-        -- CONCATENATE THE TWO CHAINS (big .. small)
+        -- CONCATENATE THE TWO CHAINS (DST .. SRC)
 
-        -- small: ...->1->2->K->3
-        -- big:   ...->1->4->5->K->6
-        -- set:   ...->1->4->5->K->6->2->3
-        --  // has to check if 2,3 back blocks are still valid!
+        -- DST: ...->1->4->5->K->6
+        -- SRC: ...->1->2->K->3
+        -- set: ...->1->4->5->K->6->2->3
+        --  // TODO: has to check if 2,3 back blocks are still valid!
 
-        local new_head_hash = big_hash
+        local put = DST.head
         do
-            -- traversing in reverse order!
-            -- 3->K->2
-            local s = small_hash
-            local cur_hash
-            while s ~= common_hash do
-                local big_lacks = true
-                local b = big_hash
-                while b ~= common_hash do
-                    if s == b then
-                        big_lacks = false
+            local src = SRC.base
+            if SRC == common then
+                src.up_hash = DST.base.block_hash -- redirect new chain
+                src = APP.blocks[src.up_hash]     -- skip common block
+            end
+            while src ~= nil do
+                local to_ins_src = true
+                local dst = DST.base
+                while dst~=nil and dst.tail_hash~=DST.head.block_hash do
+                    if dst.block_hash == src.block_hash then
+                        to_ins_src = false
                         break
                     end
-                    b = APP.blocks[b].tail_hash
+                    dst = APP.blocks[dst.up_hash]
                 end
-                if big_lacks then
-                    if new_head_hash == big_hash then
-                        new_head_hash = s   -- change from big to concat
-                    end
-                    APP.blocks[s].up_hash = cur_hash
-                    if cur_hash then
-                        APP.blocks[cur_hash].tail_hash = s
-                    end
-                    cur_hash = s
+                if to_ins_src then
+                    put.up_hash   = src.block_hash
+                    src.tail_hash = put.block_hash
+                    put = APP.blocks[src.block_hash]
                 end
-                s = APP.blocks[s].tail_hash
+                src = APP.blocks[src.up_hash]
             end
         end
 
-        if new_head_hash == head_hash then
+        if DST==common and DST.head==put then
+            -- no changes
             MSG = nil   -- nothing to retransmit
         else
-            APP.blocks[head_hash].up_hash = FORK_HASH
-            MSG = APP.blocks[new_head_hash]
-            APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] = new_head_hash
-print('RETR')
-print(MSG.payload)
+            -- new chain head
+            MSG = APP.blocks[put.block_hash]
+            APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] = put.block_hash
         end
     ]];
 

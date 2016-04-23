@@ -1,9 +1,11 @@
 #if 0
 = TODO:
+    - testar contcat de fato com big/small old/new
     - join, verificar maior chain
     - serialize to disk
         - BLOCK_HASH .. PAYLOAD_LEN .. [PoW..BACK_HASH..PAYLOAD]
     - verificar backs, pos
+        - reverificar backs em rejoins
     - verificar se sequencia de LEN/HASH ultrapassa PAYLOAD_LEN_LIMIT
     - nonce => timestamp s64
     - BLOCK vs MSG nomenclature

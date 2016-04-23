@@ -76,15 +76,18 @@ function MESSAGE (t)
     APP.messages[#APP.messages+1] = t
 end
 
-function APP.chain_length (up, down)
-    local len = 0
-    local hash = up
-    while hash ~= down do
+function APP.chain_base_head_len (base)
+    local head = base
+    local len = 1
+    while head.up_hash do
         len = len + 1
-        local tail_hash = assert(assert(APP.blocks[hash]).tail_hash)
-        hash = assert(assert(APP.blocks[tail_hash]).block_hash)
+        head = APP.blocks[head.up_hash]
     end
-    return len
+    return {
+        base = base,
+        head = head,
+        len  = len
+    }
 end
 
 function hex_dump(buf)
