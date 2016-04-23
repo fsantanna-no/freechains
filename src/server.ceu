@@ -139,7 +139,10 @@ _assert(0); // TODO test it
                 err  = _MESSAGE10_HAVE_YES;
             else
                 // further iterations, I don't have the previous message
-                [[ MSG = APP.blocks[MSG.up_hash] ]];
+                [[
+                    COMMON_HASH = MSG.block_hash    -- will check if the new chain is bigger
+                    MSG = APP.blocks[MSG.up_hash]
+                ]];
                 err = _MESSAGE10_HAVE_NO;
             end
         else/if payload_len > limit then
@@ -234,11 +237,11 @@ do
     // already received from remote responding HAVE_NO
 
     // => PAYLOAD
+    var byte[] payload;
     do
         var u32 payload_len = [[ MSG.payload_len ]];
         do UV_Stream_ReadUntil.run(&reader, off + payload_len);
 
-        var byte[] payload;
         _ceu_vector_copy_buffer(&&payload, 0,
                                 &&(((_byte&&)&&bytes)[off]), payload_len,
                                 1);
@@ -249,6 +252,25 @@ do
             print('}')
         ]];
         off = off + payload_len;
+    end
+
+    // [check] BLOCK_HASH is correct? [no ACK]
+    do
+        var byte[] plain;
+        PUT_NETWORK_U32(plain, 0, pow);
+        plain = []..plain..back_hash..payload;
+
+        var byte[HASH_BYTES] hash;
+        _crypto_generichash((_byte&&)&&hash, HASH_BYTES,
+                            (_byte&&)&&plain, $plain,
+                            null, 0);
+
+        var char[HASH_BYTES] block_hash = [[ MSG.block_hash ]];
+        var int ret = _memcmp((_char&&)&&block_hash, (_byte&&)&&hash, HASH_BYTES);
+        _printf("[server] POW = %d\n", ret==0);
+        if ret != 0 then
+            escape _ERR_REMOTE_BUG_OR_MALICIOUS;
+        end
     end
 
     // => PoS
@@ -264,35 +286,7 @@ do
         off = off + 1;
     end
 
-    // this is my new head
-    [[
-        local head_hash = APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros]
-        APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] = MSG.block_hash
-        APP.blocks[head_hash].up_hash = MSG.block_hash
-    ]];
-
     escape _ERR_NONE;
-
-    // [check] BLOCK_HASH is correct? [no ACK]
-#if 0
-    do
-        var byte[] plain;
-        PUT_NETWORK_U32(plain, 0, pow);
-        plain = []..plain..[zeros==256]..chain_key..back_hash..payload;
-
-        var byte[] hash;
-        $hash := HASH_BYTES;
-        _crypto_generichash((_byte&&)&&hash, HASH_BYTES,
-                            (_byte&&)&&plain, $plain,
-                            null, 0);
-
-        var int ret = _memcmp((_byte&&)&&block_hash, (_byte&&)&&hash, HASH_BYTES);
-        _printf("[server] POW = %d\n", ret==0);
-        if ret != 0 then
-            escape _MESSAGE10_POW_FAIL;
-        end
-    end
-#endif
 end
 
 class Message10_recv with
@@ -356,9 +350,31 @@ do
         end
     end
 
+    ///////////////////////////////////////////////////////////////////////////////
+    // CHECK/SET NEW HEAD
+    ///////////////////////////////////////////////////////////////////////////////
+
+    // this is my new head
+    [[
+        local head_hash = APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros]
+
+        local cur_len = APP.chain_length(head_hash, COMMON_HASH)
+        local new_len = APP.chain_length(MSG.block_hash, COMMON_HASH)
+        print('[server] CUR='..cur_len..' vs NEW='..new_len)
+
+        if new_len > cur_len then
+            APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] = MSG.block_hash
+            APP.blocks[head_hash].up_hash = MSG.block_hash
+        end
+    ]];
+
+    ///////////////////////////////////////////////////////////////////////////////
+    // RETRANSMIT NEW HEAD
+    ///////////////////////////////////////////////////////////////////////////////
+
     // retransmit them all to peers, starting from newest
     [[
-        assert(MSG.block_hash == APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros])
+        --assert(MSG.block_hash == APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros])
     ]];
     var int err = do Client;
 

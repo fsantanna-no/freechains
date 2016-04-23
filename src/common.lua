@@ -76,6 +76,17 @@ function MESSAGE (t)
     APP.messages[#APP.messages+1] = t
 end
 
+function APP.chain_length (up, down)
+    local len = 0
+    local hash = up
+    while hash ~= down do
+        len = len + 1
+        local tail_hash = assert(assert(APP.blocks[hash]).tail_hash)
+        hash = assert(assert(APP.blocks[tail_hash]).block_hash)
+    end
+    return len
+end
+
 function hex_dump(buf)
     local ret = ''
     for byte=1, #buf, 16 do

@@ -1,16 +1,24 @@
 #if 0
-- parse de 2 mensagens para ligalas, depois transmite a primeira
-    server tem que pegar as duas e ligalas, depois retransmitir a outro
-    server
-    - verificar blocos, backs, pos
-# BLOCK vs MSG
-# esquema de nomes bc/path/, pega mais recente, bc/path/^..., git
-# aquivos plain, + arquivos meta em lua/binario
-# Message prepare do client pode ter todos os campos necessarios para o send
-#	evita *muitas* copias
-# common genesis to all chains will conflict on gen.up_hash
-    - has to assert before
-    - use a hash based on the chain unique identification!
+= TODO:
+    - join, verificar maior chain
+    - serialize to disk
+        - BLOCK_HASH .. PAYLOAD_LEN .. [PoW..BACK_HASH..PAYLOAD]
+    - verificar backs, pos
+    - verificar se sequencia de LEN/HASH ultrapassa PAYLOAD_LEN_LIMIT
+    - nonce => timestamp s64
+    - BLOCK vs MSG nomenclature
+    - Message prepare do client pode ter todos os campos necessarios para o 
+      send evita *muitas* copias
+
+= BUGS:
+    - common genesis to all chains will conflict on gen.up_hash
+        - has to assert before
+        - use a hash based on the chain unique identification!
+
+= IDEAS:
+    - esquema de nomes bc/path/, pega mais recente, bc/path/^..., git
+    - aquivos plain, + arquivos meta em lua/binario
+
 #endif
 
 #include "c.ceu"
@@ -39,8 +47,6 @@ native do
         MESSAGE10_HAVE_NO,              // [ok ACK] keep sending
         MESSAGE10_PAYLOAD_LEN_LIMIT,    // [ok ACK] too big for untrusted client
         MESSAGE10_NOTSUB,               // [ok ACK] not subscribed to this chain
-        MESSAGE10_POW_FAIL,             // [no ACK] block hash does not match the given PoW
-        MESSAGE10_BACK_HASH_JUMP_LIMIT, // [ok ACK] TODO:
     };
 
     // calculate the number of leading zero bits in "bytes"
