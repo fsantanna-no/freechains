@@ -230,18 +230,16 @@ end
 
 class PeerSend with
 input:
-    var int peer_i;
     var PeerListener& listener;
 
-    function (int i, PeerListener& listener)=>PeerSend run;
+    function (PeerListener& listener)=>PeerSend run;
 do
-    function (int i, PeerListener& listener)=>PeerSend run do
-        this.peer_i   = i;
+    function (PeerListener& listener)=>PeerSend run do
         this.listener = &listener;
     end
 
-    var char[] ip   = [[ APP.client.peers[@this.peer_i].host[1] ]];
-    var int    port = [[ APP.client.peers[@this.peer_i].host[2] ]];
+    var char[] ip   = [[ PEER.host[1] ]];
+    var int    port = [[ PEER.host[2] ]];
     _printf("[client] Connecting to %s:%d.\n", (_char&&)&&ip, port);
     var UV_TCP_Client c = UV_TCP_Client.build(&ip, port);
 
@@ -294,7 +292,8 @@ do
     _printf("[client] Broadcasting messages...\n");
     var int ps = [[#APP.client.peers]];
     loop i in ps do
-        var PeerSend&&? p = spawn PeerSend.run(i+1, &this);
+        [[ PEER = APP.client.peers[@(i+1)] ]];
+        var PeerSend&&? p = spawn PeerSend.run(&this);
         _assert(p! != null);
     end
     loop i in ps do
