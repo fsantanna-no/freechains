@@ -5,6 +5,6 @@ MESSAGE {
         zeros = 0,
     },
     payload = [[
--: Hello World!
+a: Olá Mundo!
 ]],
 }

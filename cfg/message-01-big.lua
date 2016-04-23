@@ -4,7 +4,5 @@ MESSAGE {
         key   = '',
         zeros = 0,
     },
-    payload = [[
--: Hello World!
-]],
+    payload = string.rep('.',1025),
 }

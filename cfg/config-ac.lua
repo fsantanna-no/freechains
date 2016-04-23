@@ -1,5 +1,5 @@
 SERVER {
-    host = { '127.0.0.1', '8333' },
+    host = { '127.0.0.1', '8343' },
 
     chains = {
         [''] = {                -- global chain (cannot be signed)
@@ -11,7 +11,7 @@ SERVER {
 CLIENT {
     peers = {
         {
-            host = { '127.0.0.1', '8343' },
+            host = { '127.0.0.1', '8333' },
             chains = {
                 [''] = {
                     zeros = 0,
