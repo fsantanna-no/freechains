@@ -1,8 +1,17 @@
+local __genesis = string.rep('\0',32) -- genesis block for all chains
+
 APP = {
+    genesis  = __genesis,
     server   = {},  -- server configurations
     client   = {},  -- client configurations
     chains   = {},  -- chains configurations
-    blocks   = {},  -- blocks in memory
+    blocks   = {    -- blocks in memory
+        [__genesis] = {
+            block_hash = __genesis,
+            tail_hash  = nil,
+            payload    = '',
+        }
+    },
     messages = {},  -- pending messages to transmit
 }
 
@@ -21,7 +30,7 @@ end
 local meta = {
     __index = function (t,k)
         if type(k) == 'number' then
-            return string.rep('\0',32) -- genesis block
+            return APP.genesis
         end
     end,
 }

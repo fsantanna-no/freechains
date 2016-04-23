@@ -10,9 +10,9 @@
 native @pure _leading_zeros();
 native do
     enum {
-        ERR_NONE         =  0,
-        ERR_MESSAGE      = -1,
-        ERR_DISCONNECTED = -2,
+        ERR_NONE                    =  0,
+        ERR_MESSAGE                 = -1,
+        ERR_REMOTE_BUG_OR_MALICIOUS = -2,
     };
 
     enum {
@@ -61,13 +61,15 @@ end
 #include "uv-server.ceu"
 
 /*
+= Message10_00_chain
 - MESSAGE_*:    obligatory
 - CHAIN_*:      avoids sequence of unsubscribed hashes
     - ok: not sub
 --
+= Message10_01_oldest_hash
+    - receive many until HAVE_NO
 - BLOCK_HASH:   client will typically guess correctly
     - ok: have
----
 - PAYLOAD_LEN
     - ok: too big
 ---
@@ -75,10 +77,9 @@ end
 - BACK_HASH
 - PAYLOAD
     - no: no match
-- TAIL_HASH
-    - ok: need it
 - POS
     - no: no match
+(TAIL_HASH: got implicitly from the protocol)
 ===
 - TODO: sig
 
@@ -110,10 +111,10 @@ BLOCK_HASH       32       // hash of the proposed block
 ///////////////////////////////////////////////////////////////////////////////
 // BLOCK_HASH = hash[PoW..BACK_HASH..PAYLOAD]
 PoW              4 u32    // nonce for BLOCK_HASH
-PoS              1        // value of random jump (based on BLOCK_HASH) in the CHAIN
 BACK_HASH        32       // immutable: a past hash at most TODO jumps away from BLOCK_HASH
-TAIL_HASH        32       // mutable: immediate past hash which creates the chain
+//TAIL_HASH        32       // mutable: immediate past hash which creates the chain
 PAYLOAD          <PAYLOAD_LEN>
+PoS              1        // value of random jump (based on BLOCK_HASH) in the CHAIN
 TODO-SIGNATURE
 ///////////////////////////////////////////////////////////////////////////////
     - BLOCK_HASH: univocally identifies a specific message that was sent to

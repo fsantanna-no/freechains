@@ -17,17 +17,21 @@ do
         MSG = {
             id = '1.0',
             chain = {
-                key    = nil,   -- set
-                zeros  = nil,   -- set
+                key    = nil,
+                zeros  = nil,
             },
+            block_hash = nil,
+            back_hash  = nil,
+            tail_hash  = nil,
+            up_hash    = nil,
         }
     ]];
 
     var int err = _ERR_NONE;
     var u32 off = MESSAGE_BYTES;
 
-    // <= CHAIN_ZEROS
-    // <= CHAIN_LEN
+    // => CHAIN_ZEROS
+    // => CHAIN_LEN
     var u8 chain_zeros = 0;
     var u8 chain_len   = 0;
     do
@@ -41,10 +45,9 @@ do
     end
     [[ MSG.chain.zeros = @chain_zeros ]];
 
-    // <= CHAIN_KEY
+    // => CHAIN_KEY
     var char[] chain_key;
     do
-        reader.max = off+chain_len;
         do UV_Stream_ReadUntil.run(&reader, off+chain_len);
         $chain_key := chain_len;
         native @pure _OFF();
@@ -52,7 +55,7 @@ do
             ##define OFF(vec,off) ((char*)(vec+off))
         end
         _strncpy((_char&&)&&chain_key, _OFF((_byte&&)&&bytes,off), chain_len);
-        _printf("[server] CHAIN_KEY    = %s\n", (_char&&)&&chain_key);
+        _printf("[server] CHAIN_KEY   = %s\n", (_char&&)&&chain_key);
 
         // [check] Am I subscribed to the message chain?
         [[ CHAIN = APP.chains[@chain_key] ]];
@@ -71,280 +74,129 @@ end
 class Message10_01_oldest_hash with
 input:
     var _uv_tcp_t& tcp;
-input/output:
-    var byte[HASH_BYTES]& bytes;
-
-    function (_uv_tcp_t& tcp, byte[HASH_BYTES]& bytes)=>Message10_01_oldest_hash receive;
+    function (_uv_tcp_t& tcp)=>Message10_01_oldest_hash receive;
 do
-    function (_uv_tcp_t& tcp, byte[HASH_BYTES]& bytes)=>Message10_01_oldest_hash receive do
-        this.tcp   = &tcp;
-        this.bytes = &bytes;
+    function (_uv_tcp_t& tcp)=>Message10_01_oldest_hash receive do
+        this.tcp = &tcp;
     end
 
-    // <= HASH
-    // => ACK:
+    // => HASH
+    // <= ACK:
     //      - MESSAGE10_HAVE_YES: found common
     //      - MESSAGE10_HAVE_NO:  keep sending
 
-    var byte[HASH_BYTES] bytes_up;  // save closest
     var int n_bytes = 0;
+    var u32 limit = [[ APP.server.message10_payload_len_limit ]];
     loop i do
-        var u32 limit = [[ APP.server.message10_payload_len_limit ]];
         if n_bytes > limit then
 _assert(0); // TODO test it
             escape _MESSAGE10_PAYLOAD_LEN_LIMIT;
         end
         n_bytes = n_bytes + HASH_BYTES;
 
-        var byte[HASH_BYTES] bs;
-        var UV_Stream_Read reader =
-                UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bs);
-        do UV_Stream_ReadUntil.run(&reader, 0);
+        var u32 payload_len = 0;
+        do
+            var byte[HASH_BYTES+sizeof(u32)] bs;
+            var UV_Stream_Read reader =
+                    UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bs);
+            do UV_Stream_ReadUntil.run(&reader, HASH_BYTES+sizeof(u32));
+
+            // => BLOCK_HASH
+            // this can be the oldest missing
+            var byte[HASH_BYTES] hash;
+            _ceu_vector_copy_buffer(&&hash, 0,
+                                    (_byte&&)&&bs, HASH_BYTES,
+                                    1);
+
+            // => PAYLOAD_LEN
+            payload_len = GET_HOST_U32(bs, HASH_BYTES);
+
+            [[
+                CUR = {
+                    hash = @hash,
+                    len  = @payload_len,
+                }
+            ]];
+        end
+
+        [[
+            print('[server] BLOCK_HASH ['..@i..'] = '..CUR.len..' {')
+            print(hex_dump(CUR.hash))
+            print('}')
+        ]];
 
         // [check] Do I have this message hash? [ok ACK]
-        var bool have = [[ APP.blocks[@bs] ]];
-        _printf("[server] ACK-have = %d\n", have);
-await 1s;
+        var bool have = [[ APP.blocks[CUR.hash] ]];
+        _printf("[server] OLD-have? [0/1] = %d\n", have);
+
         var byte[1] send;
+        var int err = _ERR_NONE;
         if have then
-            send = [_MESSAGE10_HAVE_YES ];
+            send = [ _MESSAGE10_HAVE_YES ];
+            if i == 0 then
+                // first iteration, I already have all messages...
+                err  = _MESSAGE10_HAVE_YES;
+            else
+                // further iterations, I don't have the previous message
+                [[
+                    MSG.tail_hash   = CUR.hash
+                    MSG.block_hash  = OLD.hash
+                    MSG.payload_len = OLD.len
+                ]];
+                err = _MESSAGE10_HAVE_NO;
+            end
+        else/if payload_len > limit then
+            // [check] Is the message too big? [ok ACK]
+            send = [ _MESSAGE10_PAYLOAD_LEN_LIMIT ];
         else
-            send = [_MESSAGE10_HAVE_NO  ];
+            // I don't have this message, which was copied to "this.bytes"
+            // because it might be the last one I don't have.
+            // OK: continue to the next
+            send = [ _MESSAGE10_HAVE_NO  ];
+            [[ OLD = CUR ]];
         end
         do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
 
-        if not have then
-            // I don't have the previous message copied to "this.bytes"
-            escape _MESSAGE10_HAVE_NO;
-        else/if i==0 then
-            // first iteration, I already have all messages...
-            escape _MESSAGE10_HAVE_YES;
+        if err != _ERR_NONE then
+            escape err;
         end
-
-        this.bytes = []..bs; // this can be the oldest missing
     end
     _assert(0);
 end
 
-#if 0
-        [[ APP.blocks[@block_hash] = true ]];
-        [[
-            MSG.block_hash = @block_hash
-            print('[server] BLOCK_HASH = {')
-            print(hex_dump(MSG.block_hash))
-            print('}')
-        ]];
-
-        // [check] Does the message has the required zeros for my interest? [ok 
-        // ACK]
-        zeros = _leading_zeros((_byte&&)&&block_hash, HASH_BYTES);
-        var bool is_sub = [[ CHAIN.zeros <= @zeros ]];
-        if not is_sub then
-            escape _MESSAGE10_NOTSUB;   // ok ACK
-        end
-        [[ MSG.chain.zeros = @zeros ]];
-    end
-    _assert($block_hash == HASH_BYTES);
-
-class Message10_receive_ with
+class Message10_02_block with
 input:
     var _uv_tcp_t& tcp;
-    var Message&   msg;
-
-    function (_uv_tcp_t& tcp, Message& msg)=>Message10_receive_ build;
+    function (_uv_tcp_t& tcp)=>Message10_02_block receive;
 do
-    function (_uv_tcp_t& tcp, Message& msg)=>Message10_receive_ build do
+    function (_uv_tcp_t& tcp)=>Message10_02_block receive do
         this.tcp = &tcp;
-        this.msg = &msg;
     end
 
-    [[
-        MSG = {
-            id = '1.0',
-            chain = {
-                key    = nil,
-                zeros  = nil,
-            },
-            block_hash = nil,
-            back_hash  = nil,
-            tail_hash  = nil,
-        }
-    ]];
-
-    var UV_Stream_Read r = UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),
-                                                &this.msg.bytes);
-
-    var char[] chain_key;
-    var bool   chain_signed = false;
-    var int    zeros        = 0;
-    var u32    payload_len  = 0;
-    var byte[HASH_BYTES] block_hash;
-
-    var int nxt = 0;
+    var byte[] bytes;
     var int off = 0;
 
-    var s8 err =
-do//err
+    var UV_Stream_Read reader =
+            UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
 
-    // <= MESSAGE
-    // TODO: with other message, move to outside the class
-    do
-        // [check] Is this message '1.0'? [no ACK]
-
-        off = nxt;
-        nxt = nxt + 1+1+1+1;
-        AWAIT_UNTIL(r,nxt);
-
-        if this.msg.bytes[off+0] != MESSAGE_MAGIC_0  or
-           this.msg.bytes[off+1] != MESSAGE_MAGIC_1  or
-           this.msg.bytes[off+2] != 1                or
-           this.msg.bytes[off+3] != 0
-        then
-            _assert(0);
-            //escape _ERR_MESSAGE;
-        end
-        _printf("[server] MESSAGE = [%d %d %d %d]\n",
-                this.msg.bytes[off+0],
-                this.msg.bytes[off+1],
-                this.msg.bytes[off+2],
-                this.msg.bytes[off+3]);
-    end
-
-    // <= CHAIN_SIGNED?
-    // <= CHAIN_LEN
-    // <= CHAIN_KEY
-    do
-        off = nxt;
-        nxt = nxt + 1;
-        AWAIT_UNTIL(r,nxt);
-        var u8 v = this.msg.bytes[off];
-        chain_signed = (v>>7);
-        var int chain_len = (v&0x7F);
-        _printf("[server] CHAIN_SIGNED = %d\n", chain_signed);
-        _printf("[server] CHAIN_LEN    = %d\n", chain_len);
-
-        off = nxt;
-        nxt = nxt + chain_len;
-        AWAIT_UNTIL(r,nxt);
-        $chain_key := chain_len;
-        _strncpy((_char&&)&&chain_key, (_char&&)&&this.msg.bytes[off], chain_len);
-        _printf("[server] CHAIN_KEY    = %s\n", (_char&&)&&chain_key);
-
-        [[ MSG.chain.key = @chain_key ]];
-
-        // [check] Am I subscribed to the message chain? [ok ACK]
-        [[ CHAIN = APP.chains[@chain_key] ]];
-        var bool is_sub = [[ CHAIN ~= nil ]];
-        if not is_sub then
-            escape _MESSAGE10_NOTSUB;   // ok ACK
-        end
-    end
-
-    // <= PAYLOAD_LEN
-    do
-        off = nxt;
-        nxt = nxt + sizeof(u32);
-        AWAIT_UNTIL(r,nxt);
-        payload_len = GET_HOST_U32(this.msg.bytes,off);
-        _printf("[server] PAYLOAD_LEN = %d\n", payload_len);
-
-        // [check] too big for untrusted client [ok ACK]
-        var int limit = [[ APP.server.message10_payload_len_limit ]];
-        if payload_len > limit then
-            escape _MESSAGE10_PAYLOAD_LEN_LIMIT;
-        end
-    end
-
-    // <= BLOCK_HASH
-    do
-        off = nxt;
-        nxt = nxt + HASH_BYTES;
-        AWAIT_UNTIL(r,nxt);
-        _ceu_vector_copy_buffer(&&block_hash, 0,
-                                (_byte&&)&&this.msg.bytes[off], HASH_BYTES,1);
-        [[
-            MSG.block_hash = @block_hash
-            print('[server] BLOCK_HASH = {')
-            print(hex_dump(MSG.block_hash))
-            print('}')
-        ]];
-
-        // [check] Do I have this message hash? [ok ACK]
-        var bool have = [[ APP.blocks[@block_hash] ]];
-        [[ APP.blocks[@block_hash] = true ]];
-        if have then
-            escape _MESSAGE10_HAVE_YES;
-        end
-
-        // [check] Does the message has the required zeros for my interest? [ok ACK]
-        zeros = _leading_zeros((_byte&&)&&block_hash, HASH_BYTES);
-        var bool is_sub = [[ CHAIN.zeros <= @zeros ]];
-        if not is_sub then
-            escape _MESSAGE10_NOTSUB;   // ok ACK
-        end
-        [[ MSG.chain.zeros = @zeros ]];
-    end
-    _assert($block_hash == HASH_BYTES);
-
-    escape _ERR_NONE;
-end;//err
-
-    if err != _ERR_NONE then
-        // => ACK
-        _printf("[server] ACK = %d\n", err);
-        var byte[1] send = [err];
-        this.msg.offs = []..this.msg.offs..[nxt];
-        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
-        escape err;
-    end
-
-    // == END
-    _assert(err == _ERR_NONE);
-    _assert(r.next >= nxt);
-    if r.next > nxt then
-        //escape _ERR_EXTRA_BYTES;
-    end
-
-    // => ACK
-    do
-        _printf("[server] ACK = %d\n", err);
-        var byte[1] send = [err];
-        this.msg.offs = []..this.msg.offs..[nxt];
-        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
-    end
-
-    //////////////////////////////////////////////////////////////////////////
-
-    // <= PoW
+    // => PoW
     var u32 pow = 0;
     do
-        off = nxt;
-        nxt = nxt + sizeof(u32);
-        AWAIT_UNTIL(r,nxt);
-        pow = GET_HOST_U32(this.msg.bytes,off);
+        do UV_Stream_ReadUntil.run(&reader, off + sizeof(u32));
+        pow = GET_HOST_U32(bytes,off);
         _printf("[server] POW = %X\n", pow);
         [[ MSG.pow = @pow ]];
+        off = off + sizeof(u32);
     end
 
-    // <= PoS
+    // => BACK_HASH
     // TODO: check
-    do
-        off = nxt;
-        nxt = nxt + 1;
-        AWAIT_UNTIL(r,nxt);
-        var int pos = this.msg.bytes[off];
-        _printf("[server] POS = %X\n", pos);
-        [[ MSG.pos = @pos ]];
-    end
-
-    // <= BACK_HASH
     var byte[HASH_BYTES] back_hash;
     do
-        off = nxt;
-        nxt = nxt + HASH_BYTES;
-        AWAIT_UNTIL(r,nxt);
+        do UV_Stream_ReadUntil.run(&reader, off + HASH_BYTES);
         _ceu_vector_copy_buffer(&&back_hash, 0,
-                                (_byte&&)&&this.msg.bytes[off], HASH_BYTES,1);
+                                (_byte&&)&&bytes[off], HASH_BYTES,
+                                1);
         [[
             MSG.back_hash = @back_hash
             print('[server] BACK_HASH = {')
@@ -354,7 +206,9 @@ end;//err
 
         // [check] BACK_HASH is young enough? [ok ACK]
         do
-#if 0
+#if 1
+            _printf("TODO: BLOCK_HASH young enough?\n");
+#else
             var int n = [[ APP.chains.BACK_HASH_JUMP_LIMIT ]];
             [[ HEAD = APP.chains[MSG.chain.key].heads[MSG.chain.zeros] ]];
             loop i in n do
@@ -366,46 +220,51 @@ end;//err
             end
 #endif
         end
+        off = off + HASH_BYTES;
     end
     _assert($back_hash == HASH_BYTES);
 
-    // <= TAIL_HASH
-    var byte[HASH_BYTES] tail_hash;
-    do
-        off = nxt;
-        nxt = nxt + HASH_BYTES;
-        AWAIT_UNTIL(r,nxt);
-        _ceu_vector_copy_buffer(&&tail_hash, 0,
-                                (_byte&&)&&this.msg.bytes[off], HASH_BYTES,1);
-        [[
-            MSG.tail_hash = @tail_hash
-            print('[server] TAIL_HASH = {')
-            print(hex_dump(MSG.tail_hash))
-            print('}')
-        ]];
-    end
-    _assert($tail_hash == HASH_BYTES);
+    // => TAIL_HASH
+    // already received from remote responding HAVE_YES
+    // => PAYLOAD_LEN
+    // already received from remote responding HAVE_NO
 
-    // <= PAYLOAD
-    var byte[] payload;
+    // => PAYLOAD
     do
-        off = nxt;
-        nxt = nxt + payload_len;
-        AWAIT_UNTIL(r,nxt);
+        var u32 payload_len = [[ MSG.payload_len ]];
+        do UV_Stream_ReadUntil.run(&reader, off + payload_len);
 
+        var byte[] payload;
         _ceu_vector_copy_buffer(&&payload, 0,
-                                &&(((_byte&&)&&this.msg.bytes)[off]),
-                                payload_len, 1);
+                                &&(((_byte&&)&&bytes)[off]), payload_len,
+                                1);
         [[
             MSG.payload = @payload
-            print('[server] PAYLOAD = '..MSG.payload)
+            print('[server] PAYLOAD {')
+            print(hex_dump(MSG.payload))
+            print('}')
         ]];
+        off = off + payload_len;
     end
 
+    // => PoS
+    // TODO: check
+    do
+        do UV_Stream_ReadUntil.run(&reader, off + 1);
+        var int pos = bytes[off];
+        _printf("[server] POS = %X\n", pos);
+        [[ MSG.pos = @pos ]];
+#if 1
+        _printf("TODO: POS matches?\n");
+#endif
+        off = off + 1;
+    end
+
+_assert(0);
     // [check] BLOCK_HASH is correct? [no ACK]
+#if 0
     do
         var byte[] plain;
-        $plain := sizeof(u32);
         PUT_NETWORK_U32(plain, 0, pow);
         plain = []..plain..[zeros==256]..chain_key..back_hash..payload;
 
@@ -421,35 +280,8 @@ end;//err
             escape _MESSAGE10_POW_FAIL;
         end
     end
-
-    // == END
-    _assert(r.next >= nxt);
-    if r.next > nxt then
-        //escape _ERR_EXTRA_BYTES;
-    end
-
-    this.msg.offs = []..this.msg.offs..[nxt];
-
-    escape _ERR_NONE;
-end
-
-class Message10_link with
-input:
-    var Message& msg;
-
-    function (Message& msg)=>Message10_link build;
-do
-    function (Message& msg)=>Message10_link build do
-        this.msg = &msg;
-    end
-
-    // == CHECK
-    do
-        [[ HEAD = APP.chains[MSG.chain.key].heads[MSG.chain.zeros] ]];
-        var bool same = [[ HEAD == MSG.block_hash ]];
-    end
-end
 #endif
+end
 
 class Message10_recv with
 input:
@@ -470,39 +302,40 @@ do
     ///////////////////////////////////////////////////////////////////////////////
 
     // bytes/reader received from message partially parsed
-    var int err = do Message10_00_chain.receive(&bytes,&reader);
     do
-        _printf("[server] ACK-chain = %d\n", err);
-        var byte[1] send = [err];
-        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
-    end
-    if err == _MESSAGE10_NOTSUB then
-        escape err;
+        var int err = do Message10_00_chain.receive(&bytes,&reader);
+        do
+            _printf("[server] ACK-chain = %d\n", err);
+            var byte[1] send = [err];
+            do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
+        end
+        if err == _MESSAGE10_NOTSUB then
+            escape err;
+        end
     end
 
     ///////////////////////////////////////////////////////////////////////////////
     // HASHES
     ///////////////////////////////////////////////////////////////////////////////
 
-    // new bytes/reader inside
-    // bytes/reader received from message partially parsed
-    loop do
-        var byte[HASH_BYTES] bytes;
-        err = do Message10_01_oldest_hash.receive(&tcp,&bytes);
+    // receive oldest hash that I don't have
+    do
+        // new bytes/reader inside
+        var int err = do Message10_01_oldest_hash.receive(&tcp);
         _printf("[server] ACK-oldest = %d\n", err);
-        if err == _MESSAGE10_HAVE_NO then
-            break;
+        if err == _MESSAGE10_HAVE_YES then
+            _assert(0);
         end
-
-        [[
-            print('OLDEST')
-            print(hex_dump(@bytes))
-        ]];
-await FOREVER;
+        _assert(err == _MESSAGE10_HAVE_NO);
     end
 
-    _assert(err==_ERR_NONE or err==_MESSAGE10_HAVE_NO);
-    escape err;
+    // receive oldest block that I don't have
+    do
+        var int err = do Message10_02_block.receive(&tcp);
+    end
+
+_assert(0);
+    escape _ERR_NONE;
 end
 
 class UV_TCP_Server_Handler with
@@ -519,7 +352,7 @@ do
     var UV_Stream_Read reader =
             UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
 
-    // <= MESSAGE
+    // => MESSAGE
     do UV_Stream_ReadUntil.run(&this.reader, MESSAGE_BYTES);
 
     _printf("[server] MESSAGE = [%d %d %d %d]\n",
@@ -535,26 +368,6 @@ do
     end
 
     escape err;
-
-#if 0
-    var Message msg;
-    var s8 err = do Message10_receive_.build(&this.tcp, &msg);
-    _printf("[server] err = %d\n", err);
-    _assert(err >= _ERR_NONE);
-    if err == _ERR_MESSAGE then
-        _assert($msg.offs == 0);
-    else/if err != _ERR_NONE then
-        _assert($msg.offs == 1);
-    else
-        _assert(err == _ERR_NONE);
-        _assert($msg.offs == 2);
-        var int err = do Message10_link.build(&msg);
-        if err == _ERR_NONE then
-            err = do PeersSend.run(&msg);
-            _assert(err == _ERR_NONE);
-        end
-    end
-#endif
 end
 
 #endif
