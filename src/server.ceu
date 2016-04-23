@@ -153,6 +153,8 @@ _assert(0); // TODO test it
             [[
                 APP.blocks[MSG.block_hash] = MSG
                 MSG = {
+                    id      = MSG.id,
+                    chain   = MSG.chain,
                     up_hash = MSG.block_hash,   -- client will transmit all MSG.up.up...
                 }
             ]];
@@ -262,6 +264,13 @@ do
         off = off + 1;
     end
 
+    // this is my new head
+    [[
+        local head_hash = APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros]
+        APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] = MSG.block_hash
+        APP.blocks[head_hash].up_hash = MSG.block_hash
+    ]];
+
     escape _ERR_NONE;
 
     // [check] BLOCK_HASH is correct? [no ACK]
@@ -334,7 +343,7 @@ do
         _assert(err == _MESSAGE10_HAVE_NO);
     end
 
-    // receive oldest block that I don't have
+    // receive oldest=>newest blocks I don't have
     loop i do
         _printf("[server] Receiving %d...\n", i);
         var int err = do Message10_02_block.receive(&tcp);
@@ -347,7 +356,12 @@ do
         end
     end
 
-_assert(0);
+    // retransmit them all to peers, starting from newest
+    [[
+        assert(MSG.block_hash == APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros])
+    ]];
+    var int err = do Client;
+
     escape _ERR_NONE;
 end
 

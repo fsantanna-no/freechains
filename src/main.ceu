@@ -8,6 +8,9 @@
 # aquivos plain, + arquivos meta em lua/binario
 # Message prepare do client pode ter todos os campos necessarios para o send
 #	evita *muitas* copias
+# common genesis to all chains will conflict on gen.up_hash
+    - has to assert before
+    - use a hash based on the chain unique identification!
 #endif
 
 #include "c.ceu"

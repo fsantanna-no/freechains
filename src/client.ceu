@@ -175,7 +175,10 @@ do
             escape _ERR_REMOTE_BUG_OR_MALICIOUS;  // remote must have genesis
         end
     end
-    [[ MSG = APP.blocks[MSG.up_hash] ]];
+    [[
+        MSG = APP.blocks[MSG.up_hash]
+        assert(MSG)
+    ]];
 
     //////////////////////////////////////////////////////////////////////////
 
@@ -277,18 +280,21 @@ end
 class Client with
     interface PeerListener;
 do
-    var int ms = [[ #APP.messages ]];
-    if ms == 0 then
-        escape -1;      // no messages
-    end
+    var bool is_parsed = [[ MSG~=nil ]];
+    if not is_parsed then
+        var int ms = [[ #APP.messages ]];
+        if ms == 0 then
+            escape -1;      // no messages
+        end
 
-    loop i in ms do
-        [[ MSG = APP.messages[@i+1] ]];
+        loop i in ms do
+            [[ MSG = APP.messages[@i+1] ]];
 
-        // <= MSG
-        do Message10_parse;
-        var bool is_10 = [[ MSG.id=='1.0' ]];
-        _assert(is_10);  // message not supported
+            // <= MSG
+            do Message10_parse;
+            var bool is_10 = [[ MSG.id=='1.0' ]];
+            _assert(is_10);  // message not supported
+        end
     end
 
     var int ps = [[#APP.client.peers]];
