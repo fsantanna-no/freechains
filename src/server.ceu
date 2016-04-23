@@ -140,8 +140,10 @@ _assert(0); // TODO test it
             else
                 // further iterations, I don't have the previous message
                 [[
-                    COMMON_HASH = MSG.block_hash    -- will check if the new chain is bigger
-                    MSG = APP.blocks[MSG.up_hash]
+                    -- save "FORK_HASH" for join
+                    -- prepare "MSG" to receive the whole forked chain
+                    FORK_HASH = APP.blocks[MSG.up_hash].block_hash
+                    MSG       = APP.blocks[FORK_HASH]
                 ]];
                 err = _MESSAGE10_HAVE_NO;
             end
@@ -354,17 +356,69 @@ do
     // CHECK/SET NEW HEAD
     ///////////////////////////////////////////////////////////////////////////////
 
-    // this is my new head
     [[
-        local head_hash = APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros]
+        -- COMPARE THE TWO CHAINS
 
-        local cur_len = APP.chain_length(head_hash, COMMON_HASH)
-        local new_len = APP.chain_length(MSG.block_hash, COMMON_HASH)
+        local head_hash = APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros]
+        local common_hash = APP.blocks[FORK_HASH].tail_hash
+
+        local cur_len = APP.chain_length(head_hash, common_hash)
+        local new_len = APP.chain_length(MSG.block_hash, common_hash)
         print('[server] CUR='..cur_len..' vs NEW='..new_len)
 
+        local small_hash, big_hash
         if new_len > cur_len then
-            APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] = MSG.block_hash
-            APP.blocks[head_hash].up_hash = MSG.block_hash
+            small_hash, big_hash = head_hash, MSG.block_hash
+        else
+            small_hash, big_hash = MSG.block_hash, head_hash
+        end
+        assert(new_len > 0)
+
+        -- CONCATENATE THE TWO CHAINS (big .. small)
+
+        -- small: ...->1->2->K->3
+        -- big:   ...->1->4->5->K->6
+        -- set:   ...->1->4->5->K->6->2->3
+        --  // has to check if 2,3 back blocks are still valid!
+
+        local new_head_hash = big_hash
+        do
+            -- traversing in reverse order!
+            -- 3->K->2
+            local s = small_hash
+            local cur_hash
+            while s ~= common_hash do
+                local big_lacks = true
+                local b = big_hash
+                while b ~= common_hash do
+                    if s == b then
+                        big_lacks = false
+                        break
+                    end
+                    b = APP.blocks[b].tail_hash
+                end
+                if big_lacks then
+                    if new_head_hash == big_hash then
+                        new_head_hash = s   -- change from big to concat
+                    end
+                    APP.blocks[s].up_hash = cur_hash
+                    if cur_hash then
+                        APP.blocks[cur_hash].tail_hash = s
+                    end
+                    cur_hash = s
+                end
+                s = APP.blocks[s].tail_hash
+            end
+        end
+
+        if new_head_hash == head_hash then
+            MSG = nil   -- nothing to retransmit
+        else
+            APP.blocks[head_hash].up_hash = FORK_HASH
+            MSG = APP.blocks[new_head_hash]
+            APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] = new_head_hash
+print('RETR')
+print(MSG.payload)
         end
     ]];
 
@@ -372,11 +426,13 @@ do
     // RETRANSMIT NEW HEAD
     ///////////////////////////////////////////////////////////////////////////////
 
-    // retransmit them all to peers, starting from newest
-    [[
-        --assert(MSG.block_hash == APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros])
-    ]];
-    var int err = do Client;
+    do
+        var bool has = [[ MSG~=nil ]];
+        if has then
+            var int err = do Client;
+            escape err;
+        end
+    end
 
     escape _ERR_NONE;
 end
