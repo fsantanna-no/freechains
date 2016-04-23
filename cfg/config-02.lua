@@ -19,7 +19,7 @@ SERVER {
 CLIENT {
     peers = {
         {
-            host = { '127.0.0.1', '8331' },
+            host = { '127.0.0.1', '8333' },
             chains = {
                 [''] = {
                     zeros = 0,
