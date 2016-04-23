@@ -5,6 +5,6 @@ MESSAGE {
         zeros = 32,
     },
     payload = [[
-Hello World!
+Heavy message...
 ]],
 }
