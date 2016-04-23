@@ -148,6 +148,7 @@ _assert(0); // TODO test it
         else/if payload_len > limit then
             // [check] Is the message too big? [ok ACK]
             send = [ _MESSAGE10_PAYLOAD_LEN_LIMIT ];
+            err = _MESSAGE10_PAYLOAD_LEN_LIMIT;
         else
             // I don't have this message, which was copied to "this.bytes"
             // because it might be the last one I don't have.
@@ -323,8 +324,10 @@ do
         // new bytes/reader inside
         var int err = do Message10_01_oldest_hash.receive(&tcp);
         _printf("[server] ACK-oldest = %d\n", err);
-        if err == _MESSAGE10_HAVE_YES then
-            _assert(0);
+        if err != _MESSAGE10_HAVE_NO then
+            _assert(err == _MESSAGE10_HAVE_YES or
+                    err == _MESSAGE10_PAYLOAD_LEN_LIMIT);
+            escape err;
         end
         _assert(err == _MESSAGE10_HAVE_NO);
     end
@@ -367,6 +370,7 @@ do
         err = _ERR_MESSAGE;
     end
 
+    _printf("[server] DONE: %d\n", err);
     escape err;
 end
 
