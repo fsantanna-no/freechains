@@ -1,34 +1,40 @@
 #ifndef _SERVER_CEU
 #define _SERVER_CEU
 
-class Message10_00_chain with
+class Message10_00_header with
 input:
     var byte[]&         bytes;
     var UV_Stream_Read& reader;
 
-    function (byte[]& bytes, UV_Stream_Read& reader)=>Message10_00_chain receive;
+    function (byte[]& bytes, UV_Stream_Read& reader)=>Message10_00_header receive;
 do
-    function (byte[]& bytes, UV_Stream_Read& reader)=>Message10_00_chain receive do
+    function (byte[]& bytes, UV_Stream_Read& reader)=>Message10_00_header receive do
         this.bytes  = &bytes;
         this.reader = &reader;
     end
 
-    [[
-        MSG = {
-            id = '1.0',
-            chain = {
-                key    = nil,
-                zeros  = nil,
-            },
-            block_hash = nil,
-            back_hash  = nil,
-            tail_hash  = nil,
-            up_hash    = nil,
-        }
-    ]];
-
     var int err = _ERR_NONE;
     var u32 off = MESSAGE_BYTES;
+
+    // => BLOCK_HASH
+    do
+        do UV_Stream_ReadUntil.run(&reader, off+HASH_BYTES);
+        var byte[HASH_BYTES] hash;
+        _ceu_vector_copy_buffer(&&hash, 0,
+                                (_byte&&)&&bytes[off], HASH_BYTES,
+                                1);
+        [[
+            BLOCK.hash = @hash;
+            print('=> BLOCK_HASH', string.len(BLOCK.hash))
+            print(hex_dump(BLOCK.hash))
+        ]];
+        off = off + HASH_BYTES;
+    end
+
+
+//        HEAD_HASH = APP.chains[BLOCK.chain.id].head
+//        assert(type(HEAD_HASH) == 'string')
+
 
     // => CHAIN_ZEROS
     // => CHAIN_LEN
@@ -156,6 +162,7 @@ _assert(0); // TODO test it
             // OK: continue to the next
             send = [ _MESSAGE10_HAVE_NO  ];
             [[
+-- TODO: still dont have!
                 APP.blocks[MSG.block_hash] = MSG
                 MSG = {
                     id      = MSG.id,
@@ -307,13 +314,25 @@ do
         this.reader = &reader;
     end
 
+    [[
+        BLOCK = {
+            id        = '1.0',
+            chain     = nil,
+            txs       = { },
+            hash      = nil,
+            up_hash   = nil,
+            tail_hash = nil,
+        }
+        HEAD_HASH = nil
+    ]];
+
     ///////////////////////////////////////////////////////////////////////////////
-    // CHAIN
+    // HEADER
     ///////////////////////////////////////////////////////////////////////////////
 
     // bytes/reader received from message partially parsed
     do
-        var int err = do Message10_00_chain.receive(&bytes,&reader);
+        var int err = do Message10_00_header.receive(&bytes,&reader);
         do
             _printf("[server] ACK-chain = %d\n", err);
             var byte[1] send = [err];

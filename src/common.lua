@@ -63,7 +63,7 @@ function SERVER (t)
     for _,chain in ipairs(t.chains) do
         local id = chain_parse_id(chain)
         -- server creates
-        assert(not APP.chains[id])
+        --assert(not APP.chains[id])    -- TODO: config override
         APP.chains[id] = chain
     end
 end

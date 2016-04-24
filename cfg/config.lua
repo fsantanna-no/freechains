@@ -21,17 +21,11 @@ SERVER {
 
 -- client configurations
 CLIENT {
-    -- 8332 -> 8331 -> 8330
     peers = {
-        --{
-        --    host = { '127.0.0.1', '8331' },
-        --    chains = {
-        --        {
-        --            key   = '',
-        --            zeros = 0,
-        --        }
-        --    },
-        --},
+        {
+            host = { '127.0.0.1', '8331' },
+            chains = APP.server.chains,
+        },
     },
 }
 

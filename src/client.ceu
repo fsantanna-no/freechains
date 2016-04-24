@@ -57,7 +57,7 @@ do
         TX.hash      = @tx_hash
         APP.txs[TX.hash] = TX
         BLOCK.txs[#BLOCK.txs+1] = TX.hash
-        print('\n=> TX_HASH', string.len(TX.hash))
+        print('\n<= TX_HASH', string.len(TX.hash))
         print(hex_dump(TX.hash))
     ]];
     _printf("[client] TX_HASH = %dms\n", ms);
@@ -87,7 +87,7 @@ do
 
     [[
         BLOCK.hash = @block_hash
-        print('=> BLOCK_HASH', string.len(BLOCK.hash))
+        print('<= BLOCK_HASH', string.len(BLOCK.hash))
         print(hex_dump(BLOCK.hash))
 
         -- i'm the head now: relink
@@ -110,6 +110,10 @@ do
     function (_uv_tcp_t& tcp)=>Message10_send run do
         this.tcp = &tcp;
     end
+
+    ///////////////////////////////////////////////////////////////////////////
+    // HEADER
+    ///////////////////////////////////////////////////////////////////////////
 
     // <= MESSAGE
     // <= BLOCK_HASH
@@ -289,7 +293,7 @@ do
     _printf("[client] Connecting to %s:%d.\n", (_char&&)&&ip, port);
     var UV_TCP_Client c = UV_TCP_Client.build(&ip, port);
 
-    var bool is_10 = [[ MSG.id=='1.0' ]];
+    var bool is_10 = [[ BLOCK~=nil and BLOCK.id=='1.0' ]];
     // ...
 
     var int err =
@@ -344,10 +348,12 @@ do
                         hash    = nil,
                     }
                     BLOCK = {
-                        id    = msg.id,
-                        hash  = nil,
-                        chain = msg.chain,
-                        txs = { },
+                        id        = msg.id,
+                        chain     = msg.chain,
+                        txs       = { },
+                        hash      = nil,
+                        up_hash   = nil,
+                        tail_hash = nil,
                     }
                     HEAD_HASH = APP.chains[BLOCK.chain.id].head
                     assert(type(HEAD_HASH) == 'string')
@@ -375,8 +381,9 @@ do
         [[
             PEER = APP.client.peers[@(i+1)]
             ok = false
-            for key, chain in pairs(PEER.chains) do
-                if key==BLOCK.chain.key and chain.zeros<=BLOCK.chain.zeros then
+            for _, chain in pairs(PEER.chains) do
+                if chain.key==BLOCK.chain.key and
+                   chain.zeros<=BLOCK.chain.zeros then
                     ok = true
                     break
                 end
