@@ -125,6 +125,7 @@ do
             tx_hash = @hash
             print('[server] => TX_HASH')
             print(hex_dump(tx_hash))
+            BLOCK.txs[#BLOCK.txs+1] = tx_hash
         ]];
         var bool have = [[ APP.txs[tx_hash] ~= nil ]];
 
@@ -237,8 +238,8 @@ do
                                 (_byte&&)&&plain, $plain,
                                 null, 0);
 
-            var char[HASH_BYTES] block_hash = [[ MSG.block_hash ]];
-            var int ret = _memcmp((_char&&)&&block_hash, (_byte&&)&&hash, HASH_BYTES);
+            var char[HASH_BYTES] tx_hash = [[ TX.hash ]];
+            var int ret = _memcmp((_char&&)&&tx_hash, (_byte&&)&&hash, HASH_BYTES);
             _printf("[server] POW? %d\n", ret==0);
             if ret != 0 then
                 escape _ERR_REMOTE_BUG_OR_MALICIOUS;
@@ -246,222 +247,6 @@ do
         end
 
         [[ APP.txs[TX.hash] = TX ]];
-    end
-
-_assert(0);
-#if 0
-    var int n_bytes = 0;
-    var u32 limit = [[ APP.server.message10_payload_len_limit ]];
-    loop i do
-        if n_bytes > limit then
-_assert(0); // TODO test it
-            escape _MESSAGE10_PAYLOAD_LEN_LIMIT;
-        end
-        n_bytes = n_bytes + HASH_BYTES;
-
-        var u32 payload_len = 0;
-        do
-            var byte[HASH_BYTES+sizeof(u32)] bs;
-            var UV_Stream_Read reader =
-                    UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bs);
-            do UV_Stream_ReadUntil.run(&reader, HASH_BYTES+sizeof(u32));
-
-            // => BLOCK_HASH
-            // this can be the oldest missing
-            var byte[HASH_BYTES] hash;
-            _ceu_vector_copy_buffer(&&hash, 0,
-                                    (_byte&&)&&bs, HASH_BYTES,
-                                    1);
-
-            // => PAYLOAD_LEN
-            payload_len = GET_HOST_U32(bs, HASH_BYTES);
-
-            [[
-                MSG.block_hash  = @hash
-                MSG.payload_len = @payload_len
-                if MSG.up_hash then
-                    APP.blocks[MSG.up_hash].tail_hash = MSG.block_hash
-                end
-            ]];
-        end
-
-        [[
-            print('[server] BLOCK_HASH ['..@i..'] = '..MSG.payload_len..' {')
-            print(hex_dump(MSG.block_hash))
-            print('}')
-        ]];
-
-        // [check] Do I have this message hash? [ok ACK]
-        var bool have = [[ APP.blocks[MSG.block_hash] ]];
-        _printf("[server] OLD-have? [0/1] = %d\n", have);
-
-        var byte[1] send;
-        var int err = _ERR_NONE;
-        if have then
-            send = [ _MESSAGE10_HAVE_YES ];
-            if i == 0 then
-                // first iteration, I already have all messages...
-                err  = _MESSAGE10_HAVE_YES;
-            else
-                // further iterations, I don't have the previous message
-                [[
-                    -- save "FORK_HASH" for join
-                    -- prepare "MSG" to receive the whole forked chain
-                    FORK_HASH = APP.blocks[MSG.up_hash].block_hash
-                    MSG       = APP.blocks[FORK_HASH]
-                ]];
-                err = _MESSAGE10_HAVE_NO;
-            end
-        else/if payload_len > limit then
-            // [check] Is the message too big? [ok ACK]
-            send = [ _MESSAGE10_PAYLOAD_LEN_LIMIT ];
-            err = _MESSAGE10_PAYLOAD_LEN_LIMIT;
-        else
-            // I don't have this message
-            // OK: continue to the next
-            send = [ _MESSAGE10_HAVE_NO  ];
-            [[
--- TODO: still dont have!
-                APP.blocks[MSG.block_hash] = MSG
-                MSG = {
-                    id      = MSG.id,
-                    chain   = MSG.chain,
-                    up_hash = MSG.block_hash,   -- client will transmit all MSG.up.up...
-                }
-            ]];
-        end
-        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
-
-        if err != _ERR_NONE then
-            escape err;
-        end
-    end
-    _assert(0);
-#endif
-end
-
-class Message10_01_oldest_hash with
-input:
-    var _uv_tcp_t& tcp;
-    function (_uv_tcp_t& tcp)=>Message10_01_oldest_hash receive;
-do
-    function (_uv_tcp_t& tcp)=>Message10_01_oldest_hash receive do
-        this.tcp = &tcp;
-    end
-
-    // => HASH
-    // <= ACK:
-    //      - MESSAGE10_HAVE_YES: found common
-    //      - MESSAGE10_HAVE_NO:  keep sending
-
-//        HEAD_HASH = APP.chains[BLOCK.chain.id].head
-//        assert(type(HEAD_HASH) == 'string')
-
-
-
-    var int n_bytes = 0;
-    var u32 limit = [[ APP.server.message10_payload_len_limit ]];
-    loop i do
-        if n_bytes > limit then
-_assert(0); // TODO test it
-            escape _MESSAGE10_PAYLOAD_LEN_LIMIT;
-        end
-        n_bytes = n_bytes + HASH_BYTES;
-
-        var u32 payload_len = 0;
-        do
-            var byte[HASH_BYTES+sizeof(u32)] bs;
-            var UV_Stream_Read reader =
-                    UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bs);
-            do UV_Stream_ReadUntil.run(&reader, HASH_BYTES+sizeof(u32));
-
-            // => BLOCK_HASH
-            // this can be the oldest missing
-            var byte[HASH_BYTES] hash;
-            _ceu_vector_copy_buffer(&&hash, 0,
-                                    (_byte&&)&&bs, HASH_BYTES,
-                                    1);
-
-            // => PAYLOAD_LEN
-            payload_len = GET_HOST_U32(bs, HASH_BYTES);
-
-            [[
-                MSG.block_hash  = @hash
-                MSG.payload_len = @payload_len
-                if MSG.up_hash then
-                    APP.blocks[MSG.up_hash].tail_hash = MSG.block_hash
-                end
-            ]];
-        end
-
-        [[
-            print('[server] BLOCK_HASH ['..@i..'] = '..MSG.payload_len..' {')
-            print(hex_dump(MSG.block_hash))
-            print('}')
-        ]];
-
-        // [check] Do I have this message hash? [ok ACK]
-        var bool have = [[ APP.blocks[MSG.block_hash] ]];
-        _printf("[server] OLD-have? [0/1] = %d\n", have);
-
-        var byte[1] send;
-        var int err = _ERR_NONE;
-        if have then
-            send = [ _MESSAGE10_HAVE_YES ];
-            if i == 0 then
-                // first iteration, I already have all messages...
-                err  = _MESSAGE10_HAVE_YES;
-            else
-                // further iterations, I don't have the previous message
-                [[
-                    -- save "FORK_HASH" for join
-                    -- prepare "MSG" to receive the whole forked chain
-                    FORK_HASH = APP.blocks[MSG.up_hash].block_hash
-                    MSG       = APP.blocks[FORK_HASH]
-                ]];
-                err = _MESSAGE10_HAVE_NO;
-            end
-        else/if payload_len > limit then
-            // [check] Is the message too big? [ok ACK]
-            send = [ _MESSAGE10_PAYLOAD_LEN_LIMIT ];
-            err = _MESSAGE10_PAYLOAD_LEN_LIMIT;
-        else
-            // I don't have this message
-            // OK: continue to the next
-            send = [ _MESSAGE10_HAVE_NO  ];
-            [[
--- TODO: still dont have!
-                APP.blocks[MSG.block_hash] = MSG
-                MSG = {
-                    id      = MSG.id,
-                    chain   = MSG.chain,
-                    up_hash = MSG.block_hash,   -- client will transmit all MSG.up.up...
-                }
-            ]];
-        end
-        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
-
-        if err != _ERR_NONE then
-            escape err;
-        end
-    end
-    _assert(0);
-end
-
-class Message10_block with
-input:
-    var UV_Stream_Read& reader;
-input/output:
-    var byte[]& bytes;
-    var u32&    off;
-
-    function (UV_Stream_Read& reader, byte[]& bytes, u32& off)=>Message10_block receive;
-
-do
-    function (UV_Stream_Read& reader, byte[]& bytes, u32& off)=>Message10_block receive do
-        this.reader = &reader;
-        this.bytes  = &bytes;
-        this.off    = &off;
     end
 
     escape _ERR_NONE;
@@ -526,6 +311,7 @@ do
         end
     end
 
+#if 0
     ///////////////////////////////////////////////////////////////////////////////
     // HASHES
     ///////////////////////////////////////////////////////////////////////////////
@@ -643,6 +429,7 @@ do
             escape err;
         end
     end
+#endif
 
     escape _ERR_NONE;
 end
