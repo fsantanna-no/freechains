@@ -11,7 +11,9 @@ do
     // <= OLD.up_hash = NEW
     do
         [[
-            HEAD_HASH = APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros]
+print('>>>', BLOCK.chain.id)
+            HEAD_HASH = APP.chains[BLOCK.chain.id].head
+            assert(type(HEAD_HASH) == 'string')
         ]];
         var char[] tail_hash__payload = [[ HEAD_HASH..MSG.payload ]];
         var byte[] plain = [0,0,0,0]..tail_hash__payload;
@@ -242,6 +244,8 @@ do
     function (PeerListener& listener)=>PeerSend run do
         this.listener = &listener;
     end
+// TODO: to test multiple topology paths
+//await 2s;
 
     var char[] ip   = [[ PEER.host[1] ]];
     var int    port = [[ PEER.host[2] ]];
@@ -283,7 +287,7 @@ end
 class Client with
     interface PeerListener;
 do
-    var bool is_parsed = [[ MSG~=nil ]];
+    var bool is_parsed = [[ BLOCK~=nil ]];
     if not is_parsed then
         var int ms = [[ #APP.messages ]];
         if ms == 0 then
@@ -291,12 +295,31 @@ do
         end
 
         loop i in ms do
-            [[ MSG = APP.messages[@i+1] ]];
+            [[
+                local msg = APP.messages[@i+1]
+                if msg.id == '1.0' then
+                    BLOCK = {
+                        id    = msg.id,
+                        hash  = nil,
+                        chain = msg.chain,
+                        txs = {
+                            {
+                                bytes   = string.len(msg.payload),
+                                payload = msg.payload,
+                            }
+                        }
+                    }
+                else
+                    error 'message not supported'
+                end
+            ]];
 
-            // <= MSG
-            do Message10_parse;
-            var bool is_10 = [[ MSG.id=='1.0' ]];
-            _assert(is_10);  // message not supported
+            var bool is_10 = [[ BLOCK~=nil ]];
+            if is_10 then
+                do Message10_parse;
+            else
+                _assert(0);  // message not supported
+            end
         end
     end
 
@@ -307,7 +330,7 @@ do
             PEER = APP.client.peers[@(i+1)]
             ok = false
             for key, chain in pairs(PEER.chains) do
-                if key==MSG.chain.key and chain.zeros<=MSG.chain.zeros then
+                if key==BLOCK.chain.key and chain.zeros<=BLOCK.chain.zeros then
                     ok = true
                     break
                 end

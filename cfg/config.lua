@@ -9,11 +9,12 @@ SERVER {
 
     -- subscribed chains
     chains = {
-        [''] = {                -- global chain (cannot be signed)
-            zeros = 0,          -- receive messages with 0 leading zeros in the hash
-            --mode = 'pub'      -- only publishes messages (storage required)
-            --mode = 'sub'      -- only listen for messages (storeage not required)
-            --mode = 'pub/sub'?
+        {
+            key   = '',     -- global chain (cannot be signed)
+            zeros = 0,      -- receive messages with 0 leading zeros in the hash
+            id    = nil,
+            head  = nil,
+            -- TODO: mode 'pub,sub,pub/sub'
         },
     },
 }
@@ -25,7 +26,8 @@ CLIENT {
         --{
         --    host = { '127.0.0.1', '8331' },
         --    chains = {
-        --        [''] = {
+        --        {
+        --            key   = '',
         --            zeros = 0,
         --        }
         --    },

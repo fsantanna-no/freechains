@@ -23,14 +23,17 @@ local meta = {
     end,
 }
 
-local function chain_parse (key, chain)
+local function chain_parse_id (chain)
     assert(type(chain) == 'table')
-    chain.key = key
+    assert(type(chain.key)   == 'string')
     assert(type(chain.zeros) == 'number')
-    if k == '' then
+    if chain.key == '' then
         assert(chain.zeros < 256)
     end
-    chain.heads = setmetatable({}, meta)
+    local id = '|'..chain.key..'|'..chain.zeros..'|'
+    chain.id   = id
+    chain.head = id     -- TODO: should be hash(id)
+    return id, chain
 end
 
 function SERVER (t)
@@ -40,8 +43,11 @@ function SERVER (t)
     end
     t = APP.server
     assert(type(t.chains) == 'table')
-    for key,chain in pairs(t.chains) do
-        chain_parse(key, chain)
+    for _,chain in ipairs(t.chains) do
+        local id = chain_parse_id(chain)
+        -- server creates
+        assert(not APP.chains[id])
+        APP.chains[id] = chain
     end
 end
 
@@ -56,8 +62,9 @@ function CLIENT (t)
     for _, peer in ipairs(t.peers) do
         assert(type(peer) == 'table')
         assert(type(peer.chains) == 'table')
-        for key,chain in pairs(peer.chains) do
-            chain_parse(key, chain)
+        for _,chain in ipairs(peer.chains) do
+            local id = chain_parse_id(chain, true)
+            assert(APP.chains[id])
         end
     end
 end
@@ -69,9 +76,7 @@ end
 function MESSAGE (t)
     if t.id == '1.0' then
         assert(type(t.chain)=='table')
-        assert(type(t.chain.zeros)=='number')
-        local cfg = assert(APP.server.chains[t.chain.key],t.chain.key)
-        assert(t.chain.zeros >= cfg.zeros)
+        chain_parse_id(t.chain)
     end
     APP.messages[#APP.messages+1] = t
 end
