@@ -6,8 +6,10 @@ APP = {
     messages = {},  -- pending messages to transmit
     blocks = {      -- blocks in memory
         --[hash] = {
-        --    hash = nil,
-        --    txs  = { tx_hash1, tx_hash2, ... },
+        --    hash      = nil,
+        --    up_hash   = nil,
+        --    tail_hash = nil,
+        --    txs       = { tx_hash1, tx_hash2, ... },
         --},
         ...
     },

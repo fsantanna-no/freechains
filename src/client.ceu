@@ -4,12 +4,10 @@
 #include "sodium.ceu"
 
 class Message10_parse_tx with
-    var int i;
     var byte[HASH_BYTES]& tx_back_hash;
-    function (int i, byte[HASH_BYTES]& tx_back_hash)=>Message10_parse_tx build;
+    function (byte[HASH_BYTES]& tx_back_hash)=>Message10_parse_tx build;
 do
-    function (int i, byte[HASH_BYTES]& tx_back_hash)=>Message10_parse_tx build do
-        this.i = i;
+    function (byte[HASH_BYTES]& tx_back_hash)=>Message10_parse_tx build do
         this.tx_back_hash = &tx_back_hash;
     end
 
@@ -20,76 +18,85 @@ do
     var byte[] plain = [0,0,0,0]..tx_back_hash..tx_payload;
                         // TODO: switch to timestamp
 
-    // calculate nonce for the leading zeros
+    // show async/thread progress
     var int ms = 0;
-    par/or do
-        // TODO: remove
+    spawn do
         every 100ms do
             ms = ms + 100;
             _printf(".");
             _fflush(_stdout);
         end
-    with
-        var byte[HASH_BYTES] tx_hash;
-        var u32 nonce = 0;
-        var u8 zeros_wanted = [[ BLOCK.chain.zeros ]];
-        async/thread (plain,tx_hash,nonce,zeros_wanted) do
-            var int zeros_found = 0;
-            $tx_hash := HASH_BYTES;
-            var u32 ii = 0;
-            loop i do
-                ii = ii + 1;
-                _crypto_generichash((_byte&&)&&tx_hash, HASH_BYTES,
-                                    (_byte&&)&&plain, $plain,
-                                    null, 0);
-                zeros_found = _leading_zeros((_byte&&)&&tx_hash, $tx_hash);
-                if zeros_found >= zeros_wanted then
-                    break;
-                end
-                nonce = nonce + 1;
-                PUT_NETWORK_U32(plain, 0, nonce);
-            end
-            _printf("[client] POW rounds: %d\n", ii);
-        end
-        [[
-            -- i'm in the database
-            TX.timestamp = @nonce
-            TX.hash      = @tx_hash
-            APP.txs[TX.hash] = TX
-            BLOCK.txs[#BLOCK.txs+1] = TX.hash
-        ]];
     end
+
+    // calculate nonce for the leading zeros
+    var byte[HASH_BYTES] tx_hash;
+    var u32 nonce = 0;
+    var u8 zeros_wanted = [[ BLOCK.chain.zeros ]];
+    async/thread (plain,tx_hash,nonce,zeros_wanted) do
+        var int zeros_found = 0;
+        $tx_hash := HASH_BYTES;
+        var u32 ii = 0;
+        loop i do
+            ii = ii + 1;
+            _crypto_generichash((_byte&&)&&tx_hash, HASH_BYTES,
+                                (_byte&&)&&plain, $plain,
+                                null, 0);
+            zeros_found = _leading_zeros((_byte&&)&&tx_hash, $tx_hash);
+            if zeros_found >= zeros_wanted then
+                break;
+            end
+            nonce = nonce + 1;
+            PUT_NETWORK_U32(plain, 0, nonce);
+        end
+        _printf("[client] POW rounds: %d\n", ii);
+    end
+
+    [[
+        -- i'm in the database
+        TX.timestamp = @nonce
+        TX.hash      = @tx_hash
+        APP.txs[TX.hash] = TX
+        BLOCK.txs[#BLOCK.txs+1] = TX.hash
+        print('\n=> TX_HASH', string.len(TX.hash))
+        print(hex_dump(TX.hash))
+    ]];
+    _printf("[client] TX_HASH = %dms\n", ms);
+
+    escape _ERR_NONE;
 end
 
 class Message10_parse_block with
 do
     // <= BLOCK_HASH
     //  - merkle tree of all TX_HASH
-    do
-        var byte[] plain;
-        var int n = [[ #BLOCK.txs ]]; // TODO: assert BLOCK.chain.limits.block
-        loop i in n do
-            //var char[]
-            //plain = []..plain..;
-        end
+
+    var byte[] plain;
+    var byte[HASH_BYTES] block_hash;
+    $block_hash := HASH_BYTES;
+
+    // TODO: should be merkle tree and not hash(concat)
+    var int n = [[ #BLOCK.txs ]]; // TODO: assert BLOCK.chain.limits.block
+    loop i in n do
+        var char[HASH_BYTES] tx_hash = [[ BLOCK.txs[@i+1] ]];
+        plain = []..plain..tx_hash;
     end
 
-// TODO: remove
-#if 0
-    // <= block_hash
-    // <= pow
-    // <= NEW HEAD
-    // <= OLD.up_hash = NEW
-    do
-        end
-        _printf("\n[client] BLOCK_HASH = %dms\n", ms);
-    end
-            -- i'm the head now: relink
-            APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] = MSG.block_hash
-            APP.blocks[HEAD_HASH].up_hash = MSG.block_hash  -- prv->up=me
-            MSG.tail_hash = HEAD_HASH                       -- me->tail=prv
-            MSG.back_hash = HEAD_HASH
-#endif
+    _crypto_generichash((_byte&&)&&block_hash, HASH_BYTES,
+                        (_byte&&)&&plain, $plain,
+                        null, 0);
+
+    [[
+        BLOCK.hash = @block_hash
+        print('=> BLOCK_HASH', string.len(BLOCK.hash))
+        print(hex_dump(BLOCK.hash))
+
+        -- i'm the head now: relink
+        local old = APP.blocks[HEAD_HASH]
+        APP.chains[BLOCK.chain.key].head = HEAD_HASH
+        old.up_hash     = BLOCK.hash    -- prv->up=me
+        BLOCK.tail_hash = old.hash      -- me->tail=prv
+        HEAD_HASH       = BLOCK.hash    -- new head
+    ]]
 
     escape _ERR_NONE;
 end
@@ -350,7 +357,7 @@ do
                 // hash of last tx in current head block
                 [[ txs = APP.blocks[HEAD_HASH].txs ]];
                 var char[HASH_BYTES] tx_back_hash = [[ txs[#txs] ]];
-                do Message10_parse_tx.build(i+1, &tx_back_hash);
+                do Message10_parse_tx.build(&tx_back_hash);
                 do Message10_parse_block;
             else
                 _assert(0);  // message not supported
