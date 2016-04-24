@@ -91,6 +91,7 @@ do
         BLOCK.tail_hash = old.hash      -- me->tail=prv
 
         -- new head
+        APP.blocks[BLOCK.hash] = BLOCK
         APP.chains[BLOCK.chain.id].head = BLOCK.hash
         HEAD_HASH = BLOCK.hash
     ]]

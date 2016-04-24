@@ -1,8 +1,8 @@
 #if 0
 = TODO:
-    - remove HAVE_NO => ERR_NO
     - testar contcat de fato com big/small old/new
     - join, verificar maior chain
+    - symmetric/asymmetric channels
     - serialize to disk
         - BLOCK_HASH .. PAYLOAD_LEN .. [PoW..BACK_HASH..PAYLOAD]
     - verificar backs, pos
