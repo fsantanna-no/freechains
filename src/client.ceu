@@ -92,10 +92,12 @@ do
 
         -- i'm the head now: relink
         local old = APP.blocks[HEAD_HASH]
-        APP.chains[BLOCK.chain.key].head = HEAD_HASH
         old.up_hash     = BLOCK.hash    -- prv->up=me
         BLOCK.tail_hash = old.hash      -- me->tail=prv
-        HEAD_HASH       = BLOCK.hash    -- new head
+
+        -- new head
+        APP.chains[BLOCK.chain.id].head = BLOCK.hash
+        HEAD_HASH = BLOCK.hash
     ]]
 
     escape _ERR_NONE;
@@ -110,34 +112,36 @@ do
     end
 
     // <= MESSAGE
-    // <= CHAIN_ZEROS
+    // <= BLOCK_HASH
     // <= CHAIN_LEN
     // <= CHAIN_KEY
-    var int chain_zeros = [[ MSG.chain.zeros ]];
-    var char[] chain_key;
-    do
-        var byte[] bytes;
+    // <= CHAIN_ZEROS
+    // TODO: <= CHAIN_LIMITS
 
-        // message
+    do
+        // <= MESSAGE
+        var byte[] bytes = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 1, 0];
+
+        // <= BLOCK_HASH
         do
-            [[ major,minor = string.match(MSG.id,'(%d+)%.(%d+)') ]]
-            var int major = [[ major ]];
-            var int minor = [[ minor ]];
-            bytes = []..bytes..[MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, major, minor];
+            var char[HASH_BYTES] block_hash = [[ BLOCK.hash ]];
+            bytes = []..bytes..block_hash;
         end
 
-        // chain
+        // <= CHAIN_LEN
+        // <= CHAIN_KEY
+        // <= CHAIN_ZEROS
         do
-            chain_key = [[ MSG.chain.key ]];
-
-            var u32 chain_len = [[ string.len(MSG.chain.key) ]];
+            var char[] chain_key   = [[ BLOCK.chain.key ]];
+            var int    chain_zeros = [[ BLOCK.chain.zeros ]];
+            var u32    chain_len   = [[ string.len(BLOCK.chain.key) ]];
             _assert(chain_len<CHAIN_KEY_BYTES);
-
             bytes = []..bytes..[chain_zeros,(u8)chain_len]..chain_key;
         end
 
         do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
     end
+_assert(0);
 
     // => ACK-chain
     do
@@ -229,19 +233,19 @@ do
             PUT_NETWORK_U32(bytes, $bytes, nonce);
         end
 
-        // => BACK_HASH (immutable, see above)
+        // <= BACK_HASH (immutable, see above)
         do
             var char[HASH_BYTES] back_hash = [[ MSG.back_hash ]];
             bytes = []..bytes..back_hash;
         end
 
-        // => PAYLOAD
+        // <= PAYLOAD
         do
             var char[] payload = [[ MSG.payload ]];
             bytes = []..bytes..payload;
         end
 
-        // => PoS
+        // <= PoS
         // TODO
         do
             var u8 pos = 0xEE;
