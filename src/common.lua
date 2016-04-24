@@ -23,17 +23,19 @@ APP = {
     },
 }
 
-function chain_parse_id (chain)
+function APP.chain_parse (chain)
     assert(type(chain) == 'table')
     assert(type(chain.key)   == 'string')
     assert(type(chain.zeros) == 'number')
     if chain.key == '' then
         assert(chain.zeros < 256)
     end
-    local id = '|'..chain.key..'|'..chain.zeros..'|'
-    chain.id = id
+    chain.id = '|'..chain.key..'|'..chain.zeros..'|'
+    return chain
+end
 
-    local tx_hash = id          -- TODO: should be hash(id)
+local function chain_create (chain)
+    local tx_hash = chain.id          -- TODO: should be hash(chain.id)
     APP.txs[tx_hash] = {
         hash      = tx_hash,
         timestamp = 0,
@@ -50,7 +52,7 @@ function chain_parse_id (chain)
     APP.blocks[block_hash] = block_genesis
     chain.head = block_hash
 
-    return id, chain
+    return chain
 end
 
 function SERVER (t)
@@ -61,10 +63,10 @@ function SERVER (t)
     t = APP.server
     assert(type(t.chains) == 'table')
     for _,chain in ipairs(t.chains) do
-        local id = chain_parse_id(chain)
-        -- server creates
-        --assert(not APP.chains[id])    -- TODO: config override
-        APP.chains[id] = chain
+        APP.chain_parse(chain)
+        if not APP.chains[chain.id] then
+            APP.chains[chain.id] = chain_create(chain)
+        end
     end
 end
 
@@ -80,8 +82,8 @@ function CLIENT (t)
         assert(type(peer) == 'table')
         assert(type(peer.chains) == 'table')
         for _,chain in ipairs(peer.chains) do
-            local id = chain_parse_id(chain, true)
-            assert(APP.chains[id])
+            APP.chain_parse(chain)
+            assert(APP.chains[chain.id])
         end
     end
 end

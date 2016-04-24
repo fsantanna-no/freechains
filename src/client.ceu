@@ -57,7 +57,7 @@ do
         TX.hash      = @tx_hash
         APP.txs[TX.hash] = TX
         BLOCK.txs[#BLOCK.txs+1] = TX.hash
-        print('\n<= TX_HASH', string.len(TX.hash))
+        print('\n[client] <= TX_HASH', string.len(TX.hash))
         print(hex_dump(TX.hash))
     ]];
     _printf("[client] TX_HASH = %dms\n", ms);
@@ -87,7 +87,7 @@ do
 
     [[
         BLOCK.hash = @block_hash
-        print('<= BLOCK_HASH', string.len(BLOCK.hash))
+        print('[client] <= BLOCK_HASH', string.len(BLOCK.hash))
         print(hex_dump(BLOCK.hash))
 
         -- i'm the head now: relink
@@ -341,7 +341,7 @@ do
                 assert(type(msg)=='table')
                 if msg.id == '1.0' then
                     assert(type(msg.chain)=='table')
-                    chain_parse_id(msg.chain)
+                    assert(APP.chains[ APP.chain_parse(msg.chain).id ])
                     TX = {
                         bytes   = string.len(msg.payload),
                         payload = msg.payload,
