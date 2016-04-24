@@ -99,9 +99,9 @@ do
 
     var bool have = [[ APP.blocks[BLOCK.hash] ~= nil ]];
     if have then
-        escape _MESSAGE10_HAVE_YES;    // OK ACK
+        escape _MESSAGE10_HAVE;    // OK ACK
     else
-        escape _MESSAGE10_HAVE_NO;  // TODO _ERR_NONE
+        escape _ERR_NONE;
     end
 end
 
@@ -151,9 +151,9 @@ do
         do
             var byte[1] send;
             if have then
-                send = [ _MESSAGE10_HAVE_YES ];
+                send = [ _MESSAGE10_HAVE ];
             else
-                send = [ _MESSAGE10_HAVE_NO  ];
+                send = [ _ERR_NONE  ];
             end
             _printf("[server] <= ACK-tx = %d\n", send[0]);
             do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
@@ -338,7 +338,7 @@ do
                 var byte[1] send = [err];
                 do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
             end
-            if err == _MESSAGE10_HAVE_YES then
+            if err == _MESSAGE10_HAVE then
                 break;     // found common block
             end
         end

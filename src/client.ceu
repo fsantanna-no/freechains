@@ -123,18 +123,17 @@ do
         do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
 
         // => ACK-tx
-        var int ret = _ERR_NONE;
         do
             var byte[1] recv;
             var UV_Stream_Read reader =
                     UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&recv);
             do UV_Stream_ReadUntil.run(&reader, 1);
-            ret = recv[0];
-        end
+            var int err = recv[0];
 
-        _printf("[client] => ACK-tx = %d\n", ret);
-        if ret != _MESSAGE10_HAVE_NO then
-            escape _ERR_NONE;   // next TX
+            _printf("[client] => ACK-tx = %d\n", err);
+            if err == _MESSAGE10_HAVE then
+                escape _ERR_NONE;   // next TX (not an error)
+            end
         end
     end
 
@@ -254,7 +253,7 @@ do
             var int ret = recv[0];
 
             _printf("[client] => ACK-block = %d\n", ret);
-            if ret == _MESSAGE10_HAVE_YES then
+            if ret == _MESSAGE10_HAVE then
                 break;  // found common block
             end
         end
