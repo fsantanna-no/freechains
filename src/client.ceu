@@ -3,67 +3,93 @@
 
 #include "sodium.ceu"
 
-class Message10_parse with
+class Message10_parse_tx with
+    var int i;
+    var byte[HASH_BYTES]& tx_back_hash;
+    function (int i, byte[HASH_BYTES]& tx_back_hash)=>Message10_parse_tx build;
 do
+    function (int i, byte[HASH_BYTES]& tx_back_hash)=>Message10_parse_tx build do
+        this.i = i;
+        this.tx_back_hash = &tx_back_hash;
+    end
+
+    // APP.txs[tx_hash] = { hash=nil, timestamp=nil, bytes=nil, payload=nil }
+
+    // hash[TIMESTAMP..TX_BACK_HASH..TX_PAYLOAD]
+    var char[] tx_payload = [[ TX.payload ]];
+    var byte[] plain = [0,0,0,0]..tx_back_hash..tx_payload;
+                        // TODO: switch to timestamp
+
+    // calculate nonce for the leading zeros
+    var int ms = 0;
+    par/or do
+        // TODO: remove
+        every 100ms do
+            ms = ms + 100;
+            _printf(".");
+            _fflush(_stdout);
+        end
+    with
+        var byte[HASH_BYTES] tx_hash;
+        var u32 nonce = 0;
+        var u8 zeros_wanted = [[ BLOCK.chain.zeros ]];
+        async/thread (plain,tx_hash,nonce,zeros_wanted) do
+            var int zeros_found = 0;
+            $tx_hash := HASH_BYTES;
+            var u32 ii = 0;
+            loop i do
+                ii = ii + 1;
+                _crypto_generichash((_byte&&)&&tx_hash, HASH_BYTES,
+                                    (_byte&&)&&plain, $plain,
+                                    null, 0);
+                zeros_found = _leading_zeros((_byte&&)&&tx_hash, $tx_hash);
+                if zeros_found >= zeros_wanted then
+                    break;
+                end
+                nonce = nonce + 1;
+                PUT_NETWORK_U32(plain, 0, nonce);
+            end
+            _printf("[client] POW rounds: %d\n", ii);
+        end
+        [[
+            -- i'm in the database
+            TX.timestamp = @nonce
+            TX.hash      = @tx_hash
+            APP.txs[TX.hash] = TX
+            BLOCK.txs[#BLOCK.txs+1] = TX.hash
+        ]];
+    end
+end
+
+class Message10_parse_block with
+do
+    // <= BLOCK_HASH
+    //  - merkle tree of all TX_HASH
+    do
+        var byte[] plain;
+        var int n = [[ #BLOCK.txs ]]; // TODO: assert BLOCK.chain.limits.block
+        loop i in n do
+            //var char[]
+            //plain = []..plain..;
+        end
+    end
+
+// TODO: remove
+#if 0
     // <= block_hash
     // <= pow
     // <= NEW HEAD
     // <= OLD.up_hash = NEW
     do
-        [[
-print('>>>', BLOCK.chain.id)
-            HEAD_HASH = APP.chains[BLOCK.chain.id].head
-            assert(type(HEAD_HASH) == 'string')
-        ]];
-        var char[] tail_hash__payload = [[ HEAD_HASH..MSG.payload ]];
-        var byte[] plain = [0,0,0,0]..tail_hash__payload;
-
-        // calculate nonce for the leading zeros
-        var int ms = 0;
-        par/or do
-            // TODO: remove
-            every 100ms do
-                ms = ms + 100;
-                _printf(".");
-                _fflush(_stdout);
-            end
-        with
-            var byte[HASH_BYTES] block_hash;
-            var u32 nonce = 0;
-            var u8 zeros_wanted = [[ MSG.chain.zeros ]];
-            async/thread (plain,block_hash,nonce,zeros_wanted) do
-                var int zeros_found = 0;
-                $block_hash := HASH_BYTES;
-                var u32 ii = 0;
-                loop i do
-                    ii = ii + 1;
-                    _crypto_generichash((_byte&&)&&block_hash, HASH_BYTES,
-                                        (_byte&&)&&plain, $plain,
-                                        null, 0);
-                    zeros_found = _leading_zeros((_byte&&)&&block_hash, $block_hash);
-                    if zeros_found >= zeros_wanted then
-                        break;
-                    end
-                    nonce = nonce + 1;
-                    PUT_NETWORK_U32(plain, 0, nonce);
-                end
-                _printf("[client] POW rounds: %d\n", ii);
-            end
-            [[
-                -- i'm in the database
-                MSG.pow        = @nonce
-                MSG.block_hash = @block_hash
-                APP.blocks[MSG.block_hash] = MSG
-
-                -- i'm the head now: relink
-                APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] = MSG.block_hash
-                APP.blocks[HEAD_HASH].up_hash = MSG.block_hash  -- prv->up=me
-                MSG.tail_hash = HEAD_HASH                       -- me->tail=prv
-                MSG.back_hash = HEAD_HASH
-            ]];
         end
         _printf("\n[client] BLOCK_HASH = %dms\n", ms);
     end
+            -- i'm the head now: relink
+            APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] = MSG.block_hash
+            APP.blocks[HEAD_HASH].up_hash = MSG.block_hash  -- prv->up=me
+            MSG.tail_hash = HEAD_HASH                       -- me->tail=prv
+            MSG.back_hash = HEAD_HASH
+#endif
 
     escape _ERR_NONE;
 end
@@ -297,18 +323,23 @@ do
         loop i in ms do
             [[
                 local msg = APP.messages[@i+1]
+                assert(type(msg)=='table')
                 if msg.id == '1.0' then
+                    assert(type(msg.chain)=='table')
+                    chain_parse_id(msg.chain)
+                    TX = {
+                        bytes   = string.len(msg.payload),
+                        payload = msg.payload,
+                        hash    = nil,
+                    }
                     BLOCK = {
                         id    = msg.id,
                         hash  = nil,
                         chain = msg.chain,
-                        txs = {
-                            {
-                                bytes   = string.len(msg.payload),
-                                payload = msg.payload,
-                            }
-                        }
+                        txs = { },
                     }
+                    HEAD_HASH = APP.chains[BLOCK.chain.id].head
+                    assert(type(HEAD_HASH) == 'string')
                 else
                     error 'message not supported'
                 end
@@ -316,7 +347,11 @@ do
 
             var bool is_10 = [[ BLOCK~=nil ]];
             if is_10 then
-                do Message10_parse;
+                // hash of last tx in current head block
+                [[ txs = APP.blocks[HEAD_HASH].txs ]];
+                var char[HASH_BYTES] tx_back_hash = [[ txs[#txs] ]];
+                do Message10_parse_tx.build(i+1, &tx_back_hash);
+                do Message10_parse_block;
             else
                 _assert(0);  // message not supported
             end
@@ -336,8 +371,8 @@ do
                 end
             end
         ]];
-        var bool ok = [[ ok ]];
-        if ok then
+        var bool ok_ = [[ ok ]];
+        if ok_ then
             ps_ok = ps_ok + 1;
             var PeerSend&&? p = spawn PeerSend.run(&this);
             _assert(p! != null);

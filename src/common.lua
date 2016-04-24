@@ -3,19 +3,25 @@ APP = {
     server   = {},  -- server configurations
     client   = {},  -- client configurations
     chains   = {},  -- chains configurations
-    blocks   = {    -- blocks in memory
+    messages = {},  -- pending messages to transmit
+    blocks = {      -- blocks in memory
         --[hash] = {
-        --    txs = {
-        --        { hash=nil },
-        --        ...
-        --    },
+        --    hash = nil,
+        --    txs  = { tx_hash1, tx_hash2, ... },
         --},
         ...
     },
-    messages = {},  -- pending messages to transmit
+    txs = {         -- txs in memory
+        --[hash] = {
+        --    hash      = nil,
+        --    timestamp = nil,
+        --    bytes     = nil,
+        --    payload   = nil,
+        --}
+    },
 }
 
-local function chain_parse_id (chain)
+function chain_parse_id (chain)
     assert(type(chain) == 'table')
     assert(type(chain.key)   == 'string')
     assert(type(chain.zeros) == 'number')
@@ -25,13 +31,20 @@ local function chain_parse_id (chain)
     local id = '|'..chain.key..'|'..chain.zeros..'|'
     chain.id = id
 
-    -- chain.head
-    local block_genesis = {
-        txs = {
-            { hash = id },    -- TODO: should be hash(t.id)
-        }
+    local tx_hash = id          -- TODO: should be hash(id)
+    APP.txs[tx_hash] = {
+        hash      = tx_hash,
+        timestamp = 0,
+        bytes     = 0,
+        payload   = '',
     }
-    local block_hash = id     -- TODO: should be hash of merkle tree
+
+    -- chain.head
+    local block_hash = tx_hash  -- TODO: should be hash of txs merkle tree
+    local block_genesis = {
+        hash = block_hash,
+        txs  = { tx_hash },
+    }
     APP.blocks[block_hash] = block_genesis
     chain.head = block_hash
 
@@ -76,10 +89,6 @@ function BLOCKS (t)
 end
 
 function MESSAGE (t)
-    if t.id == '1.0' then
-        assert(type(t.chain)=='table')
-        chain_parse_id(t.chain)
-    end
     APP.messages[#APP.messages+1] = t
 end
 
