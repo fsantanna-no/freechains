@@ -117,6 +117,7 @@ do
 
     // <= MESSAGE
     // <= BLOCK_HASH
+    // <= BLOCK_TXS_N
     // <= CHAIN_LEN
     // <= CHAIN_KEY
     // <= CHAIN_ZEROS
@@ -127,9 +128,12 @@ do
         var byte[] bytes = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 1, 0];
 
         // <= BLOCK_HASH
+        // <= BLOCK_TXS_N
         do
             var char[HASH_BYTES] block_hash = [[ BLOCK.hash ]];
             bytes = []..bytes..block_hash;
+            var u32 txs_n = [[ #BLOCK.txs ]];
+            PUT_NETWORK_U32(bytes, $bytes, txs_n);
         end
 
         // <= CHAIN_LEN
@@ -175,6 +179,45 @@ do
             escape ret;
         end
     end
+
+    ///////////////////////////////////////////////////////////////////////////
+    // TXS
+    ///////////////////////////////////////////////////////////////////////////
+
+    var int n_txs = [[ #BLOCK.txs ]];
+    _printf("[client] <= %d txs\n", n_txs);
+    loop i do
+        // <= TX_HASH
+        // <= TX_LEN
+        [[
+            tx_hash = BLOCK.txs[@i+1]
+            TX      = APP.txs[tx_hash]
+            print('[client] <= txs['..(@i+1)..']', TX.bytes)
+            print(hex_dump(TX.hash))
+        ]];
+        var u32 len      = [[ TX.bytes ]];
+        var char[] bytes = [[ TX.hash ]];
+        PUT_NETWORK_U32(bytes, HASH_BYTES, len);
+        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
+
+        // => ACK-tx
+        do
+            var byte[1] recv;
+            var UV_Stream_Read reader =
+                    UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&recv);
+            do UV_Stream_ReadUntil.run(&reader, 1);
+            var int ret = recv[0];
+
+            _printf("[client] => ACK-tx = %d\n", ret);
+            if ret == _MESSAGE10_HAVE_NO then
+                // OK: proceed to complete TX
+            else
+                escape ret;
+            end
+        end
+    end
+_printf("===> DONE\n");
+_assert(0);
 
     //////////////////////////////////////////////////////////////////////////
 

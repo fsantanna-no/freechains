@@ -17,7 +17,9 @@ do
     var u32 off = MESSAGE_BYTES;
 
     // => BLOCK_HASH
+    // => BLOCK_TXS_N
     do
+        // hash
         do UV_Stream_ReadUntil.run(&reader, off+HASH_BYTES);
         var byte[HASH_BYTES] hash;
         _ceu_vector_copy_buffer(&&hash, 0,
@@ -25,17 +27,23 @@ do
                                 1);
         off = off + HASH_BYTES;
 
-        [[
-            BLOCK.hash = @hash;
-            print('[server] => BLOCK_HASH', string.len(BLOCK.hash))
-            print(hex_dump(BLOCK.hash))
-        ]];
-
         var bool have = [[ APP.blocks[BLOCK.hash] ~= nil ]];
         if have then
             escape _MESSAGE10_HAVE_YES;    // OK ACK
         end
 
+        // txs_n
+        do UV_Stream_ReadUntil.run(&reader, off+sizeof(u32));
+        var u32 txs_n = GET_HOST_U32(bytes, off);
+        off = off + 1;
+
+        [[
+            BLOCK.hash = @hash;
+            print('[server] => BLOCK_HASH', string.len(BLOCK.hash))
+            print(hex_dump(BLOCK.hash))
+            print('[server] => BLOCK_TXS_N', @txs_n)
+            BLOCK.txs_n = @txs_n
+        ]];
     end
 
     // => CHAIN_LEN

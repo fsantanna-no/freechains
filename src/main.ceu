@@ -123,7 +123,8 @@ MESSAGE_MAJOR   1
 MESSAGE_MINOR   0
 // identifies the block payload
 //  - a server may already have it
-BLOCK_HASH        32    // hash of the proposed block
+BLOCK_HASH      32      // hash of the proposed block
+BLOCK_TXS_N     4 u32   // number of txs in the block
 // identifies the blockchain for this block
 //  - a server may not be interested in this blockchain
 //      - key is unintereresting
@@ -148,19 +149,12 @@ CHAIN_LIMITS    1       // max number of TXs per block | max bytes of TX payload
 //  - loop is bounded to CHAIN_LIMITS.block
 ///////////////////////////////////////////////////////////////////////////////
 LOOP for each TX in BLOCK
+    -- CLIENT => SERVER
     TX_PAYLOAD_BYTES 4 u32
     TX_HASH          32     // hash[TIMESTAMP..TX_BACK_HASH..TX_PAYLOAD]
-LOOP END
-///////////////////////////////////////////////////////////////////////////////
-// CLIENT <= SERVER
-//  - server responds if wants the tx
-LOOP for each TX in BLOCK
+    -- CLIENT <= SERVER
     -               1       // MESSAGE10_HAVE_YES|MESSAGE10_HAVE_NO
-LOOP END
-///////////////////////////////////////////////////////////////////////////////
-// CLIENT => SERVER
-//  - client sends complete TX
-LOOP for each TX in BLOCK
+    -- CLIENT => SERVER
     TIMESTAMP       8 s64   // nonce for TX_HASH
     TX_BACK_HASH    32      // recent back hash
     TX_PAYLOAD      <TX_PAYLOAD_BYTES>
