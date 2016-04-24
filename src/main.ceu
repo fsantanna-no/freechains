@@ -107,49 +107,97 @@ end
 - TODO: sig
 
 ///////////////////////////////////////////////////////////////////////////////
-// client proposes message to the server
-    - type of message, server checks before anything else
-    - chain_*, server checks if it is subscribing to this
-    - payload_len, server may not want big messages from untrusted clients
+// MESSAGE_10: client proposes block to the server
+///////////////////////////////////////////////////////////////////////////////
+    - type of MESSAGE_*: server checks before anything else
+    - CHAIN_*:           server checks if it is subscribing to this
+    - TXS_PAYLOAD_BYTES: server may not want big messages from untrusted clients
     - block_hash, server may already have it
 ///////////////////////////////////////////////////////////////////////////////
+// CLIENT => SERVER
 // identifies this message (protocol, version)
-//  a server may refuse or behave differently
-MESSAGE_MAGIC_0  1        // 'P'
-MESSAGE_MAGIC_1  1        // 'S'
-MESSAGE_MAJOR    1
-MESSAGE_MINOR    1
-// identifies the blockchain for this message
-//  a server may not be interested in this blockchain
-CHAIN_ZEROS      1        // number of zeros to be trasmitted (or signed)
-CHAIN_LEN        1        // number of bytes for the CHAIN identifier
-CHAIN_KEY        <CHAIN_LEN> // CHAIN identifier (pubkey?, topic?) (if signed, must be pubkey)
-// identifies the data for this message
-//  a server may already have this payload and refuse it
-PAYLOAD_LEN      4 u32    // number of bytes to read next for the payload
-BLOCK_HASH       32       // hash of the proposed block
+//  - a server may refuse or behave differently
+MESSAGE_MAGIC_0 1       // 'P'
+MESSAGE_MAGIC_1 1       // 'S'
+MESSAGE_MAJOR   1
+MESSAGE_MINOR   0
+// identifies the block payload
+//  - a server may already have it
+BLOCK_HASH        32    // hash of the proposed block
+// identifies the blockchain for this block
+//  - a server may not be interested in this blockchain
+//      - key is unintereresting
+//      - zeros is too weak and prone to SPAM
+//      - limits are too big for network/machine capacity
+CHAIN_LEN       1       // number of bytes for the CHAIN identifier
+CHAIN_KEY       <CHAIN_LEN> // CHAIN identifier (pubkey?, topic?) (if signed, must be pubkey)
+CHAIN_ZEROS     1       // number of zeros to be trasmitted (or signed)
+CHAIN_LIMITS    1       // max number of TXs per block | max bytes of TX payload
+    block       4b      // 0=any,1=1,2=10,3=100,4=1k,5=10k,6=100k,7=1M
+    payload     4b      // 0=any,1=100b,2=1K,3=10K,4=100K,5=1M,6=10M,7=100M
 ///////////////////////////////////////////////////////////////////////////////
-// server responds 0/1
-// client completes message
+// CLIENT <= SERVER
+//  - server responds if wants the block
+-               1       // MESSAGE10_HAVE_YES|MESSAGE10_HAVE_NO
 ///////////////////////////////////////////////////////////////////////////////
-// BLOCK_HASH = hash[PoW..BACK_HASH..PAYLOAD]
-PoW              4 u32    // nonce for BLOCK_HASH
-BACK_HASH        32       // immutable: a past hash at most TODO jumps away from BLOCK_HASH
-//TAIL_HASH        32       // mutable: immediate past hash which creates the chain
-PAYLOAD          <PAYLOAD_LEN>
-PoS              1        // value of random jump (based on BLOCK_HASH) in the CHAIN
-TODO-SIGNATURE
+// CLIENT => SERVER
+//  - client sends all TX_BYTES+TX_HASH
+//      - server responds YES/NO for each
+//      - TX_PAYLOAD_BYTES: must be compatible with CHAIN_LIMITS.payload
+//      - TX_HASH: server may already have
+//  - loop is bounded to CHAIN_LIMITS.block
 ///////////////////////////////////////////////////////////////////////////////
-    - BLOCK_HASH: univocally identifies a specific message that was sent to
-                  a specific back pointer, which implies a specific chain
-    - on creation, BACK_HASH=TAIL_HASH, but nodes can change TAIL_HASH to 
-      reorder the chain
-    - since BLOCK_HASH uses BACK_HASH, an attacker cannot preprocess a side 
-      chain and attach it to a recent node to force a fork
-    - PoS = BACK_HASH - BLOCK_HASH(mapped to full memory from BACK_HASH to 
-      genesis)
-        - force nodes willing to publish to keep all data
-            - in BTC, miners need to check funds looking all the way back
+LOOP for each TX in BLOCK
+    TX_PAYLOAD_BYTES 4 u32
+    TX_HASH          32     // hash[TIMESTAMP..TX_BACK_HASH..TX_PAYLOAD]
+LOOP END
+///////////////////////////////////////////////////////////////////////////////
+// CLIENT <= SERVER
+//  - server responds if wants the tx
+LOOP for each TX in BLOCK
+    -               1       // MESSAGE10_HAVE_YES|MESSAGE10_HAVE_NO
+LOOP END
+///////////////////////////////////////////////////////////////////////////////
+// CLIENT => SERVER
+//  - client sends complete TX
+LOOP for each TX in BLOCK
+    TIMESTAMP       8 s64   // nonce for TX_HASH
+    TX_BACK_HASH    32      // recent back hash
+    TX_PAYLOAD      <TX_PAYLOAD_BYTES>
+    POS             1       // proof of storage
+    TODO-SIGNATURE
+LOOP END
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+- BLOCK_HASH
+    - merkle tree of all TX_HASH
+    - no costs to generate
+- TX_HASH
+    - univocally identifies a specific PAYLOAD sent to a specific CHAIN
+    - back pointers all the way back to GENESIS_HASH
+- GENESIS_HASH
+    - univocally identifies a chain
+    - hash[CHAIN_ZEROS, CHAIN_LEN, CHAIN_KEY]
+- TX_HASH uses recent TX_BACK_HASH
+    - TX_HASH->...->TX_BACK_HASH < GLOBAL_TX_BACK_DISTANCE_BYTES
+    - server can refuse the whole block
+    - attacker wants to create a big fork
+        - preprocess TXs starting from TX_HASH_0 in fork point:
+            - TX_HASH_0 -> 1 -> 2 -> 3 -> 4 -> ... -> n
+        - propose BLOCK with all these
+            - TX_HASH_1 is not to distant from TX_HASH_0
+                - because the network didn't stop
+                    - and created many blocks in between 0->1
+- POS = *( PTR(TX_BACK_HASH) - TX_HASH )
+    - go to the address of TX_BACK_HASH
+    - subtract TX_HASH
+        - since TX_HASH is random
+            - can end up in any address down to GENESIS
+    - get the contents of the pointed memory
+    - force nodes willing to publish to keep all data
+        - in BTC, miners need to check funds looking all the way back
 ///////////////////////////////////////////////////////////////////////////////
 */
 
