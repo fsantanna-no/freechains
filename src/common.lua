@@ -1,26 +1,18 @@
-local __genesis = string.rep('\0',32) -- genesis block for all chains
-
 APP = {
     genesis  = __genesis,
     server   = {},  -- server configurations
     client   = {},  -- client configurations
     chains   = {},  -- chains configurations
     blocks   = {    -- blocks in memory
-        [__genesis] = {
-            block_hash = __genesis,
-            tail_hash  = nil,
-            payload    = '',
-        }
+        --[hash] = {
+        --    txs = {
+        --        { hash=nil },
+        --        ...
+        --    },
+        --},
+        ...
     },
     messages = {},  -- pending messages to transmit
-}
-
-local meta = {
-    __index = function (t,k)
-        if type(k) == 'number' then
-            return APP.genesis
-        end
-    end,
 }
 
 local function chain_parse_id (chain)
@@ -31,8 +23,18 @@ local function chain_parse_id (chain)
         assert(chain.zeros < 256)
     end
     local id = '|'..chain.key..'|'..chain.zeros..'|'
-    chain.id   = id
-    chain.head = id     -- TODO: should be hash(id)
+    chain.id = id
+
+    -- chain.head
+    local block_genesis = {
+        txs = {
+            { hash = id },    -- TODO: should be hash(t.id)
+        }
+    }
+    local block_hash = id     -- TODO: should be hash of merkle tree
+    APP.blocks[block_hash] = block_genesis
+    chain.head = block_hash
+
     return id, chain
 end
 

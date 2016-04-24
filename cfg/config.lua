@@ -12,8 +12,8 @@ SERVER {
         {
             key   = '',     -- global chain (cannot be signed)
             zeros = 0,      -- receive messages with 0 leading zeros in the hash
-            id    = nil,
-            head  = nil,
+            id    = nil,    -- concat of key..zeros
+            head  = nil,    -- hash of newest block
             -- TODO: mode 'pub,sub,pub/sub'
         },
     },
