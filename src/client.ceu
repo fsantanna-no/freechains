@@ -202,7 +202,7 @@ do
 
         // => PAYLOAD
         do
-            var char[HASH_BYTES] payload = [[ MSG.payload ]];
+            var char[] payload = [[ MSG.payload ]];
             bytes = []..bytes..payload;
         end
 
@@ -259,20 +259,23 @@ do
         end
 
         _printf("[client] Connected to %s:%d.\n", (_char&&)&&ip, port);
-        watching c do
-            var int err_ = _ERR_NONE;
+        watching err_ in c do
+            err_ = _ERR_NONE;
             if is_10 then
                 err_ = do Message10_send.run(&c.tcp);
             else
                 // ...
+                err_ = _ERR_MESSAGE;
             end
             escape err_;
         end
+        escape err_;
 // TODO: usar erro de c
         //escape _ERR_DISCONNECTED;
     end;
 
-    _printf("[client] Diconnected from %s:%d => %d\n", (_char&&)&&ip, port, err);
+    _printf("[client] Disconnected from %s:%d => %d\n",
+            (_char&&)&&ip, port, err);
     emit listener.ok => err;
     escape err;
 end

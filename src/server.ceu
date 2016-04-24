@@ -175,23 +175,24 @@ end
 
 class Message10_02_block with
 input:
-    var _uv_tcp_t& tcp;
-    function (_uv_tcp_t& tcp)=>Message10_02_block receive;
+    var UV_Stream_Read& reader;
+input/output:
+    var byte[]& bytes;
+    var u32&    off;
+
+    function (UV_Stream_Read& reader, byte[]& bytes, u32& off)=>Message10_02_block receive;
+
 do
-    function (_uv_tcp_t& tcp)=>Message10_02_block receive do
-        this.tcp = &tcp;
+    function (UV_Stream_Read& reader, byte[]& bytes, u32& off)=>Message10_02_block receive do
+        this.reader = &reader;
+        this.bytes  = &bytes;
+        this.off    = &off;
     end
-
-    var byte[] bytes;
-    var int off = 0;
-
-    var UV_Stream_Read reader =
-            UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
 
     // => PoW
     var u32 pow = 0;
     do
-        do UV_Stream_ReadUntil.run(&reader, off + sizeof(u32));
+        do UV_Stream_ReadUntil.run(&this.reader, off + sizeof(u32));
         pow = GET_HOST_U32(bytes,off);
         _printf("[server] POW = %X\n", pow);
         [[ MSG.pow = @pow ]];
@@ -202,7 +203,7 @@ do
     // TODO: check
     var byte[HASH_BYTES] back_hash;
     do
-        do UV_Stream_ReadUntil.run(&reader, off + HASH_BYTES);
+        do UV_Stream_ReadUntil.run(&this.reader, off + HASH_BYTES);
         _ceu_vector_copy_buffer(&&back_hash, 0,
                                 (_byte&&)&&bytes[off], HASH_BYTES,
                                 1);
@@ -242,7 +243,7 @@ do
     var byte[] payload;
     do
         var u32 payload_len = [[ MSG.payload_len ]];
-        do UV_Stream_ReadUntil.run(&reader, off + payload_len);
+        do UV_Stream_ReadUntil.run(&this.reader, off + payload_len);
 
         _ceu_vector_copy_buffer(&&payload, 0,
                                 &&(((_byte&&)&&bytes)[off]), payload_len,
@@ -266,10 +267,11 @@ do
         _crypto_generichash((_byte&&)&&hash, HASH_BYTES,
                             (_byte&&)&&plain, $plain,
                             null, 0);
+//[[print('{\n'..hex_dump(@plain)..'}')]];
 
         var char[HASH_BYTES] block_hash = [[ MSG.block_hash ]];
         var int ret = _memcmp((_char&&)&&block_hash, (_byte&&)&&hash, HASH_BYTES);
-        _printf("[server] POW = %d\n", ret==0);
+        _printf("[server] POW? %d\n", ret==0);
         if ret != 0 then
             escape _ERR_REMOTE_BUG_OR_MALICIOUS;
         end
@@ -278,7 +280,7 @@ do
     // => PoS
     // TODO: check
     do
-        do UV_Stream_ReadUntil.run(&reader, off + 1);
+        do UV_Stream_ReadUntil.run(&this.reader, off + 1);
         var int pos = bytes[off];
         _printf("[server] POS = %X\n", pos);
         [[ MSG.pos = @pos ]];
@@ -340,15 +342,23 @@ do
     end
 
     // receive oldest=>newest blocks I don't have
-    loop i do
-        _printf("[server] Receiving %d...\n", i);
-        var int err = do Message10_02_block.receive(&tcp);
-        _assert(err == _ERR_NONE);
-        var bool up = [[ MSG.up_hash~=nil ]];
-        if up then
-            [[ MSG = assert(APP.blocks[MSG.up_hash]) ]];
-        else
-            break;
+    do
+        // TODO: buffer for *all* payloads,etc
+        var byte[] bytes;
+        var u32 off = 0;
+        var UV_Stream_Read reader =
+                UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
+        loop i do
+            _printf("[server] Receiving %d...\n", i);
+            var int err = do Message10_02_block.receive(&reader, &bytes, &off);
+            _printf("[server] Received %d!\n", i);
+            _assert(err == _ERR_NONE);
+            var bool up = [[ MSG.up_hash~=nil ]];
+            if up then
+                [[ MSG = assert(APP.blocks[MSG.up_hash]) ]];
+            else
+                break;
+            end
         end
     end
 
