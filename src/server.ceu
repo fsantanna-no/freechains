@@ -1,14 +1,14 @@
 #ifndef _SERVER_CEU
 #define _SERVER_CEU
 
-class Message10_00_header with
+class Message10_header_recv with
 input:
     var byte[]&         bytes;
     var UV_Stream_Read& reader;
 
-    function (byte[]& bytes, UV_Stream_Read& reader)=>Message10_00_header receive;
+    function (byte[]& bytes, UV_Stream_Read& reader)=>Message10_header_recv run;
 do
-    function (byte[]& bytes, UV_Stream_Read& reader)=>Message10_00_header receive do
+    function (byte[]& bytes, UV_Stream_Read& reader)=>Message10_header_recv run do
         this.bytes  = &bytes;
         this.reader = &reader;
     end
@@ -87,12 +87,12 @@ do
     escape _MESSAGE10_HAVE_NO;
 end
 
-class Message10_01_tx with
+class Message10_tx_recv with
 input:
     var _uv_tcp_t& tcp;
-    function (_uv_tcp_t& tcp)=>Message10_01_tx receive;
+    function (_uv_tcp_t& tcp)=>Message10_tx_recv run;
 do
-    function (_uv_tcp_t& tcp)=>Message10_01_tx receive do
+    function (_uv_tcp_t& tcp)=>Message10_tx_recv run do
         this.tcp = &tcp;
     end
 
@@ -448,17 +448,17 @@ _assert(0); // TODO test it
     _assert(0);
 end
 
-class Message10_02_block with
+class Message10_block with
 input:
     var UV_Stream_Read& reader;
 input/output:
     var byte[]& bytes;
     var u32&    off;
 
-    function (UV_Stream_Read& reader, byte[]& bytes, u32& off)=>Message10_02_block receive;
+    function (UV_Stream_Read& reader, byte[]& bytes, u32& off)=>Message10_block receive;
 
 do
-    function (UV_Stream_Read& reader, byte[]& bytes, u32& off)=>Message10_02_block receive do
+    function (UV_Stream_Read& reader, byte[]& bytes, u32& off)=>Message10_block receive do
         this.reader = &reader;
         this.bytes  = &bytes;
         this.off    = &off;
@@ -500,7 +500,7 @@ do
     // <= ACK-header
     // bytes/reader received from message partially parsed
     do
-        var int ret = do Message10_00_header.receive(&bytes,&reader);
+        var int ret = do Message10_header_recv.run(&bytes,&reader);
         do
             _printf("[server] <= ACK-header = %d\n", ret);
             var byte[1] send = [ret];
@@ -519,7 +519,7 @@ do
         var int txs_n = [[ BLOCK.txs_n ]];
         _printf("[server] => %d txs\n", txs_n);
         loop i in txs_n do
-            var int err = do Message10_01_tx.receive(&tcp);
+            var int err = do Message10_tx_recv.run(&tcp);
             if err != _ERR_NONE then
                 escape err;
             end
@@ -552,7 +552,7 @@ do
                 UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
         loop i do
             _printf("[server] Receiving %d...\n", i);
-            var int err = do Message10_02_block.receive(&reader, &bytes, &off);
+            var int err = do Message10_block.receive(&reader, &bytes, &off);
             _printf("[server] Received %d!\n", i);
             _assert(err == _ERR_NONE);
             var bool up = [[ MSG.up_hash~=nil ]];

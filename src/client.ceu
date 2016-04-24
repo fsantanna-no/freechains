@@ -98,17 +98,13 @@ do
     escape _ERR_NONE;
 end
 
-class Message10_header with
+class Message10_header_send with
     var _uv_tcp_t& tcp;
-    function (_uv_tcp_t& tcp)=>Message10_header send;
+    function (_uv_tcp_t& tcp)=>Message10_header_send run;
 do
-    function (_uv_tcp_t& tcp)=>Message10_header send do
+    function (_uv_tcp_t& tcp)=>Message10_header_send run do
         this.tcp = &tcp;
     end
-
-    ///////////////////////////////////////////////////////////////////////////
-    // HEADER
-    ///////////////////////////////////////////////////////////////////////////
 
     // <= MESSAGE
     // <= BLOCK_HASH
@@ -146,6 +142,77 @@ do
     end
 end
 
+class Message10_tx_send with
+    var _uv_tcp_t& tcp;
+    var int        i;
+    function (_uv_tcp_t& tcp, int i)=>Message10_tx_send run;
+do
+    function (_uv_tcp_t& tcp, int i)=>Message10_tx_send run do
+        this.tcp = &tcp;
+        this.i   = i;
+    end
+
+    // <= TX_HASH
+    // <= TX_LEN
+    [[
+        tx_hash = BLOCK.txs[@this.i+1]
+        TX      = assert(APP.txs[tx_hash])
+        print('[client] <= txs['..(@this.i+1)..']', TX.bytes)
+        print(hex_dump(TX.hash))
+    ]];
+    var u32    payload_bytes = [[ TX.bytes ]];
+    var char[] bytes         = [[ TX.hash ]];
+    PUT_NETWORK_U32(bytes, HASH_BYTES, payload_bytes);
+    do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
+
+    // => ACK-tx
+    var int ret = _ERR_NONE;
+    do
+        var byte[1] recv;
+        var UV_Stream_Read reader =
+                UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&recv);
+        do UV_Stream_ReadUntil.run(&reader, 1);
+        ret = recv[0];
+    end
+
+    _printf("[client] => ACK-tx = %d\n", ret);
+    if ret != _MESSAGE10_HAVE_NO then
+        escape _ERR_NONE;   // next TX
+    end
+
+    // OK: complete TX
+    _printf("[client] <= complete...\n");
+    do
+        var byte[] bytes;
+
+        // <= TIMESTAMP: TODO(s64)
+        var u32 timestamp = [[ TX.timestamp ]];
+        PUT_NETWORK_U32(bytes, $bytes, timestamp);
+        _printf("[client] <= TIMESTAMP = %X\n", timestamp);
+
+        // <= TX_BACK_HASH
+        var char[HASH_BYTES] tx_back_hash = [[ TX.back_hash ]];
+        bytes = []..bytes..tx_back_hash;
+        [[
+            print('[client] <= TX_BACK_HASH')
+            print(hex_dump(TX.back_hash))
+        ]]
+
+        // <= TX_PAYLOAD
+        var char[] tx_payload = [[ TX.payload ]];
+        bytes = []..bytes..tx_payload;
+
+        // <= PoS: TODO
+        var u8 pos = 0xEE;
+        bytes = []..bytes..[pos];
+        _printf("TODO: POS generate!\n");
+
+        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
+    end
+
+    escape _ERR_NONE;
+end
+
 class Message10_send with
     var _uv_tcp_t& tcp;
     function (_uv_tcp_t& tcp)=>Message10_send run;
@@ -159,7 +226,7 @@ do
     ///////////////////////////////////////////////////////////////////////////
 
     // => ACK-header
-    var int ret = do Message10_header.send(&tcp);
+    var int ret = do Message10_header_send.run(&tcp);
     do
         var byte[1] recv;
         var UV_Stream_Read reader =
@@ -182,168 +249,9 @@ do
     var int txs_n = [[ #BLOCK.txs ]];
     _printf("[client] <= %d txs\n", txs_n);
     loop i in txs_n do
-        // <= TX_HASH
-        // <= TX_LEN
-        [[
-            tx_hash = BLOCK.txs[@i+1]
-            TX      = assert(APP.txs[tx_hash])
-            print('[client] <= txs['..(@i+1)..']', TX.bytes)
-            print(hex_dump(TX.hash))
-        ]];
-        var u32    payload_bytes = [[ TX.bytes ]];
-        var char[] bytes         = [[ TX.hash ]];
-        PUT_NETWORK_U32(bytes, HASH_BYTES, payload_bytes);
-        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
-
-        // => ACK-tx
-        var int ret = _ERR_NONE;
-        do
-            var byte[1] recv;
-            var UV_Stream_Read reader =
-                    UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&recv);
-            do UV_Stream_ReadUntil.run(&reader, 1);
-            ret = recv[0];
-        end
-
-        _printf("[client] => ACK-tx = %d\n", ret);
-        if ret != _MESSAGE10_HAVE_NO then
-            continue;   // next TX
-        end
-
-        // OK: complete TX
-        _printf("[client] <= complete...\n");
-        do
-            var byte[] bytes;
-
-            // <= TIMESTAMP: TODO(s64)
-            var u32 timestamp = [[ TX.timestamp ]];
-            PUT_NETWORK_U32(bytes, $bytes, timestamp);
-            _printf("[client] <= TIMESTAMP = %X\n", timestamp);
-
-            // <= TX_BACK_HASH
-            var char[HASH_BYTES] tx_back_hash = [[ TX.back_hash ]];
-            bytes = []..bytes..tx_back_hash;
-            [[
-                print('[client] <= TX_BACK_HASH')
-                print(hex_dump(TX.back_hash))
-            ]]
-
-            // <= TX_PAYLOAD
-            var char[] tx_payload = [[ TX.payload ]];
-            bytes = []..bytes..tx_payload;
-
-            // <= PoS: TODO
-            var u8 pos = 0xEE;
-            bytes = []..bytes..[pos];
-            _printf("TODO: POS generate!\n");
-
-            do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
-        end
-    end
-_printf("===> DONE\n");
-_assert(0);
-
-    //////////////////////////////////////////////////////////////////////////
-
-    // <= BLOCK_HASH
-    // <= BLOCK_LEN
-    // 
-    var int n_to_transmit = 0;
-    loop i do
-        // <= both
-        do
-            var u32 len      = [[ #MSG.payload ]];
-            var char[] bytes = [[ MSG.block_hash ]];
-            PUT_NETWORK_U32(bytes, HASH_BYTES, len);
-            do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
-        end
-
-        // => ACK-chain
-        var int ret = _ERR_NONE;
-        do
-            var byte[1] recv;
-            var UV_Stream_Read reader =
-                    UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&recv);
-            do UV_Stream_ReadUntil.run(&reader, 1);
-            ret = recv[0];
-
-            _printf("[client] ACK-hashes[%d] = %d {\n", i, ret);
-            [[ print(hex_dump(MSG.block_hash)) ]];
-            [[ print'}' ]];
-            if ret == _MESSAGE10_PAYLOAD_LEN_LIMIT then
-                // remote thinks it is too big
-                escape _MESSAGE10_PAYLOAD_LEN_LIMIT;
-            else/if ret == _MESSAGE10_HAVE_NO then
-                // continue searching
-            else/if ret == _MESSAGE10_HAVE_YES then
-                if i == 0 then
-                    // remote has all my messages
-                    escape _MESSAGE10_HAVE_YES;
-                else
-                    // remote have this, but not this.up
-                    n_to_transmit = i;
-                    break;  // OK: proceed to complete this.up send
-                end
-            else
-                escape _ERR_REMOTE_BUG_OR_MALICIOUS;
-            end
-        end
-        _assert(ret == _MESSAGE10_HAVE_NO);
-
-        [[ MSG = APP.blocks[MSG.tail_hash] ]];
-        var bool has = [[ MSG~=nil ]];
-        if not has then
-            escape _ERR_REMOTE_BUG_OR_MALICIOUS;  // remote must have genesis
-        end
-    end
-    [[
-        MSG = APP.blocks[MSG.up_hash]
-        assert(MSG)
-    ]];
-
-    //////////////////////////////////////////////////////////////////////////
-
-    // <= BLOCK
-    // send MSG, MSG.up, MSG.up.up, ...
-    _printf("[client] I will transmit %d message(s)...\n", n_to_transmit);
-    loop i do
-        var byte[] bytes;
-
-        // <= PoW
-        do
-            var u32 nonce = [[ MSG.pow ]];
-            PUT_NETWORK_U32(bytes, $bytes, nonce);
-        end
-
-        // <= BACK_HASH (immutable, see above)
-        do
-            var char[HASH_BYTES] back_hash = [[ MSG.back_hash ]];
-            bytes = []..bytes..back_hash;
-        end
-
-        // <= PAYLOAD
-        do
-            var char[] payload = [[ MSG.payload ]];
-            bytes = []..bytes..payload;
-        end
-
-        // <= PoS
-        // TODO
-        do
-            var u8 pos = 0xEE;
-            bytes = []..bytes..[pos];
-#if 1
-            _printf("TODO: POS generate!\n");
-#endif
-        end
-
-        _printf("[client] Transmitting %d...\n", i);
-        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
-
-        [[ MSG = APP.blocks[MSG.up_hash] ]];
-        var bool up = [[ MSG~=nil ]];
-        if not up then
-            break;
+        var int err = do Message10_tx_send.run(&tcp,i);
+        if err != _ERR_NONE then
+            escape err;
         end
     end
 
