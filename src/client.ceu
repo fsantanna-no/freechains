@@ -184,37 +184,38 @@ do
     // TXS
     ///////////////////////////////////////////////////////////////////////////
 
-    var int n_txs = [[ #BLOCK.txs ]];
-    _printf("[client] <= %d txs\n", n_txs);
-    loop i do
+    var int txs_n = [[ #BLOCK.txs ]];
+    _printf("[client] <= %d txs\n", txs_n);
+    loop i in txs_n do
         // <= TX_HASH
         // <= TX_LEN
         [[
             tx_hash = BLOCK.txs[@i+1]
-            TX      = APP.txs[tx_hash]
+            TX      = assert(APP.txs[tx_hash])
             print('[client] <= txs['..(@i+1)..']', TX.bytes)
             print(hex_dump(TX.hash))
         ]];
-        var u32 len      = [[ TX.bytes ]];
-        var char[] bytes = [[ TX.hash ]];
-        PUT_NETWORK_U32(bytes, HASH_BYTES, len);
+        var u32    payload_bytes = [[ TX.bytes ]];
+        var char[] bytes         = [[ TX.hash ]];
+        PUT_NETWORK_U32(bytes, HASH_BYTES, payload_bytes);
         do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
 
         // => ACK-tx
+        var int ret = _ERR_NONE;
         do
             var byte[1] recv;
             var UV_Stream_Read reader =
                     UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&recv);
             do UV_Stream_ReadUntil.run(&reader, 1);
-            var int ret = recv[0];
-
-            _printf("[client] => ACK-tx = %d\n", ret);
-            if ret == _MESSAGE10_HAVE_NO then
-                // OK: proceed to complete TX
-            else
-                escape ret;
-            end
+            ret = recv[0];
         end
+
+        _printf("[client] => ACK-tx = %d\n", ret);
+        if ret != _MESSAGE10_HAVE_NO then
+            continue;   // next TX
+        end
+
+        // OK: complete TX
     end
 _printf("===> DONE\n");
 _assert(0);
