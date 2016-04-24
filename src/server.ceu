@@ -38,11 +38,6 @@ do
 
     end
 
-
-//        HEAD_HASH = APP.chains[BLOCK.chain.id].head
-//        assert(type(HEAD_HASH) == 'string')
-
-
     // => CHAIN_LEN
     // => CHAIN_KEY
     // => CHAIN_ZEROS
@@ -82,7 +77,7 @@ do
         // TODO: check CHAIN_LIMITS
     end
 
-    escape _ERR_NONE;
+    escape _MESSAGE10_HAVE_NO;
 end
 
 class Message10_01_oldest_hash with
@@ -98,6 +93,11 @@ do
     // <= ACK:
     //      - MESSAGE10_HAVE_YES: found common
     //      - MESSAGE10_HAVE_NO:  keep sending
+
+//        HEAD_HASH = APP.chains[BLOCK.chain.id].head
+//        assert(type(HEAD_HASH) == 'string')
+
+
 
     var int n_bytes = 0;
     var u32 limit = [[ APP.server.message10_payload_len_limit ]];
@@ -338,16 +338,17 @@ do
     // HEADER
     ///////////////////////////////////////////////////////////////////////////////
 
+    // <= ACK-header
     // bytes/reader received from message partially parsed
     do
-        var int err = do Message10_00_header.receive(&bytes,&reader);
+        var int ret = do Message10_00_header.receive(&bytes,&reader);
         do
-            _printf("[server] ACK-chain = %d\n", err);
-            var byte[1] send = [err];
+            _printf("[server] <= ACK-chain = %d\n", ret);
+            var byte[1] send = [ret];
             do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
         end
-        if err == _MESSAGE10_NOTSUB then
-            escape err;
+        if ret != _MESSAGE10_HAVE_NO then
+            escape ret;     // terminate if have or not subcribed
         end
     end
 
