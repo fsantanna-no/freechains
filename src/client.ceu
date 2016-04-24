@@ -103,11 +103,11 @@ do
     escape _ERR_NONE;
 end
 
-class Message10_send with
+class Message10_header with
     var _uv_tcp_t& tcp;
-    function (_uv_tcp_t& tcp)=>Message10_send run;
+    function (_uv_tcp_t& tcp)=>Message10_header send;
 do
-    function (_uv_tcp_t& tcp)=>Message10_send run do
+    function (_uv_tcp_t& tcp)=>Message10_header send do
         this.tcp = &tcp;
     end
 
@@ -145,8 +145,22 @@ do
 
         do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
     end
+end
+
+class Message10_send with
+    var _uv_tcp_t& tcp;
+    function (_uv_tcp_t& tcp)=>Message10_send run;
+do
+    function (_uv_tcp_t& tcp)=>Message10_send run do
+        this.tcp = &tcp;
+    end
+
+    ///////////////////////////////////////////////////////////////////////////
+    // HEADER
+    ///////////////////////////////////////////////////////////////////////////
 
     // => ACK-header
+    var int ret = do Message10_header.send(&tcp);
     do
         var byte[1] recv;
         var UV_Stream_Read reader =
