@@ -15,36 +15,6 @@ do
 
     var u32 off = MESSAGE_BYTES;
 
-    // => BLOCK_HASH
-    // => BLOCK_TXS_N
-    do
-        // hash
-        do UV_Stream_ReadUntil.run(&reader, off+HASH_BYTES);
-        var byte[HASH_BYTES] hash;
-        _ceu_vector_copy_buffer(&&hash, 0,
-                                (_byte&&)&&bytes[off], HASH_BYTES,
-                                1);
-        off = off + HASH_BYTES;
-
-        var bool have = [[ APP.blocks[BLOCK.hash] ~= nil ]];
-        if have then
-            escape _MESSAGE10_HAVE_YES;    // OK ACK
-        end
-
-        // txs_n
-        do UV_Stream_ReadUntil.run(&reader, off+sizeof(u32));
-        var u32 txs_n = GET_HOST_U32(bytes, off);
-        off = off + sizeof(u32);
-
-        [[
-            BLOCK.hash = @hash;
-            print('[server] => BLOCK_HASH', string.len(BLOCK.hash))
-            print(hex_dump(BLOCK.hash))
-            print('[server] => BLOCK_TXS_N', @txs_n)
-            BLOCK.txs_n = @txs_n
-        ]];
-    end
-
     // => CHAIN_LEN
     // => CHAIN_KEY
     // => CHAIN_ZEROS
@@ -84,7 +54,55 @@ do
         // TODO: check CHAIN_LIMITS
     end
 
-    escape _MESSAGE10_HAVE_NO;
+    escape _ERR_NONE;
+end
+
+class Message10_block_recv with
+input:
+    var _uv_tcp_t& tcp;
+    function (_uv_tcp_t& tcp)=>Message10_block_recv run;
+do
+    function (_uv_tcp_t& tcp)=>Message10_block_recv run do
+        this.tcp = &tcp;
+    end
+
+    var byte[] bytes;
+    var UV_Stream_Read reader =
+            UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
+
+    var u32 off = 0;
+
+    // => BLOCK_HASH
+    // => BLOCK_TXS_N
+    do
+        // hash
+        do UV_Stream_ReadUntil.run(&reader, off+HASH_BYTES);
+        var byte[HASH_BYTES] hash;
+        _ceu_vector_copy_buffer(&&hash, 0,
+                                (_byte&&)&&bytes[off], HASH_BYTES,
+                                1);
+        off = off + HASH_BYTES;
+
+        // txs_n
+        do UV_Stream_ReadUntil.run(&reader, off+sizeof(u32));
+        var u32 txs_n = GET_HOST_U32(bytes, off);
+        off = off + sizeof(u32);
+
+        [[
+            BLOCK.hash = @hash;
+            print('[server] => BLOCK_HASH', string.len(BLOCK.hash))
+            print(hex_dump(BLOCK.hash))
+            print('[server] => BLOCK_TXS_N', @txs_n)
+            BLOCK.txs_n = @txs_n
+        ]];
+    end
+
+    var bool have = [[ APP.blocks[BLOCK.hash] ~= nil ]];
+    if have then
+        escape _MESSAGE10_HAVE_YES;    // OK ACK
+    else
+        escape _MESSAGE10_HAVE_NO;  // TODO _ERR_NONE
+    end
 end
 
 class Message10_tx_recv with
@@ -123,7 +141,7 @@ do
 
         [[
             tx_hash = @hash
-            print('[server] => TX_HASH')
+            print('[server] => TX_HASH', payload_bytes)
             print(hex_dump(tx_hash))
             BLOCK.txs[#BLOCK.txs+1] = tx_hash
         ]];
@@ -189,13 +207,13 @@ do
                 _printf("TODO: BLOCK_HASH young enough?\n");
 #else
                 var int n = [[ APP.server.chains.BACK_HASH_JUMP_LIMIT ]];
-                [[ HEAD = APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] ]];
+                [[ head = APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] ]];
                 loop i in n do
-                    var bool is_eq = [[ HEAD == MSG.back_hash ]];
+                    var bool is_eq = [[ head == MSG.back_hash ]];
                     if is_eq then
                         xxx
                     end
-                   [[ HEAD = APP ]]
+                   [[ head = APP ]]
                 end
 #endif
             end
@@ -245,8 +263,6 @@ do
                 escape _ERR_REMOTE_BUG_OR_MALICIOUS;
             end
         end
-
-        [[ APP.txs[TX.hash] = TX ]];
     end
 
     escape _ERR_NONE;
@@ -266,18 +282,6 @@ do
         this.reader = &reader;
     end
 
-    [[
-        BLOCK = {
-            id        = '1.0',
-            chain     = nil,
-            txs       = { },
-            hash      = nil,
-            up_hash   = nil,
-            tail_hash = nil,
-        }
-        HEAD_HASH = nil
-    ]];
-
     ///////////////////////////////////////////////////////////////////////////////
     // HEADER
     ///////////////////////////////////////////////////////////////////////////////
@@ -285,33 +289,83 @@ do
     // <= ACK-header
     // bytes/reader received from message partially parsed
     do
-        var int ret = do Message10_header_recv.run(&bytes,&reader);
+        var int err = do Message10_header_recv.run(&bytes,&reader);
         do
-            _printf("[server] <= ACK-header = %d\n", ret);
-            var byte[1] send = [ret];
+            _printf("[server] <= ACK-header = %d\n", err);
+            var byte[1] send = [err];
             do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
         end
-        if ret != _MESSAGE10_HAVE_NO then
-            escape ret;     // terminate if have or not subcribed
+        if err == _MESSAGE10_NOTSUB then
+            escape err;     // terminate if not subcribed
         end
     end
 
     ///////////////////////////////////////////////////////////////////////////////
-    // TXS
+    // BLOCKS
     ///////////////////////////////////////////////////////////////////////////////
 
-    do
-        var int txs_n = [[ BLOCK.txs_n ]];
-        _printf("[server] => %d txs\n", txs_n);
-        loop i in txs_n do
-            var int err = do Message10_tx_recv.run(&tcp);
-            if err != _ERR_NONE then
-                escape err;
+    [[
+        BLOCK_HEAD = nil
+        BLOCK_BASE = nil
+    ]];
+
+    loop do
+        [[
+            BLOCK = {
+                id        = '1.0',
+                chain     = nil,
+                txs       = { },
+                hash      = nil,
+                up_hash   = nil,
+                tail_hash = nil,
+            }
+        ]];
+
+        // <= ACK-block
+        do
+            var int err = do Message10_block_recv.run(&tcp);
+            [[
+                BLOCK_HEAD = BLOCK_HEAD or BLOCK
+
+                if BLOCK_BASE then
+                    BLOCK_BASE.tail_hash = BLOCK.hash
+                    BLOCK.up_hash        = BLOCK_BASE.hash
+                end
+                BLOCK_BASE = BLOCK
+            ]];
+            do
+                _printf("[server] <= ACK-block = %d\n", err);
+                var byte[1] send = [err];
+                do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
+            end
+            if err == _MESSAGE10_HAVE_YES then
+                break;     // found common block
+            end
+        end
+
+        ///////////////////////////////////////////////////////////////////////////
+        // TXS
+        ///////////////////////////////////////////////////////////////////////////
+
+        do
+            var int txs_n = [[ BLOCK.txs_n ]];
+            _printf("[server] => %d txs\n", txs_n);
+            loop i in txs_n do
+                var int err = do Message10_tx_recv.run(&tcp);
+                if err != _ERR_NONE then
+                    escape err;
+                end
             end
         end
     end
 
 #if 0
+    ///////////////////////////////////////////////////////////////////////////////
+    // HEAD vs BLOCK
+    ///////////////////////////////////////////////////////////////////////////////
+
+        [[ APP.txs[TX.hash] = TX ]];
+
     ///////////////////////////////////////////////////////////////////////////////
     // HASHES
     ///////////////////////////////////////////////////////////////////////////////

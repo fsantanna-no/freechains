@@ -1,5 +1,6 @@
 #if 0
 = TODO:
+    - remove HAVE_NO => ERR_NO
     - testar contcat de fato com big/small old/new
     - join, verificar maior chain
     - serialize to disk
@@ -121,10 +122,6 @@ MESSAGE_MAGIC_0 1       // 'P'
 MESSAGE_MAGIC_1 1       // 'S'
 MESSAGE_MAJOR   1
 MESSAGE_MINOR   0
-// identifies the block payload
-//  - a server may already have it
-BLOCK_HASH      32      // hash of the proposed block
-BLOCK_TXS_N     4 u32   // number of txs in the block
 // identifies the blockchain for this block
 //  - a server may not be interested in this blockchain
 //      - key is unintereresting
@@ -138,28 +135,42 @@ CHAIN_LIMITS    1       // max number of TXs per block | max bytes of TX payload
     payload     4b      // 0=any,1=100b,2=1K,3=10K,4=100K,5=1M,6=10M,7=100M
 ///////////////////////////////////////////////////////////////////////////////
 // CLIENT <= SERVER
-//  - server responds if wants the block
--               1       // MESSAGE10_HAVE_YES|MESSAGE10_HAVE_NO
+//  - server responds if is subscribed to the chain
+-               1       // _ERR_NONE | MESSAGE10_NOTSUB
 ///////////////////////////////////////////////////////////////////////////////
 // CLIENT => SERVER
-//  - client sends all TX_BYTES+TX_HASH
+//  - clients sends all BLOCKs
 //      - server responds YES/NO for each
-//      - TX_PAYLOAD_BYTES: must be compatible with CHAIN_LIMITS.payload
-//      - TX_HASH: server may already have
-//  - loop is bounded to CHAIN_LIMITS.block
+//      - if YES
+//          - client sends all TX_BYTES+TX_HASH
+//              - server responds YES/NO for each
+//              - TX_PAYLOAD_BYTES: must be compatible with 
+//                CHAIN_LIMITS.payload
+//              - TX_HASH: server may already have
+//          - loop is bounded to CHAIN_LIMITS.block
+//      - loop is bounded to CHAIN_LIMITS.block
 ///////////////////////////////////////////////////////////////////////////////
-LOOP for each TX in BLOCK
+LOOP for each BLOCK in CHAIN
+    // identifies the block payload
+    //  - a server may already have it
     -- CLIENT => SERVER
-    TX_HASH          32     // hash[TIMESTAMP..TX_BACK_HASH..TX_PAYLOAD]
-    TX_PAYLOAD_BYTES 4 u32
+    BLOCK_HASH      32      // hash of the proposed block
+    BLOCK_TXS_N     4 u32   // number of txs in the block
     -- CLIENT <= SERVER
     -               1       // MESSAGE10_HAVE_YES|MESSAGE10_HAVE_NO
-    -- CLIENT => SERVER
-    TIMESTAMP       8 s64   // nonce for TX_HASH
-    TX_BACK_HASH    32      // recent back hash
-    TX_PAYLOAD      <TX_PAYLOAD_BYTES>
-    POS             1       // proof of storage
-    TODO-SIGNATURE
+    LOOP for each TX in BLOCK
+        -- CLIENT => SERVER
+        TX_HASH          32     // hash[TIMESTAMP..TX_BACK_HASH..TX_PAYLOAD]
+        TX_PAYLOAD_BYTES 4 u32
+        -- CLIENT <= SERVER
+        -               1       // MESSAGE10_HAVE_YES|MESSAGE10_HAVE_NO
+        -- CLIENT => SERVER
+        TIMESTAMP       8 s64   // nonce for TX_HASH
+        TX_BACK_HASH    32      // recent back hash
+        TX_PAYLOAD      <TX_PAYLOAD_BYTES>
+        POS             1       // proof of storage
+        TODO-SIGNATURE
+    LOOP END
 LOOP END
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
