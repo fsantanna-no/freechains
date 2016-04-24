@@ -4,17 +4,12 @@
 #include "sodium.ceu"
 
 class Message10_parse_tx with
-    var byte[HASH_BYTES]& tx_back_hash;
-    function (byte[HASH_BYTES]& tx_back_hash)=>Message10_parse_tx build;
 do
-    function (byte[HASH_BYTES]& tx_back_hash)=>Message10_parse_tx build do
-        this.tx_back_hash = &tx_back_hash;
-    end
-
     // APP.txs[tx_hash] = { hash=nil, timestamp=nil, bytes=nil, payload=nil }
 
     // hash[TIMESTAMP..TX_BACK_HASH..TX_PAYLOAD]
-    var char[] tx_payload = [[ TX.payload ]];
+    var char[] tx_back_hash = [[ TX.back_hash ]];
+    var char[] tx_payload   = [[ TX.payload   ]];
     var byte[] plain = [0,0,0,0]..tx_back_hash..tx_payload;
                         // TODO: switch to timestamp
 
@@ -216,6 +211,34 @@ do
         end
 
         // OK: complete TX
+        _printf("[client] <= complete...\n");
+        do
+            var byte[] bytes;
+
+            // <= TIMESTAMP: TODO(s64)
+            var u32 timestamp = [[ TX.timestamp ]];
+            PUT_NETWORK_U32(bytes, $bytes, timestamp);
+            _printf("[client] <= TIMESTAMP = %X\n", timestamp);
+
+            // <= TX_BACK_HASH
+            var char[HASH_BYTES] tx_back_hash = [[ TX.back_hash ]];
+            bytes = []..bytes..tx_back_hash;
+            [[
+                print('[client] <= TX_BACK_HASH')
+                print(hex_dump(TX.back_hash))
+            ]]
+
+            // <= TX_PAYLOAD
+            var char[] tx_payload = [[ TX.payload ]];
+            bytes = []..bytes..tx_payload;
+
+            // <= PoS: TODO
+            var u8 pos = 0xEE;
+            bytes = []..bytes..[pos];
+            _printf("TODO: POS generate!\n");
+
+            do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
+        end
     end
 _printf("===> DONE\n");
 _assert(0);
@@ -394,13 +417,20 @@ do
             [[
                 local msg = APP.messages[@i+1]
                 assert(type(msg)=='table')
+
                 if msg.id == '1.0' then
                     assert(type(msg.chain)=='table')
                     assert(APP.chains[ APP.chain_parse(msg.chain).id ])
+
+                    HEAD_HASH = APP.chains[msg.chain.id].head
+                    assert(type(HEAD_HASH) == 'string')
+
+                    local txs_back = APP.blocks[HEAD_HASH].txs
                     TX = {
-                        bytes   = string.len(msg.payload),
-                        payload = msg.payload,
-                        hash    = nil,
+                        bytes     = string.len(msg.payload),
+                        payload   = msg.payload,
+                        hash      = nil,
+                        back_hash = txs_back[#txs_back],
                     }
                     BLOCK = {
                         id        = msg.id,
@@ -410,8 +440,6 @@ do
                         up_hash   = nil,
                         tail_hash = nil,
                     }
-                    HEAD_HASH = APP.chains[BLOCK.chain.id].head
-                    assert(type(HEAD_HASH) == 'string')
                 else
                     error 'message not supported'
                 end
@@ -419,10 +447,7 @@ do
 
             var bool is_10 = [[ BLOCK~=nil ]];
             if is_10 then
-                // hash of last tx in current head block
-                [[ txs = APP.blocks[HEAD_HASH].txs ]];
-                var char[HASH_BYTES] tx_back_hash = [[ txs[#txs] ]];
-                do Message10_parse_tx.build(&tx_back_hash);
+                do Message10_parse_tx;
                 do Message10_parse_block;
             else
                 _assert(0);  // message not supported

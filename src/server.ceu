@@ -117,10 +117,15 @@ do
         do UV_Stream_ReadUntil.run(&reader, off+sizeof(u32));
         var u32 payload_bytes = GET_HOST_U32(bytes, off);
         off = off + sizeof(u32);
+        [[ payload_bytes = @payload_bytes ]];
 
         // TODO: check payload_bytes vs chain.limits
 
-        [[ tx_hash = @hash ]];
+        [[
+            tx_hash = @hash
+            print('[server] => TX_HASH')
+            print(hex_dump(tx_hash))
+        ]];
         var bool have = [[ APP.txs[tx_hash] ~= nil ]];
 
         // <= ACK-tx
@@ -140,23 +145,111 @@ do
             escape _ERR_NONE;
         end
     end
+    // HAVE_NO: complete TX
+
+    [[
+        TX = {
+            hash  = tx_hash,
+            bytes = payload_bytes,
+        }
+    ]];
+
+    // => TX_COMPLETE
+    do
+        // => TIMESTAMP
+        var u32 timestamp = 0;
+        do
+            do UV_Stream_ReadUntil.run(&this.reader, off + sizeof(u32));
+            timestamp = GET_HOST_U32(bytes,off);
+            _printf("[server] => TIMESTAMP = %X\n", timestamp);
+            [[ TX.timestamp = @timestamp ]];
+            off = off + sizeof(u32);
+        end
+
+        // => TX_BACK_HASH
+        // TODO: check
+        var byte[HASH_BYTES] tx_back_hash;
+        do
+            do UV_Stream_ReadUntil.run(&this.reader, off + HASH_BYTES);
+            _ceu_vector_copy_buffer(&&tx_back_hash, 0,
+                                    (_byte&&)&&bytes[off], HASH_BYTES,
+                                    1);
+            off = off + HASH_BYTES;
+            _assert($tx_back_hash == HASH_BYTES);
+            [[
+                TX.back_hash = @tx_back_hash
+                print('[server] => TX_BACK_HASH')
+                print(hex_dump(TX.back_hash))
+            ]];
+
+            // [check] BACK_HASH is young enough? [ok ACK]
+            do
+#if 1
+                _printf("TODO: BLOCK_HASH young enough?\n");
+#else
+                var int n = [[ APP.server.chains.BACK_HASH_JUMP_LIMIT ]];
+                [[ HEAD = APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] ]];
+                loop i in n do
+                    var bool is_eq = [[ HEAD == MSG.back_hash ]];
+                    if is_eq then
+                        xxx
+                    end
+                   [[ HEAD = APP ]]
+                end
+#endif
+            end
+        end
+
+        // => TX_PAYLOAD
+        var byte[] tx_payload;
+        do
+            var u32 len = [[ TX.bytes ]];
+            do UV_Stream_ReadUntil.run(&this.reader, off + len);
+            _ceu_vector_copy_buffer(&&tx_payload, 0,
+                                    &&(((_byte&&)&&bytes)[off]), len,
+                                    1);
+            [[
+                TX.payload = @tx_payload
+                print('[server] => PAYLOAD')
+                print(hex_dump(TX.payload))
+            ]];
+            off = off + len;
+        end
+
+        // => POS: TODO
+        do
+            do UV_Stream_ReadUntil.run(&this.reader, off + 1);
+            var int pos = bytes[off];
+            _printf("[server] POS = %X\n", pos);
+            [[ TX.pos = @pos ]];
+            _printf("TODO: POS matches?\n");
+            off = off + 1;
+        end
+
+        // [check] TX_HASH is correct? [no ACK]
+        do
+            var byte[] plain;
+            PUT_NETWORK_U32(plain, 0, timestamp);
+            plain = []..plain..tx_back_hash..tx_payload;
+
+            var byte[HASH_BYTES] hash;
+            _crypto_generichash((_byte&&)&&hash, HASH_BYTES,
+                                (_byte&&)&&plain, $plain,
+                                null, 0);
+
+            var char[HASH_BYTES] block_hash = [[ MSG.block_hash ]];
+            var int ret = _memcmp((_char&&)&&block_hash, (_byte&&)&&hash, HASH_BYTES);
+            _printf("[server] POW? %d\n", ret==0);
+            if ret != 0 then
+                escape _ERR_REMOTE_BUG_OR_MALICIOUS;
+            end
+        end
+
+        [[ APP.txs[TX.hash] = TX ]];
+    end
 
 _assert(0);
 #if 0
-        // HAVE_NO: complete TX
-
-
-            [[ APP.txs[TX.hash] = TX ]];    // no problem if already has
-        ;
-
-        [[
-            BLOCK.hash = @hash;
-            print('[server] => BLOCK_HASH', string.len(BLOCK.hash))
-            print(hex_dump(BLOCK.hash))
-            print('[server] => BLOCK_TXS_N', @txs_n)
-            BLOCK.txs_n = @txs_n
-        ]];
-
     var int n_bytes = 0;
     var u32 limit = [[ APP.server.message10_payload_len_limit ]];
     loop i do
@@ -369,107 +462,6 @@ do
         this.reader = &reader;
         this.bytes  = &bytes;
         this.off    = &off;
-    end
-
-    // => PoW
-    var u32 pow = 0;
-    do
-        do UV_Stream_ReadUntil.run(&this.reader, off + sizeof(u32));
-        pow = GET_HOST_U32(bytes,off);
-        _printf("[server] POW = %X\n", pow);
-        [[ MSG.pow = @pow ]];
-        off = off + sizeof(u32);
-    end
-
-    // => BACK_HASH
-    // TODO: check
-    var byte[HASH_BYTES] back_hash;
-    do
-        do UV_Stream_ReadUntil.run(&this.reader, off + HASH_BYTES);
-        _ceu_vector_copy_buffer(&&back_hash, 0,
-                                (_byte&&)&&bytes[off], HASH_BYTES,
-                                1);
-        [[
-            MSG.back_hash = @back_hash
-            print('[server] BACK_HASH = {')
-            print(hex_dump(MSG.back_hash))
-            print('}')
-        ]];
-
-        // [check] BACK_HASH is young enough? [ok ACK]
-        do
-#if 1
-            _printf("TODO: BLOCK_HASH young enough?\n");
-#else
-            var int n = [[ APP.server.chains.BACK_HASH_JUMP_LIMIT ]];
-            [[ HEAD = APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] ]];
-            loop i in n do
-                var bool is_eq = [[ HEAD == MSG.back_hash ]];
-                if is_eq then
-                    xxx
-                end
-               [[ HEAD = APP ]]
-            end
-#endif
-        end
-        off = off + HASH_BYTES;
-    end
-    _assert($back_hash == HASH_BYTES);
-
-    // => TAIL_HASH
-    // already received from remote responding HAVE_YES
-    // => PAYLOAD_LEN
-    // already received from remote responding HAVE_NO
-
-    // => PAYLOAD
-    var byte[] payload;
-    do
-        var u32 payload_len = [[ MSG.payload_len ]];
-        do UV_Stream_ReadUntil.run(&this.reader, off + payload_len);
-
-        _ceu_vector_copy_buffer(&&payload, 0,
-                                &&(((_byte&&)&&bytes)[off]), payload_len,
-                                1);
-        [[
-            MSG.payload = @payload
-            print('[server] PAYLOAD {')
-            print(hex_dump(MSG.payload))
-            print('}')
-        ]];
-        off = off + payload_len;
-    end
-
-    // [check] BLOCK_HASH is correct? [no ACK]
-    do
-        var byte[] plain;
-        PUT_NETWORK_U32(plain, 0, pow);
-        plain = []..plain..back_hash..payload;
-
-        var byte[HASH_BYTES] hash;
-        _crypto_generichash((_byte&&)&&hash, HASH_BYTES,
-                            (_byte&&)&&plain, $plain,
-                            null, 0);
-//[[print('{\n'..hex_dump(@plain)..'}')]];
-
-        var char[HASH_BYTES] block_hash = [[ MSG.block_hash ]];
-        var int ret = _memcmp((_char&&)&&block_hash, (_byte&&)&&hash, HASH_BYTES);
-        _printf("[server] POW? %d\n", ret==0);
-        if ret != 0 then
-            escape _ERR_REMOTE_BUG_OR_MALICIOUS;
-        end
-    end
-
-    // => PoS
-    // TODO: check
-    do
-        do UV_Stream_ReadUntil.run(&this.reader, off + 1);
-        var int pos = bytes[off];
-        _printf("[server] POS = %X\n", pos);
-        [[ MSG.pos = @pos ]];
-#if 1
-        _printf("TODO: POS matches?\n");
-#endif
-        off = off + 1;
     end
 
     escape _ERR_NONE;

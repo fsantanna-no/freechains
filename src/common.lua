@@ -36,6 +36,7 @@ end
 
 local function chain_create (chain)
     local tx_hash = chain.id          -- TODO: should be hash(chain.id)
+    tx_hash = chain.id..string.rep('\0',32-string.len(chain.id))
     APP.txs[tx_hash] = {
         hash      = tx_hash,
         timestamp = 0,
