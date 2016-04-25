@@ -28,7 +28,7 @@ do
     // calculate nonce for the leading zeros
     var byte[HASH_BYTES] tx_hash;
     var u32 nonce = 0;
-    var u8 zeros_wanted = [[ G(client).block.chain.zeros ]];
+    var u8 zeros_wanted = [[ G(client).chain.zeros ]];
     async/thread (plain,tx_hash,nonce,zeros_wanted) do
         var int zeros_found = 0;
         $tx_hash := HASH_BYTES;
@@ -92,7 +92,7 @@ do
         print(tostring2(block.hash))
 
         -- i'm the head now: relink, set new head
-        local chain = APP.chains[block.chain.id]
+        local chain = G(client).chain
         local old   = APP.blocks[chain.head_hash]
         old.up_hash     = block.hash    -- prv->up=me
         block.tail_hash = old.hash      -- me->tail=prv
@@ -199,9 +199,9 @@ do
         // <= CHAIN_KEY
         // <= CHAIN_ZEROS
         do
-            var char[] chain_key   = [[ G(tcp).block.chain.key ]];
-            var int    chain_zeros = [[ G(tcp).block.chain.zeros ]];
-            var u32    chain_len   = [[ string.len(G(tcp).block.chain.key) ]];
+            var char[] chain_key   = [[ G(tcp).chain.key ]];
+            var int    chain_zeros = [[ G(tcp).chain.zeros ]];
+            var u32    chain_len   = [[ string.len(G(tcp).chain.key) ]];
             _assert(chain_len<CHAIN_KEY_BYTES);
             bytes = []..bytes..[chain_zeros,(u8)chain_len]..chain_key;
         end
@@ -308,7 +308,8 @@ do
 
     [[
         G(c.tcp) = {
-            block = BLOCK
+            chain = CHAIN,
+            block = BLOCK,
         }
     ]];
 
@@ -352,6 +353,7 @@ class Client with
 do
     [[
         G(this) = {
+            chain = CHAIN,
             block = BLOCK,
             tx    = TX,
         }
@@ -371,9 +373,10 @@ do
 
                 if msg.id == '1.0' then
                     assert(type(msg.chain)=='table')
-                    assert(APP.chains[ APP.chains.parse(msg.chain).id ])
 
-                    local head_hash = APP.chains[msg.chain.id].head_hash
+                    G(this).chain = APP.chains.parse(msg.chain)
+
+                    local head_hash = G(this).chain.head_hash
                     local txs_back  = APP.blocks[head_hash].txs
 
                     G(this).tx = {
@@ -384,7 +387,6 @@ do
                     }
                     G(this).block = {
                         id        = msg.id,
-                        chain     = msg.chain,
                         txs       = { },
                         hash      = nil,
                         up_hash   = nil,
@@ -416,8 +418,8 @@ do
             G(this).peer = APP.client.peers[@(i+1)]
             ok = false
             for _, chain in pairs(G(this).peer.chains) do
-                if chain.key==G(this).block.chain.key and
-                   chain.zeros<=G(this).block.chain.zeros then
+                if chain.key==G(this).chain.key and
+                   chain.zeros<=G(this).chain.zeros then
                     ok = true
                     break
                 end
@@ -427,6 +429,7 @@ do
         if ok_ then
             ps_ok = ps_ok + 1;
             [[
+                CHAIN = G(this).chain
                 BLOCK = G(this).block
                 TX    = G(this).tx
             ]];
@@ -440,6 +443,10 @@ do
         _printf("[client] peer %d\n", err);
     end
     _printf("[client] Broadcasts OK!\n");
+
+    if not is_parsed then
+        [[ print(APP.chains.tostring(G(this).chain)) ]];
+    end
 
     escape _ERR_NONE;   // trasmitted messages
 end

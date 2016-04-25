@@ -323,7 +323,6 @@ do
         [[
             G(tcp).block = {
                 id        = '1.0',
-                chain     = G(tcp).chain,
                 txs       = { },
                 hash      = nil,
                 up_hash   = nil,
@@ -454,11 +453,17 @@ do
     // RETRANSMIT NEW HEAD
     ///////////////////////////////////////////////////////////////////////////////
 
-    [[ APP.chains[G(tcp).chain.id].head_hash = block_head.hash ]];
+    [[
+        APP.chains[G(tcp).chain.id].head_hash = block_head.hash
+        print(APP.chains.tostring(G(tcp).chain))
+    ]];
     do
         var bool has = [[ block_head~=nil ]];
         if has then
-            [[ BLOCK = block_head ]];
+            [[
+                CHAIN = G(tcp).chain
+                BLOCK = block_head
+            ]];
             var int err = do Client;
             escape err;
         end

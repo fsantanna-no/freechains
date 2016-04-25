@@ -78,20 +78,47 @@ native do
 end
 #define G(v) APP.gs[@(&&(v))]
 
-class Message with
-output/input:
-    var byte[] bytes;
-    var byte[] offs;
-do
-    await FOREVER;
-end
-
 #include "uv.ceu"
 #include "client.ceu"
 #define UV_TCP_SERVER_HANDLER_CEU server.ceu
 #include "uv-server.ceu"
 
-/*
+input (int, _char&& &&) OS_START;
+
+var int        argc;
+var _char&& && argv;
+(argc, argv) = await OS_START;
+if argc < 2 then
+    _fprintf(_stderr, "Usage: %s (<src.lua>)+\n", argv[0]);
+    _assert(0);
+end
+
+// load *.lua files
+[[ dofile'src/common.lua' ]];
+loop i in argc-1 do
+    var char&& cfg = argv[i+1];
+    [[
+        dofile(@cfg)
+    ]];
+end
+
+par/or do
+    var int err = do Client;
+    if err != _ERR_NONE then
+        await FOREVER;
+    end
+with
+    var char[] ip      = [[ APP.server.host[1] ]];
+    var int    port    = [[ APP.server.host[2] ]];
+    var int    backlog = [[ APP.server.backlog ]];
+    _printf("[server] Listening in %s:%d.\n", (_char&&)&&ip, port);
+    do UV_TCP_Server.build(&ip, port, backlog);
+end
+
+//_assert(0);
+escape 0;
+
+#if 0
 = Message10_00_chain
 - MESSAGE_*:    obligatory
 - CHAIN_*:      avoids sequence of unsubscribed hashes
@@ -211,39 +238,4 @@ LOOP END
     - force nodes willing to publish to keep all data
         - in BTC, miners need to check funds looking all the way back
 ///////////////////////////////////////////////////////////////////////////////
-*/
-
-input (int, _char&& &&) OS_START;
-
-var int        argc;
-var _char&& && argv;
-(argc, argv) = await OS_START;
-if argc < 2 then
-    _fprintf(_stderr, "Usage: %s (<src.lua>)+\n", argv[0]);
-    _assert(0);
-end
-
-// load *.lua files
-[[ dofile'src/common.lua' ]];
-loop i in argc-1 do
-    var char&& cfg = argv[i+1];
-    [[
-        dofile(@cfg)
-    ]];
-end
-
-par/or do
-    var int err = do Client;
-    if err != _ERR_NONE then
-        await FOREVER;
-    end
-with
-    var char[] ip      = [[ APP.server.host[1] ]];
-    var int    port    = [[ APP.server.host[2] ]];
-    var int    backlog = [[ APP.server.backlog ]];
-    _printf("[server] Listening in %s:%d.\n", (_char&&)&&ip, port);
-    do UV_TCP_Server.build(&ip, port, backlog);
-end
-
-//_assert(0);
-escape 0;
+#endif

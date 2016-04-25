@@ -1,5 +1,4 @@
 APP = {
-    genesis  = __genesis,
     server   = {},  -- server configurations
     client   = {},  -- client configurations
     chains   = {},  -- chains configurations
@@ -54,8 +53,8 @@ function CLIENT (t)
         assert(type(peer) == 'table')
         assert(type(peer.chains) == 'table')
         for _,chain in ipairs(peer.chains) do
-            APP.chains.parse(chain)
-            assert(APP.chains[chain.id])
+            local c = APP.chains.parse(chain)
+            assert(c)   -- must already exist
         end
     end
 end
@@ -78,7 +77,7 @@ function APP.chains.parse (chain)
         assert(chain.zeros < 256)
     end
     chain.id = '|'..chain.key..'|'..chain.zeros..'|'
-    return chain
+    return APP.chains[chain.id]
 end
 
 function APP.chains.base_head_len (base)
@@ -93,6 +92,25 @@ function APP.chains.base_head_len (base)
         head = head,
         len  = len
     }
+end
+
+function APP.chains.tostring (chain)
+    local head = APP.blocks[chain.head_hash]
+    local T = {}
+    while head do
+        local str = tostring2(head.hash)
+              str = string.sub(str,11,11+10)
+        local t = {
+            hash = str,
+            txs  = {},
+        }
+        T[#T+1] = t
+        for i, tx in ipairs(head.txs) do
+            t.txs[i] = string.sub(APP.txs[tx].payload,1,10)
+        end
+        head = APP.blocks[head.tail_hash]
+    end
+    return tostring2(T)
 end
 
 -------------------------------------------------------------------------------
