@@ -1,5 +1,6 @@
 #if 0
 = TODO:
+    - chain.head => chain.head_hash
     - testar contcat de fato com big/small old/new
     - join, verificar maior chain
     - symmetric/asymmetric channels
@@ -20,8 +21,10 @@
 
 = IDEAS:
     - esquema de nomes bc/path/, pega mais recente, bc/path/^..., git
+    - /bc/dir/#hash/@search/%date/!sort
+    - /\*/dir/#hash/@search/%date/!sort
     - aquivos plain, + arquivos meta em lua/binario
-
+    - configurable POW (sha, cuckoo, etc, none, shared, pvt)
 #endif
 
 #include "c.ceu"

@@ -227,6 +227,8 @@ do
     ///////////////////////////////////////////////////////////////////////////
 
     loop i do
+        _printf("[client] <= BLOCKS[%d]\n", i);
+
         // <= BLOCK_HASH
         // <= BLOCK_TXS_N
         do
@@ -239,8 +241,6 @@ do
             // <= BLOCK_TXS_N
             var u32 txs_n = [[ #BLOCK.txs ]];
             PUT_NETWORK_U32(bytes, $bytes, txs_n);
-
-            _printf("[client] <= BLOCKS[%d]\n", i);
 
             do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
         end
@@ -264,15 +264,15 @@ do
         ///////////////////////////////////////////////////////////////////////
         var u32 txs_n = [[ #BLOCK.txs ]];
         _printf("[client] <= %d txs\n", txs_n);
-        loop i in txs_n do
-            var int err = do Message10_tx_send.run(&tcp,i);
+        loop j in txs_n do
+            var int err = do Message10_tx_send.run(&tcp,j);
             if err != _ERR_NONE then
                 escape err;
             end
         end
 
-        // next block or exit
-        [[ BLOCK = APP.blocks[BLOCK.tail_hash] ]];
+        // next block
+        [[ BLOCK = assert(APP.blocks[BLOCK.tail_hash]) ]];
         var bool has = [[ BLOCK ~= nil ]];
         if not has then
             break;

@@ -40,13 +40,13 @@ do
         off = off + 1;
 
         [[
-            chain = APP.chain_parse( {
+            CHAIN = APP.chain_parse( {
                 key   = @chain_key,
                 zeros = @chain_zeros,
             } )
         ]];
 
-        var bool is_sub = [[ chain~=nil ]];
+        var bool is_sub = [[ CHAIN~=nil ]];
         if not is_sub then
             escape _MESSAGE10_NOTSUB;    // OK ACK
         end
@@ -309,11 +309,12 @@ do
         BLOCK_BASE = nil
     ]];
 
-    loop do
+    loop i do
+        _printf("[server] => BLOCK[%d]\n", i);
         [[
             BLOCK = {
                 id        = '1.0',
-                chain     = nil,
+                chain     = CHAIN,
                 txs       = { },
                 hash      = nil,
                 up_hash   = nil,
@@ -324,6 +325,17 @@ do
         // <= ACK-block
         do
             var int err = do Message10_block_recv.run(&tcp);
+            do
+                _printf("[server] <= ACK-block = %d\n", err);
+                var byte[1] send = [err];
+                do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
+            end
+
+            if err == _MESSAGE10_HAVE then
+                break;     // found common block
+            end
+
+            // received at least one new block
             [[
                 BLOCK_HEAD = BLOCK_HEAD or BLOCK
 
@@ -333,14 +345,6 @@ do
                 end
                 BLOCK_BASE = BLOCK
             ]];
-            do
-                _printf("[server] <= ACK-block = %d\n", err);
-                var byte[1] send = [err];
-                do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
-            end
-            if err == _MESSAGE10_HAVE then
-                break;     // found common block
-            end
         end
 
         ///////////////////////////////////////////////////////////////////////////
@@ -350,21 +354,30 @@ do
         do
             var int txs_n = [[ BLOCK.txs_n ]];
             _printf("[server] => %d txs\n", txs_n);
-            loop i in txs_n do
+            loop j in txs_n do
+                _printf("[server] => txs[%d]\n", j);
                 var int err = do Message10_tx_recv.run(&tcp);
                 if err != _ERR_NONE then
                     escape err;
                 end
+                [[ APP.txs[TX.hash] = TX ]];
             end
         end
+
+        [[ APP.blocks[BLOCK.hash] = BLOCK ]];
     end
+
+    [[
+        if BLOCK_HEAD then
+            BLOCK_BASE.tail_hash = assert(APP.chains[CHAIN.id].head)
+        end
+    ]];
 
 #if 0
     ///////////////////////////////////////////////////////////////////////////////
     // HEAD vs BLOCK
     ///////////////////////////////////////////////////////////////////////////////
 
-        [[ APP.txs[TX.hash] = TX ]];
 
     ///////////////////////////////////////////////////////////////////////////////
     // HASHES
@@ -471,19 +484,20 @@ do
             APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] = put.block_hash
         end
     ]];
+#endif
 
     ///////////////////////////////////////////////////////////////////////////////
     // RETRANSMIT NEW HEAD
     ///////////////////////////////////////////////////////////////////////////////
 
     do
-        var bool has = [[ MSG~=nil ]];
+        var bool has = [[ BLOCK_HEAD~=nil ]];
         if has then
+            [[ BLOCK = BLOCK_HEAD ]];
             var int err = do Client;
             escape err;
         end
     end
-#endif
 
     escape _ERR_NONE;
 end
