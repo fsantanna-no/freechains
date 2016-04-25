@@ -424,8 +424,8 @@ do
         // compare and concatenate the two chains
         [[
             -- { base=?, head=?, len=? }
-            local local_ = APP.chain_base_head_len(APP.blocks[COMMON.up_hash])
-            local remote = APP.chain_base_head_len(G(tcp).remote_base)
+            local local_ = APP.chains.base_head_len(APP.blocks[COMMON.up_hash])
+            local remote = APP.chains.base_head_len(G(tcp).remote_base)
             assert(remote.len>0 and local_.len>0)
             print('[server] LOC='..local_.len..' vs REM='..remote.len)
 

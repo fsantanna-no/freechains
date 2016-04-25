@@ -81,7 +81,7 @@ function APP.chains.parse (chain)
     return chain
 end
 
-function APP.chain_base_head_len (base)
+function APP.chains.base_head_len (base)
     local head = base
     local len = 1
     while head.up_hash do
