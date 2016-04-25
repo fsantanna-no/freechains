@@ -421,10 +421,10 @@ do
             -- src is the shortest
             -- TODO-LEN:
             local src, dst
-            if remote.len > common.len then
-                dst, src = remote, common
+            if remote.len > local_.len then
+                dst, src = remote, local_
             else
-                dst, src = common, remote
+                dst, src = local_, remote
             end
 
             -- concat (dst .. src)
