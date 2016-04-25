@@ -3,12 +3,14 @@
 
 class Message10_header_recv with
 input:
+    var _uv_tcp_t&      tcp;
     var byte[]&         bytes;
     var UV_Stream_Read& reader;
 
-    function (byte[]& bytes, UV_Stream_Read& reader)=>Message10_header_recv run;
+    function (_uv_tcp_t& tcp, byte[]& bytes, UV_Stream_Read& reader)=>Message10_header_recv run;
 do
-    function (byte[]& bytes, UV_Stream_Read& reader)=>Message10_header_recv run do
+    function (_uv_tcp_t& tcp, byte[]& bytes, UV_Stream_Read& reader)=>Message10_header_recv run do
+        this.tcp    = &tcp;
         this.bytes  = &bytes;
         this.reader = &reader;
     end
@@ -40,13 +42,13 @@ do
         off = off + 1;
 
         [[
-            CHAIN = APP.chain_parse( {
+            G(tcp).chain = APP.chain_parse( {
                 key   = @chain_key,
                 zeros = @chain_zeros,
             } )
         ]];
 
-        var bool is_sub = [[ CHAIN~=nil ]];
+        var bool is_sub = [[ G(tcp).chain~=nil ]];
         if not is_sub then
             escape _MESSAGE10_NOTSUB;    // OK ACK
         end
@@ -89,15 +91,15 @@ do
         off = off + sizeof(u32);
 
         [[
-            BLOCK.hash = @hash;
-            print('[server] => BLOCK_HASH', string.len(BLOCK.hash))
-            print(hex_dump(BLOCK.hash))
+            G(tcp).block.hash = @hash;
+            print('[server] => BLOCK_HASH', string.len(G(tcp).block.hash))
+            print(hex_dump(G(tcp).block.hash))
             print('[server] => BLOCK_TXS_N', @txs_n)
-            BLOCK.txs_n = @txs_n
+            G(tcp).block.txs_n = @txs_n
         ]];
     end
 
-    var bool have = [[ APP.blocks[BLOCK.hash] ~= nil ]];
+    var bool have = [[ APP.blocks[G(tcp).block.hash] ~= nil ]];
     if have then
         escape _MESSAGE10_HAVE;    // OK ACK
     else
@@ -143,7 +145,7 @@ do
             tx_hash = @hash
             print('[server] => TX_HASH', payload_bytes)
             print(hex_dump(tx_hash))
-            BLOCK.txs[#BLOCK.txs+1] = tx_hash
+            G(tcp).block.txs[#G(tcp).block.txs+1] = tx_hash
         ]];
         var bool have = [[ APP.txs[tx_hash] ~= nil ]];
 
@@ -282,6 +284,13 @@ do
         this.reader = &reader;
     end
 
+    [[
+        G(tcp) = {
+            block = nil,
+            chain = nil,
+        }
+    ]];
+
     ///////////////////////////////////////////////////////////////////////////////
     // HEADER
     ///////////////////////////////////////////////////////////////////////////////
@@ -289,7 +298,7 @@ do
     // <= ACK-header
     // bytes/reader received from message partially parsed
     do
-        var int err = do Message10_header_recv.run(&bytes,&reader);
+        var int err = do Message10_header_recv.run(&tcp,&bytes,&reader);
         do
             _printf("[server] <= ACK-header = %d\n", err);
             var byte[1] send = [err];
@@ -305,16 +314,16 @@ do
     ///////////////////////////////////////////////////////////////////////////////
 
     [[
-        REMOTE_HEAD = nil
-        REMOTE_BASE = nil
+        G(tcp).remote_head = nil
+        G(tcp).remote_base = nil
     ]];
 
     loop i do
         _printf("[server] => BLOCK[%d]\n", i);
         [[
-            BLOCK = {
+            G(tcp).block = {
                 id        = '1.0',
-                chain     = CHAIN,
+                chain     = G(tcp).chain,
                 txs       = { },
                 hash      = nil,
                 up_hash   = nil,
@@ -335,8 +344,8 @@ do
             if err == _MESSAGE10_HAVE then
                 // link REMOTE tail to LOCAL chain in the COMMON point
                 [[
-                    if REMOTE_HEAD then
-                        REMOTE_BASE.tail_hash = BLOCK.hash
+                    if G(tcp).remote_head then
+                        G(tcp).remote_base.tail_hash = G(tcp).block.hash
                     end
                 ]];
 
@@ -349,13 +358,13 @@ do
 
             // received at least one new block
             [[
-                REMOTE_HEAD = REMOTE_HEAD or BLOCK
+                G(tcp).remote_head = G(tcp).remote_head or G(tcp).block
 
-                if REMOTE_BASE then
-                    REMOTE_BASE.tail_hash = BLOCK.hash
-                    BLOCK.up_hash        = REMOTE_BASE.hash
+                if G(tcp).remote_base then
+                    G(tcp).remote_base.tail_hash = G(tcp).block.hash
+                    G(tcp).block.up_hash  = G(tcp).remote_base.hash
                 end
-                REMOTE_BASE = BLOCK
+                G(tcp).remote_base = G(tcp).block
             ]];
         end
 
@@ -364,7 +373,7 @@ do
         ///////////////////////////////////////////////////////////////////////////
 
         do
-            var int txs_n = [[ BLOCK.txs_n ]];
+            var int txs_n = [[ G(tcp).block.txs_n ]];
             _printf("[server] => %d txs\n", txs_n);
             loop j in txs_n do
                 _printf("[server] => txs[%d]\n", j);
@@ -376,13 +385,14 @@ do
             end
         end
 
-        [[ APP.blocks[BLOCK.hash] = BLOCK ]];
+        [[ APP.blocks[G(tcp).block.hash] = G(tcp).block ]];
     end
 
     // BLOCK holds the COMMON node
     [[
-        assert(REMOTE_HEAD and REMOTE_BASE)
-        assert(BLOCK.hash == REMOTE_BASE.tail_hash)
+        COMMON = G(tcp).block
+        assert(G(tcp).remote_head and G(tcp).remote_base)
+        assert(COMMON.hash == G(tcp).remote_base.tail_hash)
     ]];
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -400,20 +410,22 @@ do
      */
 
     // if COMMON node has no up_hash, then this is not a fork
-    var bool is_fork = [[ BLOCK.up_hash ~= nil ]];
+    var bool is_fork = [[ COMMON.up_hash ~= nil ]];
+
+    [[ block_head = nil ]];
 
     if not is_fork then
         // simply concatenate REMOTE blocks
         [[
-            BLOCK.up_hash = REMOTE_BASE.hash
-            BLOCK_HEAD = REMOTE_HEAD
+            COMMON.up_hash = G(tcp).remote_base.hash
+            block_head = G(tcp).remote_head
         ]];
     else
         // compare and concatenate the two chains
         [[
             -- { base=?, head=?, len=? }
-            local local_ = APP.chain_base_head_len(APP.blocks[BLOCK.up_hash])
-            local remote = APP.chain_base_head_len(REMOTE_BASE)
+            local local_ = APP.chain_base_head_len(APP.blocks[COMMON.up_hash])
+            local remote = APP.chain_base_head_len(G(tcp).remote_base)
             assert(remote.len>0 and local_.len>0)
             print('[server] LOC='..local_.len..' vs REM='..remote.len)
 
@@ -433,7 +445,7 @@ do
             COMMON.up_hash     = dst.base.hash
             assert(dst.base.tail_hash == COMMON.hash)
 
-            BLOCK_HEAD = dst.head
+            block_head = dst.head
         ]];
     end
 
@@ -441,11 +453,11 @@ do
     // RETRANSMIT NEW HEAD
     ///////////////////////////////////////////////////////////////////////////////
 
-    [[ APP.chains[CHAIN.id].head = BLOCK_HEAD.hash ]];
+    [[ APP.chains[G(tcp).chain.id].head = block_head.hash ]];
     do
-        var bool has = [[ BLOCK_HEAD~=nil ]];
+        var bool has = [[ block_head~=nil ]];
         if has then
-            [[ BLOCK = BLOCK_HEAD ]];
+            [[ BLOCK = block_head ]];
             var int err = do Client;
             escape err;
         end
