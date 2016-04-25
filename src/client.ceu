@@ -359,64 +359,6 @@ do
         }
     ]];
 
-    var bool is_parsed = [[ G(this).block~=nil ]];
-    if not is_parsed then
-        var int ms = [[ #APP.messages ]];
-        if ms == 0 then
-            escape -1;      // no messages
-        end
-
-        loop i in ms do
-            [[
-                local msg = APP.messages[@i+1]
-                assert(type(msg)=='table')
-
-                if msg.id == '1.0' then
-                    assert(type(msg.chain)=='table')
-
-                    G(this).chain = APP.chains.parse(msg.chain)
-
-                    local head_hash = G(this).chain.head_hash
-                    local txs_back  = APP.blocks[head_hash].txs
-
-                    G(this).txs = {
-                        {
-                            bytes     = string.len(msg.payload),
-                            payload   = msg.payload,
-                            hash      = nil,
-                            back_hash = txs_back[#txs_back],
-                        },
-                    }
-                    G(this).block = {
-                        id        = msg.id,
-                        txs       = { },
-                        hash      = nil,
-                        up_hash   = nil,
-                        tail_hash = nil,
-                    }
-                else
-                    error 'message not supported'
-                end
-            ]];
-
-            var bool is_10 = [[ G(this).block~=nil ]];
-            if is_10 then
-                var int txs_n = [[ #G(this).txs ]];
-                loop i in txs_n do
-                    [[ G(this).tx = G(this).txs[@i+1] ]];
-                    do Message10_parse_tx with
-                        this.client = &outer;
-                    end;
-                    do Message10_parse_block with
-                        this.client = &outer;
-                    end;
-                end
-            else
-                _assert(0);  // message not supported
-            end
-        end
-    end
-
     var int ps = [[#APP.client.peers]];
     var int ps_ok = 0;
     loop i in ps do
@@ -450,11 +392,82 @@ do
     end
     _printf("[client] Broadcasts OK!\n");
 
-    if not is_parsed then
-        [[ print(APP.chains.tostring(G(this).chain)) ]];
-    end
+    [[ print(APP.chains.tostring(G(this).chain)) ]];
 
     escape _ERR_NONE;   // trasmitted messages
+end
+
+class ClientMessages with
+do
+    [[
+        G(this) = {
+            chain = CHAIN,
+            block = BLOCK,
+            txs   = TXS,
+        }
+    ]];
+
+    var int ms = [[ #APP.messages ]];
+    if ms == 0 then
+        escape -1;      // no messages
+    end
+
+    loop i in ms do
+        [[
+            local msg = APP.messages[@i+1]
+            assert(type(msg)=='table')
+
+            if msg.id == '1.0' then
+                assert(type(msg.chain)=='table')
+
+                G(this).chain = APP.chains.parse(msg.chain)
+
+                local head_hash = G(this).chain.head_hash
+                local txs_back  = APP.blocks[head_hash].txs
+
+                G(this).txs = {
+                    {
+                        bytes     = string.len(msg.payload),
+                        payload   = msg.payload,
+                        hash      = nil,
+                        back_hash = txs_back[#txs_back],
+                    },
+                }
+                G(this).block = {
+                    id        = msg.id,
+                    txs       = { },
+                    hash      = nil,
+                    up_hash   = nil,
+                    tail_hash = nil,
+                }
+            else
+                error 'message not supported'
+            end
+        ]];
+
+        var bool is_10 = [[ G(this).block~=nil ]];
+        if is_10 then
+            var int txs_n = [[ #G(this).txs ]];
+            loop i in txs_n do
+                [[ G(this).tx = G(this).txs[@i+1] ]];
+                do Message10_parse_tx with
+                    this.client = &outer;
+                end;
+                do Message10_parse_block with
+                    this.client = &outer;
+                end;
+            end
+        else
+            _assert(0);  // message not supported
+        end
+    end
+
+    [[
+        CHAIN = G(this).chain
+        BLOCK = G(this).block
+        TXS   = G(this).txs
+    ]]
+    do Client;
 end
 
 #endif

@@ -103,7 +103,7 @@ loop i in argc-1 do
 end
 
 par/or do
-    var int err = do Client;
+    var int err = do ClientMessages;
     if err != _ERR_NONE then
         await FOREVER;
     end
