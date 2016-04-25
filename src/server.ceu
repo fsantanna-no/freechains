@@ -169,7 +169,7 @@ do
     // HAVE_NO: complete TX
 
     [[
-        TX = {
+        G(tcp).tx = {
             hash  = tx_hash,
             bytes = payload_bytes,
         }
@@ -183,7 +183,7 @@ do
             do UV_Stream_ReadUntil.run(&this.reader, off + sizeof(u32));
             timestamp = GET_HOST_U32(bytes,off);
             _printf("[server] => TIMESTAMP = %X\n", timestamp);
-            [[ TX.timestamp = @timestamp ]];
+            [[ G(tcp).tx.timestamp = @timestamp ]];
             off = off + sizeof(u32);
         end
 
@@ -198,9 +198,9 @@ do
             off = off + HASH_BYTES;
             _assert($tx_back_hash == HASH_BYTES);
             [[
-                TX.back_hash = @tx_back_hash
+                G(tcp).tx.back_hash = @tx_back_hash
                 print('[server] => TX_BACK_HASH')
-                print(tostring2(TX.back_hash))
+                print(tostring2(G(tcp).tx.back_hash))
             ]];
 
             // [check] BACK_HASH is young enough? [ok ACK]
@@ -224,15 +224,15 @@ do
         // => TX_PAYLOAD
         var byte[] tx_payload;
         do
-            var u32 len = [[ TX.bytes ]];
+            var u32 len = [[ G(tcp).tx.bytes ]];
             do UV_Stream_ReadUntil.run(&this.reader, off + len);
             _ceu_vector_copy_buffer(&&tx_payload, 0,
                                     &&(((_byte&&)&&bytes)[off]), len,
                                     1);
             [[
-                TX.payload = @tx_payload
+                G(tcp).tx.payload = @tx_payload
                 print('[server] => PAYLOAD')
-                print(tostring2(TX.payload))
+                print(tostring2(G(tcp).tx.payload))
             ]];
             off = off + len;
         end
@@ -242,7 +242,7 @@ do
             do UV_Stream_ReadUntil.run(&this.reader, off + 1);
             var int pos = bytes[off];
             _printf("[server] POS = %X\n", pos);
-            [[ TX.pos = @pos ]];
+            [[ G(tcp).tx.pos = @pos ]];
             _printf("TODO: POS matches?\n");
             off = off + 1;
         end
@@ -258,7 +258,7 @@ do
                                 (_byte&&)&&plain, $plain,
                                 null, 0);
 
-            var char[HASH_BYTES] tx_hash = [[ TX.hash ]];
+            var char[HASH_BYTES] tx_hash = [[ G(tcp).tx.hash ]];
             var int ret = _memcmp((_char&&)&&tx_hash, (_byte&&)&&hash, HASH_BYTES);
             _printf("[server] POW? %d\n", ret==0);
             if ret != 0 then
@@ -380,7 +380,7 @@ do
                 if err != _ERR_NONE then
                     escape err;
                 end
-                [[ APP.txs[TX.hash] = TX ]];
+                [[ APP.txs[G(tcp).tx.hash] = G(tcp).tx ]];
             end
         end
 

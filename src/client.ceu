@@ -355,7 +355,7 @@ do
         G(this) = {
             chain = CHAIN,
             block = BLOCK,
-            tx    = TX,
+            txs   = TXS,
         }
     ]];
 
@@ -379,11 +379,13 @@ do
                     local head_hash = G(this).chain.head_hash
                     local txs_back  = APP.blocks[head_hash].txs
 
-                    G(this).tx = {
-                        bytes     = string.len(msg.payload),
-                        payload   = msg.payload,
-                        hash      = nil,
-                        back_hash = txs_back[#txs_back],
+                    G(this).txs = {
+                        {
+                            bytes     = string.len(msg.payload),
+                            payload   = msg.payload,
+                            hash      = nil,
+                            back_hash = txs_back[#txs_back],
+                        },
                     }
                     G(this).block = {
                         id        = msg.id,
@@ -399,12 +401,16 @@ do
 
             var bool is_10 = [[ G(this).block~=nil ]];
             if is_10 then
-                do Message10_parse_tx with
-                    this.client = &outer;
-                end;
-                do Message10_parse_block with
-                    this.client = &outer;
-                end;
+                var int txs_n = [[ #G(this).txs ]];
+                loop i in txs_n do
+                    [[ G(this).tx = G(this).txs[@i+1] ]];
+                    do Message10_parse_tx with
+                        this.client = &outer;
+                    end;
+                    do Message10_parse_block with
+                        this.client = &outer;
+                    end;
+                end
             else
                 _assert(0);  // message not supported
             end
@@ -431,7 +437,7 @@ do
             [[
                 CHAIN = G(this).chain
                 BLOCK = G(this).block
-                TX    = G(this).tx
+                TXS   = G(this).txs
             ]];
             var PeerSend&&? p = spawn PeerSend.run(&this);
             _assert(p! != null);
