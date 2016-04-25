@@ -93,10 +93,10 @@ do
 
         -- i'm the head now: relink, set new head
         local chain = APP.chains[block.chain.id]
-        local old   = APP.blocks[chain.head]
+        local old   = APP.blocks[chain.head_hash]
         old.up_hash     = block.hash    -- prv->up=me
         block.tail_hash = old.hash      -- me->tail=prv
-        chain.head = block.hash
+        chain.head_hash = block.hash
     ]]
 
     escape _ERR_NONE;
@@ -373,7 +373,7 @@ do
                     assert(type(msg.chain)=='table')
                     assert(APP.chains[ APP.chains.parse(msg.chain).id ])
 
-                    local head_hash = APP.chains[msg.chain.id].head
+                    local head_hash = APP.chains[msg.chain.id].head_hash
                     local txs_back  = APP.blocks[head_hash].txs
 
                     G(this).tx = {

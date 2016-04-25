@@ -107,14 +107,14 @@ chain_create = function (chain)
         payload   = '',
     }
 
-    -- chain.head
+    -- chain.head_hash
     local block_hash = tx_hash  -- TODO: should be hash of txs merkle tree
     local block_genesis = {
         hash = block_hash,
         txs  = { tx_hash },
     }
     APP.blocks[block_hash] = block_genesis
-    chain.head = block_hash
+    chain.head_hash = block_hash
 
     return chain
 end

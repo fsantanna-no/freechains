@@ -209,13 +209,13 @@ do
                 _printf("TODO: BLOCK_HASH young enough?\n");
 #else
                 var int n = [[ APP.server.chains.BACK_HASH_JUMP_LIMIT ]];
-                [[ head = APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] ]];
+                [[ head_hash = APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] ]];
                 loop i in n do
-                    var bool is_eq = [[ head == MSG.back_hash ]];
+                    var bool is_eq = [[ head_hash == MSG.back_hash ]];
                     if is_eq then
                         xxx
                     end
-                   [[ head = APP ]]
+                   [[ head_hash = APP ]]
                 end
 #endif
             end
@@ -454,7 +454,7 @@ do
     // RETRANSMIT NEW HEAD
     ///////////////////////////////////////////////////////////////////////////////
 
-    [[ APP.chains[G(tcp).chain.id].head = block_head.hash ]];
+    [[ APP.chains[G(tcp).chain.id].head_hash = block_head.hash ]];
     do
         var bool has = [[ block_head~=nil ]];
         if has then
