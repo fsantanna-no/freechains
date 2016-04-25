@@ -21,13 +21,56 @@ APP = {
         --    payload   = nil,
         --}
     },
-
     gs = {          -- ceu->lua globals
         --[usedata-k] = {}
     }
 }
 
-function APP.chain_parse (chain)
+local chain_create
+function SERVER (t)
+    assert(type(t) == 'table')
+    for k,v in pairs(t) do
+        APP.server[k] = v
+    end
+    t = APP.server
+    assert(type(t.chains) == 'table')
+    for _,chain in ipairs(t.chains) do
+        APP.chains.parse(chain)
+        if not APP.chains[chain.id] then
+            APP.chains[chain.id] = chain_create(chain)
+        end
+    end
+end
+
+function CLIENT (t)
+    assert(type(t) == 'table')
+    for k, v in pairs(t) do
+        APP.client[k] = v
+    end
+    t = APP.client
+    assert(type(t.peers) == 'table')
+
+    for _, peer in ipairs(t.peers) do
+        assert(type(peer) == 'table')
+        assert(type(peer.chains) == 'table')
+        for _,chain in ipairs(peer.chains) do
+            APP.chains.parse(chain)
+            assert(APP.chains[chain.id])
+        end
+    end
+end
+
+function BLOCKS (t)
+    --
+end
+
+function MESSAGE (t)
+    APP.messages[#APP.messages+1] = t
+end
+
+-------------------------------------------------------------------------------
+
+function APP.chains.parse (chain)
     assert(type(chain) == 'table')
     assert(type(chain.key)   == 'string')
     assert(type(chain.zeros) == 'number')
@@ -38,7 +81,23 @@ function APP.chain_parse (chain)
     return chain
 end
 
-local function chain_create (chain)
+function APP.chain_base_head_len (base)
+    local head = base
+    local len = 1
+    while head.up_hash do
+        len = len + 1
+        head = APP.blocks[head.up_hash]
+    end
+    return {
+        base = base,
+        head = head,
+        len  = len
+    }
+end
+
+-------------------------------------------------------------------------------
+
+chain_create = function (chain)
     local tx_hash = chain.id          -- TODO: should be hash(chain.id)
     tx_hash = chain.id..string.rep('\0',32-string.len(chain.id))
     APP.txs[tx_hash] = {
@@ -60,62 +119,21 @@ local function chain_create (chain)
     return chain
 end
 
-function SERVER (t)
-    assert(type(t) == 'table')
-    for k,v in pairs(t) do
-        APP.server[k] = v
-    end
-    t = APP.server
-    assert(type(t.chains) == 'table')
-    for _,chain in ipairs(t.chains) do
-        APP.chain_parse(chain)
-        if not APP.chains[chain.id] then
-            APP.chains[chain.id] = chain_create(chain)
+local function is_binary (str)
+    assert(type(str)=='string')
+    for i=1, string.len(str) do
+        if string.byte(str,i) < string.byte(' ') or
+            string.byte(str,i) > string.byte('~') then
+            return true
         end
     end
 end
 
-function CLIENT (t)
-    assert(type(t) == 'table')
-    for k, v in pairs(t) do
-        APP.client[k] = v
-    end
-    t = APP.client
-    assert(type(t.peers) == 'table')
+-------------------------------------------------------------------------------
+-- 3rd-party code
+-------------------------------------------------------------------------------
 
-    for _, peer in ipairs(t.peers) do
-        assert(type(peer) == 'table')
-        assert(type(peer.chains) == 'table')
-        for _,chain in ipairs(peer.chains) do
-            APP.chain_parse(chain)
-            assert(APP.chains[chain.id])
-        end
-    end
-end
-
-function BLOCKS (t)
-    --
-end
-
-function MESSAGE (t)
-    APP.messages[#APP.messages+1] = t
-end
-
-function APP.chain_base_head_len (base)
-    local head = base
-    local len = 1
-    while head.up_hash do
-        len = len + 1
-        head = APP.blocks[head.up_hash]
-    end
-    return {
-        base = base,
-        head = head,
-        len  = len
-    }
-end
-
-function hex_dump(buf)
+local function string2hex(buf)
     local ret = ''
     for byte=1, #buf, 16 do
         local chunk = buf:sub(byte, byte+15)
@@ -130,24 +148,14 @@ function hex_dump(buf)
     return ret
 end
 
-local function is_binary (str)
-    assert(type(str)=='string')
-    for i=1, string.len(str) do
-        if string.byte(str,i) < string.byte(' ') or
-            string.byte(str,i) > string.byte('~') then
-            return true
-        end
-    end
-end
-
-function to_string( tbl )
+function tostring2( tbl )
     if  "nil"       == type( tbl ) then
         return tostring(nil)
     elseif  "table" == type( tbl ) then
         return table_show(tbl)
     elseif  "string" == type( tbl ) then
         if is_binary(tbl) then
-            return hex_dump(tbl)
+            return string2hex(tbl)
         else
             return tbl
         end
@@ -215,7 +223,7 @@ function table_show(t, name, indent)
       elseif type(o) == "number" or type(o) == "boolean" then
          return so
       elseif type(o) == "string" and is_binary(o) then
-         return hex_dump(o)
+         return string2hex(o)
       else
          return string.format("%q", so)
       end

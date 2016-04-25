@@ -42,7 +42,7 @@ do
         off = off + 1;
 
         [[
-            G(tcp).chain = APP.chain_parse( {
+            G(tcp).chain = APP.chains.parse( {
                 key   = @chain_key,
                 zeros = @chain_zeros,
             } )
@@ -93,7 +93,7 @@ do
         [[
             G(tcp).block.hash = @hash;
             print('[server] => BLOCK_HASH', string.len(G(tcp).block.hash))
-            print(hex_dump(G(tcp).block.hash))
+            print(tostring2(G(tcp).block.hash))
             print('[server] => BLOCK_TXS_N', @txs_n)
             G(tcp).block.txs_n = @txs_n
         ]];
@@ -144,7 +144,7 @@ do
         [[
             tx_hash = @hash
             print('[server] => TX_HASH', payload_bytes)
-            print(hex_dump(tx_hash))
+            print(tostring2(tx_hash))
             G(tcp).block.txs[#G(tcp).block.txs+1] = tx_hash
         ]];
         var bool have = [[ APP.txs[tx_hash] ~= nil ]];
@@ -200,7 +200,7 @@ do
             [[
                 TX.back_hash = @tx_back_hash
                 print('[server] => TX_BACK_HASH')
-                print(hex_dump(TX.back_hash))
+                print(tostring2(TX.back_hash))
             ]];
 
             // [check] BACK_HASH is young enough? [ok ACK]
@@ -232,7 +232,7 @@ do
             [[
                 TX.payload = @tx_payload
                 print('[server] => PAYLOAD')
-                print(hex_dump(TX.payload))
+                print(tostring2(TX.payload))
             ]];
             off = off + len;
         end
@@ -433,7 +433,8 @@ do
             -- src is the shortest
             -- TODO-LEN:
             local src, dst
-            if remote.len > local_.len then
+            if remote.len >= local_.len then
+-- TODO: >=
                 dst, src = remote, local_
             else
                 dst, src = local_, remote

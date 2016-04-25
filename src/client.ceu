@@ -55,7 +55,7 @@ do
         APP.txs[G(client).tx.hash] = G(client).tx
         G(client).block.txs[#G(client).block.txs+1] = G(client).tx.hash
         print('\n[client] <= TX_HASH', string.len(G(client).tx.hash))
-        print(hex_dump(G(client).tx.hash))
+        print(tostring2(G(client).tx.hash))
     ]];
     _printf("[client] TX_HASH = %dms\n", ms);
 
@@ -89,7 +89,7 @@ do
         APP.blocks[block.hash] = block
 
         print('[client] <= BLOCK_HASH', string.len(block.hash))
-        print(hex_dump(block.hash))
+        print(tostring2(block.hash))
 
         -- i'm the head now: relink, set new head
         local chain = APP.chains[block.chain.id]
@@ -119,7 +119,7 @@ do
             tx_hash   = G(tcp).block.txs[@this.i+1]
             G(tcp).tx = assert(APP.txs[tx_hash])
             print('[client] <= txs['..(@this.i+1)..']', G(tcp).tx.bytes)
-            print(hex_dump(G(tcp).tx.hash))
+            print(tostring2(G(tcp).tx.hash))
         ]];
         var u32    payload_bytes = [[ G(tcp).tx.bytes ]];
         var char[] bytes         = [[ G(tcp).tx.hash ]];
@@ -156,7 +156,7 @@ do
         bytes = []..bytes..tx_back_hash;
         [[
             print('[client] <= TX_BACK_HASH')
-            print(hex_dump(G(tcp).tx.back_hash))
+            print(tostring2(G(tcp).tx.back_hash))
         ]]
 
         // <= TX_PAYLOAD
@@ -371,7 +371,7 @@ do
 
                 if msg.id == '1.0' then
                     assert(type(msg.chain)=='table')
-                    assert(APP.chains[ APP.chain_parse(msg.chain).id ])
+                    assert(APP.chains[ APP.chains.parse(msg.chain).id ])
 
                     local head_hash = APP.chains[msg.chain.id].head
                     local txs_back  = APP.blocks[head_hash].txs
