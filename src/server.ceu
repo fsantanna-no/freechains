@@ -48,7 +48,7 @@ do
             } )
         ]];
 
-        var bool is_sub = [[ G(tcp).chain~=nil ]];
+        var bool is_sub = [[ G(tcp).chain ~= nil ]];
         if not is_sub then
             escape _MESSAGE10_NOTSUB;    // OK ACK
         end
@@ -286,7 +286,6 @@ do
 
     [[
         G(tcp) = {
-            block = nil,
             chain = nil,
         }
     ]];
@@ -461,12 +460,12 @@ do
         var bool has = [[ block_head~=nil ]];
         if has then
             [[
+                block_head.chain = G(tcp).chain
                 ARGS = {
-                    chain = G(tcp).chain,
                     block = block_head,
                 }
             ]];
-            var int err = do Client;
+            var int err = do Client10;
             escape err;
         end
     end

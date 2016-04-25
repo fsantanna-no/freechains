@@ -4,7 +4,6 @@
 #include "sodium.ceu"
 
 class Message10_parse_tx with
-    var void& client;
 do
     // hash[TIMESTAMP..TX_BACK_HASH..TX_PAYLOAD]
     var char[] tx_back_hash = [[ TX.back_hash ]];
@@ -25,7 +24,7 @@ do
     // calculate nonce for the leading zeros
     var byte[HASH_BYTES] tx_hash;
     var u32 nonce = 0;
-    var u8 zeros_wanted = [[ G(client).block.chain.zeros ]];
+    var u8 zeros_wanted = [[ BLOCK.chain.zeros ]];
     async/thread (plain,tx_hash,nonce,zeros_wanted) do
         var int zeros_found = 0;
         $tx_hash := HASH_BYTES;
@@ -58,7 +57,6 @@ do
 end
 
 class Message10_parse_block with
-    var void& client;
 do
     // <= BLOCK_HASH
     //  - merkle tree of all TX_HASH
@@ -68,9 +66,9 @@ do
     $block_hash := HASH_BYTES;
 
     // TODO: should be merkle tree and not hash(concat)
-    var int n = [[ #G(client).block.txs ]]; // TODO: assert BLOCK.chain.limits.block
+    var int n = [[ #BLOCK.txs ]]; // TODO: assert BLOCK.chain.limits.block
     loop i in n do
-        var char[HASH_BYTES] tx_hash = [[ G(client).block.txs[@i+1] ]];
+        var char[HASH_BYTES] tx_hash = [[ BLOCK.txs[@i+1] ]];
         plain = []..plain..tx_hash;
     end
 
@@ -79,7 +77,7 @@ do
                         null, 0);
 
     [[
-        local block = G(client).block
+        local block = BLOCK
         block.hash  = @block_hash
         APP.blocks[block.hash] = block
 
@@ -87,7 +85,7 @@ do
         print(tostring2(block.hash))
 
         -- i'm the head now: relink, set new head
-        local chain = G(client).block.chain
+        local chain = BLOCK.chain
         local old   = APP.blocks[chain.head_hash]
         old.up_hash     = block.hash    -- prv->up=me
         block.tail_hash = old.hash      -- me->tail=prv
@@ -294,8 +292,8 @@ do
         this.client = &client;
     end
 
-    var char[] ip   = [[ G(client).peer.host[1] ]];
-    var int    port = [[ G(client).peer.host[2] ]];
+    var char[] ip   = [[ PEER.host[1] ]];
+    var int    port = [[ PEER.host[2] ]];
     _printf("[client] Connecting to %s:%d.\n", (_char&&)&&ip, port);
     var UV_TCP_Client c = UV_TCP_Client.build(&ip, port);
 
@@ -345,21 +343,15 @@ end
 class Client with
     interface PeerListener;
 do
-    [[
-        G(this) = {
-            chain = ARGS.chain,
-        }
-    ]];
-
     var int ps = [[#APP.client.peers]];
     var int ps_ok = 0;
     loop i in ps do
         [[
-            G(this).peer = APP.client.peers[@(i+1)]
+            PEER = APP.client.peers[@(i+1)]
             ok = false
-            for _, chain in pairs(G(this).peer.chains) do
-                if chain.key==G(this).chain.key and
-                   chain.zeros<=G(this).chain.zeros then
+            for _, chain in pairs(PEER.chains) do
+                if chain.key==ARGS.chain.key and
+                   chain.zeros<=ARGS.chain.zeros then
                     ok = true
                     break
                 end
@@ -380,6 +372,20 @@ do
     _printf("[client] Broadcasts OK!\n");
 
     escape _ERR_NONE;   // trasmitted messages
+end
+
+class Client10 with
+do
+    [[
+        BLOCK = ARGS.block
+        ARGS.chain = ARGS.block.chain
+        G(this) = { block = BLOCK } -- to print below
+    ]];
+    do Message10_parse_block;
+    do Client;
+    [[
+        print(APP.chains.tostring(G(this).block.chain))
+    ]];
 end
 
 class ClientMessages with
@@ -438,9 +444,7 @@ do
                     back_hash = txs_back[#txs_back],
                 }
             ]];
-            do Message10_parse_tx with
-                this.client = &outer;
-            end;
+            do Message10_parse_tx;
             [[
                 BLOCK.txs[@i+1] = TX.hash
                 APP.txs[TX.hash] = TX
@@ -449,19 +453,8 @@ do
     end
 
     if is_10 then
-        do Message10_parse_block with
-            this.client = &outer;
-        end;
-
-        [[
-            ARGS = {
-                chain = BLOCK.chain,    -- peers
-                block = BLOCK,          -- send
-            }
-        ]]
-        do Client;
-        [[ print(APP.chains.tostring(G(this).block.chain)) ]];
-
+        [[ ARGS = { block=BLOCK } ]];
+        do Client10;
     else
         _assert(0);  // message not supported
     end
