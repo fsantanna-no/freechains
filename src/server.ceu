@@ -305,8 +305,8 @@ do
     ///////////////////////////////////////////////////////////////////////////////
 
     [[
-        BLOCK_HEAD = nil
-        BLOCK_BASE = nil
+        REMOTE_HEAD = nil
+        REMOTE_BASE = nil
     ]];
 
     loop i do
@@ -331,19 +331,31 @@ do
                 do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
             end
 
+            // FOUND COMMON BLOCK?
             if err == _MESSAGE10_HAVE then
-                break;     // found common block
+                // link REMOTE tail to LOCAL chain in the COMMON point
+                [[
+                    if REMOTE_HEAD then
+                        REMOTE_BASE.tail_hash = BLOCK.hash
+                    end
+                ]];
+
+                if i == 0 then
+                    escape _ERR_NONE;   // nothing new
+                else
+                    break;              // check/set new head
+                end
             end
 
             // received at least one new block
             [[
-                BLOCK_HEAD = BLOCK_HEAD or BLOCK
+                REMOTE_HEAD = REMOTE_HEAD or BLOCK
 
-                if BLOCK_BASE then
-                    BLOCK_BASE.tail_hash = BLOCK.hash
-                    BLOCK.up_hash        = BLOCK_BASE.hash
+                if REMOTE_BASE then
+                    REMOTE_BASE.tail_hash = BLOCK.hash
+                    BLOCK.up_hash        = REMOTE_BASE.hash
                 end
-                BLOCK_BASE = BLOCK
+                REMOTE_BASE = BLOCK
             ]];
         end
 
@@ -367,129 +379,69 @@ do
         [[ APP.blocks[BLOCK.hash] = BLOCK ]];
     end
 
+    // BLOCK holds the COMMON node
     [[
-        if BLOCK_HEAD then
-            BLOCK_BASE.tail_hash = assert(APP.chains[CHAIN.id].head)
-        end
+        assert(REMOTE_HEAD and REMOTE_BASE)
+        assert(BLOCK.hash == REMOTE_BASE.tail_hash)
     ]];
-
-#if 0
-    ///////////////////////////////////////////////////////////////////////////////
-    // HEAD vs BLOCK
-    ///////////////////////////////////////////////////////////////////////////////
-
-
-    ///////////////////////////////////////////////////////////////////////////////
-    // HASHES
-    ///////////////////////////////////////////////////////////////////////////////
-
-    // receive oldest hash that I don't have
-    do
-        // new bytes/reader inside
-        var int err = do Message10_01_oldest_hash.receive(&tcp);
-        _printf("[server] ACK-oldest = %d\n", err);
-        if err != _MESSAGE10_HAVE_NO then
-            _assert(err == _MESSAGE10_HAVE_YES or
-                    err == _MESSAGE10_PAYLOAD_LEN_LIMIT);
-            escape err;
-        end
-        _assert(err == _MESSAGE10_HAVE_NO);
-    end
-
-    // receive oldest=>newest blocks I don't have
-    do
-        // TODO: buffer for *all* payloads,etc
-        var byte[] bytes;
-        var u32 off = 0;
-        var UV_Stream_Read reader =
-                UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
-        loop i do
-            _printf("[server] Receiving %d...\n", i);
-            var int err = do Message10_block.receive(&reader, &bytes, &off);
-            _printf("[server] Received %d!\n", i);
-            _assert(err == _ERR_NONE);
-            var bool up = [[ MSG.up_hash~=nil ]];
-            if up then
-                [[ MSG = assert(APP.blocks[MSG.up_hash]) ]];
-            else
-                break;
-            end
-        end
-    end
 
     ///////////////////////////////////////////////////////////////////////////////
     // CHECK/SET NEW HEAD
     ///////////////////////////////////////////////////////////////////////////////
 
-    [[
-        -- COMPARE THE TWO CHAINS
-        --  - remote: possible fork from remote host
-        --  - common: local chain starting from block in common with remote
+    /*
+     * LOCAL:  gen <-> 1 <-> 2 <-> 3
+     *                       | LOCAL
+     *                       \BASE \HEAD
+     * COMMON:         1 <-> 2 <-> 3
+     * REMOTE:         | <-  4 <-> 5 <-> 6
+     *                       \BASE       \HEAD
+     * (COMMON "1" still ups to LOCAL, but REMOTE tails to "1")
+     */
 
-        local remote = APP.blocks[FORK_HASH]
-        local common = APP.blocks[remote.tail_hash]
+    // if COMMON node has no up_hash, then this is not a fork
+    var bool is_fork = [[ BLOCK.up_hash ~= nil ]];
 
-        remote = APP.chain_base_head_len(remote)
-        common = APP.chain_base_head_len(common)
-        assert(remote.len > 0)
-        print('[server] COM='..common.len..' vs NEW='..remote.len)
+    if not is_fork then
+        // simply concatenate REMOTE blocks
+        [[
+            BLOCK.up_hash = REMOTE_BASE.hash
+            BLOCK_HEAD = REMOTE_HEAD
+        ]];
+    else
+        // compare and concatenate the two chains
+        [[
+            -- { base=?, head=?, len=? }
+            local local_ = APP.chain_base_head_len(APP.blocks[BLOCK.up_hash])
+            local remote = APP.chain_base_head_len(REMOTE_BASE)
+            assert(remote.len>0 and local_.len>0)
+            print('[server] LOC='..local_.len..' vs REM='..remote.len)
 
-        local SRC, DST
-        if remote.len >= common.len then
-            -- ">=" because remote also has common_hash
-            DST, SRC = remote, common
-        else
-            DST, SRC = common, remote
-        end
-
-        -- CONCATENATE THE TWO CHAINS (DST .. SRC)
-
-        -- DST: ...->1->4->5->K->6
-        -- SRC: ...->1->2->K->3
-        -- set: ...->1->4->5->K->6->2->3
-        --  // TODO: has to check if 2,3 back blocks are still valid!
-
-        local put = DST.head
-        do
-            local src = SRC.base
-            if SRC == common then
-                src.up_hash = DST.base.block_hash -- redirect new chain
-                src = APP.blocks[src.up_hash]     -- skip common block
+            -- dst is the longest
+            -- src is the shortest
+            -- TODO-LEN:
+            local src, dst
+            if remote.len > common.len then
+                dst, src = remote, common
+            else
+                dst, src = common, remote
             end
-            while src ~= nil do
-                local to_ins_src = true
-                local dst = DST.base
-                while dst~=nil and dst.tail_hash~=DST.head.block_hash do
-                    if dst.block_hash == src.block_hash then
-                        to_ins_src = false
-                        break
-                    end
-                    dst = APP.blocks[dst.up_hash]
-                end
-                if to_ins_src then
-                    put.up_hash   = src.block_hash
-                    src.tail_hash = put.block_hash
-                    put = APP.blocks[src.block_hash]
-                end
-                src = APP.blocks[src.up_hash]
-            end
-        end
 
-        if DST==common and DST.head==put then
-            -- no changes
-            MSG = nil   -- nothing to retransmit
-        else
-            -- new chain head
-            MSG = APP.blocks[put.block_hash]
-            APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] = put.block_hash
-        end
-    ]];
-#endif
+            -- concat (dst .. src)
+            dst.head.up_hash   = src.base.hash
+            src.base.tail_hash = dst.head.hash
+            COMMON.up_hash     = dst.base.hash
+            assert(dst.base.tail_hash == COMMON.hash)
+
+            BLOCK_HEAD = dst.head
+        ]];
+    end
 
     ///////////////////////////////////////////////////////////////////////////////
     // RETRANSMIT NEW HEAD
     ///////////////////////////////////////////////////////////////////////////////
 
+    [[ APP.chains[CHAIN.id].head = BLOCK_HEAD.hash ]];
     do
         var bool has = [[ BLOCK_HEAD~=nil ]];
         if has then
