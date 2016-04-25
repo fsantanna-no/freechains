@@ -74,6 +74,11 @@ native do
     }
 end
 
+native do
+    ##define VOID_ALIAS(x) ((void*)&x)
+end
+#define G(v) APP.gs[@(&&(v))]
+
 class Message with
 output/input:
     var byte[] bytes;

@@ -21,6 +21,10 @@ APP = {
         --    payload   = nil,
         --}
     },
+
+    gs = {          -- ceu->lua globals
+        --[usedata-k] = {}
+    }
 }
 
 function APP.chain_parse (chain)
