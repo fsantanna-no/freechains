@@ -461,8 +461,10 @@ do
         var bool has = [[ block_head~=nil ]];
         if has then
             [[
-                CHAIN = G(tcp).chain
-                BLOCK = block_head
+                ARGS = {
+                    chain = G(tcp).chain,
+                    block = block_head,
+                }
             ]];
             var int err = do Client;
             escape err;
