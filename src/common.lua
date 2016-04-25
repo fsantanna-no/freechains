@@ -106,7 +106,9 @@ function APP.chains.tostring (chain)
         }
         T[#T+1] = t
         for i, tx in ipairs(head.txs) do
-            t.txs[i] = string.sub(APP.txs[tx].payload,1,10)
+            local str = string.sub(APP.txs[tx].payload,1,10)
+                  str = string.gsub(str,'%c','.')
+            t.txs[i] = string.sub(str,1,10)
         end
         head = APP.blocks[head.tail_hash]
     end
@@ -138,6 +140,8 @@ chain_create = function (chain)
 end
 
 local function is_binary (str)
+    return (string.gsub(str,'%c','') ~= str)
+--[[
     assert(type(str)=='string')
     for i=1, string.len(str) do
         if string.byte(str,i) < string.byte(' ') or
@@ -145,6 +149,7 @@ local function is_binary (str)
             return true
         end
     end
+]]
 end
 
 -------------------------------------------------------------------------------
