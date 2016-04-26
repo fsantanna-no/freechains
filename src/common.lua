@@ -260,7 +260,7 @@ function table_show(t, name, indent)
       elseif type(o) == "number" or type(o) == "boolean" then
          return so
       elseif type(o) == "string" then
-         return tostring2(o)
+         return string.format("%q", tostring2(o))
       else
          return string.format("%q", so)
       end

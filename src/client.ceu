@@ -16,7 +16,7 @@ do
     spawn do
         every 100ms do
             ms = ms + 100;
-            _printf(".");
+            //_printf(".");
             _fflush(_stdout);
         end
     end
@@ -41,17 +41,17 @@ do
             nonce = nonce + 1;
             PUT_NETWORK_U32(plain, 0, nonce);
         end
-        _printf("[client] POW rounds: %d\n", ii);
+        //_printf("[client] POW rounds: %d\n", ii);
     end
 
     [[
         -- i'm in the database
         TX.timestamp = @nonce
         TX.hash      = @tx_hash
-        print('\n[client] <= TX_HASH', string.len(TX.hash))
-        print(tostring2(TX.hash))
+        //print('\n[client] <= TX_HASH', string.len(TX.hash))
+        //print(tostring2(TX.hash))
     ]];
-    _printf("[client] TX_HASH = %dms\n", ms);
+    //_printf("[client] TX_HASH = %dms\n", ms);
 
     escape _ERR_NONE;
 end
@@ -112,8 +112,8 @@ do
         [[
             tx_hash   = G(tcp).block.txs[@this.i+1]
             G(tcp).tx = assert(APP.txs[tx_hash])
-            print('[client] <= txs['..(@this.i+1)..']', G(tcp).tx.bytes)
-            print(tostring2(G(tcp).tx.hash))
+            //print('[client] <= txs['..(@this.i+1)..']', G(tcp).tx.bytes)
+            //print(tostring2(G(tcp).tx.hash))
         ]];
         var u32    payload_bytes = [[ G(tcp).tx.bytes ]];
         var char[] bytes         = [[ G(tcp).tx.hash ]];
@@ -128,7 +128,7 @@ do
             do UV_Stream_ReadUntil.run(&reader, 1);
             var int err = recv[0];
 
-            _printf("[client] => ACK-tx = %d\n", err);
+            //_printf("[client] => ACK-tx = %d\n", err);
             if err == _MESSAGE10_HAVE then
                 escape _ERR_NONE;   // next TX (not an error)
             end
@@ -136,21 +136,21 @@ do
     end
 
     // OK: complete TX
-    _printf("[client] <= complete...\n");
+    //_printf("[client] <= complete...\n");
     do
         var byte[] bytes;
 
         // <= TIMESTAMP: TODO(s64)
         var u32 timestamp = [[ G(tcp).tx.timestamp ]];
         PUT_NETWORK_U32(bytes, $bytes, timestamp);
-        _printf("[client] <= TIMESTAMP = %X\n", timestamp);
+        //_printf("[client] <= TIMESTAMP = %X\n", timestamp);
 
         // <= TX_BACK_HASH
         var char[HASH_BYTES] tx_back_hash = [[ G(tcp).tx.back_hash ]];
         bytes = []..bytes..tx_back_hash;
         [[
-            print('[client] <= TX_BACK_HASH')
-            print(tostring2(G(tcp).tx.back_hash))
+            //print('[client] <= TX_BACK_HASH')
+            //print(tostring2(G(tcp).tx.back_hash))
         ]]
 
         // <= TX_PAYLOAD
@@ -160,7 +160,7 @@ do
         // <= PoS: TODO
         var u8 pos = 0xEE;
         bytes = []..bytes..[pos];
-        _printf("TODO: POS generate!\n");
+        //_printf("TODO: POS generate!\n");
 
         do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
     end
@@ -211,7 +211,7 @@ do
             do UV_Stream_ReadUntil.run(&reader, 1);
             var int ret = recv[0];
 
-            _printf("[client] => ACK-header = %d\n", ret);
+            //_printf("[client] => ACK-header = %d\n", ret);
             if ret == _MESSAGE10_NOTSUB then
                 escape ret;
             else
@@ -261,7 +261,7 @@ do
         // TXS
         ///////////////////////////////////////////////////////////////////////
         var u32 txs_n = [[ #G(tcp).block.txs ]];
-        _printf("[client] <= %d txs\n", txs_n);
+        //_printf("[client] <= %d txs\n", txs_n);
         loop j in txs_n do
             var int err = do Message10_tx_send.run(&tcp,j);
             if err != _ERR_NONE then
