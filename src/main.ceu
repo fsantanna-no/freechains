@@ -3,8 +3,6 @@
     - BLOCK.chain => BLOCK.chain_id
     - BLOCK.txs[k] = nil
     -- TODO-LEN:
-    - testar contcat de fato com big/small old/new
-    - join, verificar maior chain
     - symmetric/asymmetric channels
     - serialize to disk
         - BLOCK_HASH .. PAYLOAD_LEN .. [PoW..BACK_HASH..PAYLOAD]

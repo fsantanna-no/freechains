@@ -338,6 +338,7 @@ do
         [[
             G(tcp).block = {
                 id        = '1.0',
+                chain_id  = G(tcp).chain.id,
                 txs       = {},
                 hash      = nil,
                 up_hash   = nil,
@@ -478,7 +479,7 @@ do
                 txs       = { },
                 up_hash   = nil,
                 tail_hash = nil,
-                chain     = G(tcp).chain,
+                chain_id  = G(tcp).chain.id,
                 -- set by Message10_parse_block
                 --hash      = error'TODO',
             }
@@ -514,13 +515,14 @@ do
         print('<'..string.rep('=',78))
     ]];
     do
-        var bool has = [[ block_head~=nil ]];
+        var bool has = [[ block_head~=nil and #block_head.txs>0 ]];
         if has then
             [[
                 block_head.chain = G(tcp).chain
                 ARGS = {
                     block = block_head,
                 }
+                assert(block_head.chain_id)
             ]];
             var int err = do Client10;
             if err != _ERR_NONE then

@@ -24,7 +24,7 @@ do
     // calculate nonce for the leading zeros
     var byte[HASH_BYTES] tx_hash;
     var u32 nonce = 0;
-    var u8 zeros_wanted = [[ BLOCK.chain.zeros ]];
+    var u8 zeros_wanted = [[ APP.chains[BLOCK.chain_id].zeros ]];
     async/thread (plain,tx_hash,nonce,zeros_wanted) do
         var int zeros_found = 0;
         $tx_hash := HASH_BYTES;
@@ -86,7 +86,7 @@ do
         print(tostring2(block.hash))
 
         -- i'm the head now: relink, set new head
-        chain = ARGS.block.chain
+        chain = APP.chains[ARGS.block.chain_id]
         old   = APP.blocks[chain.head_hash]
         old.up_hash     = block.hash    -- prv->up=me
         block.tail_hash = old.hash      -- me->tail=prv
@@ -193,9 +193,10 @@ do
         // <= CHAIN_KEY
         // <= CHAIN_ZEROS
         do
-            var char[] chain_key   = [[ G(tcp).block.chain.key ]];
-            var int    chain_zeros = [[ G(tcp).block.chain.zeros ]];
-            var u32    chain_len   = [[ string.len(G(tcp).block.chain.key) ]];
+            [[ chain = APP.chains[G(tcp).block.chain_id] ]];
+            var char[] chain_key   = [[ chain.key ]];
+            var int    chain_zeros = [[ chain.zeros ]];
+            var u32    chain_len   = [[ string.len(chain.key) ]];
             _assert(chain_len<CHAIN_KEY_BYTES);
             bytes = []..bytes..[chain_zeros,(u8)chain_len]..chain_key;
         end
@@ -380,7 +381,12 @@ end
 class Client10 with
     // [[ ARGS = { block=? } ]]
 do
-    [[ ARGS = { chain=ARGS.block.chain, block=ARGS.block } ]];
+    [[
+        ARGS = {
+            chain = assert(APP.chains[ARGS.block.chain_id]),
+            block = ARGS.block,
+        }
+    ]];
     do Client;
 end
 
@@ -398,7 +404,7 @@ do
             -- id = 1.0
             block = {
                 id        = nil,
-                chain     = nil,
+                chain_id  = nil,
                 txs       = { },
                 hash      = nil,
                 up_hash   = nil,
@@ -427,12 +433,12 @@ do
 
                 chain = APP.chains.parse(MSG.chain)
                 if (@i) == 0 then
-                    BLOCK.chain = chain
+                    BLOCK.chain_id = chain.id
                 else
-                    assert(chain == BLOCK.chain)
+                    assert(chain.id == BLOCK.chain_id)
                 end
 
-                head_hash = BLOCK.chain.head_hash
+                head_hash = chain.head_hash
                 txs_back  = APP.blocks[head_hash].txs
 
                 TX = {
@@ -456,7 +462,7 @@ do
         do Client10;
         [[
             print('>'..string.rep('=',78))
-            print(APP.chains.tostring(G(this).block.chain))
+            print(APP.chains.tostring(APP.chains[G(this).block.chain_id]))
             print('<'..string.rep('=',78))
         ]];
     else
