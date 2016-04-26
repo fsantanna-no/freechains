@@ -1,5 +1,7 @@
 #if 0
 = TODO:
+    - BLOCK.chain => BLOCK.chain_id
+    - BLOCK.txs[k] = nil
     -- TODO-LEN:
     - testar contcat de fato com big/small old/new
     - join, verificar maior chain

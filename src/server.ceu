@@ -46,6 +46,7 @@ do
                 key   = @chain_key,
                 zeros = @chain_zeros,
             } )
+            assert(G(tcp).chain)
         ]];
 
         var bool is_sub = [[ G(tcp).chain ~= nil ]];
@@ -99,8 +100,27 @@ do
         ]];
     end
 
-    var bool have = [[ APP.blocks[G(tcp).block.hash] ~= nil ]];
+    // check if block is already on chain
+    [[
+        have = false
+        cur = APP.blocks[ APP.chains[ G(tcp).chain.id ].head_hash ]
+        while true do
+print('-----\n',tostring2(cur.hash))
+            if cur.hash == G(tcp).block.hash then
+                have = true
+                break
+            end
+            if not cur.tail_hash then
+                break
+            end
+            cur = assert(APP.blocks[cur.tail_hash])
+        end
+print('HAVE', have)
+    ]];
+
+    var bool have = [[ have ]];
     if have then
+_printf("have = yes\n");
         escape _MESSAGE10_HAVE;    // OK ACK
     else
         escape _ERR_NONE;
@@ -145,7 +165,6 @@ do
             tx_hash = @hash
             print('[server] => TX_HASH', payload_bytes)
             print(tostring2(tx_hash))
-            G(tcp).block.txs[#G(tcp).block.txs+1] = tx_hash
         ]];
         var bool have = [[ APP.txs[tx_hash] ~= nil ]];
 
@@ -173,6 +192,8 @@ do
             hash  = tx_hash,
             bytes = payload_bytes,
         }
+        -- not yet on G(tcp).txs
+        G(tcp).block.txs[#G(tcp).block.txs+1] = tx
     ]];
 
     // => TX_COMPLETE
@@ -317,12 +338,13 @@ do
         G(tcp).remote_base = nil
     ]];
 
+_printf("=========================\n");
     loop i do
         _printf("[server] => BLOCK[%d]\n", i);
         [[
             G(tcp).block = {
                 id        = '1.0',
-                txs       = { },
+                txs       = {},
                 hash      = nil,
                 up_hash   = nil,
                 tail_hash = nil,
@@ -340,13 +362,6 @@ do
 
             // FOUND COMMON BLOCK?
             if err == _MESSAGE10_HAVE then
-                // link REMOTE tail to LOCAL chain in the COMMON point
-                [[
-                    if G(tcp).remote_head then
-                        G(tcp).remote_base.tail_hash = G(tcp).block.hash
-                    end
-                ]];
-
                 if i == 0 then
                     escape _ERR_NONE;   // nothing new
                 else
@@ -356,13 +371,18 @@ do
 
             // received at least one new block
             [[
-                G(tcp).remote_head = G(tcp).remote_head or G(tcp).block
-
-                if G(tcp).remote_base then
+print(">>> 4 =====", @i, @i==0, @i=='0');
+                if (@i) == 0 then
+                    G(tcp).remote_head = G(tcp).block
+                else
                     G(tcp).remote_base.tail_hash = G(tcp).block.hash
-                    G(tcp).block.up_hash  = G(tcp).remote_base.hash
+                    G(tcp).block.up_hash = G(tcp).remote_base.hash
+print('>>>>> REMOTE-2\n'..tostring2(G(tcp).remote_base.hash))
+print('>>>>> BLOCK-2\n'..tostring2(G(tcp).block.hash))
                 end
+
                 G(tcp).remote_base = G(tcp).block
+print('>>>>> REMOTE-1\n'..tostring2(G(tcp).remote_base.hash))
             ]];
         end
 
@@ -379,7 +399,13 @@ do
                 if err != _ERR_NONE then
                     escape err;
                 end
-                [[ APP.txs[G(tcp).tx.hash] = G(tcp).tx ]];
+                [[
+                    G(tcp).block.txs[#G(tcp).block.txs+1] = G(tcp).tx
+                    G(tcp).block.txs[G(tcp).tx.hash]      = G(tcp).tx
+
+                    -- insert TX only if block is the longest (see below)
+                    --APP.txs[G(tcp).tx.hash] = G(tcp).tx
+                ]];
             end
         end
 
@@ -389,8 +415,8 @@ do
     // BLOCK holds the COMMON node
     [[
         COMMON = G(tcp).block
-        assert(G(tcp).remote_head and G(tcp).remote_base)
-        assert(COMMON.hash == G(tcp).remote_base.tail_hash)
+        assert(G(tcp).remote_head and G(tcp).remote_base, '1')
+        G(tcp).remote_base.tail_hash = COMMON.hash
     ]];
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -417,35 +443,75 @@ do
         [[
             COMMON.up_hash = G(tcp).remote_base.hash
             block_head = G(tcp).remote_head
+print('0-0-0-', block_head, G(tcp).remote_head)
+
+            -- APP.blocks += all remote blocks
+            -- APP.txs    += all remote txs
+            cur = G(tcp).remote_base
+            while true do
+                APP.blocks[cur.hash] = cur
+                for i, tx in ipairs(cur.txs) do
+                    APP.txs[tx.hash] = tx
+                    cur.txs[i] = tx.hash  -- override tx=>tx.hash
+                end
+                if not cur.up_hash then
+                    break
+                end
+                cur = APP.blocks[cur.up_hash]
+            end
         ]];
     else
-        // compare and concatenate the two chains
+        // compare chains, set longest, apply shortest
         [[
             -- { base=?, head=?, len=? }
-            local local_ = APP.chains.base_head_len(APP.blocks[COMMON.up_hash])
-            local remote = APP.chains.base_head_len(G(tcp).remote_base)
+            local_ = APP.chains.base_head_len(APP.blocks[COMMON.up_hash])
+            remote = APP.chains.base_head_len(G(tcp).remote_base)
             assert(remote.len>0 and local_.len>0)
             print('[server] LOC='..local_.len..' vs REM='..remote.len)
 
             -- dst is the longest
             -- src is the shortest
             -- TODO-LEN:
-            local src, dst
-            if remote.len >= local_.len then
--- TODO: >=
+            dst, src = nil, nil
+            if remote.len > local_.len then
                 dst, src = remote, local_
             else
                 dst, src = local_, remote
             end
 
-            -- concat (dst .. src)
-            dst.head.up_hash   = src.base.hash
-            src.base.tail_hash = dst.head.hash
+            -- set longest
             COMMON.up_hash     = dst.base.hash
-            assert(dst.base.tail_hash == COMMON.hash)
+            dst.base.tail_hash = COMMON.hash
 
-            block_head = dst.head
+            -- apply shortest to new block with all missing txs
+            block_head = {
+                id        = '1.0',  -- TODO
+                txs       = { },
+                up_hash   = nil,
+                tail_hash = nil,
+                chain     = APP.chains[G(tcp).chain.id],
+                -- set by Message10_parse_block
+                --hash      = error'TODO',
+            }
+
+            -- insert all src* txs into APP.txs/block_head.txs if non-existent
+            cur = src.base
+            while true do
+                for i, tx in ipairs(cur.txs) do
+print('>>>', i, tx, tx.hash)
+                    if not APP.txs[tx.hash] then
+                        APP.txs[tx.hash] = tx
+                        block_head.txs[i] = tx.hash  -- override tx=>tx.hash
+                    end
+                end
+                if not cur.up_hash then
+                    break
+                end
+                cur = APP.blocks[cur.up_hash]
+            end
         ]];
+        [[ ARGS = { block=block_head } ]];
+        do Message10_parse_block;
     end
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -453,8 +519,15 @@ do
     ///////////////////////////////////////////////////////////////////////////////
 
     [[
-        APP.chains[G(tcp).chain.id].head_hash = block_head.hash
+        print('>'..string.rep('=',78))
+print('>>>', G(tcp).chain, block_head)
+print('>>>', G(tcp).chain.id, APP.chains, APP.chains.tostring)
+        G(tcp).chain.head_hash = block_head.hash
+print'1'
         print(APP.chains.tostring(G(tcp).chain))
+print'2'
+        print('<'..string.rep('=',78))
+print'3'
     ]];
     do
         var bool has = [[ block_head~=nil ]];
@@ -466,7 +539,9 @@ do
                 }
             ]];
             var int err = do Client10;
-            escape err;
+            if err != _ERR_NONE then
+                escape err;
+            end
         end
     end
 
