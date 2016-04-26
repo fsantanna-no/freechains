@@ -93,9 +93,9 @@ do
 
         [[
             G(tcp).block.hash = @hash;
-            //print('[server] => BLOCK_HASH', string.len(G(tcp).block.hash))
-            //print(tostring2(G(tcp).block.hash))
-            //print('[server] => BLOCK_TXS_N', @txs_n)
+            --print('[server] => BLOCK_HASH', string.len(G(tcp).block.hash))
+            --print(tostring2(G(tcp).block.hash))
+            --print('[server] => BLOCK_TXS_N', @txs_n)
             G(tcp).block.txs_n = @txs_n
         ]];
     end
@@ -159,9 +159,9 @@ do
         // TODO: check payload_bytes vs chain.limits
 
         [[
-            tx_hash = @hash
-            //print('[server] => TX_HASH', payload_bytes)
-            //print(tostring2(tx_hash))
+            tx_hash = @hash;
+            --print('[server] => TX_HASH', payload_bytes)
+            --print(tostring2(tx_hash))
 
             tx = APP.txs[tx_hash]
             if tx == nil then
@@ -217,9 +217,9 @@ do
             off = off + HASH_BYTES;
             _assert($tx_back_hash == HASH_BYTES);
             [[
-                G(tcp).tx.back_hash = @tx_back_hash
-                //print('[server] => TX_BACK_HASH')
-                //print(tostring2(G(tcp).tx.back_hash))
+                G(tcp).tx.back_hash = @tx_back_hash;
+                --print('[server] => TX_BACK_HASH')
+                --print(tostring2(G(tcp).tx.back_hash))
             ]];
 
             // [check] BACK_HASH is young enough? [ok ACK]
@@ -249,9 +249,9 @@ do
                                     &&(((_byte&&)&&bytes)[off]), len,
                                     1);
             [[
-                G(tcp).tx.payload = @tx_payload
-                //print('[server] => PAYLOAD')
-                //print(tostring2(G(tcp).tx.payload))
+                G(tcp).tx.payload = @tx_payload;
+                --print('[server] => PAYLOAD')
+                --print(tostring2(G(tcp).tx.payload))
             ]];
             off = off + len;
         end
@@ -430,7 +430,7 @@ do
         local_ = APP.chains.head_base_len(APP.blocks[G(tcp).chain.head_hash])
         remote = APP.chains.head_base_len(G(tcp).remote_head)
         assert(remote.len>0 and local_.len>0)
-        //print('[server] LOC='..local_.len..' vs REM='..remote.len)
+        --print('[server] LOC='..local_.len..' vs REM='..remote.len)
 
         -- dst is the longest
         -- src is the shortest
@@ -519,10 +519,11 @@ do
             if err != _ERR_NONE then
                 escape err;
             end
-            var int err = do Client10;
-            if err != _ERR_NONE then
-                escape err;
-            end
+await 1s;
+var int err = do Client10;
+if err != _ERR_NONE then
+    escape err;
+end
         //end
     end
 

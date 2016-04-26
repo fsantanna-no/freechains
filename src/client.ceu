@@ -47,9 +47,9 @@ do
     [[
         -- i'm in the database
         TX.timestamp = @nonce
-        TX.hash      = @tx_hash
-        //print('\n[client] <= TX_HASH', string.len(TX.hash))
-        //print(tostring2(TX.hash))
+        TX.hash      = @tx_hash;
+        --print('\n[client] <= TX_HASH', string.len(TX.hash))
+        --print(tostring2(TX.hash))
     ]];
     //_printf("[client] TX_HASH = %dms\n", ms);
 
@@ -112,8 +112,8 @@ do
         [[
             tx_hash   = G(tcp).block.txs[@this.i+1]
             G(tcp).tx = assert(APP.txs[tx_hash])
-            //print('[client] <= txs['..(@this.i+1)..']', G(tcp).tx.bytes)
-            //print(tostring2(G(tcp).tx.hash))
+            --print('[client] <= txs['..(@this.i+1)..']', G(tcp).tx.bytes)
+            --print(tostring2(G(tcp).tx.hash))
         ]];
         var u32    payload_bytes = [[ G(tcp).tx.bytes ]];
         var char[] bytes         = [[ G(tcp).tx.hash ]];
@@ -149,8 +149,8 @@ do
         var char[HASH_BYTES] tx_back_hash = [[ G(tcp).tx.back_hash ]];
         bytes = []..bytes..tx_back_hash;
         [[
-            //print('[client] <= TX_BACK_HASH')
-            //print(tostring2(G(tcp).tx.back_hash))
+            --print('[client] <= TX_BACK_HASH')
+            --print(tostring2(G(tcp).tx.back_hash))
         ]]
 
         // <= TX_PAYLOAD
