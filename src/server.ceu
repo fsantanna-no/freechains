@@ -103,9 +103,8 @@ do
     // check if block is already on chain
     [[
         have = false
-        cur = APP.blocks[ APP.chains[ G(tcp).chain.id ].head_hash ]
+        cur = APP.blocks[ G(tcp).chain.head_hash ]
         while true do
-print('-----\n',tostring2(cur.hash))
             if cur.hash == G(tcp).block.hash then
                 have = true
                 break
@@ -115,12 +114,10 @@ print('-----\n',tostring2(cur.hash))
             end
             cur = assert(APP.blocks[cur.tail_hash])
         end
-print('HAVE', have)
     ]];
 
     var bool have = [[ have ]];
     if have then
-_printf("have = yes\n");
         escape _MESSAGE10_HAVE;    // OK ACK
     else
         escape _ERR_NONE;
@@ -192,8 +189,6 @@ do
             hash  = tx_hash,
             bytes = payload_bytes,
         }
-        -- not yet on G(tcp).txs
-        G(tcp).block.txs[#G(tcp).block.txs+1] = tx
     ]];
 
     // => TX_COMPLETE
@@ -338,7 +333,6 @@ do
         G(tcp).remote_base = nil
     ]];
 
-_printf("=========================\n");
     loop i do
         _printf("[server] => BLOCK[%d]\n", i);
         [[
@@ -371,18 +365,14 @@ _printf("=========================\n");
 
             // received at least one new block
             [[
-print(">>> 4 =====", @i, @i==0, @i=='0');
                 if (@i) == 0 then
                     G(tcp).remote_head = G(tcp).block
                 else
                     G(tcp).remote_base.tail_hash = G(tcp).block.hash
                     G(tcp).block.up_hash = G(tcp).remote_base.hash
-print('>>>>> REMOTE-2\n'..tostring2(G(tcp).remote_base.hash))
-print('>>>>> BLOCK-2\n'..tostring2(G(tcp).block.hash))
                 end
 
                 G(tcp).remote_base = G(tcp).block
-print('>>>>> REMOTE-1\n'..tostring2(G(tcp).remote_base.hash))
             ]];
         end
 
@@ -400,11 +390,11 @@ print('>>>>> REMOTE-1\n'..tostring2(G(tcp).remote_base.hash))
                     escape err;
                 end
                 [[
-                    G(tcp).block.txs[#G(tcp).block.txs+1] = G(tcp).tx
-                    G(tcp).block.txs[G(tcp).tx.hash]      = G(tcp).tx
-
                     -- insert TX only if block is the longest (see below)
                     --APP.txs[G(tcp).tx.hash] = G(tcp).tx
+
+                    -- not yet on G(tcp).txs
+                    G(tcp).block.txs[#G(tcp).block.txs+1] = G(tcp).tx
                 ]];
             end
         end
@@ -433,8 +423,8 @@ print('>>>>> REMOTE-1\n'..tostring2(G(tcp).remote_base.hash))
      * (COMMON "1" still ups to LOCAL, but REMOTE tails to "1")
      */
 
-    // if COMMON node has no up_hash, then this is not a fork
-    var bool is_fork = [[ COMMON.up_hash ~= nil ]];
+    // if COMMON node is *not* our current HEAD, than it's a fork
+    var bool is_fork = [[ COMMON.hash ~= G(tcp).chain.head_hash ]];
 
     [[ block_head = nil ]];
 
@@ -443,7 +433,6 @@ print('>>>>> REMOTE-1\n'..tostring2(G(tcp).remote_base.hash))
         [[
             COMMON.up_hash = G(tcp).remote_base.hash
             block_head = G(tcp).remote_head
-print('0-0-0-', block_head, G(tcp).remote_head)
 
             -- APP.blocks += all remote blocks
             -- APP.txs    += all remote txs
@@ -464,7 +453,7 @@ print('0-0-0-', block_head, G(tcp).remote_head)
         // compare chains, set longest, apply shortest
         [[
             -- { base=?, head=?, len=? }
-            local_ = APP.chains.base_head_len(APP.blocks[COMMON.up_hash])
+            local_ = APP.chains.base_head_len(APP.blocks[G(tcp).chain.head_hash])
             remote = APP.chains.base_head_len(G(tcp).remote_base)
             assert(remote.len>0 and local_.len>0)
             print('[server] LOC='..local_.len..' vs REM='..remote.len)
@@ -489,7 +478,7 @@ print('0-0-0-', block_head, G(tcp).remote_head)
                 txs       = { },
                 up_hash   = nil,
                 tail_hash = nil,
-                chain     = APP.chains[G(tcp).chain.id],
+                chain     = G(tcp).chain,
                 -- set by Message10_parse_block
                 --hash      = error'TODO',
             }
@@ -498,11 +487,11 @@ print('0-0-0-', block_head, G(tcp).remote_head)
             cur = src.base
             while true do
                 for i, tx in ipairs(cur.txs) do
-print('>>>', i, tx, tx.hash)
                     if not APP.txs[tx.hash] then
                         APP.txs[tx.hash] = tx
-                        block_head.txs[i] = tx.hash  -- override tx=>tx.hash
+                        block_head.txs[#block_head.txs+1] = tx.hash
                     end
+                    cur.txs[i] = tx.hash  -- override tx=>tx.hash
                 end
                 if not cur.up_hash then
                     break
@@ -520,14 +509,9 @@ print('>>>', i, tx, tx.hash)
 
     [[
         print('>'..string.rep('=',78))
-print('>>>', G(tcp).chain, block_head)
-print('>>>', G(tcp).chain.id, APP.chains, APP.chains.tostring)
         G(tcp).chain.head_hash = block_head.hash
-print'1'
         print(APP.chains.tostring(G(tcp).chain))
-print'2'
         print('<'..string.rep('=',78))
-print'3'
     ]];
     do
         var bool has = [[ block_head~=nil ]];

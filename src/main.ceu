@@ -27,6 +27,9 @@
     - /\*/dir/#hash/@search/%date/!sort
     - aquivos plain, + arquivos meta em lua/binario
     - configurable POW (sha, cuckoo, etc, none, shared, pvt)
+
+= CMDS:
+    - for i in cfg/message-01-a*.lua; do ./build/main.exe cfg/config.lua cfg/config-aa.lua $i; done
 #endif
 
 #include "c.ceu"

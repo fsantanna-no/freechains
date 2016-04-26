@@ -67,9 +67,9 @@ do
     $block_hash := HASH_BYTES;
 
     // TODO: should be merkle tree and not hash(concat)
-    var int n = [[ #BLOCK.txs ]]; // TODO: assert BLOCK.chain.limits.block
+    var int n = [[ #ARGS.block.txs ]]; // TODO: assert ARGS.block.chain.limits.block
     loop i in n do
-        var char[HASH_BYTES] tx_hash = [[ BLOCK.txs[@i+1] ]];
+        var char[HASH_BYTES] tx_hash = [[ ARGS.block.txs[@i+1] ]];
         plain = []..plain..tx_hash;
     end
 
@@ -78,7 +78,7 @@ do
                         null, 0);
 
     [[
-        block = BLOCK
+        block = ARGS.block
         block.hash  = @block_hash
         APP.blocks[block.hash] = block
 
@@ -86,7 +86,7 @@ do
         print(tostring2(block.hash))
 
         -- i'm the head now: relink, set new head
-        chain = BLOCK.chain
+        chain = ARGS.block.chain
         old   = APP.blocks[chain.head_hash]
         old.up_hash     = block.hash    -- prv->up=me
         block.tail_hash = old.hash      -- me->tail=prv
@@ -223,7 +223,6 @@ do
     // BLOCKS
     ///////////////////////////////////////////////////////////////////////////
 
-[[ _ = {} ]];
     loop i do
         _printf("[client] <= BLOCKS[%d]\n", i);
 
@@ -235,11 +234,6 @@ do
             // <= BLOCK_HASH
             var char[HASH_BYTES] block_hash = [[ G(tcp).block.hash ]];
             bytes = []..bytes..block_hash;
-[[
-    print(tostring2(@block_hash))
-    assert(not _[ @block_hash ])
-    _[ @block_hash ] = true
-]];
 
             // <= BLOCK_TXS_N
             var u32 txs_n = [[ #G(tcp).block.txs ]];
@@ -329,7 +323,6 @@ do
             if is_10 then
                 err_ = do Message10_send.run(&c.tcp);
             else
-_printf("NOOO\n");
                 // ...
                 err_ = _ERR_MESSAGE;
             end
@@ -395,8 +388,10 @@ class ClientMessages with
 do
     var int ms = [[ #APP.messages ]];
     if ms == 0 then
-        escape -1;      // no messages
+        await FOREVER;  // server mode: don't let application terminate
     end
+
+    // client mode: terminates
 
     [[
         G(this) = {

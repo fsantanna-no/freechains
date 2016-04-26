@@ -245,8 +245,8 @@ function table_show(t, name, indent)
          end
       elseif type(o) == "number" or type(o) == "boolean" then
          return so
-      elseif type(o) == "string" and is_binary(o) then
-         return string2hex(o)
+      elseif type(o) == "string" then
+         return tostring2(o)
       else
          return string.format("%q", so)
       end
