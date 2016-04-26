@@ -80,18 +80,32 @@ function APP.chains.parse (chain)
     return APP.chains[chain.id]
 end
 
-function APP.chains.base_head_len (base)
-    local head = base
+function APP.chains.head_base_len (head)
+    local cur = head
     local len = 1
-    while head.up_hash do
+    while cur.tail_hash do
         len = len + 1
-        head = APP.blocks[head.up_hash]
+        cur = APP.blocks[cur.tail_hash]
     end
     return {
-        base = base,
+        base = cur,
         head = head,
         len  = len
     }
+end
+
+-- TODO: go back only TODO jumps
+function APP.chains.tx_contains (head, tx_hash)
+    local cur = head
+    while cur.tail_hash do
+        for _, tx_hash_i in ipairs(cur.txs) do
+            if tx_hash_i == tx_hash then
+                return true
+            end
+        end
+        cur = APP.blocks[cur.tail_hash]
+    end
+    return false
 end
 
 function APP.chains.tostring (chain)
@@ -104,7 +118,7 @@ function APP.chains.tostring (chain)
             hash = str,
             txs  = {},
         }
-        T[#T+1] = t
+        table.insert(T, 1, t)
         for i, tx in ipairs(head.txs) do
             local str = string.sub(APP.txs[tx].payload,1,10)
                   str = string.gsub(str,'%c','.')

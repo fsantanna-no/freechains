@@ -1,5 +1,7 @@
 #if 0
 = TODO:
+    - tem que verificar se bloco novo esta repetindo txs para tras!
+    - remove COMMON, remove up_hash?
     - BLOCK.chain => BLOCK.chain_id
     - BLOCK.txs[k] = nil
     -- TODO-LEN:
