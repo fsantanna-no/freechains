@@ -319,7 +319,7 @@ do
 
         _printf("[client] Connected to %s:%d.\n", (_char&&)&&ip, port);
 // TODO: to test multiple topology paths
-await 1s;
+await 900ms;
         watching err_ in c do
             err_ = _ERR_NONE;
             if is_10 then
@@ -448,6 +448,7 @@ do
                 head_hash = chain.head_hash
                 txs_back  = APP.blocks[head_hash].txs
 
+msg.payload = os.time()..' message.'
                 tx = {
                     bytes     = string.len(msg.payload),
                     payload   = msg.payload,

@@ -17,6 +17,19 @@
     - POS: M[head]=>a + M[head+b]=>c + M[head+c]=>d + ...
         ou M[head]    + M[head+head] + M[head+head+head] + ...
         - JUMP/2 times
+    - TTL (em bytes) requer POS
+        - parametro do post? ou da chain?
+            - no post: nem todas as chains vao poder verificar POS da tx
+                - as que verificarem e acharem erro, podem simplesmente
+                    - guardar 00000 como payload
+                    - responder 00000 para POSs futuras que baterem o offset do 
+                      payload
+        - JUMP eh parecido mas nao depende disso
+            - acho que jump é parametro do protocolo e nao da chain/post
+            - jump evita republicacao (spam) e acumulacao (fork)
+                - se eh republicado sera verificado que existe e portanto nao 
+                  incluido
+                - se eh acumulado sera verificado que jump eh muito antigo
 
 = BUGS:
     - common genesis to all chains will conflict on gen.up_hash
@@ -32,11 +45,14 @@
     - configurable POW (sha, cuckoo, etc, none, shared, pvt)
     - server "sair" do canal se fork "divergir demais"
     - pbmd: meta-chains,rxLua+template
+        - webpage dinamica: v=>channel
     - meta-chain: create,touch,remove,...
-    - pbfs, usa meta-chain
+    - pbfs, usa meta-chain, stack-based, head->tail
+        - dropbox, fuse
 
 = CMDS:
     - for i in cfg/message-01-a*.lua; do ./build/main.exe cfg/config.lua cfg/config-aa.lua $i; done
+    - while :; do ./build/main.exe cfg/config.lua cfg/config-aa.lua cfg/message-01-01.lua; done
 #endif
 
 #include "c.ceu"

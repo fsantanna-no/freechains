@@ -351,7 +351,20 @@ do
         // <= ACK-block
         do
             var int err = do Message10_block_recv.run(&tcp);
-            [[ print('[server] => BLOCKS['..(@i)..'] : '..tostring2(G(tcp).block.hash)) ]];
+
+native @plain _sockaddr_storage();
+native @nohold _uv_tcp_getpeername();
+var _sockaddr_storage addr = _sockaddr_storage();
+var int n = 0;
+_uv_tcp_getpeername(&&tcp, (_sockaddr&&)&&addr, &&n);
+var _sockaddr_in&& sin = (_sockaddr_in &&)&&addr;
+_printf(">>> %s\n", (_char&&)&&sin:sin_addr.s_addr);
+[[
+ptr = string.gsub(tostring(@(&&tcp)),'userdata: ','')
+print('[server:'..ptr..'] => BLOCKS['..(@i)..'] : '..
+        tostring2(G(tcp).block.hash))
+]];
+            //[[ print('[server] => BLOCKS['..(@i)..'] : '..tostring2(G(tcp).block.hash)) ]];
 
             do
                 _printf("[server] <= ACK-block = %d\n", err);
@@ -485,6 +498,10 @@ print('[server] common:'..tostring2(common_hash)..'=>'..tostring2(G(tcp).remote_
                     t[#t+1] = tx
                 end
             end
+if not APP.blocks[cur.tail_hash] then
+print('[server] common: '..tostring2(common_hash)..
+              ' cur   : '..tostring2(cur.hash))
+end
             cur = assert(APP.blocks[cur.tail_hash])
             table.insert(T, 1, t) -- inverse order
         end
