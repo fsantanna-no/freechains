@@ -4,10 +4,11 @@
 #include "sodium.ceu"
 
 class Message10_parse_tx with
+    // [[ ARGS = { block=?, tx=? } ]]
 do
     // hash[TIMESTAMP..TX_BACK_HASH..TX_PAYLOAD]
-    var char[] tx_back_hash = [[ TX.back_hash ]];
-    var char[] tx_payload   = [[ TX.payload   ]];
+    var char[] tx_back_hash = [[ ARGS.tx.back_hash ]];
+    var char[] tx_payload   = [[ ARGS.tx.payload   ]];
     var byte[] plain = [0,0,0,0]..tx_back_hash..tx_payload;
                         // TODO: switch to timestamp
 
@@ -24,7 +25,7 @@ do
     // calculate nonce for the leading zeros
     var byte[HASH_BYTES] tx_hash;
     var u32 nonce = 0;
-    var u8 zeros_wanted = [[ APP.chains[BLOCK.chain_id].zeros ]];
+    var u8 zeros_wanted = [[ APP.chains[ARGS.block.chain_id].zeros ]];
     async/thread (plain,tx_hash,nonce,zeros_wanted) do
         var int zeros_found = 0;
         $tx_hash := HASH_BYTES;
@@ -46,17 +47,17 @@ do
 
     [[
         -- i'm in the database
-        TX.timestamp = @nonce
-        TX.hash      = @tx_hash;
-        --print('\n[client] <= TX_HASH', string.len(TX.hash))
-        --print(tostring2(TX.hash))
+        ARGS.tx.timestamp = @nonce
+        ARGS.tx.hash      = @tx_hash;
+        --print('\n[client] <= TX_HASH', string.len(ARGS.tx.hash))
+        --print(tostring2(ARGS.tx.hash))
     ]];
     //_printf("[client] TX_HASH = %dms\n", ms);
 
     escape _ERR_NONE;
 end
 
-class Message10_parse_block with
+class Message10_block_parse_head with
     // [[ ARGS = { block=? } ]]
 do
     // <= BLOCK_HASH
@@ -82,8 +83,8 @@ do
         block.hash  = @block_hash
         APP.blocks[block.hash] = block
 
-        print('[client] <= BLOCK_HASH', string.len(block.hash))
-        print(tostring2(block.hash))
+        --print('[client] <= BLOCK_HASH', string.len(block.hash))
+        --print(tostring2(block.hash))
 
         -- i'm the head now: relink, set new head
         chain = APP.chains[ARGS.block.chain_id]
@@ -225,8 +226,6 @@ do
     ///////////////////////////////////////////////////////////////////////////
 
     loop i do
-        _printf("[client] <= BLOCKS[%d]\n", i);
-
         // <= BLOCK_HASH
         // <= BLOCK_TXS_N
         do
@@ -235,6 +234,8 @@ do
             // <= BLOCK_HASH
             var char[HASH_BYTES] block_hash = [[ G(tcp).block.hash ]];
             bytes = []..bytes..block_hash;
+
+            [[ print('[client] <= BLOCKS['..(@i)..'] : '..tostring2(G(tcp).block.hash)) ]];
 
             // <= BLOCK_TXS_N
             var u32 txs_n = [[ #G(tcp).block.txs ]];
@@ -285,7 +286,7 @@ interface PeerListener with
 end
 
 class PeerSend with
-    // [[ ARGS = { block=? } ]]
+    // [[ ARGS = { peer=?, block=? } ]]
 input:
     var PeerListener& client;
 
@@ -295,8 +296,8 @@ do
         this.client = &client;
     end
 
-    var char[] ip   = [[ PEER.host[1] ]];
-    var int    port = [[ PEER.host[2] ]];
+    var char[] ip   = [[ ARGS.peer.host[1] ]];
+    var int    port = [[ ARGS.peer.host[2] ]];
     _printf("[client] Connecting to %s:%d.\n", (_char&&)&&ip, port);
     var UV_TCP_Client c = UV_TCP_Client.build(&ip, port);
 
@@ -309,8 +310,6 @@ do
     var bool is_10 = [[ G(c.tcp).block~=nil and G(c.tcp).block.id=='1.0' ]];
     // ...
 
-// TODO: to test multiple topology paths
-//await 2s;
     var int err =
     do
         var int err_ = await c.ok;
@@ -319,6 +318,8 @@ do
         end
 
         _printf("[client] Connected to %s:%d.\n", (_char&&)&&ip, port);
+// TODO: to test multiple topology paths
+await 1s;
         watching err_ in c do
             err_ = _ERR_NONE;
             if is_10 then
@@ -351,9 +352,9 @@ do
     var int ps_ok = 0;
     loop i in ps do
         [[
-            PEER = APP.client.peers[@(i+1)]
+            peer = APP.client.peers[@(i+1)]
             ok = false
-            for _, chain in pairs(PEER.chains) do
+            for _, chain in pairs(peer.chains) do
                 if chain.key==ARGS.chain.key and
                    chain.zeros<=ARGS.chain.zeros then
                     ok = true
@@ -364,6 +365,12 @@ do
         var bool ok_ = [[ ok ]];
         if ok_ then
             ps_ok = ps_ok + 1;
+            [[
+                ARGS = {
+                    peer  = peer,
+                    block = ARGS.block,
+                }
+            ]];
             var PeerSend&&? p = spawn PeerSend.run(&this);
             _assert(p! != null);
         end
@@ -401,6 +408,8 @@ do
 
     [[
         G(this) = {
+            id = APP.messages[1].id,
+
             -- id = 1.0
             block = {
                 id        = nil,
@@ -411,54 +420,53 @@ do
                 tail_hash = nil,
             },
         }
-
-        ID = APP.messages[1].id
     ]]
 
-    var bool is_10 = [[ ID=='1.0' ]];
+    var bool is_10 = [[ G(this).id=='1.0' ]];
 
     loop i in ms do
         [[
-            MSG = APP.messages[@i+1]
-            assert(type(MSG)=='table')
-            assert(MSG.id == ID)    -- all must be the same
+            msg = APP.messages[@i+1]
+            assert(type(msg)=='table')
+            assert(msg.id == G(this).id)    -- all must be the same
         ]];
 
         if is_10 then
             [[
-                BLOCK = G(this).block
-                BLOCK.id = '1.0'
+                block = G(this).block
+                block.id = '1.0'
 
-                assert(type(MSG.chain)=='table')
+                assert(type(msg.chain)=='table')
 
-                chain = APP.chains.parse(MSG.chain)
+                chain = APP.chains.parse(msg.chain)
                 if (@i) == 0 then
-                    BLOCK.chain_id = chain.id
+                    block.chain_id = chain.id
                 else
-                    assert(chain.id == BLOCK.chain_id)
+                    assert(chain.id == block.chain_id)
                 end
 
                 head_hash = chain.head_hash
                 txs_back  = APP.blocks[head_hash].txs
 
-                TX = {
-                    bytes     = string.len(MSG.payload),
-                    payload   = MSG.payload,
+                tx = {
+                    bytes     = string.len(msg.payload),
+                    payload   = msg.payload,
                     hash      = nil,
                     back_hash = txs_back[#txs_back],
                 }
+                ARGS = { block=block, tx=tx }
             ]];
             do Message10_parse_tx;
             [[
-                BLOCK.txs[@i+1] = TX.hash
-                APP.txs[TX.hash] = TX
+                block.txs[@i+1] = tx.hash
+                APP.txs[tx.hash] = tx
             ]];
         end
     end
 
     if is_10 then
-        [[ ARGS = { block=BLOCK } ]];
-        do Message10_parse_block;
+        [[ ARGS = { block=G(this).block } ]];
+        do Message10_block_parse_head;
         do Client10;
         [[
             print('>'..string.rep('=',78))

@@ -154,11 +154,11 @@ do
         do UV_Stream_ReadUntil.run(&reader, off+sizeof(u32));
         var u32 payload_bytes = GET_HOST_U32(bytes, off);
         off = off + sizeof(u32);
-        [[ payload_bytes = @payload_bytes ]];
 
         // TODO: check payload_bytes vs chain.limits
 
         [[
+            payload_bytes = @payload_bytes
             tx_hash = @hash;
             --print('[server] => TX_HASH', payload_bytes)
             --print(tostring2(tx_hash))
@@ -337,7 +337,6 @@ do
     ]];
 
     loop i do
-        _printf("[server] => BLOCK[%d]\n", i);
         [[
             G(tcp).block = {
                 id        = '1.0',
@@ -352,6 +351,8 @@ do
         // <= ACK-block
         do
             var int err = do Message10_block_recv.run(&tcp);
+            [[ print('[server] => BLOCKS['..(@i)..'] : '..tostring2(G(tcp).block.hash)) ]];
+
             do
                 _printf("[server] <= ACK-block = %d\n", err);
                 var byte[1] send = [err];
@@ -450,10 +451,12 @@ do
             end
         end
 
-        -- relink COMMON if longest is remote
+        -- relink current chain's head/common if longest is remote
         if dst == remote then
             print('[server] remote wins')
             APP.blocks[common_hash].up_hash = G(tcp).remote_base.hash
+            G(tcp).chain.head_hash = dst.head.hash
+print('[server] common:'..tostring2(common_hash)..'=>'..tostring2(G(tcp).remote_base.hash))
         else
             print('[server] local wins')
             -- already ok
@@ -464,11 +467,12 @@ do
             id        = '1.0',  -- TODO
             txs       = {},
             up_hash   = nil,
-            tail_hash = dst.head.hash,
             chain_id  = G(tcp).chain.id,
-            -- set by Message10_parse_block
+            -- set by Message10_block_parse_head
+            --tail_hash = dst.head.hash,
             --hash      = error'TODO',
         }
+--print('[server] new: '..tostring2(block_new.hash)..'<='..tostring2(dst.head.hash))
 
         -- insert all src* txs into block_new.txs if non existent
         cur = src.head
@@ -490,16 +494,14 @@ do
             end
         end
 
-        if #block_new.txs > 0 then
-            dst.head.up_hash = block_new.hash
-        else
-            block_new = dst.head
-        end
         ARGS = {
             block = block_new
         }
     ]];
-    do Message10_parse_block;
+    var bool has_txs = [[ #block_new.txs > 0 ]];
+    if has_txs then
+        do Message10_block_parse_head;
+    end
 
     ///////////////////////////////////////////////////////////////////////////////
     // RETRANSMIT NEW HEAD
@@ -507,24 +509,29 @@ do
 
     [[
         print('>'..string.rep('=',78))
-        G(tcp).chain.head_hash = block_new.hash
         print(APP.chains.tostring(G(tcp).chain))
         print('<'..string.rep('=',78))
     ]];
     do
         //var bool has = [[ block_new ~= dst.head ]];
         //if has then
-            //[[ ARGS = ARGS ]];
+            [[
+                ARGS = {
+                    block = APP.blocks[G(tcp).chain.head_hash]
+                }
+            ]];
             var int err = do Client10;
             if err != _ERR_NONE then
                 escape err;
             end
+#if 0
 await 1s;
 var int err = do Client10;
 if err != _ERR_NONE then
     escape err;
 end
         //end
+#endif
     end
 
     escape _ERR_NONE;
@@ -538,6 +545,17 @@ do
         this.tcp = &tcp;
     end
 
+    spawn do
+        var _uv_stream_t&& s;
+        var int err;
+        (s,err) = await UV_ERROR until (s==(_uv_stream_t&&)&&this.tcp);
+        //_printf("[server] Disconnected from %s:%d => %d\n",
+                //(_char&&)&&ip, port, err);
+        _assert(err != _ERR_NONE);
+        _printf("[server] error: %s\n", _uv_strerror(err));
+        escape err;
+    end
+
     var int err = _ERR_NONE;
 
     var byte[] bytes;
@@ -545,7 +563,7 @@ do
             UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
 
     // => MESSAGE
-    do UV_Stream_ReadUntil.run(&this.reader, MESSAGE_BYTES);
+    do UV_Stream_ReadUntil.run(&reader, MESSAGE_BYTES);
 
     //_printf("[server] => MESSAGE = [%d %d %d %d]\n",
                 //bytes[0], bytes[1], bytes[2], bytes[3]);
@@ -554,7 +572,7 @@ do
                     bytes[1]==MESSAGE_MAGIC_1 );
 
     if ok and bytes[2]==1 and bytes[3]==0 then
-        err = do Message10_recv.run(&this.tcp, &this.bytes, &this.reader);
+        err = do Message10_recv.run(&this.tcp, &bytes, &reader);
     else
         err = _ERR_MESSAGE;
     end

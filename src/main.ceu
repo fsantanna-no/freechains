@@ -1,6 +1,5 @@
 #if 0
 = TODO:
-    - tem que verificar se bloco novo esta repetindo txs para tras!
     - remove COMMON, remove up_hash?
     - BLOCK.chain => BLOCK.chain_id
     - BLOCK.txs[k] = nil
@@ -15,6 +14,9 @@
     - BLOCK vs MSG nomenclature
     - Message prepare do client pode ter todos os campos necessarios para o 
       send evita *muitas* copias
+    - POS: M[head]=>a + M[head+b]=>c + M[head+c]=>d + ...
+        ou M[head]    + M[head+head] + M[head+head+head] + ...
+        - JUMP/2 times
 
 = BUGS:
     - common genesis to all chains will conflict on gen.up_hash
@@ -22,11 +24,16 @@
         - use a hash based on the chain unique identification!
 
 = IDEAS:
+    - IPFS + bitcoin
     - esquema de nomes bc/path/, pega mais recente, bc/path/^..., git
     - /bc/dir/#hash/@search/%date/!sort
     - /\*/dir/#hash/@search/%date/!sort
     - aquivos plain, + arquivos meta em lua/binario
     - configurable POW (sha, cuckoo, etc, none, shared, pvt)
+    - server "sair" do canal se fork "divergir demais"
+    - pbmd: meta-chains,rxLua+template
+    - meta-chain: create,touch,remove,...
+    - pbfs, usa meta-chain
 
 = CMDS:
     - for i in cfg/message-01-a*.lua; do ./build/main.exe cfg/config.lua cfg/config-aa.lua $i; done

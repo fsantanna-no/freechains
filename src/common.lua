@@ -111,11 +111,12 @@ end
 function APP.chains.tostring (chain)
     local head = APP.blocks[chain.head_hash]
     local T = {}
+xxx = {}
     while head do
-        local str = tostring2(head.hash)
-              str = string.sub(str,11,11+10)
+assert(not xxx[head], tostring2(head.hash))
+xxx[head] = true
         local t = {
-            hash = str,
+            hash = tostring2(head.hash),
             txs  = {},
         }
         table.insert(T, 1, t)
@@ -170,7 +171,7 @@ end
 -- 3rd-party code
 -------------------------------------------------------------------------------
 
-local function string2hex(buf)
+local function string2hex(buf,big)
     local ret = ''
     for byte=1, #buf, 16 do
         local chunk = buf:sub(byte, byte+15)
@@ -181,6 +182,9 @@ local function string2hex(buf)
             end)
         ret = ret .. string.rep(' ',3*(16-#chunk))
         ret = ret .. ' '..chunk:gsub('%c','.')..'\n'
+    end
+    if not big then
+        ret = string.sub(ret,11,11+10)
     end
     return ret
 end
