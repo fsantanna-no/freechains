@@ -65,7 +65,10 @@
 #define CHAIN_KEY_BYTES 256
 
 native @pure _leading_zeros();
+native @nohold _dbg(), _dbg_tcp();
 native do
+    ##define VOID_ALIAS(x) ((void*)&x)
+
     enum {
         ERR_NONE                    =  0,
         ERR_MESSAGE                 = -1,
@@ -81,6 +84,34 @@ native do
         MESSAGE10_HAVE,         // [ok ACK] already has it
         MESSAGE10_LIMIT,        // [ok ACK] too big for untrusted client
     };
+
+    void dbg (int level, const char* fmt, ...) {
+        fprintf(stderr, "[%d] | ", level);
+        va_list args;
+        va_start(args, fmt);
+        vfprintf(stderr, fmt, args);
+        va_end (args);
+        fprintf(stderr, "\n");
+    }
+
+    void dbg_tcp (int level, uv_tcp_t* tcp, char* client_server, const char* fmt, ...) {
+        int p1 = ceu_uv_tcp_getsockport(tcp);
+        int p2 = ceu_uv_tcp_getpeerport(tcp);
+        char str[255];
+        char* arrow;
+        if (strcmp(client_server,"server") == 0) {
+            arrow = "<-";
+        } else {
+            arrow = "->";
+        }
+        fprintf(stderr, "[%d] | %s:%d%s%d | ", level, client_server, p1, arrow, p2);
+
+        va_list args;
+        va_start(args, fmt);
+        vfprintf(stderr, fmt, args);
+        va_end (args);
+        fprintf(stderr, "\n");
+    }
 
     // calculate the number of leading zero bits in "bytes"
     // 00abcdef...  => 2
@@ -99,10 +130,6 @@ native do
         }
         return zeros;
     }
-end
-
-native do
-    ##define VOID_ALIAS(x) ((void*)&x)
 end
 #define G(v) APP.gs[@(&&(v))]
 

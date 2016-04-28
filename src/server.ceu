@@ -184,7 +184,7 @@ do
             else
                 send = [ _ERR_NONE  ];
             end
-            //_printf("[server] <= ACK-tx = %d\n", send[0]);
+            _dbg_tcp(0, &&this.tcp, "server", "<= ACK-tx = %d\n", send[0]);
             do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
         end
 
@@ -389,7 +389,6 @@ end
                 //[[ print('[server] => BLOCKS['..(@i)..'] : 
                 //'..tostring2(G(tcp).block.hash)) ]];
 
-await 1s;
                 do
                     _printf("[server:%d<-%d] <= ACK-block[%d] = %d\n",
                             _ceu_uv_tcp_getsockport(&&this.tcp),
@@ -572,9 +571,9 @@ end
     [[
 --print('BLOCK-new', block_new, #block_new.txs)
 --print('BLOCK-new', tostring2(block_new.hash), tostring2(block_new.tail_hash))
-        --print('>'..string.rep('=',78))
-        --print(APP.chains.tostring(G(tcp).chain))
-        --print('<'..string.rep('=',78))
+        print('>'..string.rep('=',78))
+        print(APP.chains.tostring(G(tcp).chain))
+        print('<'..string.rep('=',78))
     ]];
     do
         //var bool has = [[ block_new ~= dst.head ]];
@@ -616,7 +615,7 @@ do
         //_printf("[server] Disconnected from %s:%d => %d\n",
                 //(_char&&)&&ip, port, err);
         _assert(err != _ERR_NONE);
-        _printf("[server] error: %s\n", _uv_strerror(err));
+        _dbg(0, "server | %s\n", _uv_strerror(err));
         escape err;
     end
 
