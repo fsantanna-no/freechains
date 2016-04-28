@@ -1,0 +1,94 @@
+#ifndef _COMMON_CEU
+#define _COMMON_CEU
+
+#include "c.ceu"
+
+#define MESSAGE_BYTES   4
+#define MESSAGE_MAGIC_0 'P'
+#define MESSAGE_MAGIC_1 'S'
+
+#define HASH_BYTES      32
+#define CHAIN_KEY_BYTES 256
+
+native @pure _leading_zeros();
+native @nohold _dbg(), _dbg_tcp();
+native do
+    ##define VOID_ALIAS(x) ((void*)&x)
+
+    enum {
+        ERR_NONE                    =  0,
+        ERR_MESSAGE                 = -1,
+        ERR_REMOTE_BUG_OR_MALICIOUS = -2,
+    };
+
+    enum {
+        MESSAGE10 = 1,
+    };
+
+    enum {
+        MESSAGE10_NOTSUB = 1,   // [ok ACK] not subscribed to this chain
+        MESSAGE10_HAVE,         // [ok ACK] already has it
+        MESSAGE10_LIMIT,        // [ok ACK] too big for untrusted client
+    };
+
+    void dbg (int level, const char* fmt, ...) {
+        fprintf(stderr, "[%d] | ", level);
+        va_list args;
+        va_start(args, fmt);
+        vfprintf(stderr, fmt, args);
+        va_end (args);
+        fprintf(stderr, "\n");
+    }
+
+    void dbg_tcp (int level, uv_tcp_t* tcp, char* client_server, const char* fmt, ...) {
+        int p1 = ceu_uv_tcp_getsockport(tcp);
+        int p2 = ceu_uv_tcp_getpeerport(tcp);
+        char str[255];
+        char* arrow;
+        if (strcmp(client_server,"server") == 0) {
+            arrow = "<-";
+        } else {
+            arrow = "->";
+        }
+        fprintf(stderr, "[%d] | %s:%d%s%d | ", level, client_server, p1, arrow, p2);
+
+        va_list args;
+        va_start(args, fmt);
+        vfprintf(stderr, fmt, args);
+        va_end (args);
+        fprintf(stderr, "\n");
+    }
+
+    // calculate the number of leading zero bits in "bytes"
+    // 00abcdef...  => 2
+    int leading_zeros (byte* bytes, int len) {
+        int i, j;
+        int zeros = 0;
+        for (i=0; i<len; i++) {             // loop over "bytes"
+            byte b = bytes[i];
+            for (j=0; j<8; j++) {           // loop over each bit
+                if ((b & (1<<j)) != 0) {
+                    return zeros;
+                } else {
+                    zeros++;
+                }
+            }
+        }
+        return zeros;
+    }
+end
+#define G(v) APP.gs[@(&&(v))]
+
+interface Global with
+    event void recv_chain_unlocked;
+    event void send_chain_unlocked;
+end
+event void recv_chain_unlocked;
+event void send_chain_unlocked;
+
+#include "uv.ceu"
+#include "client.ceu"
+#define UV_TCP_SERVER_HANDLER_CEU server.ceu
+#include "uv-server.ceu"
+
+#endif
