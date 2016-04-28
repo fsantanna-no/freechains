@@ -477,7 +477,7 @@ do
                 head_hash = chain.head_hash
                 txs_back  = APP.blocks[head_hash].txs
 
-msg.payload = string.sub(msg.payload,1,3)..string.sub(os.time(),6)
+--msg.payload = string.sub(msg.payload,1,3)..string.sub(os.time(),6)
                 tx = {
                     bytes     = string.len(msg.payload),
                     payload   = msg.payload,
@@ -498,11 +498,6 @@ msg.payload = string.sub(msg.payload,1,3)..string.sub(os.time(),6)
         [[ ARGS = { block=G(this).block } ]];
         do Message10_block_parse_head;
         do Client10;
-        [[
-            print('>'..string.rep('=',78))
-            print(GG.chains_tostring(APP.chains[G(this).block.chain_id]))
-            print('<'..string.rep('=',78))
-        ]];
     else
         _assert(0);  // message not supported
     end

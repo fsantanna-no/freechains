@@ -75,6 +75,7 @@ end
 
 -------------------------------------------------------------------------------
 
+-- TODO: hash
 function GG.chains_parse (chain)
     assert(type(chain) == 'table')
     assert(type(chain.key)   == 'string')
@@ -86,6 +87,7 @@ function GG.chains_parse (chain)
     return APP.chains[chain.id]
 end
 
+-- TODO: hash
 function GG.chains_head_base_len (head)
     local cur = head
     local len = 1
@@ -101,6 +103,7 @@ function GG.chains_head_base_len (head)
 end
 
 -- TODO: go back only TODO jumps
+-- TODO: hash
 function GG.chains_tx_contains (head, tx_hash)
     local cur = head
     while cur.tail_hash do
@@ -114,6 +117,7 @@ function GG.chains_tx_contains (head, tx_hash)
     return false
 end
 
+-- TODO: hash
 function GG.chains_tostring (chain)
     local head = APP.blocks[chain.head_hash]
     local T = {}

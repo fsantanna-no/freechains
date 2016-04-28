@@ -4,7 +4,7 @@ input void ANY;
 
 [[ dofile'src/common.lua' ]];
 
-par/or do
+par/and do
     var int unique = 0;
     [[
         G(unique) = app_create()
@@ -20,6 +20,16 @@ par/or do
 
     [=[
         dofile 'cfg/config.lua'
+
+        CLIENT {
+            peers = {
+                {
+                    host = { '127.0.0.1', '8331' },
+                    chains = APP.server.chains,
+                },
+            },
+        }
+
         MESSAGE {
             id = '1.0',
             chain = {
@@ -27,13 +37,21 @@ par/or do
                 zeros = 0,
             },
             payload = [[
-Olá Mundo!
+Ola Mundo!
 ]],
         }
     ]=];
+
     do ClientMessages;
     await 1s;
 
+    [[
+        CHAIN1 = APP.chains['||0|']
+        print'===> CLIENT'
+        print('>'..string.rep('=',78))
+        print(GG.chains_tostring(CHAIN1))
+        print('<'..string.rep('=',78))
+    ]];
 with
     var int unique = 0;
     [[
@@ -50,6 +68,9 @@ with
 
     [[
         dofile 'cfg/config.lua'
+        SERVER {
+            host = { '127.0.0.1', '8331' },
+        }
     ]];
     var char[] ip      = [[ APP.server.host[1] ]];
     var int    port    = [[ APP.server.host[2] ]];
@@ -57,9 +78,19 @@ with
     _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
     var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
 
-    await FOREVER;
+    await 1s;
+    [[
+        CHAIN2 = APP.chains['||0|']
+        print'===> SERVER'
+        print('>'..string.rep('=',78))
+        print(GG.chains_tostring(CHAIN2))
+        print('<'..string.rep('=',78))
+    ]];
 end
 
-_printf("oioio\n");
-escape 0;
+[[
+    assert( GG.chains_tostring(CHAIN1) == GG.chains_tostring(CHAIN2) )
+    print'OK!'
+]]
 
+escape 0;

@@ -548,11 +548,6 @@ end
     // RETRANSMIT NEW HEAD
     ///////////////////////////////////////////////////////////////////////////////
 
-    [[
-        print('>'..string.rep('=',78))
-        print(GG.chains_tostring(G(tcp).chain))
-        print('<'..string.rep('=',78))
-    ]];
     do
         // TODO: conditions to not propagate changes
         //var bool has = [[ block_new ~= dst.head ]];
