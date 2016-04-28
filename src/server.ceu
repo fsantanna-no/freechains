@@ -79,13 +79,7 @@ do
     // => BLOCK_TXS_N
     do
         // hash
-_printf("[server:%d<-%d] > read-1\n",
-        _ceu_uv_tcp_getsockport(&&this.tcp),
-        _ceu_uv_tcp_getpeerport(&&this.tcp));
         do UV_Stream_ReadUntil.run(&reader, off+HASH_BYTES);
-_printf("[server:%d<-%d] < read-1\n",
-        _ceu_uv_tcp_getsockport(&&this.tcp),
-        _ceu_uv_tcp_getpeerport(&&this.tcp));
         var byte[HASH_BYTES] hash;
         _ceu_vector_copy_buffer(&&hash, 0,
                                 (_byte&&)&&bytes[off], HASH_BYTES,
@@ -93,15 +87,9 @@ _printf("[server:%d<-%d] < read-1\n",
         off = off + HASH_BYTES;
 
         // txs_n
-_printf("[server:%d<-%d] > read-2\n",
-        _ceu_uv_tcp_getsockport(&&this.tcp),
-        _ceu_uv_tcp_getpeerport(&&this.tcp));
         do UV_Stream_ReadUntil.run(&reader, off+sizeof(u32));
         var u32 txs_n = GET_HOST_U32(bytes, off);
         off = off + sizeof(u32);
-_printf("[server:%d<-%d] < read-2\n",
-        _ceu_uv_tcp_getsockport(&&this.tcp),
-        _ceu_uv_tcp_getpeerport(&&this.tcp));
 
         [[
             G(tcp).block.hash = @hash;
@@ -346,10 +334,6 @@ end
 
     // lock
     do
-_printf("[server:%d<-%d] >>> WAIT-recv: %d\n",
-        _ceu_uv_tcp_getsockport(&&this.tcp),
-        _ceu_uv_tcp_getpeerport(&&this.tcp),
-        _RECV);
         var bool is_locked = [[ G(tcp).chain.recv_is_locked ]];
         if is_locked then
             loop do
@@ -360,17 +344,9 @@ _printf("[server:%d<-%d] >>> WAIT-recv: %d\n",
                 end
             end
         end
-_printf("[server:%d<-%d] >>> LOCK-recv: %d\n",
-        _ceu_uv_tcp_getsockport(&&this.tcp),
-        _ceu_uv_tcp_getpeerport(&&this.tcp),
-        _RECV);
         [[ G(tcp).chain.recv_is_locked = true ]];
     end
 
-_printf("[server:%d<-%d] <= ACK-header: %d\n",
-        _ceu_uv_tcp_getsockport(&&this.tcp),
-        _ceu_uv_tcp_getpeerport(&&this.tcp),
-        err);
 kill reader;
     var byte[1] send = [err];
     do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
@@ -395,16 +371,6 @@ end
     err = _ERR_NONE;
     err = do
         loop i do
-_printf("[server:%d<-%d] >>> %d\n",
-        _ceu_uv_tcp_getsockport(&&this.tcp),
-        _ceu_uv_tcp_getpeerport(&&this.tcp),
-        i);
-finalize with
-    _printf("[server:%d<-%d] <<< %d\n",
-            _ceu_uv_tcp_getsockport(&&this.tcp),
-            _ceu_uv_tcp_getpeerport(&&this.tcp),
-            i);
-end
             [[
                 G(tcp).block = {
                     id        = '1.0',
@@ -486,10 +452,6 @@ await 1s;
         [[ G(tcp).chain.recv_is_locked = false ]];
 end
 end
-_printf("[server:%d<-%d] >>> UNLOCK-recv: %d\n",
-        _ceu_uv_tcp_getsockport(&&this.tcp),
-        _ceu_uv_tcp_getpeerport(&&this.tcp),
-        _RECV);
         emit global:recv_chain_unlocked;
 
     if err == _MESSAGE10_HAVE then
@@ -658,14 +620,6 @@ do
         escape err;
     end
 
-    if false then
-    //if global:is_locked then
-_printf("[all] >>> WAIT\n");
-        await global:unlocked until (not global:is_locked);
-    end
-_printf("[all] >>> LOCK\n");
-    global:is_locked = true;
-
     var int err = _ERR_NONE;
 
     var byte[] bytes;
@@ -686,10 +640,6 @@ _printf("[all] >>> LOCK\n");
     else
         err = _ERR_MESSAGE;
     end
-
-    global:is_locked = false;
-_printf("[all] >>> UNLOCK\n");
-    emit global:unlocked;
 
     //_printf("[server] DONE: %d\n", err);
     escape err;

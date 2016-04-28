@@ -204,9 +204,6 @@ do
             bytes = []..bytes..[chain_zeros,(u8)chain_len]..chain_key;
         end
 
-_printf("[client:%d->%d] >>> WRITE\n",
-        _ceu_uv_tcp_getsockport(&&this.tcp),
-        _ceu_uv_tcp_getpeerport(&&this.tcp));
         do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
 
         // => ACK-header
@@ -214,13 +211,7 @@ _printf("[client:%d->%d] >>> WRITE\n",
             var byte[1] recv;
             var UV_Stream_Read reader =
                     UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&recv);
-_printf("[client:%d->%d] >>> READ\n",
-        _ceu_uv_tcp_getsockport(&&this.tcp),
-        _ceu_uv_tcp_getpeerport(&&this.tcp));
             do UV_Stream_ReadUntil.run(&reader, 1);
-_printf("[client:%d->%d] <<< READ/WRITE\n",
-        _ceu_uv_tcp_getsockport(&&this.tcp),
-        _ceu_uv_tcp_getpeerport(&&this.tcp));
             var int ret = recv[0];
 
             _printf("[client:%d->%d] => ACK-header = %d\n",
@@ -256,30 +247,21 @@ _printf("[client:%d->%d] <<< READ/WRITE\n",
             var u32 txs_n = [[ #G(tcp).block.txs ]];
             PUT_NETWORK_U32(bytes, $bytes, txs_n);
 
-_printf("[client:%d->%d] > write-1\n",
-        _ceu_uv_tcp_getsockport(&&this.tcp),
-        _ceu_uv_tcp_getpeerport(&&this.tcp));
             do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
-_printf("[client:%d->%d] < write-1\n",
-        _ceu_uv_tcp_getsockport(&&this.tcp),
-        _ceu_uv_tcp_getpeerport(&&this.tcp));
         end
 
         // => ACK-block
         do
-_printf("[client:%d->%d] > read-1\n",
-        _ceu_uv_tcp_getsockport(&&this.tcp),
-        _ceu_uv_tcp_getpeerport(&&this.tcp));
             var byte[1] recv;
             var UV_Stream_Read reader =
                     UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&recv);
             do UV_Stream_ReadUntil.run(&reader, 1);
             var int ret = recv[0];
-_printf("[client:%d->%d] < read-1\n",
-        _ceu_uv_tcp_getsockport(&&this.tcp),
-        _ceu_uv_tcp_getpeerport(&&this.tcp));
 
-            _printf("[client] => ACK-block = %d\n", ret);
+            _printf("[client:%d->%d] => ACK-block = %d\n",
+                    _ceu_uv_tcp_getsockport(&&this.tcp),
+                    _ceu_uv_tcp_getpeerport(&&this.tcp),
+                    ret);
             if ret == _MESSAGE10_HAVE then
                 break;  // found common block
             end
@@ -389,7 +371,6 @@ end
     var bool is_locked = [[ G(this).chain.send_is_locked ]];
     if is_locked then
         loop do
-_printf("[client] >>> WAIT-send: %d\n", _SEND);
             await global:send_chain_unlocked;
             is_locked = [[ G(this).chain.send_is_locked ]];
             if not is_locked then
@@ -397,7 +378,6 @@ _printf("[client] >>> WAIT-send: %d\n", _SEND);
             end
         end
     end
-_printf("[client] >>> LOCK-send: %d\n", _SEND);
     [[ G(this).chain.send_is_locked = true ]];
     finalize with
         is_locked = [[ G(this).chain.send_is_locked ]];
@@ -441,7 +421,6 @@ _printf("[client] >>> LOCK-send: %d\n", _SEND);
     // unlock
         [[ G(this).chain.send_is_locked = false ]];
 end
-_printf("[client] >>> UNLOCK-send: %d\n", _SEND);
         emit global:send_chain_unlocked;
 
     escape _ERR_NONE;   // trasmitted messages
