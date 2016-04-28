@@ -106,6 +106,13 @@ native do
 end
 #define G(v) APP.gs[@(&&(v))]
 
+interface Global with
+    event void recv_chain_unlocked;
+    event void send_chain_unlocked;
+end
+event void recv_chain_unlocked;
+event void send_chain_unlocked;
+
 #include "uv.ceu"
 #include "client.ceu"
 #define UV_TCP_SERVER_HANDLER_CEU server.ceu

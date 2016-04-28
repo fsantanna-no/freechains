@@ -78,18 +78,21 @@ do
     // => BLOCK_HASH
     // => BLOCK_TXS_N
     do
+_printf("111\n");
         // hash
         do UV_Stream_ReadUntil.run(&reader, off+HASH_BYTES);
         var byte[HASH_BYTES] hash;
         _ceu_vector_copy_buffer(&&hash, 0,
                                 (_byte&&)&&bytes[off], HASH_BYTES,
                                 1);
+_printf("222\n");
         off = off + HASH_BYTES;
 
         // txs_n
         do UV_Stream_ReadUntil.run(&reader, off+sizeof(u32));
         var u32 txs_n = GET_HOST_U32(bytes, off);
         off = off + sizeof(u32);
+_printf("333\n");
 
         [[
             G(tcp).block.hash = @hash;
@@ -98,12 +101,14 @@ do
             --print('[server] => BLOCK_TXS_N', @txs_n)
             G(tcp).block.txs_n = @txs_n
         ]];
+_printf("444\n");
     end
 
     // check if block is already on chain
     [[
         have = false
         cur = APP.blocks[ G(tcp).chain.head_hash ]
+print('CHECK: head:'..tostring2(cur.hash), cur, tostring2(cur.tail_hash))
         while true do
             if cur.hash == G(tcp).block.hash then
                 have = true
@@ -328,96 +333,143 @@ do
     end
 
     ///////////////////////////////////////////////////////////////////////////////
-    // BLOCKS
+    // BLOCKS:
     ///////////////////////////////////////////////////////////////////////////////
+
+    // lock
+    do
+        var bool is_locked = [[ G(tcp).chain.recv_is_locked ]];
+        if is_locked then
+            loop do
+_printf(">>> WAIT\n");
+                await global:recv_chain_unlocked;
+                is_locked = [[ G(tcp).chain.recv_is_locked ]];
+                if not is_locked then
+                    break;
+                end
+            end
+        end
+_printf(">>> LOCK\n");
+        [[ G(tcp).chain.recv_is_locked = true ]];
+    end
 
     [[
         G(tcp).remote_head = nil
         G(tcp).remote_base = nil
     ]];
 
-    loop i do
-        [[
-            G(tcp).block = {
-                id        = '1.0',
-                chain_id  = G(tcp).chain.id,
-                txs       = {},
-                hash      = nil,
-                up_hash   = nil,
-                tail_hash = nil,
-            }
-        ]];
+    var int err = _ERR_NONE;
+do
+finalize with
+    var bool is_locked = [[ G(tcp).chain.recv_is_locked ]];
+    _assert(not is_locked);
+end
 
-        // <= ACK-block
-        do
-            var int err = do Message10_block_recv.run(&tcp);
+    err = do
+        loop i do
+_printf(">>> %d\n", i);
+finalize with
+    _printf("<<< %d\n", i);
+end
+            [[
+                G(tcp).block = {
+                    id        = '1.0',
+                    chain_id  = G(tcp).chain.id,
+                    txs       = {},
+                    hash      = nil,
+                    up_hash   = nil,
+                    tail_hash = nil,
+                }
+            ]];
 
-native @plain _sockaddr_storage();
-native @nohold _uv_tcp_getpeername();
-var _sockaddr_storage addr = _sockaddr_storage();
-var int n = 0;
-_uv_tcp_getpeername(&&tcp, (_sockaddr&&)&&addr, &&n);
-var _sockaddr_in&& sin = (_sockaddr_in &&)&&addr;
-_printf(">>> %s\n", (_char&&)&&sin:sin_addr.s_addr);
+            // <= ACK-block
+            do
+                var int err2 = do Message10_block_recv.run(&tcp);
+
+var _sockaddr_in name = _sockaddr_in();
+var int namelen = sizeof(name);
+_uv_tcp_getpeername(&&tcp, (_sockaddr&&)&&name, &&namelen);
+var char[16] addr;
+_uv_inet_ntop(_AF_INET, &&name.sin_addr, (_char&&)&&addr, 16);
+var int port = _ntohs(name.sin_port);
+//_printf("%s:%d\n", (_char&&)&&addr, port);
+
 [[
 ptr = string.gsub(tostring(@(&&tcp)),'userdata: ','')
-print('[server:'..ptr..'] => BLOCKS['..(@i)..'] : '..
-        tostring2(G(tcp).block.hash))
+print('[server:'..ptr..'/'..(@addr)..'/'..(@port)..'] => BLOCKS['..(@i)..'] : '..  tostring2(G(tcp).block.hash))
 ]];
-            //[[ print('[server] => BLOCKS['..(@i)..'] : '..tostring2(G(tcp).block.hash)) ]];
+                //[[ print('[server] => BLOCKS['..(@i)..'] : '..tostring2(G(tcp).block.hash)) ]];
 
-            do
-                _printf("[server] <= ACK-block = %d\n", err);
-                var byte[1] send = [err];
-                do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
-            end
-
-            // FOUND COMMON BLOCK?
-            if err == _MESSAGE10_HAVE then
-                if i == 0 then
-                    escape _ERR_NONE;   // nothing new
-                else
-                    break;              // check/set new head
-                end
-            end
-
-            // received at least one new block
-            [[
-                if (@i) == 0 then
-                    G(tcp).remote_head = G(tcp).block
-                else
-                    G(tcp).remote_base.tail_hash = G(tcp).block.hash
-                    G(tcp).block.up_hash = G(tcp).remote_base.hash
+                do
+                    _printf("[server] <= ACK-block = %d\n", err2);
+                    var byte[1] send = [err2];
+                    do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
                 end
 
-                G(tcp).remote_base = G(tcp).block
-            ]];
-        end
-
-        ///////////////////////////////////////////////////////////////////////////
-        // TXS
-        ///////////////////////////////////////////////////////////////////////////
-
-        do
-            var int txs_n = [[ G(tcp).block.txs_n ]];
-            //_printf("[server] => %d txs\n", txs_n);
-            loop j in txs_n do
-                //_printf("[server] => txs[%d]\n", j);
-                var int err = do Message10_tx_recv.run(&tcp);
-                if err != _ERR_NONE then
-                    escape err;
+                // FOUND COMMON BLOCK?
+                if err2 == _MESSAGE10_HAVE then
+                    if i == 0 then
+                        escape _MESSAGE10_HAVE;   // nothing new
+                    else
+                        escape _ERR_NONE;         // check/set new head
+                    end
                 end
+
+                // received at least one new block
                 [[
-                    APP.txs[G(tcp).tx.hash] = G(tcp).tx
-                    G(tcp).block.txs[@j+1] = G(tcp).tx.hash
+                    if (@i) == 0 then
+                        G(tcp).remote_head = G(tcp).block
+                    else
+                        G(tcp).remote_base.tail_hash = G(tcp).block.hash
+                        G(tcp).block.up_hash = G(tcp).remote_base.hash
+                    end
+
+                    G(tcp).remote_base = G(tcp).block
                 ]];
             end
-        end
 
-        [[ APP.blocks[G(tcp).block.hash] = G(tcp).block ]];
+            ///////////////////////////////////////////////////////////////////////////
+            // TXS
+            ///////////////////////////////////////////////////////////////////////////
+
+            do
+                var int txs_n = [[ G(tcp).block.txs_n ]];
+                //_printf("[server] => %d txs\n", txs_n);
+                loop j in txs_n do
+                    //_printf("[server] => txs[%d]\n", j);
+                    var int err2 = do Message10_tx_recv.run(&tcp);
+                    if err2 != _ERR_NONE then
+                        escape err2;
+                    end
+                    [[
+                        APP.txs[G(tcp).tx.hash] = G(tcp).tx
+                        G(tcp).block.txs[@j+1] = G(tcp).tx.hash
+                    ]];
+                end
+            end
+
+_printf("--- INS-0: ");
+[[print(tostring2(G(tcp).block.hash))]];
+            [[ APP.blocks[G(tcp).block.hash] = G(tcp).block ]];
+        end
+        _assert(0);
+        escape _ERR_NONE;
+    end;
+
+    // unlock
+_printf(">>> UNLOCK\n");
+        [[ G(tcp).chain.recv_is_locked = false ]];
+end
+        emit global:recv_chain_unlocked;
+
+    if err == _MESSAGE10_HAVE then
+        escape _ERR_NONE;   // nothing new, but no error
+    else/if err != _ERR_NONE then
+        escape err;         // some error
     end
 
     // BLOCK holds the COMMON node
+_printf("--- INS-1:\n");
     [[
         common_hash = G(tcp).block.hash
         assert(G(tcp).remote_head and G(tcp).remote_base, '1')
@@ -439,6 +491,7 @@ print('[server:'..ptr..'] => BLOCKS['..(@i)..'] : '..
      */
 
     // compare chains, set longest, apply shortest
+_printf("--- INS-2:\n");
     [[
         -- { base=?, head=?, len=? }
         local_ = APP.chains.head_base_len(APP.blocks[G(tcp).chain.head_hash])
@@ -463,12 +516,15 @@ print('[server:'..ptr..'] => BLOCKS['..(@i)..'] : '..
                 dst, src = local_, remote
             end
         end
+print("--- INS-3: ");
 
         -- relink current chain's head/common if longest is remote
         if dst == remote then
             print('[server] remote wins')
             APP.blocks[common_hash].up_hash = G(tcp).remote_base.hash
             G(tcp).chain.head_hash = dst.head.hash
+print('[server] head:'..tostring2(dst.head.hash), dst.head)
+print('[server] tail:'..tostring2(dst.head.tail_hash))
 print('[server] common:'..tostring2(common_hash)..'=>'..tostring2(G(tcp).remote_base.hash))
         else
             print('[server] local wins')
@@ -515,6 +571,7 @@ end
             block = block_new
         }
     ]];
+_printf("--- INS-4: \n");
     var bool has_txs = [[ #block_new.txs > 0 ]];
     if has_txs then
         do Message10_block_parse_head;
@@ -525,6 +582,8 @@ end
     ///////////////////////////////////////////////////////////////////////////////
 
     [[
+print('BLOCK-new', block_new, #block_new.txs)
+print('BLOCK-new', tostring2(block_new.hash), tostring2(block_new.tail_hash))
         print('>'..string.rep('=',78))
         print(APP.chains.tostring(G(tcp).chain))
         print('<'..string.rep('=',78))
@@ -537,9 +596,9 @@ end
                     block = APP.blocks[G(tcp).chain.head_hash]
                 }
             ]];
-            var int err = do Client10;
-            if err != _ERR_NONE then
-                escape err;
+            var int err2 = do Client10;
+            if err2 != _ERR_NONE then
+                escape err2;
             end
 #if 0
 await 1s;
