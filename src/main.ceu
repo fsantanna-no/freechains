@@ -109,9 +109,13 @@ end
 interface Global with
     event void recv_chain_unlocked;
     event void send_chain_unlocked;
+    event void unlocked;
+    var bool is_locked;
 end
 event void recv_chain_unlocked;
 event void send_chain_unlocked;
+event void unlocked;
+var bool is_locked = false;
 
 #include "uv.ceu"
 #include "client.ceu"
