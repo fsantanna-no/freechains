@@ -1,9 +1,9 @@
 #include "common.ceu"
 
 ///////////////////////////////////////////////////////////////////////////////
-// 0->1<-2
-//  - same block (same payload)
-//  - 0->''
+// 0->1
+//  - send the same head twice
+//  - results in only one block
 ///////////////////////////////////////////////////////////////////////////////
 
 input void ANY;
@@ -47,12 +47,20 @@ par/and do
                 key   = '',
                 zeros = 0,
             },
-            payload = [[ xxx ]],
+            payload = [[same]],
         }
     ]=];
 
     async do end;
     do ClientMessages;
+
+    loop i in 10 do
+        [=[
+            APP.messages = {}
+            ARGS = { block = APP.blocks[ APP.chains['||0|'].head_hash ] }
+        ]=];
+        do Client10;
+    end
 with
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -84,60 +92,9 @@ with
     _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
     var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
 
-    await 2s;
+    await 1s;
     [[
         CHAIN1 = GG.chain_flatten('||0|')
-        print'===> SERVER'
-        print('>'..string.rep('=',78))
-        print(GG.chain_tostring('||0|'))
-        print('<'..string.rep('=',78))
-    ]];
-
-with
-
-///////////////////////////////////////////////////////////////////////////////
-// 2
-///////////////////////////////////////////////////////////////////////////////
-
-    var int unique = 0;
-    [[
-        G(unique) = app_create()
-        APP = G(unique)
-    ]];
-    spawn do
-        every ANY do
-            [[ APP = G(unique) ]];
-        end
-    end
-
-    ///////////////////////////////////////////////////////////////////////////
-
-    [=[
-        dofile 'cfg/config.lua'
-
-        CLIENT {
-            peers = {
-                {
-                    host = { '127.0.0.1', '8331' },
-                    chains = APP.server.chains,
-                },
-            },
-        }
-
-        MESSAGE {
-            id = '1.0',
-            chain = {
-                key   = '',
-                zeros = 0,
-            },
-            payload = [[ xxx ]],
-        }
-    ]=];
-
-    await 100ms;
-    do ClientMessages;
-    [[
-        CHAIN2 = GG.chain_flatten('||0|')
         print'===> SERVER'
         print('>'..string.rep('=',78))
         print(GG.chain_tostring('||0|'))
@@ -147,7 +104,7 @@ with
 end
 
 [=[
-    assert( #CHAIN1==2 and CHAIN1[2].txs[1]==[[ xxx ]] )
+    assert( #CHAIN1==2 and CHAIN1[2].txs[1]==[[same]] )
     print'OK!'
 ]=];
 

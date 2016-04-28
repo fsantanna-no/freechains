@@ -2,8 +2,11 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 // 0->1<-2
-//  - same block (same payload)
-//  - 0->''
+//  - different blocks
+//      - 0 sends 0.1 first
+//      - 2 sends 2.1+2.2 second
+//  - 2 wins
+//  - 0.1 -> 2.1+2.2 -> ''
 ///////////////////////////////////////////////////////////////////////////////
 
 input void ANY;
@@ -47,7 +50,7 @@ par/and do
                 key   = '',
                 zeros = 0,
             },
-            payload = [[ xxx ]],
+            payload = [[0.1]],
         }
     ]=];
 
@@ -130,7 +133,15 @@ with
                 key   = '',
                 zeros = 0,
             },
-            payload = [[ xxx ]],
+            payload = [[2.1]],
+        }
+        MESSAGE {
+            id = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = [[2.2]],
         }
     ]=];
 
@@ -147,7 +158,9 @@ with
 end
 
 [=[
-    assert( #CHAIN1==2 and CHAIN1[2].txs[1]==[[ xxx ]] )
+    assert( #CHAIN1==3 and
+            CHAIN1[2].txs[2]==[[2.2]] and
+            CHAIN1[3].txs[1]==[[0.1]] )
     print'OK!'
 ]=];
 
