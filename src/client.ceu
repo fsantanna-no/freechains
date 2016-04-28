@@ -92,8 +92,6 @@ do
         old.up_hash     = block.hash    -- prv->up=me
         block.tail_hash = old.hash      -- me->tail=prv
         chain.head_hash = block.hash
---print('[client] head:'..tostring2(block.hash))
---print('[client] from:'..tostring2(old.hash))
     ]]
 
     escape _ERR_NONE;
@@ -322,8 +320,6 @@ do
         end
 
         _dbg(0, "client | connected to %s:%d", (_char&&)&&ip, port);
-// TODO: to test multiple topology paths
-await 1900ms;
         watching err_ in c do
             err_ = _ERR_NONE;
             if is_10 then
@@ -352,30 +348,27 @@ class Client with
     interface PeerListener;
     // [[ ARGS = { chain=?, block=? } ]]
 do
-// lock
-do
-native do
-    int SEND = 0;
-end
-_SEND = _SEND + 1;
-finalize with
-    _SEND = _SEND - 1;
-end
-
     [[ G(this) = ARGS ]];
-    var bool is_locked = [[ G(this).chain.send_is_locked ]];
-    if is_locked then
-        loop do
-            await global:send_chain_unlocked;
-            is_locked = [[ G(this).chain.send_is_locked ]];
-            if not is_locked then
-                break;
+
+    // LOCK: only one "send" per chain
+    do
+        var bool is_locked = [[ G(this).chain.send_is_locked ]];
+        if is_locked then
+            loop do
+                await global:send_chain_unlocked;
+                is_locked = [[ G(this).chain.send_is_locked ]];
+                if not is_locked then
+                    break;
+                end
             end
         end
+        [[ G(this).chain.send_is_locked = true ]];
     end
-    [[ G(this).chain.send_is_locked = true ]];
+
+// TODO: primitive "lock"
+do
     finalize with
-        is_locked = [[ G(this).chain.send_is_locked ]];
+        var bool is_locked = [[ G(this).chain.send_is_locked ]];
         _assert(not is_locked);
     end
 
@@ -413,10 +406,10 @@ end
     end
     _dbg(0, "client | broadcasts OK");
 
-    // unlock
-        [[ G(this).chain.send_is_locked = false ]];
+    // UNLOCK "send"
+    [[ G(this).chain.send_is_locked = false ]];
 end
-        emit global:send_chain_unlocked;
+    emit global:send_chain_unlocked;
 
     escape _ERR_NONE;   // trasmitted messages
 end
@@ -484,7 +477,7 @@ do
                 head_hash = chain.head_hash
                 txs_back  = APP.blocks[head_hash].txs
 
-msg.payload = os.time()..' message.'
+msg.payload = 'AAA-'..string.sub(os.time(),6)
                 tx = {
                     bytes     = string.len(msg.payload),
                     payload   = msg.payload,

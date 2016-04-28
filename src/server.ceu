@@ -104,7 +104,6 @@ do
     [[
         have = false
         cur = APP.blocks[ G(tcp).chain.head_hash ]
---print('CHECK: head:'..tostring2(cur.hash), cur, tostring2(cur.tail_hash))
         while true do
             if cur.hash == G(tcp).block.hash then
                 have = true
@@ -317,22 +316,14 @@ do
     // <= ACK-header
     // bytes/reader received from message partially parsed
     var int err = do Message10_header_recv.run(&tcp,&bytes,&reader);
+    kill reader;    // "reader" only used for decoding the header
     if err == _MESSAGE10_NOTSUB then
         var byte[1] send = [err];
         do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
         escape err;     // terminate if not subcribed
     end
 
-do
-native do
-    int RECV = 0;
-end
-_RECV = _RECV + 1;
-finalize with
-    _RECV = _RECV - 1;
-end
-
-    // lock
+    // LOCK: only one "receive" per chain
     do
         var bool is_locked = [[ G(tcp).chain.recv_is_locked ]];
         if is_locked then
@@ -347,7 +338,13 @@ end
         [[ G(tcp).chain.recv_is_locked = true ]];
     end
 
-kill reader;
+// TODO: primitive "lock"
+do
+    finalize with
+        var bool is_locked = [[ G(tcp).chain.recv_is_locked ]];
+        _assert(not is_locked);
+    end
+
     var byte[1] send = [err];
     do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
 
@@ -355,14 +352,6 @@ kill reader;
         G(tcp).remote_head = nil
         G(tcp).remote_base = nil
     ]];
-
-do
-finalize with
-    var bool is_locked = [[ G(tcp).chain.recv_is_locked ]];
-    _assert(not is_locked);
-end
-
-
 
     ///////////////////////////////////////////////////////////////////////////////
     // BLOCKS:
@@ -447,11 +436,10 @@ end
         escape _ERR_NONE;
     end;
 
-    // unlock
-        [[ G(tcp).chain.recv_is_locked = false ]];
+    // UNLOCK "receive"
+    [[ G(tcp).chain.recv_is_locked = false ]];
 end
-end
-        emit global:recv_chain_unlocked;
+    emit global:recv_chain_unlocked;
 
     if err == _MESSAGE10_HAVE then
         escape _ERR_NONE;   // nothing new, but no error
@@ -511,9 +499,6 @@ end
             print('[server] remote wins')
             APP.blocks[common_hash].up_hash = G(tcp).remote_base.hash
             G(tcp).chain.head_hash = dst.head.hash
---print('[server] head:'..tostring2(dst.head.hash), dst.head)
---print('[server] tail:'..tostring2(dst.head.tail_hash))
---print('[server] common:'..tostring2(common_hash)..'=>'..tostring2(G(tcp).remote_base.hash))
         else
             print('[server] local wins')
             -- already ok
@@ -529,7 +514,6 @@ end
             --tail_hash = dst.head.hash,
             --hash      = error'TODO',
         }
---print('[server] new: '..tostring2(block_new.hash)..'<='..tostring2(dst.head.hash))
 
         -- insert all src* txs into block_new.txs if non existent
         cur = src.head
@@ -542,10 +526,6 @@ end
                     t[#t+1] = tx
                 end
             end
-if not APP.blocks[cur.tail_hash] then
---print('[server] common: '..tostring2(common_hash)..
---              ' cur   : '..tostring2(cur.hash))
-end
             cur = assert(APP.blocks[cur.tail_hash])
             table.insert(T, 1, t) -- inverse order
         end
@@ -569,13 +549,12 @@ end
     ///////////////////////////////////////////////////////////////////////////////
 
     [[
---print('BLOCK-new', block_new, #block_new.txs)
---print('BLOCK-new', tostring2(block_new.hash), tostring2(block_new.tail_hash))
         print('>'..string.rep('=',78))
         print(APP.chains.tostring(G(tcp).chain))
         print('<'..string.rep('=',78))
     ]];
     do
+        // TODO: conditions to not propagate changes
         //var bool has = [[ block_new ~= dst.head ]];
         //if has then
             [[
@@ -587,14 +566,7 @@ end
             if err2 != _ERR_NONE then
                 escape err2;
             end
-#if 0
-await 1s;
-var int err = do Client10;
-if err != _ERR_NONE then
-    escape err;
-end
         //end
-#endif
     end
 
     escape _ERR_NONE;
