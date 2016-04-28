@@ -42,6 +42,7 @@ Ola Mundo!
         }
     ]=];
 
+    async do end;
     do ClientMessages;
     await 1s;
 

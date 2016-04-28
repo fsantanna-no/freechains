@@ -104,6 +104,7 @@ end
 
 -- TODO: go back only TODO jumps
 -- TODO: hash
+-- TODO: chains->chain
 function GG.chains_tx_contains (head, tx_hash)
     local cur = head
     while cur.tail_hash do
@@ -117,8 +118,9 @@ function GG.chains_tx_contains (head, tx_hash)
     return false
 end
 
--- TODO: hash
-function GG.chains_tostring (chain)
+-- TODO: chains->chain
+function GG.chains_flatten (chain_id)
+    local chain = APP.chains[chain_id]
     local head = APP.blocks[chain.head_hash]
     local T = {}
     while head do
@@ -134,7 +136,13 @@ function GG.chains_tostring (chain)
         end
         head = APP.blocks[head.tail_hash]
     end
-    return tostring2(T)
+    return T
+end
+
+-- TODO: chains->chain
+-- TODO: id
+function GG.chains_tostring (chain)
+    return tostring2(GG.chains_flatten(chain.id))
 end
 
 -------------------------------------------------------------------------------
