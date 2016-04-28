@@ -467,7 +467,7 @@ do
 
                 assert(type(msg.chain)=='table')
 
-                chain = APP.chains.parse(msg.chain)
+                chain = GG.chains_parse(msg.chain)
                 if (@i) == 0 then
                     block.chain_id = chain.id
                 else
@@ -500,7 +500,7 @@ msg.payload = string.sub(msg.payload,1,3)..string.sub(os.time(),6)
         do Client10;
         [[
             print('>'..string.rep('=',78))
-            print(APP.chains.tostring(APP.chains[G(this).block.chain_id]))
+            print(GG.chains_tostring(APP.chains[G(this).block.chain_id]))
             print('<'..string.rep('=',78))
         ]];
     else

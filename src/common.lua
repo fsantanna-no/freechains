@@ -1,29 +1,35 @@
-APP = {
-    server   = {},  -- server configurations
-    client   = {},  -- client configurations
-    chains   = {},  -- chains configurations
-    messages = {},  -- pending messages to transmit
-    blocks = {      -- blocks in memory
-        --[hash] = {
-        --    hash      = nil,
-        --    up_hash   = nil,
-        --    tail_hash = nil,
-        --    txs       = { tx_hash1, tx_hash2, ... },
-        --},
-        ...
-    },
-    txs = {         -- txs in memory
-        --[hash] = {
-        --    hash      = nil,
-        --    timestamp = nil,
-        --    bytes     = nil,
-        --    payload   = nil,
-        --}
-    },
-    gs = {          -- ceu->lua globals
-        --[usedata-k] = {}
+GG = {}
+
+function app_create ()
+    return {
+        server   = {},  -- server configurations
+        client   = {},  -- client configurations
+        chains   = {},  -- chains configurations
+        messages = {},  -- pending messages to transmit
+        blocks = {      -- blocks in memory
+            --[hash] = {
+            --    hash      = nil,
+            --    up_hash   = nil,
+            --    tail_hash = nil,
+            --    txs       = { tx_hash1, tx_hash2, ... },
+            --},
+            --...
+        },
+        txs = {         -- txs in memory
+            --[hash] = {
+            --    hash      = nil,
+            --    timestamp = nil,
+            --    bytes     = nil,
+            --    payload   = nil,
+            --}
+        },
+        gs = {          -- ceu->lua globals
+            --[usedata-k] = {}
+        }
     }
-}
+end
+
+APP = app_create()
 
 local chain_create
 function SERVER (t)
@@ -34,7 +40,7 @@ function SERVER (t)
     t = APP.server
     assert(type(t.chains) == 'table')
     for _,chain in ipairs(t.chains) do
-        APP.chains.parse(chain)
+        GG.chains_parse(chain)
         if not APP.chains[chain.id] then
             APP.chains[chain.id] = chain_create(chain)
         end
@@ -53,7 +59,7 @@ function CLIENT (t)
         assert(type(peer) == 'table')
         assert(type(peer.chains) == 'table')
         for _,chain in ipairs(peer.chains) do
-            local c = APP.chains.parse(chain)
+            local c = GG.chains_parse(chain)
             assert(c)   -- must already exist
         end
     end
@@ -69,7 +75,7 @@ end
 
 -------------------------------------------------------------------------------
 
-function APP.chains.parse (chain)
+function GG.chains_parse (chain)
     assert(type(chain) == 'table')
     assert(type(chain.key)   == 'string')
     assert(type(chain.zeros) == 'number')
@@ -80,7 +86,7 @@ function APP.chains.parse (chain)
     return APP.chains[chain.id]
 end
 
-function APP.chains.head_base_len (head)
+function GG.chains_head_base_len (head)
     local cur = head
     local len = 1
     while cur.tail_hash do
@@ -95,7 +101,7 @@ function APP.chains.head_base_len (head)
 end
 
 -- TODO: go back only TODO jumps
-function APP.chains.tx_contains (head, tx_hash)
+function GG.chains_tx_contains (head, tx_hash)
     local cur = head
     while cur.tail_hash do
         for _, tx_hash_i in ipairs(cur.txs) do
@@ -108,13 +114,10 @@ function APP.chains.tx_contains (head, tx_hash)
     return false
 end
 
-function APP.chains.tostring (chain)
+function GG.chains_tostring (chain)
     local head = APP.blocks[chain.head_hash]
     local T = {}
-xxx = {}
     while head do
-assert(not xxx[head], tostring2(head.hash))
-xxx[head] = true
         local t = {
             hash = tostring2(head.hash),
             txs  = {},

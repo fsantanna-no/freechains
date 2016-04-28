@@ -77,7 +77,7 @@ native do
         return zeros;
     }
 end
-#define G(v) APP.gs[@(&&(v))]
+#define G(v) GG[@(&&(v))]
 
 interface Global with
     event void recv_chain_unlocked;

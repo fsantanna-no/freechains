@@ -37,6 +37,7 @@
         - use a hash based on the chain unique identification!
 
 = IDEAS:
+    - freechains
     - IPFS + bitcoin
     - esquema de nomes bc/path/, pega mais recente, bc/path/^..., git
     - /bc/dir/#hash/@search/%date/!sort

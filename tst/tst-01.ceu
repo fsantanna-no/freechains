@@ -1,0 +1,65 @@
+#include "common.ceu"
+
+input void ANY;
+
+[[ dofile'src/common.lua' ]];
+
+par/or do
+    var int unique = 0;
+    [[
+        G(unique) = app_create()
+        APP = G(unique)
+    ]];
+    spawn do
+        every ANY do
+            [[ APP = G(unique) ]];
+        end
+    end
+
+    ///////////////////////////////////////////////////////////////////////////
+
+    [=[
+        dofile 'cfg/config.lua'
+        MESSAGE {
+            id = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = [[
+Olá Mundo!
+]],
+        }
+    ]=];
+    do ClientMessages;
+    await 1s;
+
+with
+    var int unique = 0;
+    [[
+        G(unique) = app_create()
+        APP = G(unique)
+    ]];
+    spawn do
+        every ANY do
+            [[ APP = G(unique) ]];
+        end
+    end
+
+    ///////////////////////////////////////////////////////////////////////////
+
+    [[
+        dofile 'cfg/config.lua'
+    ]];
+    var char[] ip      = [[ APP.server.host[1] ]];
+    var int    port    = [[ APP.server.host[2] ]];
+    var int    backlog = [[ APP.server.backlog ]];
+    _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
+    var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
+
+    await FOREVER;
+end
+
+_printf("oioio\n");
+escape 0;
+

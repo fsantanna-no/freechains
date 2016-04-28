@@ -42,7 +42,7 @@ do
         off = off + 1;
 
         [[
-            G(tcp).chain = APP.chains.parse( {
+            G(tcp).chain = GG.chains_parse( {
                 key   = @chain_key,
                 zeros = @chain_zeros,
             } )
@@ -471,8 +471,8 @@ end
     // compare chains, set longest, apply shortest
     [[
         -- { base=?, head=?, len=? }
-        local_ = APP.chains.head_base_len(APP.blocks[G(tcp).chain.head_hash])
-        remote = APP.chains.head_base_len(G(tcp).remote_head)
+        local_ = GG.chains_head_base_len(APP.blocks[G(tcp).chain.head_hash])
+        remote = GG.chains_head_base_len(G(tcp).remote_head)
         assert(remote.len>0 and local_.len>0)
         --print('[server] LOC='..local_.len..' vs REM='..remote.len)
 
@@ -522,7 +522,7 @@ end
             t = {}
             for _, tx in ipairs(cur.txs) do
                 assert(type(tx) == 'string')
-                if not APP.chains.tx_contains(dst.head,tx) then
+                if not GG.chains_tx_contains(dst.head,tx) then
                     t[#t+1] = tx
                 end
             end
@@ -550,7 +550,7 @@ end
 
     [[
         print('>'..string.rep('=',78))
-        print(APP.chains.tostring(G(tcp).chain))
+        print(GG.chains_tostring(G(tcp).chain))
         print('<'..string.rep('=',78))
     ]];
     do
