@@ -26,7 +26,7 @@ do
     var byte[HASH_BYTES] tx_hash;
     var u32 nonce = 0;
     var u8 zeros_wanted = [[ APP.chains[ARGS.block.chain_id].zeros ]];
-    async/thread (plain,tx_hash,nonce,zeros_wanted) do
+    //async/thread (plain,tx_hash,nonce,zeros_wanted) do
         var int zeros_found = 0;
         $tx_hash := HASH_BYTES;
         var u32 ii = 0;
@@ -43,7 +43,7 @@ do
             PUT_NETWORK_U32(plain, 0, nonce);
         end
         //_printf("[client] POW rounds: %d\n", ii);
-    end
+    //end
 
     [[
         -- i'm in the database
@@ -467,7 +467,7 @@ do
 
                 assert(type(msg.chain)=='table')
 
-                chain = GG.chains_parse(msg.chain)
+                chain = GG.chain_parse(msg.chain)
                 if (@i) == 0 then
                     block.chain_id = chain.id
                 else

@@ -40,7 +40,7 @@ function SERVER (t)
     t = APP.server
     assert(type(t.chains) == 'table')
     for _,chain in ipairs(t.chains) do
-        GG.chains_parse(chain)
+        GG.chain_parse(chain)
         if not APP.chains[chain.id] then
             APP.chains[chain.id] = chain_create(chain)
         end
@@ -59,7 +59,7 @@ function CLIENT (t)
         assert(type(peer) == 'table')
         assert(type(peer.chains) == 'table')
         for _,chain in ipairs(peer.chains) do
-            local c = GG.chains_parse(chain)
+            local c = GG.chain_parse(chain)
             assert(c)   -- must already exist
         end
     end
@@ -75,8 +75,7 @@ end
 
 -------------------------------------------------------------------------------
 
--- TODO: hash
-function GG.chains_parse (chain)
+function GG.chain_parse (chain)
     assert(type(chain) == 'table')
     assert(type(chain.key)   == 'string')
     assert(type(chain.zeros) == 'number')
@@ -87,9 +86,9 @@ function GG.chains_parse (chain)
     return APP.chains[chain.id]
 end
 
--- TODO: hash
-function GG.chains_head_base_len (head)
-    local cur = head
+function GG.chain_head_base_len (head_hash)
+    local head = APP.blocks[head_hash]
+    local cur  = head
     local len = 1
     while cur.tail_hash do
         len = len + 1
@@ -103,10 +102,8 @@ function GG.chains_head_base_len (head)
 end
 
 -- TODO: go back only TODO jumps
--- TODO: hash
--- TODO: chains->chain
-function GG.chains_tx_contains (head, tx_hash)
-    local cur = head
+function GG.chain_tx_contain (head_hash, tx_hash)
+    local cur = APP.blocks[head_hash]
     while cur.tail_hash do
         for _, tx_hash_i in ipairs(cur.txs) do
             if tx_hash_i == tx_hash then
@@ -118,8 +115,7 @@ function GG.chains_tx_contains (head, tx_hash)
     return false
 end
 
--- TODO: chains->chain
-function GG.chains_flatten (chain_id)
+function GG.chain_flatten (chain_id)
     local chain = APP.chains[chain_id]
     local head = APP.blocks[chain.head_hash]
     local T = {}
@@ -139,10 +135,8 @@ function GG.chains_flatten (chain_id)
     return T
 end
 
--- TODO: chains->chain
--- TODO: id
-function GG.chains_tostring (chain)
-    return tostring2(GG.chains_flatten(chain.id))
+function GG.chain_tostring (chain_id)
+    return tostring2(GG.chain_flatten(chain_id))
 end
 
 -------------------------------------------------------------------------------
