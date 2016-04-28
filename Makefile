@@ -16,4 +16,13 @@ C_FLAGS += -Isrc/ -llua5.1 -lsodium
 
 _all: all
 
+tests:
+	for i in tst/*.ceu; do								\
+		echo;											\
+		echo "#####################################";	\
+		echo File: "$$i";								\
+		echo "#####################################";	\
+		make SRC=$$i all || exit 1;						\
+	done
+
 include $(UV_DIR)/Makefile
