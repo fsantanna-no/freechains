@@ -102,7 +102,7 @@ function GG.chain_head_base_len (head_hash)
 end
 
 -- TODO: go back only TODO jumps
-function GG.chain_tx_contain (head_hash, tx_hash)
+function GG.chain_tx_contains (head_hash, tx_hash)
     local cur = APP.blocks[head_hash]
     while cur.tail_hash do
         for _, tx_hash_i in ipairs(cur.txs) do
