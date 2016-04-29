@@ -470,23 +470,22 @@ end
 
     // compare chains, set longest, apply shortest
     [[
-        -- { base=?, head=?, len=? }
-        local_ = GG.chain_head_base_len(G(tcp).chain.head_hash)
-        remote = GG.chain_head_base_len(G(tcp).remote_head.hash)
-        assert(remote.len>0 and local_.len>0)
-        --print('[server] LOC='..local_.len..' vs REM='..remote.len)
+        -- { base=?, head=?, size=? }
+        local_ = GG.chain_head_base_size(G(tcp).chain.head_hash)
+        remote = GG.chain_head_base_size(G(tcp).remote_head.hash)
+        --print('[server] LOC='..local_.size..' vs REM='..remote.size)
 
         -- dst is the longest
         -- src is the shortest
         -- TODO-LEN:
         dst, src = nil, nil
-        if remote.len > local_.len then
+        if remote.size > local_.size then
             dst, src = remote, local_
-        elseif local_.len > remote.len then
+        elseif local_.size > remote.size then
             dst, src = local_, remote
         else
             -- break tie on hash value of head
-            assert(remote.len == local_.len)
+            assert(remote.size == local_.size)
             if remote.head.hash > local_.head.hash then
                 dst, src = remote, local_
             else

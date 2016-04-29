@@ -86,18 +86,18 @@ function GG.chain_parse (chain)
     return APP.chains[chain.id]
 end
 
-function GG.chain_head_base_len (head_hash)
+function GG.chain_head_base_size (head_hash)
     local head = APP.blocks[head_hash]
     local cur  = head
-    local len = 1
+    local size = 0
     while cur.tail_hash do
-        len = len + 1
+        size = size + #cur.txs
         cur = APP.blocks[cur.tail_hash]
     end
     return {
         base = cur,
         head = head,
-        len  = len
+        size = size,     -- TODO: #payload
     }
 end
 
