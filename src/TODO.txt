@@ -55,10 +55,22 @@
 = CMDS:
     - for i in cfg/message-01-a*.lua; do ./build/main.exe cfg/config.lua cfg/config-aa.lua $i; done
     - while :; do ./build/main.exe cfg/config.lua cfg/config-aa.lua cfg/message-01-01.lua; done
-#endif
+    -
+        break _ceu_app.c:14594
+        r
+        watch XXX
+        watch XXX.connect_req
+        watch XXX.connect_req->cb
+        break __GI___libc_free
+        cond 5 (mem==0x639780 || mem==0x62b7f8)
+        commands 5
+        print mem
+        c
+        end
+        c
 
+===============================================================================
 
-#if 0
 = Message10_00_chain
 - MESSAGE_*:    obligatory
 - CHAIN_*:      avoids sequence of unsubscribed hashes

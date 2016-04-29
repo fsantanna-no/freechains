@@ -359,7 +359,11 @@ do
         var bool is_locked = [[ G(this).chain.send_is_locked ]];
         if is_locked then
             loop do
-                await global:send_chain_unlocked;
+                par/or do
+                    await global:send_chain_unlocked;
+                with
+                    await 1s;
+                end
                 is_locked = [[ G(this).chain.send_is_locked ]];
                 if not is_locked then
                     break;
@@ -371,9 +375,19 @@ do
 
 // TODO: primitive "lock"
 do
+#if 0
+    lock X do
+        finalize with
+            ...
+        end
+        ...
+    end
+#endif
+
     finalize with
-        var bool is_locked = [[ G(this).chain.send_is_locked ]];
-        _assert(not is_locked);
+        //var bool is_locked = [[ G(this).chain.send_is_locked ]];
+        //_assert(not is_locked);
+        [[ G(this).chain.send_is_locked = false ]];
     end
 
     var int ps = [[#APP.client.peers]];

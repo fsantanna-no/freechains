@@ -328,7 +328,11 @@ do
         var bool is_locked = [[ G(tcp).chain.recv_is_locked ]];
         if is_locked then
             loop do
-                await global:recv_chain_unlocked;
+                par/or do
+                    await global:recv_chain_unlocked;
+                with
+                    await 1s;
+                end
                 is_locked = [[ G(tcp).chain.recv_is_locked ]];
                 if not is_locked then
                     break;
@@ -341,8 +345,9 @@ do
 // TODO: primitive "lock"
 do
     finalize with
-        var bool is_locked = [[ G(tcp).chain.recv_is_locked ]];
-        _assert(not is_locked);
+        //var bool is_locked = [[ G(tcp).chain.recv_is_locked ]];
+        //_assert(not is_locked);
+        [[ G(tcp).chain.recv_is_locked = false ]];
     end
 
     var byte[1] send = [err];
