@@ -183,7 +183,7 @@ do
             else
                 send = [ _ERR_NONE  ];
             end
-            _dbg_tcp(0, &&this.tcp, "server", "<= ACK-tx = %d\n", send[0]);
+            _dbg_tcp(0, &&this.tcp, "server", "<= ACK-tx = %d", send[0]);
             do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
         end
 
@@ -225,7 +225,7 @@ do
             // [check] BACK_HASH is young enough? [ok ACK]
             do
 #if 1
-                _printf("TODO: BLOCK_HASH young enough?\n");
+                //_printf("TODO: BLOCK_HASH young enough?\n");
 #else
                 var int n = [[ APP.server.chains.BACK_HASH_JUMP_LIMIT ]];
                 [[ head_hash = APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] ]];
@@ -379,7 +379,7 @@ do
                 //'..tostring2(G(tcp).block.hash)) ]];
 
                 do
-                    _printf("[server:%d<-%d] <= ACK-block[%d] = %d\n",
+                    _dbg_tcp(0, &&this.tcp, "server", "<= ACK-block[%d] = %d",
                             _ceu_uv_tcp_getsockport(&&this.tcp),
                             _ceu_uv_tcp_getpeerport(&&this.tcp),
                             i, err2);
@@ -495,11 +495,11 @@ end
 
         -- relink current chain's head/common if longest is remote
         if dst == remote then
-            print('[server] remote wins')
+            --print('[server] remote wins')
             APP.blocks[common_hash].up_hash = G(tcp).remote_base.hash
             G(tcp).chain.head_hash = dst.head.hash
         else
-            print('[server] local wins')
+            --print('[server] local wins')
             -- already ok
         end
 

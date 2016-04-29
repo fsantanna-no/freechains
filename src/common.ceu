@@ -1,6 +1,8 @@
 #ifndef _COMMON_CEU
 #define _COMMON_CEU
 
+//#define DBG 0
+
 #include "c.ceu"
 
 #define MESSAGE_BYTES   4
@@ -32,15 +34,18 @@ native do
     };
 
     void dbg (int level, const char* fmt, ...) {
+#ifdef DBG
         fprintf(stderr, "[%d] | ", level);
         va_list args;
         va_start(args, fmt);
         vfprintf(stderr, fmt, args);
         va_end (args);
         fprintf(stderr, "\n");
+#endif
     }
 
     void dbg_tcp (int level, uv_tcp_t* tcp, char* client_server, const char* fmt, ...) {
+#ifdef DBG
         int p1 = ceu_uv_tcp_getsockport(tcp);
         int p2 = ceu_uv_tcp_getpeerport(tcp);
         char str[255];
@@ -57,6 +62,7 @@ native do
         vfprintf(stderr, fmt, args);
         va_end (args);
         fprintf(stderr, "\n");
+#endif
     }
 
     // calculate the number of leading zero bits in "bytes"

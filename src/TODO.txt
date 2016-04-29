@@ -4,6 +4,7 @@
     - BLOCK.chain => BLOCK.chain_id
     - BLOCK.txs[k] = nil
     -- TODO-LEN:
+        - size of chain should consider #tx.payloads
     - symmetric/asymmetric channels
     - serialize to disk
         - BLOCK_HASH .. PAYLOAD_LEN .. [PoW..BACK_HASH..PAYLOAD]

@@ -14,6 +14,7 @@ do
 
     // show async/thread progress
     var int ms = 0;
+/*
     spawn do
         every 100ms do
             ms = ms + 100;
@@ -21,11 +22,13 @@ do
             _fflush(_stdout);
         end
     end
+*/
 
     // calculate nonce for the leading zeros
     var byte[HASH_BYTES] tx_hash;
     var u32 nonce = 0;
     var u8 zeros_wanted = [[ APP.chains[ARGS.block.chain_id].zeros ]];
+// TODO
     //async/thread (plain,tx_hash,nonce,zeros_wanted) do
         var int zeros_found = 0;
         $tx_hash := HASH_BYTES;
@@ -212,7 +215,7 @@ do
             do UV_Stream_ReadUntil.run(&reader, 1);
             var int ret = recv[0];
 
-            _dbg_tcp(0, &&this.tcp, "client", "=> ACK-header = %d\n", ret);
+            _dbg_tcp(0, &&this.tcp, "client", "=> ACK-header = %d", ret);
 
             if ret == _MESSAGE10_NOTSUB then
                 escape ret;
@@ -236,7 +239,8 @@ do
             // <= BLOCK_HASH
             var char[HASH_BYTES] block_hash = [[ G(tcp).block.hash ]];
             bytes = []..bytes..block_hash;
-            [[ print('[client:'..@(port)..'] <= BLOCKS['..(@i)..'] : '..tostring2(G(tcp).block.hash)) ]];
+            var char[] str = [[ tostring2(G(tcp).block.hash) ]];
+            _dbg_tcp(0, &&this.tcp, "client", "<= BLOCKS[%d] : %s", i, (_char&&)&&str);
 
             // <= BLOCK_TXS_N
             var u32 txs_n = [[ #G(tcp).block.txs ]];
@@ -253,7 +257,7 @@ do
             do UV_Stream_ReadUntil.run(&reader, 1);
             var int ret = recv[0];
 
-            _dbg_tcp(0, &&this.tcp, "client", "=> ACK-block = %d\n", ret);
+            _dbg_tcp(0, &&this.tcp, "client", "=> ACK-block = %d", ret);
 
             if ret == _MESSAGE10_HAVE then
                 break;  // found common block
