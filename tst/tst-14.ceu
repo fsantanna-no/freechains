@@ -1,0 +1,159 @@
+/*
+12 um fork grande que acumula o passado em um unico bloco
+*/
+
+#include "common.ceu"
+
+///////////////////////////////////////////////////////////////////////////////
+// 0->1<-2
+//  - 0 sends 0.1
+//  - 0 sends 0.2
+//  - ...     0.9
+//  - 2 sends 2.1,2.2,...,2.9
+//  - (2.1,...,2.9) -> 0.1 -> ... -> 0.9) -> ''
+///////////////////////////////////////////////////////////////////////////////
+
+input void ANY;
+
+[[ dofile'src/common.lua' ]];
+
+par/and do
+
+///////////////////////////////////////////////////////////////////////////////
+// 0
+///////////////////////////////////////////////////////////////////////////////
+
+    var int unique = 0;
+    [[
+        G(unique) = app_create()
+        APP = G(unique)
+    ]];
+    spawn do
+        every ANY do
+            [[ APP = G(unique) ]];
+        end
+    end
+
+    ///////////////////////////////////////////////////////////////////////////
+
+    [[
+        dofile 'cfg/config.lua'
+        CLIENT {
+            peers = {
+                {
+                    host = { '127.0.0.1', '8331' },
+                    chains = APP.server.chains,
+                },
+            },
+        }
+    ]];
+
+    async do end
+    loop i in 9 do
+        [=[
+            APP.messages = {}
+            MESSAGE {
+                id = '1.0',
+                chain = {
+                    key   = '',
+                    zeros = 0,
+                },
+                payload = '0.'..@(i+1)
+            }
+        ]=];
+        do ClientMessages;
+    end
+with
+
+///////////////////////////////////////////////////////////////////////////////
+// 1
+///////////////////////////////////////////////////////////////////////////////
+
+    var int unique = 0;
+    [[
+        G(unique) = app_create()
+        APP = G(unique)
+    ]];
+    spawn do
+        every ANY do
+            [[ APP = G(unique) ]];
+        end
+    end
+
+    ///////////////////////////////////////////////////////////////////////////
+
+    [[
+        dofile 'cfg/config.lua'
+        SERVER {
+            host = { '127.0.0.1', '8331' },
+        }
+    ]];
+    var char[] ip      = [[ APP.server.host[1] ]];
+    var int    port    = [[ APP.server.host[2] ]];
+    var int    backlog = [[ APP.server.backlog ]];
+    _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
+    var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
+
+    await 1s;
+    [[
+        CHAIN1 = GG.chain_flatten('||0|')
+        print'===> SERVER'
+        print('>'..string.rep('=',78))
+        print(GG.chain_tostring('||0|'))
+        print('<'..string.rep('=',78))
+    ]];
+with
+
+///////////////////////////////////////////////////////////////////////////////
+// 2
+///////////////////////////////////////////////////////////////////////////////
+
+    var int unique = 0;
+    [[
+        G(unique) = app_create()
+        APP = G(unique)
+    ]];
+    spawn do
+        every ANY do
+            [[ APP = G(unique) ]];
+        end
+    end
+
+    ///////////////////////////////////////////////////////////////////////////
+
+    [[
+        dofile 'cfg/config.lua'
+        CLIENT {
+            peers = {
+                {
+                    host = { '127.0.0.1', '8331' },
+                    chains = APP.server.chains,
+                },
+            },
+        }
+    ]];
+
+    loop i in 9 do
+        [=[
+            MESSAGE {
+                id = '1.0',
+                chain = {
+                    key   = '',
+                    zeros = 0,
+                },
+                payload = '2.'..@(i+1)
+            }
+        ]=];
+    end
+    await 500ms;
+    do ClientMessages;
+end
+
+[=[
+    assert( #CHAIN1==11 and
+            CHAIN1[10].txs[1]==[[0.9]] and
+            CHAIN1[11].txs[9]==[[2.9]])
+    print'OK!'
+]=];
+
+escape 0;
