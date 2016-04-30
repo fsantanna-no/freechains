@@ -181,8 +181,8 @@ with
 end
 
 [=[
-    assert( #CHAIN1==3 and
-            CHAIN1[3].txs[1]==[[0.2]])
+    assert( #CHAIN1==4 and
+            CHAIN1[4].txs[1]==[[0.3]])
     assert( #CHAIN2==4 and
             CHAIN2[4].txs[1]==[[0.3]])
     print'OK!'
