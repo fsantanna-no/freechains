@@ -32,21 +32,19 @@ end
 APP = app_create()
 
 local chain_create
+function CHAINS (t)
+    APP.chains = {}
+    assert(type(t) == 'table')
+    for _,chain in ipairs(t) do
+        GG.chain_parse(chain)
+        APP.chains[chain.id] = chain_create(chain)
+    end
+end
+
 function SERVER (t)
     assert(type(t) == 'table')
     for k,v in pairs(t) do
         APP.server[k] = v
-    end
-    t = APP.server
-    if t.chains then
-        assert(type(t.chains) == 'table')
-        APP.chains = {}
-        for _,chain in ipairs(t.chains) do
-            GG.chain_parse(chain)
-            if not APP.chains[chain.id] then
-                APP.chains[chain.id] = chain_create(chain)
-            end
-        end
     end
 end
 
@@ -60,10 +58,14 @@ function CLIENT (t)
 
     for _, peer in ipairs(t.peers) do
         assert(type(peer) == 'table')
-        assert(type(peer.chains) == 'table')
-        for _,chain in ipairs(peer.chains) do
-            local c = GG.chain_parse(chain)
-            assert(c)   -- must already exist
+        if peer.chains then
+            assert(type(peer.chains) == 'table')
+            for _,chain in ipairs(peer.chains) do
+                local c = GG.chain_parse(chain)
+                assert(c)   -- must already exist
+            end
+        else
+            peer.chains = APP.chains
         end
     end
 end

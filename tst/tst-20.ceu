@@ -2,6 +2,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 // 0->1
+//  - channel 'hello'
 ///////////////////////////////////////////////////////////////////////////////
 
 input void ANY;
@@ -30,12 +31,10 @@ par/and do
     [=[
         dofile 'cfg/config.lua'
 
-        SERVER {
-            chains = {
-                {
-                    key   = 'hello',
-                    zeros = 0,
-                },
+        CHAINS {
+            {
+                key   = 'hello',
+                zeros = 0,
             },
         }
 
@@ -43,12 +42,6 @@ par/and do
             peers = {
                 {
                     host = { '127.0.0.1', '8331' },
-                    chains = {
-                        {
-                            key   = 'hello',
-                            zeros = 0,
-                        },
-                    }
                 },
             },
         }
@@ -97,14 +90,14 @@ with
 
     [[
         dofile 'cfg/config.lua'
+        CHAINS {
+            {
+                key   = 'hello',
+                zeros = 0,
+            }
+        }
         SERVER {
             host = { '127.0.0.1', '8331' },
-            chains = {
-                {
-                    key   = 'hello',
-                    zeros = 0,
-                }
-            },
         }
     ]];
     var char[] ip      = [[ APP.server.host[1] ]];

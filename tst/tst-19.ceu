@@ -38,11 +38,9 @@ par/and do
             peers = {
                 {
                     host = { '127.0.0.1', '8331' },
-                    chains = APP.server.chains,
                 },
                 --{
                     --host = { '127.0.0.1', '8332' },
-                    --chains = APP.server.chains,
                 --},
                 {
                     host = { '127.0.0.1', '8333' },
@@ -50,7 +48,6 @@ par/and do
                 },
                 {
                     host = { '127.0.0.1', '8334' },
-                    chains = APP.server.chains,
                 },
             },
         }
@@ -216,9 +213,11 @@ with
 
     [[
         dofile 'cfg/config.lua'
+        CHAINS {
+            -- not sub'ed
+        }
         SERVER {
             host = { '127.0.0.1', '8334' },
-            chains = {},    -- not sub'ed
         }
     ]];
     var char[] ip      = [[ APP.server.host[1] ]];
@@ -229,16 +228,12 @@ with
 
     await 1s;
     [[
-        CHAIN4 = GG.chain_flatten('||0|')
-        print'===> SERVER'
-        print('>'..string.rep('=',78))
-        print(GG.chain_tostring('||0|'))
-        print('<'..string.rep('=',78))
+        assert(not APP.chains['||0|'])
     ]];
 end
 
 [[
-    assert(#CHAIN1==2, #CHAIN2==1, #CHAIN3==1,#CHAIN4==1)
+    assert(#CHAIN1==2 and #CHAIN2==1 and #CHAIN3==1 and CHAIN4==nil)
     print'OK!'
 ]]
 

@@ -50,19 +50,17 @@ par/and do
     [=[
         dofile 'cfg/config.lua'
 
-        SERVER {
-            chains = { C1(), C2() }
+        CHAINS {
+            C1(), C2(),
         }
 
         CLIENT {
             peers = {
                 {
                     host = { '127.0.0.1', '8331' },
-                    chains = { C1(), C2() },
                 },
                 --{
                     --host = { '127.0.0.1', '8332' },
-                    --chains = chains,
                 --},
                 {
                     host = { '127.0.0.1', '8333' },
@@ -70,7 +68,6 @@ par/and do
                 },
                 {
                     host = { '127.0.0.1', '8334' },
-                    chains = { C1(), C2() },
                 },
             },
         }
@@ -134,9 +131,11 @@ with
 
     [[
         dofile 'cfg/config.lua'
+        CHAINS {
+            C1(), C2(),
+        }
         SERVER {
             host = { '127.0.0.1', '8331' },
-            chains = { C1(), C2() },
         }
     ]];
     var char[] ip      = [[ APP.server.host[1] ]];
@@ -176,9 +175,11 @@ with
 
     [[
         dofile 'cfg/config.lua'
+        CHAINS {
+            C1(), C2(),
+        }
         SERVER {
             host = { '127.0.0.1', '8332' },
-            chains = { C1(), C2() },
         }
     ]];
     var char[] ip      = [[ APP.server.host[1] ]];
@@ -218,9 +219,11 @@ with
 
     [[
         dofile 'cfg/config.lua'
+        CHAINS {
+            C1(), C2(),
+        }
         SERVER {
             host = { '127.0.0.1', '8333' },
-            chains = { C1(), C2() },
         }
     ]];
     var char[] ip      = [[ APP.server.host[1] ]];
@@ -260,9 +263,11 @@ with
 
     [[
         dofile 'cfg/config.lua'
+        CHAINS {
+            C2(),    -- not sub'ed to ''
+        }
         SERVER {
             host = { '127.0.0.1', '8334' },
-            chains = { C2() },    -- not sub'ed to ''
         }
     ]];
     var char[] ip      = [[ APP.server.host[1] ]];
