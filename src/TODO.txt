@@ -18,6 +18,8 @@
     - POS: M[head]=>a + M[head+b]=>c + M[head+c]=>d + ...
         ou M[head]    + M[head+head] + M[head+head+head] + ...
         - JUMP/2 times
+    - POS p/ get:
+        - quando der HAVE_NO p/ block, responder com POS do passado
     - TTL (em bytes) requer POS
         - parametro do post? ou da chain?
             - no post: nem todas as chains vao poder verificar POS da tx
@@ -67,6 +69,10 @@
         print mem
         c
         end
+        c
+
+        break tst-16.ceu:72
+        r
         c
 
 ===============================================================================

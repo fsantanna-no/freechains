@@ -583,8 +583,7 @@ do
         var _uv_stream_t&& s;
         var int err;
         (s,err) = await UV_ERROR until (s==(_uv_stream_t&&)&&this.tcp);
-        //_printf("[server] Disconnected from %s:%d => %d\n",
-                //(_char&&)&&ip, port, err);
+        //_dbg(2, "server | disconnected from %s:%d", (_char&&)&&ip, port);
         _assert(err != _ERR_NONE);
         _dbg(0, "server | %s\n", _uv_strerror(err));
         escape err;

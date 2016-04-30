@@ -1,7 +1,7 @@
 #ifndef _COMMON_CEU
 #define _COMMON_CEU
 
-//#define DBG 0
+#define DBG 2
 
 #include "c.ceu"
 
@@ -35,6 +35,7 @@ native do
 
     void dbg (int level, const char* fmt, ...) {
 #ifdef DBG
+        if (level < DBG) return;
         fprintf(stderr, "[%d] | ", level);
         va_list args;
         va_start(args, fmt);
@@ -46,6 +47,7 @@ native do
 
     void dbg_tcp (int level, uv_tcp_t* tcp, char* client_server, const char* fmt, ...) {
 #ifdef DBG
+        if (level < DBG) return;
         int p1 = ceu_uv_tcp_getsockport(tcp);
         int p2 = ceu_uv_tcp_getpeerport(tcp);
         char str[255];
