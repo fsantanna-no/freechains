@@ -163,6 +163,7 @@ with
         print('>'..string.rep('=',78))
         print(GG.chain_tostring('||22|'))
         print('<'..string.rep('=',78))
+        assert(#APP.errs==0)
     ]];
 with
 
@@ -210,6 +211,7 @@ with
         print('>'..string.rep('=',78))
         print(GG.chain_tostring('||22|'))
         print('<'..string.rep('=',78))
+        assert(#APP.errs==2 and APP.errs[1]==GG.MESSAGE10_NOTSUB)
     ]];
 with
 
@@ -296,8 +298,12 @@ with
 end
 
 [[
-    --assert( tostring2(CHAIN1) == tostring2(CHAIN2) )
+    assert(#CHAIN1_2==3 and CHAIN1_2[3].txs[1]=='22.2' and
+           tostring2(CHAIN1_2)==tostring2(CHAIN2_2) and
+           tostring2(CHAIN1_2)==tostring2(CHAIN3_2) and
+           tostring2(CHAIN1_2)==tostring2(CHAIN4_2) and
+           (#CHAIN3_1==3 and CHAIN3_1[3].txs[1]=='21.2'))
     print'OK!'
-]]
+]];
 
 escape 0;
