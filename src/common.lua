@@ -36,8 +36,11 @@ function CHAINS (t)
     APP.chains = {}
     assert(type(t) == 'table')
     for _,chain in ipairs(t) do
-        GG.chain_parse(chain)
-        APP.chains[chain.id] = chain_create(chain)
+        for i=chain.zeros,255 do
+            chain.zeros = i
+            GG.chain_parse(chain)
+            APP.chains[chain.id] = chain_create(chain)
+        end
     end
 end
 
@@ -147,6 +150,11 @@ end
 -------------------------------------------------------------------------------
 
 chain_create = function (chain)
+    local old, chain = chain, {}
+    for k,v in pairs(old) do
+        chain[k] = v
+    end
+
     local tx_hash = chain.id          -- TODO: should be hash(chain.id)
     tx_hash = chain.id..string.rep('\0',32-string.len(chain.id))
     APP.txs[tx_hash] = {
