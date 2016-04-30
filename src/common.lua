@@ -38,11 +38,14 @@ function SERVER (t)
         APP.server[k] = v
     end
     t = APP.server
-    assert(type(t.chains) == 'table')
-    for _,chain in ipairs(t.chains) do
-        GG.chain_parse(chain)
-        if not APP.chains[chain.id] then
-            APP.chains[chain.id] = chain_create(chain)
+    if t.chains then
+        assert(type(t.chains) == 'table')
+        APP.chains = {}
+        for _,chain in ipairs(t.chains) do
+            GG.chain_parse(chain)
+            if not APP.chains[chain.id] then
+                APP.chains[chain.id] = chain_create(chain)
+            end
         end
     end
 end
@@ -116,7 +119,7 @@ function GG.chain_tx_contains (head_hash, tx_hash)
 end
 
 function GG.chain_flatten (chain_id)
-    local chain = APP.chains[chain_id]
+    local chain = assert(APP.chains[chain_id],chain_id)
     local head = APP.blocks[chain.head_hash]
     local T = {}
     while head do

@@ -1,0 +1,131 @@
+#include "common.ceu"
+
+///////////////////////////////////////////////////////////////////////////////
+// 0->1
+///////////////////////////////////////////////////////////////////////////////
+
+input void ANY;
+
+[[ dofile'src/common.lua' ]];
+
+par/and do
+
+///////////////////////////////////////////////////////////////////////////////
+// 0
+///////////////////////////////////////////////////////////////////////////////
+
+    var int unique = 0;
+    [[
+        G(unique) = app_create()
+        APP = G(unique)
+    ]];
+    spawn do
+        every ANY do
+            [[ APP = G(unique) ]];
+        end
+    end
+
+    ///////////////////////////////////////////////////////////////////////////
+
+    [=[
+        dofile 'cfg/config.lua'
+
+        SERVER {
+            chains = {
+                {
+                    key   = 'hello',
+                    zeros = 0,
+                },
+            },
+        }
+
+        CLIENT {
+            peers = {
+                {
+                    host = { '127.0.0.1', '8331' },
+                    chains = {
+                        {
+                            key   = 'hello',
+                            zeros = 0,
+                        },
+                    }
+                },
+            },
+        }
+
+        MESSAGE {
+            id = '1.0',
+            chain = {
+                key   = 'hello',
+                zeros = 0,
+            },
+            payload = [[
+Ola Mundo!
+]],
+        }
+    ]=];
+
+    async do end;
+    do ClientMessages;
+    await 1s;
+
+    [[
+        CHAIN1 = GG.chain_flatten('|hello|0|')
+        print'===> CLIENT'
+        print('>'..string.rep('=',78))
+        print(GG.chain_tostring('|hello|0|'))
+        print('<'..string.rep('=',78))
+    ]];
+with
+
+///////////////////////////////////////////////////////////////////////////////
+// 1
+///////////////////////////////////////////////////////////////////////////////
+
+    var int unique = 0;
+    [[
+        G(unique) = app_create()
+        APP = G(unique)
+    ]];
+    spawn do
+        every ANY do
+            [[ APP = G(unique) ]];
+        end
+    end
+
+    ///////////////////////////////////////////////////////////////////////////
+
+    [[
+        dofile 'cfg/config.lua'
+        SERVER {
+            host = { '127.0.0.1', '8331' },
+            chains = {
+                {
+                    key   = 'hello',
+                    zeros = 0,
+                }
+            },
+        }
+    ]];
+    var char[] ip      = [[ APP.server.host[1] ]];
+    var int    port    = [[ APP.server.host[2] ]];
+    var int    backlog = [[ APP.server.backlog ]];
+    _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
+    var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
+
+    await 1s;
+    [[
+        CHAIN2 = GG.chain_flatten('|hello|0|')
+        print'===> SERVER'
+        print('>'..string.rep('=',78))
+        print(GG.chain_tostring('|hello|0|'))
+        print('<'..string.rep('=',78))
+    ]];
+end
+
+[[
+    assert( tostring2(CHAIN1) == tostring2(CHAIN2) )
+    print'OK!'
+]]
+
+escape 0;

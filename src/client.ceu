@@ -14,22 +14,24 @@ do
 
     // show async/thread progress
     var int ms = 0;
-/*
+#if 1
     spawn do
         every 100ms do
             ms = ms + 100;
-            //_printf(".");
+            _printf(".");
             _fflush(_stdout);
         end
     end
-*/
+#endif
 
     // calculate nonce for the leading zeros
     var byte[HASH_BYTES] tx_hash;
     var u32 nonce = 0;
     var u8 zeros_wanted = [[ APP.chains[ARGS.block.chain_id].zeros ]];
-// TODO
-    //async/thread (plain,tx_hash,nonce,zeros_wanted) do
+#if 0
+    async/thread (plain,tx_hash,nonce,zeros_wanted)
+#endif
+    do
         var int zeros_found = 0;
         $tx_hash := HASH_BYTES;
         var u32 ii = 0;
@@ -46,7 +48,7 @@ do
             PUT_NETWORK_U32(plain, 0, nonce);
         end
         //_printf("[client] POW rounds: %d\n", ii);
-    //end
+    end
 
     [[
         -- i'm in the database
@@ -467,6 +469,9 @@ do
             },
         }
     ]]
+    finalize with
+        [[ APP.messages = {} ]];
+    end
 
     var bool is_10 = [[ G(this).id=='1.0' ]];
 

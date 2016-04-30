@@ -22,10 +22,12 @@ SERVER {
 -- client configurations
 CLIENT {
     peers = {
+--[[
         {
             host = { '127.0.0.1', '8331' },
             chains = APP.server.chains,
         },
+]]
     },
 }
 

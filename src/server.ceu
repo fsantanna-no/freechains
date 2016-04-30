@@ -21,32 +21,33 @@ do
     // => CHAIN_KEY
     // => CHAIN_ZEROS
     do
+        // zeros
+        do UV_Stream_ReadUntil.run(&reader, off+1);
+        var u8 chain_zeros = bytes[off];
+        _dbg_tcp(2, &&this.tcp, "server", "CHAIN_ZEROS = %d",  chain_zeros);
+        off = off + 1;
+
         // len
         do UV_Stream_ReadUntil.run(&reader, off+1);
         var u8 chain_len = bytes[off];
         off = off + 1;
-        //_printf("[server] => CHAIN_LEN   = %d\n", chain_len);
+        _dbg_tcp(2, &&this.tcp, "server", "CHAIN_LEN   = %d", chain_len);
 
         // key
         var char[] chain_key;
         do UV_Stream_ReadUntil.run(&reader, off+chain_len);
         $chain_key := chain_len;
-        _memcpy((_char&&)&&chain_key, (_byte&&)&&bytes[off], chain_len);
-        //_printf("[server] => CHAIN_KEY   = %s\n", (_char&&)&&chain_key);
+        if chain_len > 0 then
+            _memcpy((_char&&)&&chain_key, (_byte&&)&&bytes[off], chain_len);
+        end
+        _dbg_tcp(2, &&this.tcp, "server", "CHAIN_KEY   = %s", (_char&&)&&chain_key);
         off = off + chain_len;
-
-        // zeros
-        do UV_Stream_ReadUntil.run(&reader, off+1);
-        var u8 chain_zeros = bytes[off];
-        //_printf("[server] => CHAIN_ZEROS = %d\n",  chain_zeros);
-        off = off + 1;
 
         [[
             G(tcp).chain = GG.chain_parse( {
                 key   = @chain_key,
                 zeros = @chain_zeros,
             } )
-            assert(G(tcp).chain)
         ]];
 
         var bool is_sub = [[ G(tcp).chain ~= nil ]];
@@ -103,7 +104,7 @@ do
     // check if block is already on chain
     [[
         have = false
-        cur = APP.blocks[ G(tcp).chain.head_hash ]
+        cur = assert( APP.blocks[ G(tcp).chain.head_hash ] )
         while true do
             if cur.hash == G(tcp).block.hash then
                 have = true
