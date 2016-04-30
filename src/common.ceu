@@ -99,4 +99,9 @@ event void send_chain_unlocked;
 #define UV_TCP_SERVER_HANDLER_CEU server.ceu
 #include "uv-server.ceu"
 
+[[
+    dofile'src/common.lua'
+    GG.MESSAGE10_NOTSUB = @((int)_MESSAGE10_NOTSUB)
+]];
+
 #endif

@@ -13,7 +13,6 @@
 input void ANY;
 
 [[
-    dofile'src/common.lua'
     function C1 ()
         return {
             key   = '',
@@ -284,6 +283,8 @@ with
         print('>'..string.rep('=',78))
         print(GG.chain_tostring('|hello|0|'))
         print('<'..string.rep('=',78))
+
+        assert(#APP.errs==1 and APP.errs[1]==GG.MESSAGE10_NOTSUB)
     ]];
 end
 

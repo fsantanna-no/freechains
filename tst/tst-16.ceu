@@ -8,7 +8,6 @@
 
 input void ANY;
 
-[[ dofile'src/common.lua' ]];
 native do
     uv_handle_t* XXX;
 end

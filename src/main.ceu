@@ -11,7 +11,6 @@ if argc < 2 then
 end
 
 // load *.lua files
-[[ dofile'src/common.lua' ]];
 loop i in argc-1 do
     var char&& cfg = argv[i+1];
     [[

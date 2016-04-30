@@ -25,7 +25,10 @@ function app_create ()
         },
         gs = {          -- ceu->lua globals
             --[usedata-k] = {}
-        }
+        },
+        errs = {
+            -- NOTSUB, etc
+        },
     }
 end
 

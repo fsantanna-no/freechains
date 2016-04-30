@@ -611,6 +611,10 @@ do
         err = _ERR_MESSAGE;
     end
 
+    if err != _ERR_NONE then
+        [[ APP.errs[#APP.errs+1] = @err ]];
+    end
+
     //_printf("[server] DONE: %d\n", err);
     escape err;
 end

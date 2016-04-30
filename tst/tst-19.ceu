@@ -5,12 +5,10 @@
 //  - "1" ok
 //  - "2" is not in "0" peers
 //  - "3" does not receive '||0|' from "0"
-//  - "4" is not in not sub'ed to '||0|'
+//  - "4" is not sub'ed to '||0|'
 ///////////////////////////////////////////////////////////////////////////////
 
 input void ANY;
-
-[[ dofile'src/common.lua' ]];
 
 par/and do
 
@@ -229,6 +227,7 @@ with
     await 1s;
     [[
         assert(not APP.chains['||0|'])
+        assert(#APP.errs==1 and APP.errs[1]==GG.MESSAGE10_NOTSUB)
     ]];
 end
 
