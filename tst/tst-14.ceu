@@ -87,7 +87,7 @@ with
     _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
     var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
 
-    await 1s;
+    await 2s;
     [[
         CHAIN1 = GG.chain_flatten('||0|')
         print'===> SERVER'
