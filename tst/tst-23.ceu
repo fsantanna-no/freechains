@@ -3,6 +3,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // 0->1
 //  - zeros = 22
+//  - error on nonce => MALICIOUS
 ///////////////////////////////////////////////////////////////////////////////
 
 input void ANY;
@@ -47,18 +48,25 @@ par/and do
             },
             payload = [[22.1]],
         }
-
-        MESSAGE {
-            id = '1.0',
-            chain = {
-                key   = '',
-                zeros = 22,
-            },
-            payload = [[22.2]],
-        }
     ]=];
     async do end;
-    do ClientMessages;
+    par/and do
+        do ClientMessages;
+    with
+        // inject error on nonce
+        await UV_CONNECT;
+        [[
+            head_hash = APP.chains['||22|'].head_hash
+            tx_hash = APP.blocks[head_hash].txs[1]
+            tx = APP.txs[tx_hash]
+            print('>>>')
+            print('\n'..tostring2(tx_hash,true))
+            print('\n'..tostring2(tx.nonce,true))
+            n1,n2 = string.sub(tx.nonce,1,15), string.sub(tx.nonce,16,16)
+            tx.nonce = n1..string.char(string.byte(n2)+1)
+            print('\n'..tostring2(tx.nonce,true))
+        ]]
+    end
 
     await 1s;
 
@@ -108,20 +116,19 @@ with
     _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
     var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
 
-    await 10s;
+    await 5s;
     [[
         CHAIN1 = GG.chain_flatten('||22|')
         print'===> SERVER-1'
         print('>'..string.rep('=',78))
         print(GG.chain_tostring('||22|'))
         print('<'..string.rep('=',78))
-        assert(#APP.errs==0)
+        assert(#APP.errs==1 and APP.errs[1]==GG.ERR_REMOTE_BUG_OR_MALICIOUS)
     ]];
 end
 
 [[
-    assert(#CHAIN1==2 and CHAIN1[2].txs[2]=='22.2' and
-           tostring2(CHAIN0)==tostring2(CHAIN1))
+    assert(#CHAIN1==1)
     print'OK!'
 ]];
 

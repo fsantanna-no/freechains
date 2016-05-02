@@ -1,7 +1,6 @@
 #if 0
 = TODO:
     - remove COMMON, remove up_hash?
-    - BLOCK.chain => BLOCK.chain_id
     - BLOCK.txs[k] = nil
     -- TODO-LEN:
         - size of chain should consider #tx.payloads
@@ -11,7 +10,7 @@
     - verificar backs, pos
         - reverificar backs em rejoins
     - verificar se sequencia de LEN/HASH ultrapassa PAYLOAD_LEN_LIMIT
-    - nonce => timestamp s64
+    - nonce => timestamp s64 => s128
     - BLOCK vs MSG nomenclature
     - Message prepare do client pode ter todos os campos necessarios para o 
       send evita *muitas* copias
@@ -55,6 +54,7 @@
         - dropbox, fuse
 
 = CMDS:
+    - while :; do make tests || break; done
     - for i in cfg/message-01-a*.lua; do ./build/main.exe cfg/config.lua cfg/config-aa.lua $i; done
     - while :; do ./build/main.exe cfg/config.lua cfg/config-aa.lua cfg/message-01-01.lua; done
     -
@@ -157,7 +157,7 @@ LOOP for each BLOCK in CHAIN
         -- CLIENT <= SERVER
         -               1       // MESSAGE10_HAVE_YES|MESSAGE10_HAVE_NO
         -- CLIENT => SERVER
-        TIMESTAMP       8 s64   // nonce for TX_HASH
+        NONCE_TIMESTAMP 16 s128 // nonce for TX_HASH
         TX_BACK_HASH    32      // recent back hash
         TX_PAYLOAD      <TX_PAYLOAD_BYTES>
         POS             1       // proof of storage

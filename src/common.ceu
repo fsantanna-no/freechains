@@ -1,7 +1,7 @@
 #ifndef _COMMON_CEU
 #define _COMMON_CEU
 
-#define DBG 0
+//#define DBG 0
 
 #include "c.ceu"
 
@@ -76,7 +76,7 @@ native do
         for (i=0; i<len; i++) {             // loop over "bytes"
             byte b = bytes[i];
             for (j=0; j<8; j++) {           // loop over each bit
-                if ((b & (1<<j)) != 0) {
+                if ((b & (1<<(7-j))) != 0) {
                     return zeros;
                 } else {
                     zeros++;
@@ -102,6 +102,7 @@ event void send_chain_unlocked;
 
 [[
     dofile'src/common.lua'
+    GG.ERR_REMOTE_BUG_OR_MALICIOUS = @((int)_ERR_REMOTE_BUG_OR_MALICIOUS)
     GG.MESSAGE10_NOTSUB = @((int)_MESSAGE10_NOTSUB)
 ]];
 

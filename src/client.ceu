@@ -37,11 +37,13 @@ do
     do
         var int zeros_found = 0;
         $tx_hash := HASH_BYTES;
-        var int x = do
+        var u32 n = do
+            var u32 n_ = 0;
             loop b00 in 256 do loop b01 in 256 do loop b02 in 256 do loop b03 in 256 do
             loop b04 in 256 do loop b05 in 256 do loop b06 in 256 do loop b07 in 256 do
             loop b08 in 256 do loop b09 in 256 do loop b10 in 256 do loop b11 in 256 do
             loop b12 in 256 do loop b13 in 256 do loop b14 in 256 do loop b15 in 256 do
+                n_ = n_ + 1;
                 plain[ 0]=b00; plain[ 1]=b01; plain[ 2]=b02; plain[ 3]=b03;
                 plain[ 4]=b04; plain[ 5]=b05; plain[ 6]=b06; plain[ 7]=b07;
                 plain[ 8]=b08; plain[ 9]=b09; plain[10]=b10; plain[11]=b11;
@@ -51,14 +53,14 @@ do
                                     null, 0);
                 zeros_found = _leading_zeros((_byte&&)&&tx_hash, $tx_hash);
                 if zeros_found >= zeros_wanted then
-                    escape 0;
+                    escape n_;
                 end
             end end end end
             end end end end
             end end end end
             end end end end
         end;
-        //_printf("[client] POW rounds: %d\n", ii);
+        _dbg(0, "client: POW rounds: %d\n", n);
     end
 
     [[ nonce = {} ]];
