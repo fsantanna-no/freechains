@@ -197,14 +197,18 @@ do
 
     // => TX_COMPLETE
     do
-        // => TIMESTAMP
-        var u32 timestamp = 0;
+        // => NONCE/TIMESTAMP: 128 bits
+        var char[NONCE_BYTES] nonce;
         do
-            do UV_Stream_ReadUntil.run(&this.reader, off + sizeof(u32));
-            timestamp = GET_HOST_U32(bytes,off);
+            do UV_Stream_ReadUntil.run(&this.reader, off + NONCE_BYTES);
+            $nonce := NONCE_BYTES;
+            loop i in NONCE_BYTES do
+                nonce[i] = bytes[off+i];
+            end
+            [[ G(tcp).tx.nonce = @nonce ]];
+            //[[ print('NONCE', tostring2(G(tcp).tx.nonce)) ]];
             //_printf("[server] => TIMESTAMP = %X\n", timestamp);
-            [[ G(tcp).tx.timestamp = @timestamp ]];
-            off = off + sizeof(u32);
+            off = off + NONCE_BYTES;
         end
 
         // => TX_BACK_HASH
@@ -269,9 +273,12 @@ do
 
         // [check] TX_HASH is correct? [no ACK]
         do
-            var byte[] plain;
-            PUT_NETWORK_U32(plain, 0, timestamp);
-            plain = []..plain..tx_back_hash..tx_payload;
+            var byte[] plain = []..nonce..tx_back_hash..tx_payload;
+            [[
+                --print('>X>>', tostring2(@nonce), tostring2(@tx_back_hash), tostring2(@tx_payload))
+                --print('>X>>', '\n'..tostring2(@plain,true))
+                --print('>X>>', '\n'..tostring2(@bytes,true))
+            ]];
 
             var byte[HASH_BYTES] hash;
             _crypto_generichash((_byte&&)&&hash, HASH_BYTES,
@@ -422,6 +429,7 @@ do
             do
                 var int txs_n = [[ G(tcp).block.txs_n ]];
                 //_printf("[server] => %d txs\n", txs_n);
+                _dbg_tcp(0, &&tcp, "server", "=> %d txs", txs_n);
                 loop j in txs_n do
                     //_printf("[server] => txs[%d]\n", j);
                     var int err2 = do Message10_tx_recv.run(&tcp);
@@ -433,6 +441,7 @@ do
                         G(tcp).block.txs[@j+1] = G(tcp).tx.hash
                     ]];
                 end
+                _dbg_tcp(0, &&tcp, "server", "=> %d txs", txs_n);
             end
 
 //[[print(tostring2(G(tcp).block.hash))]];

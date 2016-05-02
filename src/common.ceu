@@ -1,7 +1,7 @@
 #ifndef _COMMON_CEU
 #define _COMMON_CEU
 
-#define DBG 2
+#define DBG 0
 
 #include "c.ceu"
 
@@ -10,6 +10,7 @@
 #define MESSAGE_MAGIC_1 'S'
 
 #define HASH_BYTES      32
+#define NONCE_BYTES     16
 #define CHAIN_KEY_BYTES 256
 
 native @pure _leading_zeros();

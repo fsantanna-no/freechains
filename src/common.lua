@@ -214,14 +214,14 @@ local function string2hex(buf,big)
     return ret
 end
 
-function tostring2( tbl )
+function tostring2 (tbl, big)
     if  "nil"       == type( tbl ) then
         return tostring(nil)
     elseif  "table" == type( tbl ) then
         return table_show(tbl)
     elseif  "string" == type( tbl ) then
         if is_binary(tbl) then
-            return string2hex(tbl)
+            return string2hex(tbl, big)
         else
             return tbl
         end
