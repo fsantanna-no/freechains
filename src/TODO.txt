@@ -152,7 +152,7 @@ LOOP for each BLOCK in CHAIN
     -               1       // MESSAGE10_HAVE_YES|MESSAGE10_HAVE_NO
     LOOP for each TX in BLOCK
         -- CLIENT => SERVER
-        TX_HASH          32     // hash[TIMESTAMP..TX_BACK_HASH..TX_PAYLOAD]
+        TX_HASH          32     // hash[NONCE..TX_BACK_HASH..TX_PAYLOAD]
         TX_PAYLOAD_BYTES 4 u32
         -- CLIENT <= SERVER
         -               1       // MESSAGE10_HAVE_YES|MESSAGE10_HAVE_NO
@@ -198,3 +198,14 @@ LOOP END
 ///////////////////////////////////////////////////////////////////////////////
 #endif
 
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+PS10
+[i]BLOCK_HASH (genesis)
+    [j]TX_HASH NONCE TX_BACK_HASH TX_PAYLOAD TX_PAYLOAD_BYTES
+    ...
+    TX_N
+...
+[n]BLOCK_HASH (head)
+    ...
