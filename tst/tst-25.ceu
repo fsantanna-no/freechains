@@ -125,13 +125,6 @@ loop do
 
     // <= TXS
     var u32 txs_n = [[ #base.txs ]];
-    do
-        // <= TXS_N
-        var char[sizeof(u32)] buf;
-        _ceu_vector_copy_buffer(&&buf, 0, (byte&&)&&txs_n, sizeof(u32), 1);
-        var int n = do UV_FS_write.run(&o,&buf,$buf,0);
-        _assert(n == sizeof(u32));
-    end
     loop i in txs_n do
         // <= TXS[i]
         // TX_HASH NONCE TX_BACK_HASH TX_PAYLOAD_LEN TX_PAYLOAD
@@ -152,37 +145,43 @@ loop do
 
         // <= NONCE
         do
-            // TODO: genesis nonce
-            var char[NONCE_BYTES] buf = [[ tx.nonce or string.rep('\0',16) ]];
+            var char[NONCE_BYTES] buf = [[ tx.nonce ]];
             var int n = do UV_FS_write.run(&o,&buf,$buf,0);
             _assert(n == NONCE_BYTES);
         end
 
         // <= TX_BACK_HASH
         do
-            var char[HASH_BYTES] buf = [[ tx.back_hash or string.rep('\0',32) ]];
+            var char[HASH_BYTES] buf = [[ tx.back_hash ]];
             var int n = do UV_FS_write.run(&o,&buf,$buf,0);
             _assert(n == HASH_BYTES);
         end
 
-        // <= TX_PAYLOAD_LEN
         // <= TX_PAYLOAD
+        // <= TX_PAYLOAD_LEN
         do
             var u32 len = [[ string.len(tx.payload) ]];
-
+            // <= TX_PAYLOAD
+            do
+                var char[] buf = [[ tx.payload ]];
+                var int n = do UV_FS_write.run(&o,&buf,$buf,0);
+                _assert(n == len);
+            end
+            // <= TX_PAYLOAD_LEN
             do
                 var char[sizeof(u32)] buf;
                 _ceu_vector_copy_buffer(&&buf, 0, (byte&&)&&len, sizeof(u32), 1);
                 var int n = do UV_FS_write.run(&o,&buf,$buf,0);
                 _assert(n == sizeof(u32));
             end
-
-            do
-                var char[] buf = [[ tx.payload ]];
-                var int n = do UV_FS_write.run(&o,&buf,$buf,0);
-                _assert(n == len);
-            end
         end
+    end
+    do
+        // <= TXS_N
+        var char[sizeof(u32)] buf;
+        _ceu_vector_copy_buffer(&&buf, 0, (byte&&)&&txs_n, sizeof(u32), 1);
+        var int n = do UV_FS_write.run(&o,&buf,$buf,0);
+        _assert(n == sizeof(u32));
     end
 
     // NEXT BLOCK

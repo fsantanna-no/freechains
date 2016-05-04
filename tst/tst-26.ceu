@@ -8,15 +8,19 @@ var UV_FS_open o = UV_FS_open.build("x.chain", _O_RDONLY, 0);
 await o.ok;
 _assert(o.fd >= 0);
 
+var _uv_stat_t stat = _uv_stat_t();
+do UV_FS_fstat.run(&o, &stat);
+var u64 size = stat.st_size;
+_printf(">>> size = %ld\n", size);
+
 [[ msg = {} ]];
 
-var int off = 0;
+var int off = size;
 
 // => HEADER
 do
     var byte[4] buf;
-    var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
-    off = off + 4;
+    var int n = do UV_FS_read.run(&o,&buf,$$buf,0);
     _assert(buf[0] == MESSAGE_MAGIC_0);
     _assert(buf[1] == MESSAGE_MAGIC_1);
     [[ msg.id = ''..(@buf[2])..(@buf[3]) ]];
@@ -24,8 +28,15 @@ do
 end
 
 // => BLOCKS
-[[ head1 = nil ]];
+[[
+    head1 = nil
+    base  = nil
+]];
 loop do
+    if off == 4 then
+        break;  // back to the header
+    end
+
     _printf("===\n");
     [[ block = {} ]];
 
@@ -48,6 +59,7 @@ loop do
     var u32 txs_n = 0;
     do
         // => TXS_N
+        off = off - sizeof(u32);
 // TODO: sizeof(u32)
         var byte[4] buf;
         var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
@@ -55,7 +67,6 @@ loop do
             break;
         end
         _assert(n == sizeof(u32));
-        off = off + sizeof(u32);
         txs_n = *((u32&&)(_byte&&)&&buf);
     end
     [[ block.txs = {} ]];
@@ -63,57 +74,61 @@ loop do
         // => TXS[i]
         [[
             tx = {}
-            block.txs[@i+1] = tx
+            block.txs[@(txs_n-i)] = tx
         ]];
-
-        // => NONCE
-        do
-            var char[NONCE_BYTES] buf;
-            var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
-            _assert(n == NONCE_BYTES);
-            off = off + NONCE_BYTES;
-            [[ tx.nonce = @buf ]];
-            [[ print('nonce','\n'..tostring2(tx.nonce)) ]];
-        end
-
-        // => TX_BACH_HASH
-        do
-            var char[HASH_BYTES] buf;
-            var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
-            _assert(n == HASH_BYTES);
-            off = off + HASH_BYTES;
-            [[ tx.back_hash = @buf ]];
-            [[ print('back_hash','\n'..tostring2(tx.back_hash)) ]];
-        end
 
         // => TX_PAYLOAD
         do
             var u32 payload_len = 0;
             do
+                off = off - sizeof(u32);
 // TODO: sizeof(u32)
                 var byte[4] buf;
                 var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
                 _assert(n == sizeof(u32));
-                off = off + sizeof(u32);
                 payload_len = *((u32&&)(_byte&&)&&buf);
+                [[ print('payload_len', @payload_len) ]];
             end
             do
+                off = off - payload_len;
                 var char[] buf;
                 $buf := payload_len;
                 var int n = do UV_FS_read.run(&o,&buf,payload_len,off);
                 _assert(n == payload_len);
-                off = off + payload_len;
                 [[ tx.payload = @buf ]];
                 [[ print('payload', tx.payload) ]];
             end
         end
+
+        // => TX_BACH_HASH
+        do
+            off = off - HASH_BYTES;
+            var char[HASH_BYTES] buf;
+            var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
+            _assert(n == HASH_BYTES);
+            [[ tx.back_hash = @buf ]];
+            [[ print('back_hash','\n'..tostring2(tx.back_hash)) ]];
+        end
+
+        // => NONCE
+        do
+            off = off - NONCE_BYTES;
+            var char[NONCE_BYTES] buf;
+            var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
+            _assert(n == NONCE_BYTES);
+            [[ tx.nonce = @buf ]];
+            [[ print('nonce','\n'..tostring2(tx.nonce)) ]];
+        end
     end
     [[
-        block.up = head1
-        if head1 then
-            head1.tail = block
+        if not head1 then
+            head1 = block
         end
-        head1 = block
+        block.up = base
+        if base then
+            base.tail = block
+        end
+        base = block
     ]]
 end
 

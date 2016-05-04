@@ -17,10 +17,10 @@ function app_create ()
         },
         txs = {         -- txs in memory
             --[hash] = {
-            --    hash      = nil,
-            --    timestamp = nil,
-            --    bytes     = nil,
-            --    payload   = nil,
+            --    hash    = nil,
+            --    nonce   = nil,
+            --    bytes   = nil,
+            --    payload = nil,
             --}
         },
         gs = {          -- ceu->lua globals
@@ -162,7 +162,8 @@ chain_create = function (chain)
     tx_hash = chain.id..string.rep('\0',32-string.len(chain.id))
     APP.txs[tx_hash] = {
         hash      = tx_hash,
-        timestamp = 0,
+        nonce     = string.rep('\0',16),  -- TODO
+        back_hash = string.rep('\0',32),  -- TODO
         bytes     = 0,
         payload   = '',
     }
