@@ -1,7 +1,7 @@
 #include "common.ceu"
 
 ///////////////////////////////////////////////////////////////////////////////
-// TODO
+// Write to "x.chain"
 ///////////////////////////////////////////////////////////////////////////////
 
 [=[
@@ -72,12 +72,12 @@ do ClientMessages;
 
 #if 0
 PS10
-[i]BLOCK_HASH (genesis)
-    [j]TX_HASH NONCE TX_BACK_HASH TX_PAYLOAD TX_PAYLOAD_BYTES
+[i]/*BLOCK_HASH*/ (genesis)
+    TXS_N
+    [j]/*TX_HASH*/ NONCE TX_BACK_HASH TX_PAYLOAD_LEN TX_PAYLOAD
     ...
-    TX_N
 ...
-[n]BLOCK_HASH (head)
+[n]/*BLOCK_HASH*/ (head)
     ...
 
     var byte[1024] buf;
@@ -114,30 +114,41 @@ _assert(o.fd >= 0);
 
 // <= BLOCKS
 loop do
+/*
     // <= BLOCK_HASH
     do
         var char[HASH_BYTES] buf = [[ base.hash ]];
         var int n = do UV_FS_write.run(&o,&buf,$buf,0);
         _assert(n == HASH_BYTES);
     end
+*/
 
     // <= TXS
     var u32 txs_n = [[ #base.txs ]];
+    do
+        // <= TXS_N
+        var char[sizeof(u32)] buf;
+        _ceu_vector_copy_buffer(&&buf, 0, (byte&&)&&txs_n, sizeof(u32), 1);
+        var int n = do UV_FS_write.run(&o,&buf,$buf,0);
+        _assert(n == sizeof(u32));
+    end
     loop i in txs_n do
         // <= TXS[i]
-        // TX_HASH NONCE TX_BACK_HASH TX_PAYLOAD TX_PAYLOAD_BYTES
+        // TX_HASH NONCE TX_BACK_HASH TX_PAYLOAD_LEN TX_PAYLOAD
 
         [[
             tx_hash = base.txs[@i+1]
             tx      = assert(APP.txs[tx_hash])
         ]];
 
+/*
         // <= TX_HASH
         do
             var char[HASH_BYTES] buf = [[ tx.hash ]];
             var int n = do UV_FS_write.run(&o,&buf,$buf,0);
             _assert(n == HASH_BYTES);
         end
+*/
 
         // <= NONCE
         do
@@ -154,27 +165,24 @@ loop do
             _assert(n == HASH_BYTES);
         end
 
+        // <= TX_PAYLOAD_LEN
         // <= TX_PAYLOAD
-        // <= TX_PAYLOAD_BYTES
         do
             var u32 len = [[ string.len(tx.payload) ]];
 
-            var char[] buf = [[ tx.payload ]];
-            var int n = do UV_FS_write.run(&o,&buf,$buf,0);
-            _assert(n == len);
+            do
+                var char[sizeof(u32)] buf;
+                _ceu_vector_copy_buffer(&&buf, 0, (byte&&)&&len, sizeof(u32), 1);
+                var int n = do UV_FS_write.run(&o,&buf,$buf,0);
+                _assert(n == sizeof(u32));
+            end
 
-            var char[sizeof(u32)] buf;
-            _ceu_vector_copy_buffer(&&buf, 0, (byte&&)&&len, sizeof(u32), 1);
-            var int n = do UV_FS_write.run(&o,&buf,$buf,0);
-            _assert(n == sizeof(u32));
+            do
+                var char[] buf = [[ tx.payload ]];
+                var int n = do UV_FS_write.run(&o,&buf,$buf,0);
+                _assert(n == len);
+            end
         end
-    end
-    // <= TXS_N
-    do
-        var char[sizeof(u32)] buf;
-        _ceu_vector_copy_buffer(&&buf, 0, (byte&&)&&txs_n, sizeof(u32), 1);
-        var int n = do UV_FS_write.run(&o,&buf,$buf,0);
-        _assert(n == sizeof(u32));
     end
 
     // NEXT BLOCK
