@@ -1,0 +1,299 @@
+#include "common.ceu"
+
+///////////////////////////////////////////////////////////////////////////////
+// Read from "x.chain"
+///////////////////////////////////////////////////////////////////////////////
+
+var UV_FS_open o = UV_FS_open.build("x.chain", _O_RDONLY, 0);
+await o.ok;
+_assert(o.fd >= 0);
+
+[[ msg = {} ]];
+
+var int off = 0;
+
+// => HEADER
+do
+    var byte[4] buf;
+    var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
+    off = off + 4;
+    _assert(buf[0] == MESSAGE_MAGIC_0);
+    _assert(buf[1] == MESSAGE_MAGIC_1);
+    [[ msg.id = ''..(@buf[2])..(@buf[3]) ]];
+    _assert(n == 4);
+end
+
+// => BLOCKS
+loop do
+    _printf("===\n");
+    [[ block = {} ]];
+
+    // => HASH
+/*
+    do
+        var char[HASH_BYTES] buf;
+        var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
+        if n < 0 then
+            break;
+        end
+        _assert(n == HASH_BYTES);
+        off = off + HASH_BYTES;
+        [[ block.hash = @buf ]];
+        [[ print('block','\n'..tostring2(block.hash)) ]];
+    end
+*/
+
+    // => TXS
+    var u32 txs_n = 0;
+    do
+        // => TXS_N
+// TODO: sizeof(u32)
+        var byte[4] buf;
+        var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
+        if n <= 0 then
+            break;
+        end
+        _assert(n == sizeof(u32));
+        off = off + sizeof(u32);
+        txs_n = *((u32&&)(_byte&&)&&buf);
+    end
+    loop i in txs_n do
+        // => TXS[i]
+
+        // => NONCE
+        do
+            var char[NONCE_BYTES] buf;
+            var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
+            _assert(n == NONCE_BYTES);
+            off = off + NONCE_BYTES;
+            [[ block.nonce = @buf ]];
+            [[ print('nonce','\n'..tostring2(block.nonce)) ]];
+        end
+
+        // => TX_BACH_HASH
+        do
+            var char[HASH_BYTES] buf;
+            var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
+            _assert(n == HASH_BYTES);
+            off = off + HASH_BYTES;
+            [[ block.back_hash = @buf ]];
+            [[ print('back_hash','\n'..tostring2(block.back_hash)) ]];
+        end
+
+        // => TX_PAYLOAD
+        do
+            var u32 payload_len = 0;
+            do
+// TODO: sizeof(u32)
+                var byte[4] buf;
+                var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
+                _assert(n == sizeof(u32));
+                off = off + sizeof(u32);
+                payload_len = *((u32&&)(_byte&&)&&buf);
+            end
+            do
+                var char[] buf;
+                $buf := payload_len;
+                var int n = do UV_FS_read.run(&o,&buf,payload_len,off);
+                _assert(n == payload_len);
+                off = off + payload_len;
+                [[ block.payload = @buf ]];
+                [[ print('payload', block.payload) ]];
+            end
+        end
+    end
+end
+_assert(0);
+
+[=[
+    dofile 'cfg/config.lua'
+
+    CLIENT {
+        peers = {
+            {
+                host = { '127.0.0.1', '8331' },
+            },
+        },
+    }
+]=];
+
+[=[
+    MESSAGE {
+        id = '1.0',
+        chain = {
+            key   = '',
+            zeros = 0,
+        },
+        payload = [[111]],
+    }
+
+    MESSAGE {
+        id = '1.0',
+        chain = {
+            key   = '',
+            zeros = 0,
+        },
+        payload = [[222]],
+    }
+]=];
+do ClientMessages;
+
+[=[
+    MESSAGE {
+        id = '1.0',
+        chain = {
+            key   = '',
+            zeros = 0,
+        },
+        payload = [[333]],
+    }
+
+    MESSAGE {
+        id = '1.0',
+        chain = {
+            key   = '',
+            zeros = 0,
+        },
+        payload = [[444]],
+    }
+]=];
+do ClientMessages;
+
+[[
+    print('>'..string.rep('=',78))
+    print(GG.chain_tostring('||0|'))
+    print('<'..string.rep('=',78))
+]];
+
+[[
+    chain     = APP.chains['||0|']
+    head_hash = chain.head_hash
+    base      = GG.chain_head_base_size(head_hash).base
+]];
+
+#if 0
+PS10
+[i]/*BLOCK_HASH*/ (genesis)
+    [j]TX_HASH NONCE TX_BACK_HASH TX_PAYLOAD_LEN TX_PAYLOAD
+    ...
+    TX_N
+...
+[n]/*BLOCK_HASH*/ (head)
+    ...
+
+    var byte[1024] buf;
+    loop i in 1024 do
+        buf = []..buf..['a'+i%25];
+    end
+    var int n = do UV_FS_write.run(&o,&buf,$$buf,0);
+    _assert(n == 1024);
+#endif
+
+// <= HEADER
+do
+    var int flags = _O_CREAT|_O_WRONLY|_O_TRUNC;
+    var _mode_t mode = _S_IRUSR|_S_IWUSR|_S_IRGRP|_S_IWGRP|_S_IROTH;
+    var UV_FS_open o = UV_FS_open.build("x.chain", flags, mode);
+    await o.ok;
+    if o.fd < 0 then
+        _fprintf(_stderr, "uv-error: %s\n", _uv_strerror(o.fd));
+    end
+    _assert(o.fd >= 0);
+
+    var byte[4] buf = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 1, 0];
+    var int n = do UV_FS_write.run(&o,&buf,$buf,0);
+    _assert(n == 4);
+end
+
+// <= (append)
+var UV_FS_open o = UV_FS_open.build("x.chain", _O_APPEND|_O_WRONLY, 0);
+await o.ok;
+if o.fd < 0 then
+    _fprintf(_stderr, "uv-error: %s\n", _uv_strerror(o.fd));
+end
+_assert(o.fd >= 0);
+
+// <= BLOCKS
+loop do
+    // <= BLOCK_HASH
+    do
+        var char[HASH_BYTES] buf = [[ base.hash ]];
+        var int n = do UV_FS_write.run(&o,&buf,$buf,0);
+        _assert(n == HASH_BYTES);
+    end
+
+    // <= TXS
+    var u32 txs_n = [[ #base.txs ]];
+    loop i in txs_n do
+        // <= TXS[i]
+        // TX_HASH NONCE TX_BACK_HASH TX_PAYLOAD_LEN TX_PAYLOAD
+
+        [[
+            tx_hash = base.txs[@i+1]
+            tx      = assert(APP.txs[tx_hash])
+        ]];
+
+/*
+        // <= TX_HASH
+        do
+            var char[HASH_BYTES] buf = [[ tx.hash ]];
+            var int n = do UV_FS_write.run(&o,&buf,$buf,0);
+            _assert(n == HASH_BYTES);
+        end
+*/
+
+        // <= NONCE
+        do
+            // TODO: genesis nonce
+            var char[NONCE_BYTES] buf = [[ tx.nonce or string.rep('\0',16) ]];
+            var int n = do UV_FS_write.run(&o,&buf,$buf,0);
+            _assert(n == NONCE_BYTES);
+        end
+
+        // <= TX_BACK_HASH
+        do
+            var char[HASH_BYTES] buf = [[ tx.back_hash or string.rep('\0',32) ]];
+            var int n = do UV_FS_write.run(&o,&buf,$buf,0);
+            _assert(n == HASH_BYTES);
+        end
+
+        // <= TX_PAYLOAD
+        // <= TX_PAYLOAD_LEN
+        do
+            var u32 len = [[ string.len(tx.payload) ]];
+
+            var char[] buf = [[ tx.payload ]];
+            var int n = do UV_FS_write.run(&o,&buf,$buf,0);
+            _assert(n == len);
+
+            var char[sizeof(u32)] buf;
+            _ceu_vector_copy_buffer(&&buf, 0, (byte&&)&&len, sizeof(u32), 1);
+            var int n = do UV_FS_write.run(&o,&buf,$buf,0);
+            _assert(n == sizeof(u32));
+        end
+    end
+    // <= TXS_N
+    do
+        var char[sizeof(u32)] buf;
+        _ceu_vector_copy_buffer(&&buf, 0, (byte&&)&&txs_n, sizeof(u32), 1);
+        var int n = do UV_FS_write.run(&o,&buf,$buf,0);
+        _assert(n == sizeof(u32));
+    end
+
+    // NEXT BLOCK
+    var bool has = [[ base.up_hash ~= nil ]];
+    if not has then
+        break;
+    end
+    [[
+        base = assert(APP.blocks[base.up_hash])
+    ]];
+end
+
+[[
+local src   = io.open('../src/x.chain'):read'*a'
+local build = io.open('x.chain'):read'*a'
+assert(src == build)
+]];
+
+escape 0;
