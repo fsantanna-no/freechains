@@ -1,8 +1,6 @@
 #ifndef _CLIENT_CEU
 #define _CLIENT_CEU
 
-#include "sodium.ceu"
-
 class Message10_parse_tx with
     // [[ ARGS = { block=?, tx=? } ]]
 do

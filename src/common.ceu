@@ -5,6 +5,7 @@
 
 #include "c.ceu"
 #include "uv.ceu"
+#include "sodium.ceu"
 
 #define MESSAGE_BYTES   4
 #define MESSAGE_MAGIC_0 'P'
@@ -98,7 +99,7 @@ event void send_chain_unlocked;
 
 class FS_read_10 with
     var char[]& path;
-    // output [[ head = {} ]]
+    // output [[ ARGS = { head_hash } ]]
     function (char[]& path)=>FS_read_10 run;
 do
     function (char[]& path)=>FS_read_10 run do
@@ -107,7 +108,8 @@ do
 
     [[
         G(this) = {
-            id = nil,
+            head = nil,
+            base = nil,
         }
     ]];
 
@@ -122,7 +124,6 @@ do
     var u64 size = stat.st_size;
 
     var int off = size;
-_printf("SIZE = %ld\n", size);
 
     // => HEADER
     do
@@ -130,44 +131,29 @@ _printf("SIZE = %ld\n", size);
         var int n = do UV_FS_read.run(&o,&buf,$$buf,0);
         _assert(buf[0] == MESSAGE_MAGIC_0);
         _assert(buf[1] == MESSAGE_MAGIC_1);
-        [[ G(this).id = ''..(@buf[2])..(@buf[3]) ]];
+        _assert(buf[2] == 1);
+        _assert(buf[3] == 0);
         _assert(n == 4);
     end
 
     // => BLOCKS
-    [[
-        head1 = nil
-        base  = nil
-    ]];
     loop do
         if off == 4 then
             break;  // back to the header
         end
 
-_printf("===\n");
-        [[ block = {} ]];
-
-        // => HASH
-    /*
-        do
-            var char[HASH_BYTES] buf;
-            var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
-            if n < 0 then
-                break;
-            end
-            _assert(n == HASH_BYTES);
-            off = off + HASH_BYTES;
-            [[ block.hash = @buf ]];
-            [[ print('block','\n'..tostring2(block.hash)) ]];
-        end
-    */
+        [[
+            G(this).block = {
+                txs = {}
+            }
+        ]];
 
         // => TXS
         var u32 txs_n = 0;
         do
             // => TXS_N
             off = off - sizeof(u32);
-    // TODO: sizeof(u32)
+// TODO: sizeof(u32)
             var byte[4] buf;
             var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
             if n <= 0 then
@@ -175,79 +161,118 @@ _printf("===\n");
             end
             _assert(n == sizeof(u32));
             txs_n = *((u32&&)(_byte&&)&&buf);
-_printf("txs_n = %d\n", txs_n);
         end
-        [[ block.txs = {} ]];
         loop i in txs_n do
             // => TXS[i]
-            [[
-                tx = {}
-                block.txs[@(txs_n-i)] = tx
-            ]];
+            [[ G(this).tx = {} ]];
 
             // => TX_PAYLOAD
+            var char[] payload;
             do
                 var u32 payload_len = 0;
                 do
                     off = off - sizeof(u32);
-    // TODO: sizeof(u32)
+// TODO: sizeof(u32)
                     var byte[4] buf;
                     var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
                     _assert(n == sizeof(u32));
                     payload_len = *((u32&&)(_byte&&)&&buf);
-                    [[ print('payload_len', @payload_len) ]];
+                    //[[ print('payload_len', @payload_len) ]];
                 end
-//async do end;
+// TODO
+async do end;
                 do
                     off = off - payload_len;
-                    var char[] buf;
-                    $buf := payload_len;
-                    var int n = do UV_FS_read.run(&o,&buf,payload_len,off);
-_printf("n=%d len=%d\n", n, payload_len);
+                    $payload := payload_len;
+                    var int n = do UV_FS_read.run(&o,&payload,payload_len,off);
                     _assert(n == payload_len);
-                    [[ tx.payload = @buf ]];
-                    [[ print('payload', tx.payload) ]];
+                    [[ G(this).tx.payload = @payload ]];
+                    //[[ print('payload', G(this).tx.payload) ]];
                 end
             end
 
             // => TX_BACH_HASH
+            var char[HASH_BYTES] tx_back_hash;
             do
                 off = off - HASH_BYTES;
-                var char[HASH_BYTES] buf;
-                var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
-                _assert(n == HASH_BYTES);
-                [[ tx.back_hash = @buf ]];
-                [[ print('back_hash','\n'..tostring2(tx.back_hash)) ]];
+                var int n = do 
+                UV_FS_read.run(&o,&tx_back_hash,$$tx_back_hash,off); _assert(n == HASH_BYTES);
+                [[ G(this).tx.back_hash = @tx_back_hash ]];
+                //[[ print('back_hash','\n'..tostring2(G(this).tx.back_hash)) ]];
             end
 
             // => NONCE
+            var char[NONCE_BYTES] nonce;
             do
                 off = off - NONCE_BYTES;
-                var char[NONCE_BYTES] buf;
-                var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
+                var int n = do UV_FS_read.run(&o,&nonce,$$nonce,off);
                 _assert(n == NONCE_BYTES);
-                [[ tx.nonce = @buf ]];
-                [[ print('nonce','\n'..tostring2(tx.nonce)) ]];
+                [[ G(this).tx.nonce = @nonce ]];
+                //[[ print('nonce','\n'..tostring2(G(this).tx.nonce)) ]];
+            end
+
+            // => TX_HASH
+            do
+                var char[HASH_BYTES] hash;
+                var byte[] plain = []..nonce..tx_back_hash..payload;
+                $hash := HASH_BYTES;
+                _crypto_generichash((_byte&&)(_char&&)&&hash, HASH_BYTES,
+                                    (_byte&&)&&plain, $plain,
+                                    null, 0);
+                [[
+                    tx_hash = @hash
+                    G(this).tx.hash = tx_hash
+                    G(this).block.txs[@(txs_n-i)] = tx_hash
+                    APP.txs[tx_hash] = G(this).tx
+                ]];
             end
         end
-        [[
-            if not head1 then
-                head1 = block
+
+        // => HASH
+        do
+            var char[HASH_BYTES] hash;
+            var byte[]           plain;
+
+            var int n = [[ #G(this).block.txs ]]; // TODO: assert ARGS.block.chain.limits.block
+            loop i in n do
+                var char[HASH_BYTES] tx_hash = [[ G(this).block.txs[@i+1] ]];
+                plain = []..plain..tx_hash;
             end
-            block.up = base
-            if base then
-                base.tail = block
-            end
-            base = block
-        ]]
+
+            $hash := HASH_BYTES;
+            _crypto_generichash((_byte&&)(_char&&)&&hash, HASH_BYTES,
+                                (_byte&&)&&plain, $plain,
+                                null, 0);
+
+            [[
+                hash = @hash
+                --print('block',string.len(hash),'\n'..tostring2(hash))
+                G(this).block.hash = hash
+                APP.blocks[hash] = G(this).block
+
+                if not G(this).head then
+                    G(this).head = G(this).block
+                end
+                if G(this).base then
+                    G(this).base.tail_hash = G(this).block.hash
+                    G(this).block.up_hash = G(this).base.hash
+                end
+                G(this).base = G(this).block
+            ]];
+        end
     end
 
+    [[
+        ARGS = {
+            head_hash = G(this).head.hash
+        }
+    ]];
     escape _ERR_NONE;
 end
 
 class FS_write_10 with
     var char[]& path;
-    // output [[ head = {} ]]
+    // input [[ ARGS = { head_hash } ]]
     function (char[]& path)=>FS_write_10 run;
 do
     function (char[]& path)=>FS_write_10 run do
@@ -264,6 +289,13 @@ do
     [n]/*BLOCK_HASH*/ (head)
         ...
     #endif
+
+    [[
+        t = GG.chain_head_base_size(ARGS.head_hash)
+        G(this) = {
+            base = t.base,
+        }
+    ]];
 
     // create/truncate file
     do
@@ -287,37 +319,18 @@ do
         var int n = do UV_FS_write.run(&o,&buf,$buf,0);
         _assert(n == 4);
     end
-
     // <= BLOCKS
     loop do
-    /*
-        // <= BLOCK_HASH
-        do
-            var char[HASH_BYTES] buf = [[ base.hash ]];
-            var int n = do UV_FS_write.run(&o,&buf,$buf,0);
-            _assert(n == HASH_BYTES);
-        end
-    */
-
         // <= TXS
-        var u32 txs_n = [[ #base.txs ]];
+        var u32 txs_n = [[ #G(this).base.txs ]];
         loop i in txs_n do
             // <= TXS[i]
             // TX_HASH NONCE TX_BACK_HASH TX_PAYLOAD_LEN TX_PAYLOAD
 
             [[
-                tx_hash = base.txs[@i+1]
+                tx_hash = G(this).base.txs[@i+1]
                 tx      = assert(APP.txs[tx_hash])
             ]];
-
-    /*
-            // <= TX_HASH
-            do
-                var char[HASH_BYTES] buf = [[ tx.hash ]];
-                var int n = do UV_FS_write.run(&o,&buf,$buf,0);
-                _assert(n == HASH_BYTES);
-            end
-    */
 
             // <= NONCE
             do
@@ -361,12 +374,13 @@ do
         end
 
         // NEXT BLOCK
-        var bool has = [[ base.up_hash ~= nil ]];
+        var bool has = [[ G(this).base.up_hash ~= nil ]];
         if not has then
             break;
         end
         [[
-            base = assert(APP.blocks[base.up_hash])
+            --print('<<<', '|'..tostring2(G(this).base.hash)..'|')
+            G(this).base = assert(APP.blocks[G(this).base.up_hash])
         ]];
     end
 
