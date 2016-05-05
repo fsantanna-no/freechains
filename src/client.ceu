@@ -76,6 +76,7 @@ do
             end end end end
             end end end end
             end end end end
+            escape 0;
         end;
         _dbg(0, "client: POW rounds: %d\n", n);
     end

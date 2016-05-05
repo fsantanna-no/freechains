@@ -88,11 +88,13 @@ PS10
     _assert(n == 1024);
 #endif
 
+var char[] path = [].."x.chain";
+
 // <= HEADER
 do
     var int flags = _O_CREAT|_O_WRONLY|_O_TRUNC;
     var _mode_t mode = _S_IRUSR|_S_IWUSR|_S_IRGRP|_S_IWGRP|_S_IROTH;
-    var UV_FS_open o = UV_FS_open.build("x.chain", flags, mode);
+    var UV_FS_open o = UV_FS_open.build(&path, flags, mode);
     await o.ok;
     if o.fd < 0 then
         _fprintf(_stderr, "uv-error: %s\n", _uv_strerror(o.fd));
@@ -105,7 +107,7 @@ do
 end
 
 // <= (append)
-var UV_FS_open o = UV_FS_open.build("x.chain", _O_APPEND|_O_WRONLY, 0);
+var UV_FS_open o = UV_FS_open.build(&path, _O_APPEND|_O_WRONLY, 0);
 await o.ok;
 if o.fd < 0 then
     _fprintf(_stderr, "uv-error: %s\n", _uv_strerror(o.fd));

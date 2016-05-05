@@ -1,0 +1,39 @@
+///////////////////////////////////////////////////////////////////////////////
+// Read/Write/Compare "x.chain" => "y.chain"
+///////////////////////////////////////////////////////////////////////////////
+
+#include "common.ceu"
+
+var char[] src = [].."x.chain";
+var char[] dst = [].."y.chain";
+
+// error r/w
+do
+    var char[] err = [].."/no.chain";
+
+    var int ret = do FS_read_10.run(&err);
+    _fprintf(_stderr, "[%d] uv-error: %s\n", ret, _uv_strerror(ret));
+    _assert(ret == -_ENOENT);
+
+    ret = do FS_write_10.run(&err);
+    _fprintf(_stderr, "[%d] uv-error: %s\n", ret, _uv_strerror(ret));
+    _assert(ret == -_EACCES);
+end
+
+do
+    var int ret = do FS_read_10.run(&src);
+    _assert(ret == _ERR_NONE);
+end
+
+do
+    var int ret = do FS_write_10.run(&dst);
+    _assert(ret == _ERR_NONE);
+end
+
+[[
+local src = io.open(@src):read'*a'
+local dst = io.open(@dst):read'*a'
+assert(src == dst)
+]];
+
+escape 0;

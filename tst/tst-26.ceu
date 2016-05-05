@@ -4,7 +4,8 @@
 // Read from "x.chain"
 ///////////////////////////////////////////////////////////////////////////////
 
-var UV_FS_open o = UV_FS_open.build("x.chain", _O_RDONLY, 0);
+var char[] path = [].."x.chain";
+var UV_FS_open o = UV_FS_open.build(&path, _O_RDONLY, 0);
 await o.ok;
 _assert(o.fd >= 0);
 
@@ -68,6 +69,7 @@ loop do
         end
         _assert(n == sizeof(u32));
         txs_n = *((u32&&)(_byte&&)&&buf);
+_printf("txs_n = %d\n", txs_n);
     end
     [[ block.txs = {} ]];
     loop i in txs_n do
@@ -94,6 +96,7 @@ loop do
                 var char[] buf;
                 $buf := payload_len;
                 var int n = do UV_FS_read.run(&o,&buf,payload_len,off);
+_printf("n=%d len=%d\n", n, payload_len);
                 _assert(n == payload_len);
                 [[ tx.payload = @buf ]];
                 [[ print('payload', tx.payload) ]];

@@ -358,8 +358,10 @@ do
         [[ G(tcp).chain.recv_is_locked = false ]];
     end
 
-    var byte[1] send = [err];
-    do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
+    do
+        var byte[1] send = [err];
+        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
+    end
 
     [[
         G(tcp).remote_head = nil
@@ -447,8 +449,8 @@ do
 //[[print(tostring2(G(tcp).block.hash))]];
             [[ APP.blocks[G(tcp).block.hash] = G(tcp).block ]];
         end
-        _assert(0);
-        escape _ERR_NONE;
+        //_assert(0);
+        //escape _ERR_NONE;
     end;
 
     // UNLOCK "receive"
