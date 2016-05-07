@@ -179,8 +179,6 @@ do
                     payload_len = *((u32&&)(_byte&&)&&buf);
                     //[[ print('payload_len', @payload_len) ]];
                 end
-// TODO
-async do end;
                 do
                     off = off - payload_len;
                     $payload := payload_len;
@@ -245,7 +243,7 @@ async do end;
                                 null, 0);
 
             [[
-                hash = @hash
+                hash = @hash;
                 --print('block',string.len(hash),'\n'..tostring2(hash))
                 G(this).block.hash = hash
                 APP.blocks[hash] = G(this).block
