@@ -51,6 +51,7 @@ do
         ]];
 
         var bool is_sub = [[ G(tcp).chain ~= nil ]];
+        _dbg_tcp(2, &&this.tcp, "server", "is_sub      = %d", is_sub);
         if not is_sub then
             escape _MESSAGE10_NOTSUB;    // OK ACK
         end
