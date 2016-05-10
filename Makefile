@@ -12,7 +12,7 @@ UV_DIR = /data/ceu/ceu-libuv
 
 OUT_DIR = build
 SRC = src/main.ceu
-C_FLAGS += -Isrc/ -llua5.1 -lsodium
+C_FLAGS += -Isrc/ -llua5.3 -lsodium
 
 _all: all
 
