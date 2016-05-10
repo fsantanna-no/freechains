@@ -154,10 +154,10 @@ do
         [[
             tx_hash   = G(tcp).block.txs[@this.i+1]
             G(tcp).tx = assert(APP.txs[tx_hash])
-            --print('[client] <= txs['..(@this.i+1)..']', G(tcp).tx.bytes)
+            --print('[client] <= txs['..(@this.i+1)..']', string.len(G(tcp).tx.payload))
             --print(tostring2(G(tcp).tx.hash))
         ]];
-        var u32    payload_bytes = [[ G(tcp).tx.bytes ]];
+        var u32    payload_bytes = [[ string.len(G(tcp).tx.payload) ]];
         var char[] bytes         = [[ G(tcp).tx.hash ]];
         PUT_NETWORK_U32(bytes, HASH_BYTES, payload_bytes);
         do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
@@ -539,7 +539,6 @@ do
 
 --msg.payload = string.sub(msg.payload,1,3)..string.sub(os.time(),6)
                 G(this).tx = {
-                    bytes     = string.len(msg.payload),
                     payload   = msg.payload,
                     hash      = nil,
                     back_hash = txs_back[#txs_back],
