@@ -262,8 +262,8 @@ _assert(0);
             end
 
             [[ nonce = {} ]];
-            loop i in NONCE_BYTES do
-                [[ nonce[@(i+1)] = string.char(@(plain[i])) ]];
+            loop j in NONCE_BYTES do
+                [[ nonce[@(j+1)] = string.char(@(plain[j])) ]];
             end
             [[
                 G(this).tx.nonce = table.concat(nonce)
@@ -304,7 +304,7 @@ _assert(0);
                 APP.txs[tx.hash] = tx
             ]];
         else
-            var int txs_n = [[ #G(this).block.txs ]]; // TODO: assert G(this).block.chain.limits.block
+            //var int txs_n = [[ #G(this).block.txs ]]; // TODO: assert G(this).block.chain.limits.block
             if txs_n == 0 then
 // TODO: test-case
 _assert(0);
@@ -344,8 +344,9 @@ do
 
     [[
         G(this) = {
-            head = nil,
-            base = nil,
+            chain_id = nil,
+            head     = nil,
+            base     = nil,
         }
     ]];
 
@@ -359,22 +360,45 @@ do
     do UV_FS_fstat.run(&o, &stat);
     var u64 size = stat.st_size;
 
-    var int off = size;
+    var int off = 0;
 
     // => HEADER
     do
         var byte[4] buf;
-        var int n = do UV_FS_read.run(&o,&buf,$$buf,0);
+        var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
         _assert(buf[0] == MESSAGE_MAGIC_0);
         _assert(buf[1] == MESSAGE_MAGIC_1);
         _assert(buf[2] == 1);
         _assert(buf[3] == 0);
         _assert(n == 4);
+        off = off + 4;
     end
+
+    // => CHAIN_ID
+    do
+        var u8[1] len_;
+        do
+            var int n = do UV_FS_read.run(&o,&len_,$$len_,off);
+            _assert(n == sizeof(u8));
+            off = off + 1;
+        end
+        var u8 len = len_[0];
+
+        var char[len] buf;
+        do
+            var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
+            _assert(n == len);
+            off = off + len;
+        end
+        [[ G(this).chain_id = @buf ]];
+    end
+
+    var int header_chain_id = off;
+    off = size;
 
     // => BLOCKS
     loop do
-        if off == 4 then
+        if off == header_chain_id then
             break;  // back to the header
         end
 
@@ -447,8 +471,12 @@ do
             end
         end
 
-        [[ ARGS = { block=G(this).block } ]];
-[[ ARGS.block.chain_id = '||0|' ]];
+        [[
+            G(this).block.chain_id = G(this).chain_id
+            ARGS = {
+                block = G(this).block,
+            }
+        ]];
         var int ret = do BlockHash with
             this.source = SourceBlockHash.FILE();
         end;
@@ -467,8 +495,8 @@ do
 
     [[
         ARGS = {
-            chain_id  = '||0|',
-            head_hash = G(this).head.hash
+            chain_id  = G(this).chain_id,
+            head_hash = G(this).head.hash,
         }
     ]];
     escape _ERR_NONE;
@@ -498,7 +526,8 @@ do
         chain = APP.chains[ ARGS.chain_id ]
         t = GG.chain_head_base_size(chain.head_hash)
         G(this) = {
-            base = t.base,
+            base  = t.base,
+            chain = chain,
         }
     ]];
 
@@ -524,6 +553,23 @@ do
         var int n = do UV_FS_write.run(&o,&buf,$buf,0);
         _assert(n == 4);
     end
+
+    // <= CHAIN_ID
+    do
+        var u8 len = [[ string.len(G(this).chain.id) ]];
+        var byte[1] len_ = [len];
+        do
+            var int n = do UV_FS_write.run(&o,&len_,1,0);
+            _assert(n == sizeof(u8));
+        end
+
+        var char[len] buf = [[ G(this).chain.id ]];
+        do
+            var int n = do UV_FS_write.run(&o,&buf,$buf,0);
+            _assert(n == len);
+        end
+    end
+
     // <= BLOCKS
     loop do
         // <= TXS

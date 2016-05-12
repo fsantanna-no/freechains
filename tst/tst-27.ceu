@@ -44,4 +44,6 @@ do
     _assert(ret == -_EACCES);
 end
 
+[[ print'OK!' ]];
+
 escape 0;
