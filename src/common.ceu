@@ -118,6 +118,8 @@ do
         }
     ]];
 
+    var bool is_genesis = false;
+
     // => TX_HASH
     var int txs_n = [[ #G(this).block.txs ]];
     loop i in txs_n do
@@ -160,7 +162,17 @@ _assert(0);
         var char[HASH_BYTES] back_hash = [[ G(this).tx.back_hash ]];
         var char[]           payload   = [[ G(this).tx.payload   ]];
 
-        if this.source.NETWORK or this.source.FILE then
+        is_genesis = [[ G(this).tx.back_hash == string.rep('\0',HASH_BYTES) ]];
+        if is_genesis then
+            _assert(not this.source.NETWORK);
+            _assert(txs_n == 1);
+            [[
+                assert( G(this).tx.payload == '' )
+                assert( G(this).tx.nonce   == string.rep('\0',NONCE_BYTES) )
+            ]];
+            break;
+
+        else/if this.source.NETWORK or this.source.FILE then
             var char[HASH_BYTES] nonce = [[ G(this).tx.nonce ]];
             plain = []..nonce..back_hash..payload;
 
@@ -273,23 +285,41 @@ _assert(0);
     // => BLOCK_HASH
     do
         var char[] plain = [[ G(this).chain.id ]];
-        var int txs_n = [[ #G(this).block.txs ]]; // TODO: assert G(this).block.chain.limits.block
-        if txs_n == 0 then
-// TODO: test-case
-_assert(0);
-            escape _ERR_REMOTE_BUG_OR_MALICIOUS;
-        end
-
-        loop i in txs_n do
-            var char[HASH_BYTES] tx_hash = [[ G(this).block.txs[@i+1] ]];
-            plain = []..plain..tx_hash;
-        end
-
         var char[HASH_BYTES] block_hash;
         $block_hash := HASH_BYTES;
-        _crypto_generichash((_byte&&)(_char&&)&&block_hash, HASH_BYTES,
-                            (_byte&&)(_char&&)&&plain, $plain,
-                            null, 0);
+
+        if is_genesis then
+            _crypto_generichash((_byte&&)(_char&&)&&block_hash, HASH_BYTES,
+                                (_byte&&)(_char&&)&&plain, $plain,
+                                null, 0);
+            var byte[HASH_BYTES] tx_hash;
+            $tx_hash := HASH_BYTES;
+            _crypto_generichash((_byte&&)&&tx_hash, HASH_BYTES,
+                                (_byte&&)(_char&&)&&block_hash, $block_hash,
+                                null, 0);
+            [[
+                tx = G(this).block.txs[1]
+                tx.hash = @tx_hash
+                G(this).block.txs[1] = tx.hash
+                APP.txs[tx.hash] = tx
+            ]];
+        else
+            var int txs_n = [[ #G(this).block.txs ]]; // TODO: assert G(this).block.chain.limits.block
+            if txs_n == 0 then
+// TODO: test-case
+_assert(0);
+                escape _ERR_REMOTE_BUG_OR_MALICIOUS;
+            end
+
+            loop i in txs_n do
+                var char[HASH_BYTES] tx_hash = [[ G(this).block.txs[@i+1] ]];
+                plain = []..plain..tx_hash;
+            end
+
+            _crypto_generichash((_byte&&)(_char&&)&&block_hash, HASH_BYTES,
+                                (_byte&&)(_char&&)&&plain, $plain,
+                                null, 0);
+        end
 
         [[
             --print('block',string.len(@block_hash),'\n'..tostring2(@block_hash))
@@ -582,38 +612,25 @@ do
     // TODO: first try to load from file
 
         [[
-            block = {
-                chain_id  = chain.id,
-                txs       = {},
-                tail_hash = nil,
-            }
-            tx = {
-                nonce     = string.rep('\0',16),
-                back_hash = string.rep('\0',32),
-                payload   = '',
+            ARGS = {
+                block = {
+                    chain_id = chain.id,
+                    txs = {
+                        {
+                            nonce     = string.rep('\0',NONCE_BYTES),
+                            back_hash = string.rep('\0',HASH_BYTES),
+                            payload   = '',
+                        }
+                    },
+                    tail_hash = nil,
+                }
             }
         ]];
 
-        var char[] chain_id = [[ chain.id ]];
-        var char[HASH_BYTES] block_hash;
-        $block_hash := HASH_BYTES;
-        _crypto_generichash((_byte&&)(_char&&)&&block_hash, HASH_BYTES,
-                            (_byte&&)(_char&&)&&chain_id, $chain_id,
-                            null, 0);
-        var byte[HASH_BYTES] tx_hash;
-        $tx_hash := HASH_BYTES;
-        _crypto_generichash((_byte&&)&&tx_hash, HASH_BYTES,
-                            (_byte&&)(_char&&)&&block_hash, $block_hash,
-                            null, 0);
-
-        [[
-            block.hash = @block_hash
-            tx.hash    = @tx_hash
-            block.txs[1] = tx.hash
-            APP.blocks[block.hash] = block
-            APP.txs[tx.hash] = tx
-            APP.chains[@i+1].head_hash = block.hash
-        ]]
+        var int ret = do BlockHash with
+            this.source = SourceBlockHash.FILE();
+        end;
+        [[ APP.chains[@i+1].head_hash = ARGS.block.hash ]]
     end
 end
 
