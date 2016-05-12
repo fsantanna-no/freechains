@@ -10,6 +10,8 @@
     dofile 'cfg/config.lua'
 ]];
 
+do Init;
+
 var char[] src = [].."x.chain";
 var char[] dst = [].."y.chain";
 

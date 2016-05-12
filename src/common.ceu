@@ -335,7 +335,7 @@ end
 
 class FS_read_10 with
     var char[]& path;
-    // output [[ ARGS = { head_hash } ]]
+    // output [[ ARGS = { chain_id, head_hash } ]]
     function (char[]& path)=>FS_read_10 run;
 do
     function (char[]& path)=>FS_read_10 run do
@@ -467,6 +467,7 @@ do
 
     [[
         ARGS = {
+            chain_id  = '||0|',
             head_hash = G(this).head.hash
         }
     ]];
@@ -475,7 +476,7 @@ end
 
 class FS_write_10 with
     var char[]& path;
-    // input [[ ARGS = { head_hash } ]]
+    // input [[ ARGS = { chain_id } ]]
     function (char[]& path)=>FS_write_10 run;
 do
     function (char[]& path)=>FS_write_10 run do
@@ -494,7 +495,8 @@ do
     #endif
 
     [[
-        t = GG.chain_head_base_size(ARGS.head_hash)
+        chain = APP.chains[ ARGS.chain_id ]
+        t = GG.chain_head_base_size(chain.head_hash)
         G(this) = {
             base = t.base,
         }
