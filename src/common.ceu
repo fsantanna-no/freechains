@@ -97,46 +97,70 @@ end
 event void recv_chain_unlocked;
 event void send_chain_unlocked;
 
+data SourceBlockHash with
+    tag NETWORK;
+or
+    tag FILE;
+or
+    tag NEW;
+end
+
 class BlockHash with
     // input  [[ ARGS = { block={ txs={ tx1, tx2, ... } } }
     // output [[ ARGS = { block={ txs={ tx1_hash, tx2_hash, ... } } }
     // output [[ APP.block[hash]=blk APP.txs[hash]=txs ]]
+    var SourceBlockHash source;
 do
-    [[ G(this) = { block = ARGS.block } ]];
+    [[
+        G(this) = {
+            block = ARGS.block,
+            chain = APP.chains[ARGS.block.chain_id],
+        }
+    ]];
 
     // => TX_HASH
     var int txs_n = [[ #G(this).block.txs ]];
     loop i in txs_n do
         [[ G(this).tx = G(this).block.txs[@txs_n-i] ]];
 
-        /*
-         * has_hash:  received from the network already with hash
-         *            needs to re-hash to confirm the nonce
-         * has_nonce: read from local file
-         * none:      creating now from Client
-         */
+        if this.source.NETWORK then
+            [[
+                assert( type(G(this).tx) == 'string' )
+                G(this).tx = G(this).block.txs[G(this).tx] or APP.txs[G(this).tx]
+                assert( G(this).tx.nonce ~= nil )
+            ]];
+        else/if this.source.FILE then
+            [[
+                assert( type(G(this).tx) == 'table' )
+                assert( G(this).tx.nonce ~= nil )
+            ]];
+        else/if this.source.NEW then
+            [[
+                assert( type(G(this).tx) == 'table' )
+                assert( G(this).tx.nonce == nil )
+            ]];
+        else
+            _assert(0);
+        end
 
-        var bool has_hash = [[ type(G(this).tx) == 'string' ]];
-        var bool has_nonce = [[ G(this).tx.nonce ~= nil ]];
-        var u8 zeros_wanted = [[ APP.chains[G(this).block.chain_id].zeros ]];
+        var u8 zeros_wanted = [[ G(this).chain.zeros ]];
 
-        if has_hash then
+        if this.source.NETWORK then
             var char[HASH_BYTES] tx_hash;
-            tx_hash = [[ G(this).tx ]];
+            tx_hash = [[ G(this).tx.hash ]];
             if zeros_wanted > _leading_zeros((_char&&)&&tx_hash,HASH_BYTES) then
 // TODO: test-case to fail here
 // TODO: also change from ">" to "!="
 _assert(0);
                 escape _ERR_REMOTE_BUG_OR_MALICIOUS;
             end
-            [[ G(this).tx = G(this).block.txs[G(this).tx] or APP.txs[G(this).tx] ]];
         end
 
         var byte[] plain;
         var char[HASH_BYTES] back_hash = [[ G(this).tx.back_hash ]];
         var char[]           payload   = [[ G(this).tx.payload   ]];
 
-        if has_hash or has_nonce then
+        if this.source.NETWORK or this.source.FILE then
             var char[HASH_BYTES] nonce = [[ G(this).tx.nonce ]];
             plain = []..nonce..back_hash..payload;
 
@@ -147,7 +171,7 @@ _assert(0);
                                 null, 0);
 
             [[ tx_hash = @tx_hash ]];
-            if has_hash then
+            if this.source.NETWORK then
                 var bool ok = [[ tx_hash == G(this).tx.hash ]];
                 if not ok then
                     // received hash+nonce do not match
@@ -235,7 +259,7 @@ _assert(0);
             ]];
         end
 
-        if not has_hash then
+        if not this.source.NETWORK then
             [[
                 G(this).tx.hash = tx_hash
                 G(this).block.txs[@(txs_n-i)] = tx_hash
@@ -248,8 +272,14 @@ _assert(0);
 
     // => BLOCK_HASH
     do
-        var byte[] plain;
+        var char[] plain = [[ G(this).chain.id ]];
         var int txs_n = [[ #G(this).block.txs ]]; // TODO: assert G(this).block.chain.limits.block
+        if txs_n == 0 then
+// TODO: test-case
+_assert(0);
+            escape _ERR_REMOTE_BUG_OR_MALICIOUS;
+        end
+
         loop i in txs_n do
             var char[HASH_BYTES] tx_hash = [[ G(this).block.txs[@i+1] ]];
             plain = []..plain..tx_hash;
@@ -258,7 +288,7 @@ _assert(0);
         var char[HASH_BYTES] block_hash;
         $block_hash := HASH_BYTES;
         _crypto_generichash((_byte&&)(_char&&)&&block_hash, HASH_BYTES,
-                            (_byte&&)&&plain, $plain,
+                            (_byte&&)(_char&&)&&plain, $plain,
                             null, 0);
 
         [[
@@ -389,7 +419,10 @@ do
 
         [[ ARGS = { block=G(this).block } ]];
 [[ ARGS.block.chain_id = '||0|' ]];
-        do BlockHash;
+        var int ret = do BlockHash with
+            this.source = SourceBlockHash.FILE();
+        end;
+        _assert(ret == _ERR_NONE);
         [[
             if not G(this).head then
                 G(this).head = G(this).block
@@ -537,20 +570,51 @@ end
     GG.MESSAGE10_NOTSUB = @((int)_MESSAGE10_NOTSUB)
 ]];
 
-/*
-var int n_chains = [[ #APP.chains ]];
-loop i in n_chains do
-    [[ chain = APP.chains[@i+1] ]];
-    var int n_zeros = [[ chain.zeros ]];
-    loop i in xxx do
-        .
-    for _,chain in ipairs(t) do
-        for i=chain.zeros,255 do
-            chain.zeros = i
-            GG.chain_parse(chain)
-            APP.chains[chain.id] = chain_create(chain)
-        end
+class Init with
+do
+    var int n_chains = [[ #APP.chains ]];
+    loop i in n_chains do
+        [[
+            chain = APP.chains[@i+1]
+            assert(not chain.head_hash)
+        ]];
+
+    // TODO: first try to load from file
+
+        [[
+            block = {
+                chain_id  = chain.id,
+                txs       = {},
+                tail_hash = nil,
+            }
+            tx = {
+                nonce     = string.rep('\0',16),
+                back_hash = string.rep('\0',32),
+                payload   = '',
+            }
+        ]];
+
+        var char[] chain_id = [[ chain.id ]];
+        var char[HASH_BYTES] block_hash;
+        $block_hash := HASH_BYTES;
+        _crypto_generichash((_byte&&)(_char&&)&&block_hash, HASH_BYTES,
+                            (_byte&&)(_char&&)&&chain_id, $chain_id,
+                            null, 0);
+        var byte[HASH_BYTES] tx_hash;
+        $tx_hash := HASH_BYTES;
+        _crypto_generichash((_byte&&)&&tx_hash, HASH_BYTES,
+                            (_byte&&)(_char&&)&&block_hash, $block_hash,
+                            null, 0);
+
+        [[
+            block.hash = @block_hash
+            tx.hash    = @tx_hash
+            block.txs[1] = tx.hash
+            APP.blocks[block.hash] = block
+            APP.txs[tx.hash] = tx
+            APP.chains[@i+1].head_hash = block.hash
+        ]]
     end
-*/
+end
 
 #endif

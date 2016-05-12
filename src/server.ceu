@@ -44,7 +44,7 @@ do
         off = off + chain_len;
 
         [[
-            G(tcp).chain = GG.chain_parse( {
+            G(tcp).chain = GG.chain_parse_get( {
                 key   = @chain_key,
                 zeros = @chain_zeros,
             } )
@@ -435,7 +435,9 @@ do
 //[[print(tostring2(G(tcp).block.hash))]];
             //[[ APP.blocks[G(tcp).block.hash] = G(tcp).block ]];
             [[ ARGS = { block=G(tcp).block } ]];
-            var int ret = do BlockHash;
+            var int ret = do BlockHash with
+                this.source = SourceBlockHash.NETWORK();
+            end;
             if ret != _ERR_NONE then
                 escape ret;
             end
@@ -549,10 +551,10 @@ end
     var bool has_txs = [[ #block_new.txs > 0 ]];
     if has_txs then
         [[ ARGS = { block=block_new } ]];
-        var int ret = do BlockHash;
-        if ret != _ERR_NONE then
-            escape ret;
-        end
+        var int ret = do BlockHash with
+            this.source = SourceBlockHash.NETWORK();
+        end;
+        _assert(ret == _ERR_NONE);
         [[
             -- i'm the head now: relink, set new head
             block = ARGS.block

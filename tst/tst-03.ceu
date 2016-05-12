@@ -62,6 +62,8 @@ par/and do
         }
     ]=];
 
+    do Init;
+
     var char[] ip      = [[ APP.server.host[1] ]];
     var int    port    = [[ APP.server.host[2] ]];
     var int    backlog = [[ APP.server.backlog ]];
@@ -134,6 +136,9 @@ with
 ]],
         }
     ]=];
+
+    do Init;
+
     var char[] ip      = [[ APP.server.host[1] ]];
     var int    port    = [[ APP.server.host[2] ]];
     var int    backlog = [[ APP.server.backlog ]];
@@ -186,6 +191,9 @@ with
         }
 
     ]];
+
+    do Init;
+
     var char[] ip      = [[ APP.server.host[1] ]];
     var int    port    = [[ APP.server.host[2] ]];
     var int    backlog = [[ APP.server.backlog ]];

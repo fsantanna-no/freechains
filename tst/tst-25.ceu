@@ -18,6 +18,8 @@
     }
 ]=];
 
+do Init;
+
 [=[
     MESSAGE {
         id = '1.0',
@@ -37,6 +39,7 @@
         payload = [[222]],
     }
 ]=];
+
 do ClientMessages;
 
 [=[

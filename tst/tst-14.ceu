@@ -5,8 +5,8 @@
 //  - 0 sends 0.1
 //  - 0 sends 0.2
 //  - ...     0.9
-//  - 2 sends 2.1,2.2,...,2.9
-//  - (2.1,...,2.9) -> 0.1 -> ... -> 0.9) -> ''
+//  - 2 sends 2.1,2.2,...,2.8
+//  - (2.1,...,2.8) -> 0.1 -> ... -> 0.9) -> ''
 ///////////////////////////////////////////////////////////////////////////////
 
 input void ANY;
@@ -40,6 +40,8 @@ par/and do
             },
         }
     ]];
+
+    do Init;
 
     async do end
     loop i in 9 do
@@ -81,6 +83,9 @@ with
             host = { '127.0.0.1', '8331' },
         }
     ]];
+
+    do Init;
+
     var char[] ip      = [[ APP.server.host[1] ]];
     var int    port    = [[ APP.server.host[2] ]];
     var int    backlog = [[ APP.server.backlog ]];
@@ -125,7 +130,9 @@ with
         }
     ]];
 
-    loop i in 9 do
+    do Init;
+
+    loop i in 8 do
         [=[
             MESSAGE {
                 id = '1.0',
@@ -144,7 +151,7 @@ end
 [=[
     assert( #CHAIN1==11 and
             CHAIN1[10].txs[1]==[[0.9]] and
-            CHAIN1[11].txs[9]==[[2.9]])
+            CHAIN1[11].txs[8]==[[2.8]])
     print'OK!'
 ]=];
 

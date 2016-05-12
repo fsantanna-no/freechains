@@ -178,6 +178,7 @@ LOOP END
 - GENESIS_HASH
     - univocally identifies a chain
     - hash[CHAIN_ZEROS, CHAIN_LEN, CHAIN_KEY]
+    - genesis TX hash: hash(block_hash)
 - TX_HASH uses recent TX_BACK_HASH
     - TX_HASH->...->TX_BACK_HASH < GLOBAL_TX_BACK_DISTANCE_BYTES
     - server can refuse the whole block

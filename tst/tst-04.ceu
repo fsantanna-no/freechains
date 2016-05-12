@@ -48,6 +48,8 @@ par/and do
         }
     ]=];
 
+    do Init;
+
     async do end;
     do ClientMessages;
 
@@ -84,6 +86,9 @@ with
             host = { '127.0.0.1', '8331' },
         }
     ]];
+
+    do Init;
+
     var char[] ip      = [[ APP.server.host[1] ]];
     var int    port    = [[ APP.server.host[2] ]];
     var int    backlog = [[ APP.server.backlog ]];
@@ -138,6 +143,8 @@ with
             payload = [[ 1<-2 ]],
         }
     ]=];
+
+    do Init;
 
     await 100ms;
     do ClientMessages;

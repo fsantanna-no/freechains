@@ -143,6 +143,8 @@ end
     }
 ]=];
 
+do Init;
+
 [=[
     MESSAGE {
         id = '1.0',

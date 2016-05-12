@@ -48,6 +48,8 @@ par/and do
         }
     ]=];
 
+    do Init;
+
     async do end;
     do ClientMessages;
 
@@ -88,6 +90,8 @@ with
     var int    backlog = [[ APP.server.backlog ]];
     _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
     var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
+
+    do Init;
 
     await 1s;
     [[

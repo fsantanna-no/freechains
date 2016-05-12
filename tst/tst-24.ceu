@@ -64,6 +64,9 @@ par/and do
             payload = [[22.1]],
         }
     ]=];
+
+    do Init;
+
     async do end;
     do ClientMessages;
 
@@ -150,6 +153,9 @@ with
             host = { '127.0.0.1', '8331' },
         }
     ]];
+
+    do Init;
+
     var char[] ip      = [[ APP.server.host[1] ]];
     var int    port    = [[ APP.server.host[2] ]];
     var int    backlog = [[ APP.server.backlog ]];
@@ -198,6 +204,9 @@ with
             host = { '127.0.0.1', '8332' },
         }
     ]];
+
+    do Init;
+
     var char[] ip      = [[ APP.server.host[1] ]];
     var int    port    = [[ APP.server.host[2] ]];
     var int    backlog = [[ APP.server.backlog ]];
@@ -238,6 +247,9 @@ with
             host = { '127.0.0.1', '8333' },
         }
     ]];
+
+    do Init;
+
     var char[] ip      = [[ APP.server.host[1] ]];
     var int    port    = [[ APP.server.host[2] ]];
     var int    backlog = [[ APP.server.backlog ]];
@@ -279,6 +291,9 @@ with
             host = { '127.0.0.1', '8334' },
         }
     ]];
+
+    do Init;
+
     var char[] ip      = [[ APP.server.host[1] ]];
     var int    port    = [[ APP.server.host[2] ]];
     var int    backlog = [[ APP.server.backlog ]];

@@ -34,15 +34,17 @@ end
 
 APP = app_create()
 
-local chain_create
 function CHAINS (t)
     APP.chains = {}
     assert(type(t) == 'table')
     for _,chain in ipairs(t) do
         for i=chain.zeros,255 do
-            chain.zeros = i
-            GG.chain_parse(chain)
-            APP.chains[chain.id] = chain_create(chain)
+            local new = {}
+            for k,v in pairs(chain) do new[k]=v end
+            new.zeros = i
+            local c = GG.chain_parse_get(new)
+            APP.chains[new.id] = (c or new)
+            APP.chains[#APP.chains+1] = APP.chains[new.id]
         end
     end
 end
@@ -67,7 +69,7 @@ function CLIENT (t)
         if peer.chains then
             assert(type(peer.chains) == 'table')
             for _,chain in ipairs(peer.chains) do
-                local c = GG.chain_parse(chain)
+                local c = GG.chain_parse_get(chain)
                 assert(c)   -- must already exist
             end
         else
@@ -86,7 +88,7 @@ end
 
 -------------------------------------------------------------------------------
 
-function GG.chain_parse (chain)
+function GG.chain_parse_get (chain)
     assert(type(chain) == 'table')
     assert(type(chain.key)   == 'string')
     assert(type(chain.zeros) == 'number')
@@ -151,34 +153,6 @@ function GG.chain_tostring (chain_id)
 end
 
 -------------------------------------------------------------------------------
-
-chain_create = function (chain)
-    local old, chain = chain, {}
-    for k,v in pairs(old) do
-        chain[k] = v
-    end
-
-    local tx_hash = chain.id          -- TODO: should be hash(chain.id)
-    tx_hash = chain.id..string.rep('\0',32-string.len(chain.id))
-    APP.txs[tx_hash] = {
-        hash      = tx_hash,
-        nonce     = string.rep('\0',16),  -- TODO
-        back_hash = string.rep('\0',32),  -- TODO
-        bytes     = 0,
-        payload   = '',
-    }
-
-    -- chain.head_hash
-    local block_hash = tx_hash  -- TODO: should be hash of txs merkle tree
-    local block_genesis = {
-        hash = block_hash,
-        txs  = { tx_hash },
-    }
-    APP.blocks[block_hash] = block_genesis
-    chain.head_hash = block_hash
-
-    return chain
-end
 
 local function is_binary (str)
     return (string.gsub(str,'%c','') ~= str)
