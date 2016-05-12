@@ -6,6 +6,10 @@
 
 #include "common.ceu"
 
+[[
+    dofile 'cfg/config.lua'
+]];
+
 var char[] src = [].."x.chain";
 var char[] dst = [].."y.chain";
 

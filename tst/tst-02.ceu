@@ -63,10 +63,10 @@ par/and do
     await 1s;
 
     [[
-        CHAIN1 = GG.chain_flatten('||0|')
+        CHAIN0 = GG.chain_flatten('||0|')
         print'===> 1'
         print('>'..string.rep('=',78))
-        print(tostring2(CHAIN1))
+        print(tostring2(CHAIN0))
         print('<'..string.rep('=',78))
     ]];
 with
@@ -135,10 +135,10 @@ with
     await 1s;
 
     [[
-        CHAIN2 = GG.chain_flatten('||0|')
+        CHAIN1 = GG.chain_flatten('||0|')
         print'===> 2'
         print('>'..string.rep('=',78))
-        print(tostring2(CHAIN2))
+        print(tostring2(CHAIN1))
         print('<'..string.rep('=',78))
     ]];
 with
@@ -174,17 +174,17 @@ with
 
     await 3s;
     [[
-        CHAIN3 = GG.chain_flatten('||0|')
+        CHAIN2 = GG.chain_flatten('||0|')
         print'===> 3'
         print('>'..string.rep('=',78))
-        print(tostring2(CHAIN3))
+        print(tostring2(CHAIN2))
         print('<'..string.rep('=',78))
     ]];
 end
 
 [[
-    assert(#CHAIN1==2 and #CHAIN2==3 and #CHAIN3==3)
-    assert( tostring2(CHAIN2) == tostring2(CHAIN3) )
+    assert(#CHAIN0==2 and #CHAIN1==3 and #CHAIN2==3)
+    assert( tostring2(CHAIN1) == tostring2(CHAIN2) )
     print'OK!'
 ]]
 

@@ -152,6 +152,14 @@ do
                                 1);
         off = off + HASH_BYTES;
 
+        var int zeros_wanted = [[ G(tcp).chain.zeros ]];
+        if zeros_wanted > _leading_zeros((_byte&&)&&hash,HASH_BYTES) then
+// TODO: test-case to fail here
+// TODO: also change from ">" to "!="
+_assert(0);
+            escape _ERR_REMOTE_BUG_OR_MALICIOUS;
+        end
+
         // payload_bytes
         do UV_Stream_ReadUntil.run(&reader, off+sizeof(u32));
         var u32 payload_bytes = GET_HOST_U32(bytes, off);
@@ -213,17 +221,17 @@ do
         end
 
         // => TX_BACK_HASH
-        // TODO: check
-        var byte[HASH_BYTES] tx_back_hash;
+// TODO: check back_hash
+        var byte[HASH_BYTES] back_hash;
         do
             do UV_Stream_ReadUntil.run(&this.reader, off + HASH_BYTES);
-            _ceu_vector_copy_buffer(&&tx_back_hash, 0,
+            _ceu_vector_copy_buffer(&&back_hash, 0,
                                     (_byte&&)&&bytes[off], HASH_BYTES,
                                     1);
             off = off + HASH_BYTES;
-            _assert($tx_back_hash == HASH_BYTES);
+            _assert($back_hash == HASH_BYTES);
             [[
-                G(tcp).tx.back_hash = @tx_back_hash;
+                G(tcp).tx.back_hash = @back_hash;
                 --print('[server] => TX_BACK_HASH')
                 --print(tostring2(G(tcp).tx.back_hash))
             ]];
@@ -270,28 +278,6 @@ do
             [[ G(tcp).tx.pos = @pos ]];
             //_printf("TODO: POS matches?\n");
             off = off + 1;
-        end
-
-        // [check] TX_HASH is correct? [no ACK]
-        do
-            var byte[] plain = []..nonce..tx_back_hash..tx_payload;
-            [[
-                --print('>X>>', tostring2(@nonce), tostring2(@tx_back_hash), tostring2(@tx_payload))
-                --print('>X>>', '\n'..tostring2(@plain,true))
-                --print('>X>>', '\n'..tostring2(@bytes,true))
-            ]];
-
-            var byte[HASH_BYTES] hash;
-            _crypto_generichash((_byte&&)&&hash, HASH_BYTES,
-                                (_byte&&)&&plain, $plain,
-                                null, 0);
-
-            var char[HASH_BYTES] tx_hash = [[ G(tcp).tx.hash ]];
-            var int ret = _memcmp((_char&&)&&tx_hash, (_byte&&)&&hash, HASH_BYTES);
-            //_printf("[server] POW? %d\n", ret==0);
-            if ret != 0 then
-                escape _ERR_REMOTE_BUG_OR_MALICIOUS;
-            end
         end
     end
 
@@ -431,24 +417,28 @@ do
 
             do
                 var int txs_n = [[ G(tcp).block.txs_n ]];
-                //_printf("[server] => %d txs\n", txs_n);
-                _dbg_tcp(0, &&tcp, "server", "=> %d txs", txs_n);
+                _dbg_tcp(0, &&tcp, "server", "=> %d txs (ini)", txs_n);
                 loop j in txs_n do
-                    //_printf("[server] => txs[%d]\n", j);
+                    _dbg_tcp(0, &&tcp, "server", "=> %d txs[%d]", txs_n, j);
                     var int err2 = do Message10_tx_recv.run(&tcp);
                     if err2 != _ERR_NONE then
                         escape err2;
                     end
                     [[
-                        APP.txs[G(tcp).tx.hash] = G(tcp).tx
                         G(tcp).block.txs[@j+1] = G(tcp).tx.hash
+                        G(tcp).block.txs[G(tcp).tx.hash] = G(tcp).tx
                     ]];
                 end
-                _dbg_tcp(0, &&tcp, "server", "=> %d txs", txs_n);
+                _dbg_tcp(0, &&tcp, "server", "=> %d txs (end)", txs_n);
             end
 
 //[[print(tostring2(G(tcp).block.hash))]];
-            [[ APP.blocks[G(tcp).block.hash] = G(tcp).block ]];
+            //[[ APP.blocks[G(tcp).block.hash] = G(tcp).block ]];
+            [[ ARGS = { block=G(tcp).block } ]];
+            var int ret = do BlockHash;
+            if ret != _ERR_NONE then
+                escape ret;
+            end
         end
         //_assert(0);
         //escape _ERR_NONE;
@@ -558,7 +548,20 @@ end
     ]];
     var bool has_txs = [[ #block_new.txs > 0 ]];
     if has_txs then
-        do Message10_block_parse_head;
+        [[ ARGS = { block=block_new } ]];
+        var int ret = do BlockHash;
+        if ret != _ERR_NONE then
+            escape ret;
+        end
+        [[
+            -- i'm the head now: relink, set new head
+            block = ARGS.block
+            chain = APP.chains[block.chain_id]
+            old   = APP.blocks[chain.head_hash]
+            old.up_hash     = block.hash    -- prv->up=me
+            block.tail_hash = old.hash      -- me->tail=prv
+            chain.head_hash = block.hash
+        ]]
     end
 
     ///////////////////////////////////////////////////////////////////////////////

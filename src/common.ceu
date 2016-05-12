@@ -97,6 +97,182 @@ end
 event void recv_chain_unlocked;
 event void send_chain_unlocked;
 
+class BlockHash with
+    // input  [[ ARGS = { block={ txs={ tx1, tx2, ... } } }
+    // output [[ ARGS = { block={ txs={ tx1_hash, tx2_hash, ... } } }
+    // output [[ APP.block[hash]=blk APP.txs[hash]=txs ]]
+do
+    [[ G(this) = { block = ARGS.block } ]];
+
+    // => TX_HASH
+    var int txs_n = [[ #G(this).block.txs ]];
+    loop i in txs_n do
+        [[ G(this).tx = G(this).block.txs[@txs_n-i] ]];
+
+        /*
+         * has_hash:  received from the network already with hash
+         *            needs to re-hash to confirm the nonce
+         * has_nonce: read from local file
+         * none:      creating now from Client
+         */
+
+        var bool has_hash = [[ type(G(this).tx) == 'string' ]];
+        var bool has_nonce = [[ G(this).tx.nonce ~= nil ]];
+        var u8 zeros_wanted = [[ APP.chains[G(this).block.chain_id].zeros ]];
+
+        if has_hash then
+            var char[HASH_BYTES] tx_hash;
+            tx_hash = [[ G(this).tx ]];
+            if zeros_wanted > _leading_zeros((_char&&)&&tx_hash,HASH_BYTES) then
+// TODO: test-case to fail here
+// TODO: also change from ">" to "!="
+_assert(0);
+                escape _ERR_REMOTE_BUG_OR_MALICIOUS;
+            end
+            [[ G(this).tx = G(this).block.txs[G(this).tx] or APP.txs[G(this).tx] ]];
+        end
+
+        var byte[] plain;
+        var char[HASH_BYTES] back_hash = [[ G(this).tx.back_hash ]];
+        var char[]           payload   = [[ G(this).tx.payload   ]];
+
+        if has_hash or has_nonce then
+            var char[HASH_BYTES] nonce = [[ G(this).tx.nonce ]];
+            plain = []..nonce..back_hash..payload;
+
+            var char[HASH_BYTES] tx_hash;
+            $tx_hash := HASH_BYTES;
+            _crypto_generichash((_byte&&)(_char&&)&&tx_hash, HASH_BYTES,
+                                (_byte&&)&&plain, $plain,
+                                null, 0);
+
+            [[ tx_hash = @tx_hash ]];
+            if has_hash then
+                var bool ok = [[ tx_hash == G(this).tx.hash ]];
+                if not ok then
+                    // received hash+nonce do not match
+                    escape _ERR_REMOTE_BUG_OR_MALICIOUS;
+                end
+            else
+                _assert(zeros_wanted <= _leading_zeros((_char&&)&&tx_hash,HASH_BYTES));
+// TODO: change from "<=" to "=="
+            end
+        else
+            plain = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+                    ..back_hash..payload;
+
+            // show async/thread progress
+            var int ms = 0;
+#if 1
+            spawn do
+                every 100ms do
+                    ms = ms + 100;
+                    _printf(".");
+                    _fflush(_stdout);
+                end
+            end
+#endif
+
+            // calculate nonce for the leading zeros
+            var byte[HASH_BYTES] tx_hash;
+#if 1
+            async/thread (plain,tx_hash,zeros_wanted)
+#endif
+            do
+                var int len;
+                atomic do
+                    len = $plain;
+                end
+                _assert(len <= 1024);
+
+                var _byte[1024] plain2 = [];
+                _memcpy(plain2, (_byte&&)&&plain, len*sizeof(byte));;
+
+                var _byte[HASH_BYTES] tx_hash2 = [];
+
+                var int zeros_found = 0;
+                var u32 n = do
+                    var u32 n_ = 0;
+                    loop b00 in 256 do loop b01 in 256 do loop b02 in 256 do loop b03 in 256 do
+                    loop b04 in 256 do loop b05 in 256 do loop b06 in 256 do loop b07 in 256 do
+                    loop b08 in 256 do loop b09 in 256 do loop b10 in 256 do loop b11 in 256 do
+                    loop b12 in 256 do loop b13 in 256 do loop b14 in 256 do loop b15 in 256 do
+                        n_ = n_ + 1;
+                        plain2[ 0]=b00; plain2[ 1]=b01; plain2[ 2]=b02; plain2[ 3]=b03;
+                        plain2[ 4]=b04; plain2[ 5]=b05; plain2[ 6]=b06; plain2[ 7]=b07;
+                        plain2[ 8]=b08; plain2[ 9]=b09; plain2[10]=b10; plain2[11]=b11;
+                        plain2[12]=b12; plain2[13]=b13; plain2[14]=b14; plain2[15]=b15;
+                        _crypto_generichash(tx_hash2, HASH_BYTES,
+                                            plain2, len,
+                                            null, 0);
+                        zeros_found = _leading_zeros(tx_hash2, HASH_BYTES);
+                        if zeros_found >= zeros_wanted then
+                            atomic do
+                                _ceu_vector_copy_buffer(&&plain, 0,
+                                                        plain2, len*sizeof(byte), 0);
+                                $tx_hash := HASH_BYTES;
+                                _ceu_vector_copy_buffer(&&tx_hash, 0,
+                                                        tx_hash2, HASH_BYTES*sizeof(byte), 0);
+                            end
+                            escape n_;
+                        end
+                    end end end end
+                    end end end end
+                    end end end end
+                    end end end end
+                    escape 0;
+                end;
+                _dbg(0, "client: POW rounds: %d\n", n);
+            end
+
+            [[ nonce = {} ]];
+            loop i in NONCE_BYTES do
+                [[ nonce[@(i+1)] = string.char(@(plain[i])) ]];
+            end
+            [[
+                G(this).tx.nonce = table.concat(nonce)
+                tx_hash = @tx_hash
+            ]];
+        end
+
+        if not has_hash then
+            [[
+                G(this).tx.hash = tx_hash
+                G(this).block.txs[@(txs_n-i)] = tx_hash
+            ]];
+        end
+        [[
+            APP.txs[tx_hash] = G(this).tx
+        ]];
+    end
+
+    // => BLOCK_HASH
+    do
+        var byte[] plain;
+        var int txs_n = [[ #G(this).block.txs ]]; // TODO: assert G(this).block.chain.limits.block
+        loop i in txs_n do
+            var char[HASH_BYTES] tx_hash = [[ G(this).block.txs[@i+1] ]];
+            plain = []..plain..tx_hash;
+        end
+
+        var char[HASH_BYTES] block_hash;
+        $block_hash := HASH_BYTES;
+        _crypto_generichash((_byte&&)(_char&&)&&block_hash, HASH_BYTES,
+                            (_byte&&)&&plain, $plain,
+                            null, 0);
+
+        [[
+            --print('block',string.len(@block_hash),'\n'..tostring2(@block_hash))
+            G(this).block.hash = @block_hash
+            APP.blocks[G(this).block.hash] = G(this).block
+        ]];
+    end
+
+    [[ ARGS = { block=G(this).block } ]];
+
+    escape _ERR_NONE;
+end
+
 class FS_read_10 with
     var char[]& path;
     // output [[ ARGS = { head_hash } ]]
@@ -163,7 +339,10 @@ do
         end
         loop i in txs_n do
             // => TXS[i]
-            [[ G(this).tx = {} ]];
+            [[
+                G(this).tx = {}
+                G(this).block.txs[@(txs_n-i)] = G(this).tx
+            ]];
 
             // => TX_PAYLOAD
             var char[] payload;
@@ -206,56 +385,21 @@ do
                 [[ G(this).tx.nonce = @nonce ]];
                 //[[ print('nonce','\n'..tostring2(G(this).tx.nonce)) ]];
             end
-
-            // => TX_HASH
-            do
-                var char[HASH_BYTES] hash;
-                var byte[] plain = []..nonce..tx_back_hash..payload;
-                $hash := HASH_BYTES;
-                _crypto_generichash((_byte&&)(_char&&)&&hash, HASH_BYTES,
-                                    (_byte&&)&&plain, $plain,
-                                    null, 0);
-                [[
-                    tx_hash = @hash
-                    G(this).tx.hash = tx_hash
-                    G(this).block.txs[@(txs_n-i)] = tx_hash
-                    APP.txs[tx_hash] = G(this).tx
-                ]];
-            end
         end
 
-        // => HASH
-        do
-            var char[HASH_BYTES] hash;
-            var byte[]           plain;
-
-            var int n = [[ #G(this).block.txs ]]; // TODO: assert ARGS.block.chain.limits.block
-            loop i in n do
-                var char[HASH_BYTES] tx_hash = [[ G(this).block.txs[@i+1] ]];
-                plain = []..plain..tx_hash;
+        [[ ARGS = { block=G(this).block } ]];
+[[ ARGS.block.chain_id = '||0|' ]];
+        do BlockHash;
+        [[
+            if not G(this).head then
+                G(this).head = G(this).block
             end
-
-            $hash := HASH_BYTES;
-            _crypto_generichash((_byte&&)(_char&&)&&hash, HASH_BYTES,
-                                (_byte&&)&&plain, $plain,
-                                null, 0);
-
-            [[
-                hash = @hash;
-                --print('block',string.len(hash),'\n'..tostring2(hash))
-                G(this).block.hash = hash
-                APP.blocks[hash] = G(this).block
-
-                if not G(this).head then
-                    G(this).head = G(this).block
-                end
-                if G(this).base then
-                    G(this).base.tail_hash = G(this).block.hash
-                    G(this).block.up_hash = G(this).base.hash
-                end
-                G(this).base = G(this).block
-            ]];
-        end
+            if G(this).base then
+                G(this).base.tail_hash = G(this).block.hash
+                G(this).block.up_hash = G(this).base.hash
+            end
+            G(this).base = G(this).block
+        ]];
     end
 
     [[
@@ -392,5 +536,21 @@ end
     GG.ERR_REMOTE_BUG_OR_MALICIOUS = @((int)_ERR_REMOTE_BUG_OR_MALICIOUS)
     GG.MESSAGE10_NOTSUB = @((int)_MESSAGE10_NOTSUB)
 ]];
+
+/*
+var int n_chains = [[ #APP.chains ]];
+loop i in n_chains do
+    [[ chain = APP.chains[@i+1] ]];
+    var int n_zeros = [[ chain.zeros ]];
+    loop i in xxx do
+        .
+    for _,chain in ipairs(t) do
+        for i=chain.zeros,255 do
+            chain.zeros = i
+            GG.chain_parse(chain)
+            APP.chains[chain.id] = chain_create(chain)
+        end
+    end
+*/
 
 #endif

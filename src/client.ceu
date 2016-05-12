@@ -1,143 +1,6 @@
 #ifndef _CLIENT_CEU
 #define _CLIENT_CEU
 
-class Message10_parse_tx with
-    // [[ ARGS = { block=?, tx=? } ]]
-do
-    [[
-        G(this) = {tx = ARGS.tx}
-    ]];
-
-    // hash[TIMESTAMP..TX_BACK_HASH..TX_PAYLOAD]
-    var char[] tx_back_hash = [[ ARGS.tx.back_hash ]];
-    var char[] tx_payload   = [[ ARGS.tx.payload   ]];
-    var byte[] plain = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]..
-                        tx_back_hash..tx_payload;
-
-    // show async/thread progress
-    var int ms = 0;
-#if 1
-    spawn do
-        every 100ms do
-            ms = ms + 100;
-            _printf(".");
-            _fflush(_stdout);
-        end
-    end
-#endif
-
-    // calculate nonce for the leading zeros
-    var byte[HASH_BYTES] tx_hash;
-    var u8 zeros_wanted = [[ APP.chains[ARGS.block.chain_id].zeros ]];
-#if 1
-    async/thread (plain,tx_hash,zeros_wanted)
-#endif
-    do
-        var int len;
-        atomic do
-            len = $plain;
-        end
-        _assert(len <= 1024);
-
-        var _byte[1024] plain2 = [];
-        _memcpy(plain2, (_byte&&)&&plain, len*sizeof(byte));;
-
-        var _byte[HASH_BYTES] tx_hash2 = [];
-
-        var int zeros_found = 0;
-        var u32 n = do
-            var u32 n_ = 0;
-            loop b00 in 256 do loop b01 in 256 do loop b02 in 256 do loop b03 in 256 do
-            loop b04 in 256 do loop b05 in 256 do loop b06 in 256 do loop b07 in 256 do
-            loop b08 in 256 do loop b09 in 256 do loop b10 in 256 do loop b11 in 256 do
-            loop b12 in 256 do loop b13 in 256 do loop b14 in 256 do loop b15 in 256 do
-                n_ = n_ + 1;
-                plain2[ 0]=b00; plain2[ 1]=b01; plain2[ 2]=b02; plain2[ 3]=b03;
-                plain2[ 4]=b04; plain2[ 5]=b05; plain2[ 6]=b06; plain2[ 7]=b07;
-                plain2[ 8]=b08; plain2[ 9]=b09; plain2[10]=b10; plain2[11]=b11;
-                plain2[12]=b12; plain2[13]=b13; plain2[14]=b14; plain2[15]=b15;
-                _crypto_generichash(tx_hash2, HASH_BYTES,
-                                    plain2, len,
-                                    null, 0);
-                zeros_found = _leading_zeros(tx_hash2, HASH_BYTES);
-                if zeros_found >= zeros_wanted then
-                    atomic do
-                        _ceu_vector_copy_buffer(&&plain, 0,
-                                                plain2, len*sizeof(byte), 0);
-                        $tx_hash := HASH_BYTES;
-                        _ceu_vector_copy_buffer(&&tx_hash, 0,
-                                                tx_hash2, HASH_BYTES*sizeof(byte), 0);
-                    end
-                    escape n_;
-                end
-            end end end end
-            end end end end
-            end end end end
-            end end end end
-            escape 0;
-        end;
-        _dbg(0, "client: POW rounds: %d\n", n);
-    end
-
-    [[ nonce = {} ]];
-    loop i in NONCE_BYTES do
-        [[ nonce[@(i+1)] = string.char(@(plain[i])) ]];
-    end
-
-    [[
-        -- i'm in the database
-        G(this).tx.nonce = table.concat(nonce)
-        G(this).tx.hash  = @tx_hash;
-        --print('\n[client] <= TX_HASH', string.len(G(this).tx.hash))
-        --print('nonce', tostring2(G(this).tx.nonce))
-        --print('<X<<', tostring2(G(this).tx.nonce), tostring2(@tx_back_hash), tostring2(G(this).tx.payload))
-        --print('<X<<', '\n'..tostring2(@plain,true))
-    ]];
-    //_printf("[client] TX_HASH = %dms\n", ms);
-
-    escape _ERR_NONE;
-end
-
-class Message10_block_parse_head with
-    // [[ ARGS = { block=? } ]]
-do
-    // <= BLOCK_HASH
-    //  - merkle tree of all TX_HASH
-
-    var byte[] plain;
-    var byte[HASH_BYTES] block_hash;
-    $block_hash := HASH_BYTES;
-
-    // TODO: should be merkle tree and not hash(concat)
-    var int n = [[ #ARGS.block.txs ]]; // TODO: assert ARGS.block.chain.limits.block
-    loop i in n do
-        var char[HASH_BYTES] tx_hash = [[ ARGS.block.txs[@i+1] ]];
-        plain = []..plain..tx_hash;
-    end
-
-    _crypto_generichash((_byte&&)&&block_hash, HASH_BYTES,
-                        (_byte&&)&&plain, $plain,
-                        null, 0);
-
-    [[
-        block = ARGS.block
-        block.hash  = @block_hash
-        APP.blocks[block.hash] = block
-
-        --print('[client] <= BLOCK_HASH', string.len(block.hash))
-        --print(tostring2(block.hash))
-
-        -- i'm the head now: relink, set new head
-        chain = APP.chains[ARGS.block.chain_id]
-        old   = APP.blocks[chain.head_hash]
-        old.up_hash     = block.hash    -- prv->up=me
-        block.tail_hash = old.hash      -- me->tail=prv
-        chain.head_hash = block.hash
-    ]]
-
-    escape _ERR_NONE;
-end
-
 class Message10_tx_send with
     var _uv_tcp_t& tcp;
     var int        i;
@@ -493,36 +356,31 @@ do
     // client mode: terminates
 
     [[
-        G(this) = {
-            id = APP.messages[1].id,
-
-            -- id = 1.0
-            block = {
-                id        = nil,
-                chain_id  = nil,
-                txs       = { },
-                hash      = nil,
-                up_hash   = nil,
-                tail_hash = nil,
-            },
+        -- id = 1.0
+        block = {
+            id        = nil,
+            chain_id  = nil,
+            txs       = { },
+            hash      = nil,
+            up_hash   = nil,
+            tail_hash = nil,
         }
     ]]
     finalize with
         [[ APP.messages = {} ]];
     end
 
-    var bool is_10 = [[ G(this).id=='1.0' ]];
+    var bool is_10 = [[ APP.messages[1].id=='1.0' ]];
 
     loop i in ms do
         [[
             msg = APP.messages[@i+1]
             assert(type(msg)=='table')
-            assert(msg.id == G(this).id)    -- all must be the same
+            assert(msg.id == APP.messages[1].id)    -- all must be the same
         ]];
 
         if is_10 then
             [[
-                block = G(this).block
                 block.id = '1.0'
 
                 assert(type(msg.chain)=='table')
@@ -537,25 +395,29 @@ do
                 head_hash = chain.head_hash
                 txs_back  = APP.blocks[head_hash].txs
 
---msg.payload = string.sub(msg.payload,1,3)..string.sub(os.time(),6)
-                G(this).tx = {
-                    payload   = msg.payload,
-                    hash      = nil,
+                block.txs[#block.txs+1] = {
+                    nonce     = nil,
                     back_hash = txs_back[#txs_back],
+                    payload   = msg.payload,
                 }
-                ARGS = { block=block, tx=G(this).tx }
-            ]];
-            do Message10_parse_tx;
-            [[
-                G(this).block.txs[@i+1] = G(this).tx.hash
-                APP.txs[G(this).tx.hash] = G(this).tx
             ]];
         end
     end
 
     if is_10 then
-        [[ ARGS = { block=G(this).block } ]];
-        do Message10_block_parse_head;
+        [[ ARGS = { block=block } ]];
+        var int ret = do BlockHash;
+        _assert(ret == _ERR_NONE);
+        [[
+            -- i'm the head now: relink, set new head
+            block = ARGS.block
+            chain = APP.chains[block.chain_id]
+            old   = APP.blocks[chain.head_hash]
+            old.up_hash     = block.hash    -- prv->up=me
+            block.tail_hash = old.hash      -- me->tail=prv
+            chain.head_hash = block.hash
+        ]]
+
         do Client10;
     else
         _assert(0);  // message not supported
