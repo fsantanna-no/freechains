@@ -182,9 +182,9 @@ _assert(0);
                                 (_byte&&)&&plain, $plain,
                                 null, 0);
 
-            [[ tx_hash = @tx_hash ]];
+            [[ G(this).tx_hash = @tx_hash ]];
             if this.source.NETWORK then
-                var bool ok = [[ tx_hash == G(this).tx.hash ]];
+                var bool ok = [[ G(this).tx_hash == G(this).tx.hash ]];
                 if not ok then
                     // received hash+nonce do not match
                     escape _ERR_REMOTE_BUG_OR_MALICIOUS;
@@ -267,18 +267,18 @@ _assert(0);
             end
             [[
                 G(this).tx.nonce = table.concat(nonce)
-                tx_hash = @tx_hash
+                G(this).tx_hash = @tx_hash
             ]];
         end
 
         if not this.source.NETWORK then
             [[
-                G(this).tx.hash = tx_hash
-                G(this).block.txs[@(txs_n-i)] = tx_hash
+                G(this).tx.hash = G(this).tx_hash
+                G(this).block.txs[@(txs_n-i)] = G(this).tx_hash
             ]];
         end
         [[
-            APP.txs[tx_hash] = G(this).tx
+            APP.txs[G(this).tx_hash] = G(this).tx
         ]];
     end
 
@@ -587,19 +587,19 @@ do
 
             [[
                 tx_hash = G(this).base.txs[@i+1]
-                tx      = assert(APP.txs[tx_hash])
+                G(this).tx = assert(APP.txs[tx_hash])
             ]];
 
             // <= NONCE
             do
-                var char[NONCE_BYTES] buf = [[ tx.nonce ]];
+                var char[NONCE_BYTES] buf = [[ G(this).tx.nonce ]];
                 var int n = do UV_FS_write.run(&o,&buf,$buf,0);
                 _assert(n == NONCE_BYTES);
             end
 
             // <= TX_BACK_HASH
             do
-                var char[HASH_BYTES] buf = [[ tx.back_hash ]];
+                var char[HASH_BYTES] buf = [[ G(this).tx.back_hash ]];
                 var int n = do UV_FS_write.run(&o,&buf,$buf,0);
                 _assert(n == HASH_BYTES);
             end
@@ -607,7 +607,7 @@ do
             // <= TX_PAYLOAD_LEN
             // <= TX_PAYLOAD
             do
-                var u32 len = [[ string.len(tx.payload) ]];
+                var u32 len = [[ string.len(G(this).tx.payload) ]];
                 // <= TX_PAYLOAD_LEN
                 do
                     var char[sizeof(u32)] buf;
@@ -617,7 +617,7 @@ do
                 end
                 // <= TX_PAYLOAD
                 do
-                    var char[] buf = [[ tx.payload ]];
+                    var char[] buf = [[ G(this).tx.payload ]];
                     var int n = do UV_FS_write.run(&o,&buf,$buf,0);
                     _assert(n == len);
                 end
