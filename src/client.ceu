@@ -405,10 +405,7 @@ do
     end
 
     if is_10 then
-        [[
-            block.tail_hash = assert(chain.head_hash)
-            ARGS = { block=block }
-        ]];
+        [[ ARGS = { block=block } ]];
         var int ret = do BlockHash with
             this.source = SourceBlockHash.NEW();
         end;

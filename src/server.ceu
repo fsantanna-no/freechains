@@ -511,7 +511,6 @@ end
 
         -- relink current chain's head/common if longest is remote
         if dst == remote then
-            --print('[server] remote wins')
             APP.blocks[common_hash].up_hash = G(tcp).remote_base.hash
             G(tcp).chain.head_hash = dst.head.hash
         else
@@ -557,7 +556,6 @@ end
     var bool has_txs = [[ #block_new.txs > 0 ]];
     if has_txs then
         [[
-            block_new.tail_hash = assert(G(tcp).chain.head_hash)
             ARGS = { block=block_new }
         ]];
         var int ret = do BlockHash with

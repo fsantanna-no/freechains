@@ -152,6 +152,32 @@ function GG.chain_tostring (chain_id)
     return tostring2(GG.chain_flatten(chain_id))
 end
 
+--[[
+function GG.chain_check (chain_id)
+    local str1 = GG.chain_tostring(chain_id)
+
+    base = GG.chain_head_base_size(APP.chains[chain_id].head_hash).base
+    T = {}
+    while base do
+        local t = {
+            hash = tostring2(base.hash),
+            txs  = {},
+        }
+        table.insert(T, t)
+        for i, tx in ipairs(base.txs) do
+            local str = string.sub(APP.txs[tx].payload,1,10)
+                  str = string.gsub(str,'%c','.')
+            t.txs[i] = string.sub(str,1,10)
+        end
+        base = APP.blocks[base.up_hash]
+    end
+    str2 = tostring2(T)
+
+print('=========>\n'..str1..'============='..str2..'<==========')
+    assert(str1 == str2)
+end
+]]
+
 -------------------------------------------------------------------------------
 
 local function is_binary (str)

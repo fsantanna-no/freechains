@@ -306,7 +306,6 @@ _assert(0);
                 APP.txs[tx.hash] = tx
             ]];
         else
-            [[ assert( G(this).block.tail_hash ~= nil ) ]];
             //var int txs_n = [[ #G(this).block.txs ]]; // TODO: assert G(this).block.chain.limits.block
             if txs_n == 0 then
 // TODO: test-case
@@ -314,6 +313,12 @@ _assert(0);
                 escape _ERR_REMOTE_BUG_OR_MALICIOUS;
             end
 
+            [[
+                if not G(this).block.tail_hash then
+                    -- relink only after the yielding parts, avoid "head_hash" race
+                    G(this).block.tail_hash = APP.chains[G(this).block.chain_id].head_hash
+                end
+            ]];
             var char[] plain = [[ G(this).block.tail_hash ]];
             loop i in txs_n do
                 var char[HASH_BYTES] tx_hash = [[ G(this).block.txs[@i+1] ]];
