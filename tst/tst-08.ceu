@@ -5,8 +5,8 @@
 //  - different blocks
 //      - 0 sends 0.1
 //      - 2 sends 1.1
-//  - 1.1 always wins (> hash)
-//  - 0.1 -> 1.1 -> ''
+//  - 0.1 always wins (> hash)
+//  - 1.1 -> 0.1 -> ''
 ///////////////////////////////////////////////////////////////////////////////
 
 input void ANY;
@@ -154,8 +154,8 @@ end
 
 [=[
     assert( #CHAIN1==3 and
-            CHAIN1[2].txs[1]==[[1.1]] and
-            CHAIN1[3].txs[1]==[[0.1]] )
+            CHAIN1[2].txs[1]==[[0.1]] and
+            CHAIN1[3].txs[1]==[[1.1]] )
     print'OK!'
 ]=];
 

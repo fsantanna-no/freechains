@@ -159,8 +159,8 @@ with
 end
 
 [=[
-    assert( CHAIN1[2].txs[1] == [[ 0->1 ]] and
-            CHAIN1[3].txs[1] == [[ 1<-2 ]] )
+    assert( CHAIN1[2].txs[1] == [[ 1<-2 ]] and
+            CHAIN1[3].txs[1] == [[ 0->1 ]] )
     print'OK!'
 ]=];
 

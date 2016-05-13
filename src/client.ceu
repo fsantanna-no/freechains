@@ -405,18 +405,18 @@ do
     end
 
     if is_10 then
-        [[ ARGS = { block=block } ]];
+        [[
+            block.tail_hash = assert(chain.head_hash)
+            ARGS = { block=block }
+        ]];
         var int ret = do BlockHash with
             this.source = SourceBlockHash.NEW();
         end;
         _assert(ret == _ERR_NONE);
         [[
-            -- i'm the head now: relink, set new head
             block = ARGS.block
             chain = APP.chains[block.chain_id]
-            old   = APP.blocks[chain.head_hash]
-            old.up_hash     = block.hash    -- prv->up=me
-            block.tail_hash = old.hash      -- me->tail=prv
+            APP.blocks[chain.head_hash].up_hash = block.hash
             chain.head_hash = block.hash
         ]]
 

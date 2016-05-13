@@ -102,7 +102,7 @@ end
 function GG.chain_head_base_size (head_hash)
     local head = APP.blocks[head_hash]
     local cur  = head
-    local size = 0
+    local size = 1  -- genesis TX
     while cur.tail_hash do
         size = size + #cur.txs
         cur = APP.blocks[cur.tail_hash]

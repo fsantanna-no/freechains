@@ -171,7 +171,11 @@ LOOP END
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 - BLOCK_HASH
-    - merkle tree of all TX_HASH
+    - genesis
+        - HASH(CHAIN_ID)
+    - others
+        - HASH(TAIL_HASH .. TXS)
+        - TXS: merkle tree of all TX_HASH
     - no costs to generate
 - TX_HASH
     - univocally identifies a specific PAYLOAD sent to a specific CHAIN
