@@ -421,6 +421,8 @@ do
     else
         _assert(0);  // message not supported
     end
+
+    escape _ERR_NONE;
 end
 
 #endif

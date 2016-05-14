@@ -59,6 +59,7 @@
     - while :; do make tests || break; done
     - for i in cfg/message-01-a*.lua; do ./build/main.exe cfg/config.lua cfg/config-aa.lua $i; done
     - while :; do ./build/main.exe cfg/config.lua cfg/config-aa.lua cfg/message-01-01.lua; done
+    - valgrind --vgdb=yes --vgdb-error=0 ./foo
     -
         break _ceu_app.c:14594
         r
