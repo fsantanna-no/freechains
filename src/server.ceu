@@ -449,7 +449,7 @@ do
             end
         end
         //_assert(0);
-        //escape _ERR_NONE;
+        escape _ERR_NONE;
     end;
 
     // UNLOCK "receive"
