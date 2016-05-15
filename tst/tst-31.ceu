@@ -6,7 +6,7 @@ _srand(_time(null));
 // 0->1->...->N->0
 ///////////////////////////////////////////////////////////////////////////////
 
-#define N 2
+#define N 10
 
 input void ANY;
 
@@ -85,10 +85,10 @@ do
         end
 
         // how much time to wait for consensus???
-        await 10s;
+        await N s;
     end
 
-#if 1
+#if 0
 [[
 print(@this.i, '>'..string.rep('=',70))
 print(GG.chain_tostring('||0|'))
