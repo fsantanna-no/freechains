@@ -2,6 +2,7 @@
 #define _COMMON_CEU
 
 //#define DBG 0
+#define FREECHAINS_NO_MALICIOUS
 
 #include "c.ceu"
 #include "uv.ceu"
@@ -187,8 +188,9 @@ _assert(0);
                 var bool ok = [[ G(this).tx_hash == G(this).tx.hash ]];
                 if not ok then
                     // received hash+nonce do not match
-// TODO-REMOVE
-//_assert(0);
+#ifdef FREECHAINS_NO_MALICIOUS
+                    _assert(0);
+#endif
                     escape _ERR_REMOTE_BUG_OR_MALICIOUS;
                 end
             else

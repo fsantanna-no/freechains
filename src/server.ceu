@@ -395,9 +395,9 @@ do
                         this.source = SourceBlockHash.NETWORK();
                     end;
                     if ret != _ERR_NONE then
-// TODO-REMOVE
-//_printf("ERR = %d [%d]\n", ret, _ERR_REMOTE_BUG_OR_MALICIOUS);
-//_assert(0);
+#ifdef FREECHAINS_NO_MALICIOUS
+                        _assert(0);
+#endif
                         escape ret;
                     end
                 end

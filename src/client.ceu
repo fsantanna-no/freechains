@@ -243,8 +243,9 @@ do
     _dbg(2, "client:%p | disconnected from %s:%d", &&this, (_char&&)&&ip, port);
     if err != _ERR_NONE then
         _dbg(3, "client:%p | %s", &&this, _uv_strerror(err));
-// TODO-REMOVE
-//_assert(0);
+#ifdef FREECHAINS_NO_MALICIOUS
+        _assert(0);
+#endif
     end
     emit client.ok => err;
     escape err;
