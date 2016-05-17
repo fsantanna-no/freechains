@@ -1,57 +1,77 @@
 #ifndef _SERVER_CEU
 #define _SERVER_CEU
 
-class Message10_header_recv with
-input:
+class Connection with
     var _uv_tcp_t&      tcp;
+    var u32             off = 0;
+output:
     var byte[]&         bytes;
     var UV_Stream_Read& reader;
 
-    function (_uv_tcp_t& tcp, byte[]& bytes, UV_Stream_Read& reader)=>Message10_header_recv run;
+    function (_uv_tcp_t& tcp)=>Connection build;
+    function (void)=>void reset;
 do
-    function (_uv_tcp_t& tcp, byte[]& bytes, UV_Stream_Read& reader)=>Message10_header_recv run do
-        this.tcp    = &tcp;
-        this.bytes  = &bytes;
-        this.reader = &reader;
+    function (_uv_tcp_t& tcp)=>Connection build do
+        this.tcp = &tcp;
     end
 
-    var u32 off = MESSAGE_BYTES;
+    var byte[] bytes_;
+    this.bytes = &bytes_;
+
+    var UV_Stream_Read reader_ = UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &this.bytes);
+    this.reader = &reader_;
+
+    function (void)=>void reset do
+        this.off = 0;
+        this.reader.reset();
+    end
+
+    await FOREVER;
+end
+
+class Message10_header_recv with
+    var Connection& conn;
+    function (Connection& conn)=>Message10_header_recv run;
+do
+    function (Connection& conn)=>Message10_header_recv run do
+        this.conn = &conn;
+    end
 
     // => CHAIN_LEN
     // => CHAIN_KEY
     // => CHAIN_ZEROS
     do
         // zeros
-        do UV_Stream_ReadUntil.run(&reader, off+1);
-        var u8 chain_zeros = bytes[off];
-        _dbg_tcp(2, &&this.tcp, "server", "CHAIN_ZEROS = %d",  chain_zeros);
-        off = off + 1;
+        do UV_Stream_ReadUntil.run(&conn.reader, conn.off+1);
+        var u8 chain_zeros = conn.bytes[conn.off];
+        _dbg_tcp(2, &&conn.tcp, "server", "CHAIN_ZEROS = %d",  chain_zeros);
+        conn.off = conn.off + 1;
 
         // len
-        do UV_Stream_ReadUntil.run(&reader, off+1);
-        var u8 chain_len = bytes[off];
-        off = off + 1;
-        _dbg_tcp(2, &&this.tcp, "server", "CHAIN_LEN   = %d", chain_len);
+        do UV_Stream_ReadUntil.run(&conn.reader, conn.off+1);
+        var u8 chain_len = conn.bytes[conn.off];
+        conn.off = conn.off + 1;
+        _dbg_tcp(2, &&conn.tcp, "server", "CHAIN_LEN   = %d", chain_len);
 
         // key
         var char[] chain_key;
-        do UV_Stream_ReadUntil.run(&reader, off+chain_len);
+        do UV_Stream_ReadUntil.run(&conn.reader, conn.off+chain_len);
         $chain_key := chain_len;
         if chain_len > 0 then
-            _memcpy((_char&&)&&chain_key, (_byte&&)&&bytes[off], chain_len);
+            _memcpy((_char&&)&&chain_key, (_byte&&)&&conn.bytes[conn.off], chain_len);
         end
-        _dbg_tcp(2, &&this.tcp, "server", "CHAIN_KEY   = %s", (_char&&)&&chain_key);
-        off = off + chain_len;
+        _dbg_tcp(2, &&conn.tcp, "server", "CHAIN_KEY   = %s", (_char&&)&&chain_key);
+        conn.off = conn.off + chain_len;
 
         [[
-            G(tcp).chain = GG.chain_parse_get( {
+            G(conn.tcp).chain = GG.chain_parse_get( {
                 key   = @chain_key,
                 zeros = @chain_zeros,
             } )
         ]];
 
-        var bool is_sub = [[ G(tcp).chain ~= nil ]];
-        _dbg_tcp(2, &&this.tcp, "server", "is_sub      = %d", is_sub);
+        var bool is_sub = [[ G(conn.tcp).chain ~= nil ]];
+        _dbg_tcp(2, &&conn.tcp, "server", "is_sub      = %d", is_sub);
         if not is_sub then
             escape _MESSAGE10_NOTSUB;    // OK ACK
         end
@@ -63,51 +83,50 @@ do
 end
 
 class Message10_block_recv with
-input:
-    var _uv_tcp_t& tcp;
-    function (_uv_tcp_t& tcp)=>Message10_block_recv run;
+    var Connection& conn;
+    function (Connection& conn)=>Message10_block_recv run;
 do
-    function (_uv_tcp_t& tcp)=>Message10_block_recv run do
-        this.tcp = &tcp;
+    function (Connection& conn)=>Message10_block_recv run do
+        this.conn = &conn;
     end
-
-    var byte[] bytes;
-    var UV_Stream_Read reader =
-            UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
-
-    var u32 off = 0;
 
     // => BLOCK_HASH
     // => BLOCK_TXS_N
     do
+spawn do
+    await 60s;
+_printf("SERVER-a\n");
+    await FOREVER;
+end
+
         // hash
-        do UV_Stream_ReadUntil.run(&reader, off+HASH_BYTES);
+        do UV_Stream_ReadUntil.run(&conn.reader, conn.off+HASH_BYTES);
         var byte[HASH_BYTES] hash;
         _ceu_vector_copy_buffer(&&hash, 0,
-                                (_byte&&)&&bytes[off], HASH_BYTES,
+                                (_byte&&)&&conn.bytes[conn.off], HASH_BYTES,
                                 1);
-        off = off + HASH_BYTES;
+        conn.off = conn.off + HASH_BYTES;
 
         // txs_n
-        do UV_Stream_ReadUntil.run(&reader, off+sizeof(u32));
-        var u32 txs_n = GET_HOST_U32(bytes, off);
-        off = off + sizeof(u32);
+        do UV_Stream_ReadUntil.run(&conn.reader, conn.off+sizeof(u32));
+        var u32 txs_n = GET_HOST_U32(conn.bytes, conn.off);
+        conn.off = conn.off + sizeof(u32);
 
         [[
-            G(tcp).block.hash = @hash;
-            --print('[server] => BLOCK_HASH', string.len(G(tcp).block.hash))
-            --print(tostring2(G(tcp).block.hash))
+            G(conn.tcp).block.hash = @hash;
+            --print('[server] => BLOCK_HASH', string.len(G(conn.tcp).block.hash))
+            --print(tostring2(G(conn.tcp).block.hash))
             --print('[server] => BLOCK_TXS_N', @txs_n)
-            G(tcp).block.txs_n = @txs_n
+            G(conn.tcp).block.txs_n = @txs_n
         ]];
     end
 
     // check if block is already on chain
     [[
         have = false
-        cur = assert( APP.blocks[ G(tcp).chain.head_hash ] )
+        cur = assert( APP.blocks[ G(conn.tcp).chain.head_hash ] )
         while true do
-            if cur.hash == G(tcp).block.hash then
+            if cur.hash == G(conn.tcp).block.hash then
                 have = true
                 break
             end
@@ -127,32 +146,25 @@ do
 end
 
 class Message10_tx_recv with
-input:
-    var _uv_tcp_t& tcp;
-    function (_uv_tcp_t& tcp)=>Message10_tx_recv run;
+    var Connection& conn;
+    function (Connection& conn)=>Message10_tx_recv run;
 do
-    function (_uv_tcp_t& tcp)=>Message10_tx_recv run do
-        this.tcp = &tcp;
+    function (Connection& conn)=>Message10_tx_recv run do
+        this.conn = &conn;
     end
-
-    var byte[] bytes;
-    var UV_Stream_Read reader =
-            UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
-
-    var u32 off = 0;
 
     // => TX_PAYLOAD_BYTES
     // => TX_HASH
     do
         // hash
-        do UV_Stream_ReadUntil.run(&reader, off+HASH_BYTES);
+        do UV_Stream_ReadUntil.run(&conn.reader, conn.off+HASH_BYTES);
         var byte[HASH_BYTES] hash;
         _ceu_vector_copy_buffer(&&hash, 0,
-                                (_byte&&)&&bytes[off], HASH_BYTES,
+                                (_byte&&)&&conn.bytes[conn.off], HASH_BYTES,
                                 1);
-        off = off + HASH_BYTES;
+        conn.off = conn.off + HASH_BYTES;
 
-        var int zeros_wanted = [[ G(tcp).chain.zeros ]];
+        var int zeros_wanted = [[ G(conn.tcp).chain.zeros ]];
         if zeros_wanted > _leading_zeros((_byte&&)&&hash,HASH_BYTES) then
 // TODO: test-case to fail here
 // TODO: also change from ">" to "!="
@@ -161,9 +173,9 @@ _assert(0);
         end
 
         // payload_bytes
-        do UV_Stream_ReadUntil.run(&reader, off+sizeof(u32));
-        var u32 payload_bytes = GET_HOST_U32(bytes, off);
-        off = off + sizeof(u32);
+        do UV_Stream_ReadUntil.run(&conn.reader, conn.off+sizeof(u32));
+        var u32 payload_bytes = GET_HOST_U32(conn.bytes, conn.off);
+        conn.off = conn.off + sizeof(u32);
 
         // TODO: check payload_bytes vs chain.limits
 
@@ -175,12 +187,12 @@ _assert(0);
 
             tx = APP.txs[tx_hash]
             if tx == nil then
-                G(tcp).tx = {
+                G(conn.tcp).tx = {
                     hash  = tx_hash,
                     bytes = payload_bytes,
                 }
             else
-                G(tcp).tx = tx
+                G(conn.tcp).tx = tx
             end
         ]];
         var bool have = [[ tx ~= nil ]];
@@ -193,8 +205,8 @@ _assert(0);
             else
                 send = [ _ERR_NONE  ];
             end
-            _dbg_tcp(0, &&this.tcp, "server", "<= ACK-tx = %d", send[0]);
-            do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
+            _dbg_tcp(0, &&conn.tcp, "server", "<= ACK-tx = %d", send[0]);
+            do UV_Stream_Write.build(&_UV_STREAM_ALIAS(conn.tcp), &send);
         end
 
         // HAVE_YES: next TX
@@ -209,31 +221,31 @@ _assert(0);
         // => NONCE/TIMESTAMP: 128 bits
         var char[NONCE_BYTES] nonce;
         do
-            do UV_Stream_ReadUntil.run(&this.reader, off + NONCE_BYTES);
+            do UV_Stream_ReadUntil.run(&conn.reader, conn.off + NONCE_BYTES);
             $nonce := NONCE_BYTES;
             loop i in NONCE_BYTES do
-                nonce[i] = bytes[off+i];
+                nonce[i] = conn.bytes[conn.off+i];
             end
-            [[ G(tcp).tx.nonce = @nonce ]];
-            //[[ print('NONCE', tostring2(G(tcp).tx.nonce)) ]];
+            [[ G(conn.tcp).tx.nonce = @nonce ]];
+            //[[ print('NONCE', tostring2(G(conn.tcp).tx.nonce)) ]];
             //_printf("[server] => TIMESTAMP = %X\n", timestamp);
-            off = off + NONCE_BYTES;
+            conn.off = conn.off + NONCE_BYTES;
         end
 
         // => TX_BACK_HASH
 // TODO: check back_hash
         var byte[HASH_BYTES] back_hash;
         do
-            do UV_Stream_ReadUntil.run(&this.reader, off + HASH_BYTES);
+            do UV_Stream_ReadUntil.run(&conn.reader, conn.off + HASH_BYTES);
             _ceu_vector_copy_buffer(&&back_hash, 0,
-                                    (_byte&&)&&bytes[off], HASH_BYTES,
+                                    (_byte&&)&&conn.bytes[conn.off], HASH_BYTES,
                                     1);
-            off = off + HASH_BYTES;
+            conn.off = conn.off + HASH_BYTES;
             _assert($back_hash == HASH_BYTES);
             [[
-                G(tcp).tx.back_hash = @back_hash;
+                G(conn.tcp).tx.back_hash = @back_hash;
                 --print('[server] => TX_BACK_HASH')
-                --print(tostring2(G(tcp).tx.back_hash))
+                --print(tostring2(G(conn.tcp).tx.back_hash))
             ]];
 
             // [check] BACK_HASH is young enough? [ok ACK]
@@ -257,27 +269,27 @@ _assert(0);
         // => TX_PAYLOAD
         var byte[] tx_payload;
         do
-            var u32 len = [[ G(tcp).tx.bytes ]];
-            do UV_Stream_ReadUntil.run(&this.reader, off + len);
+            var u32 len = [[ G(conn.tcp).tx.bytes ]];
+            do UV_Stream_ReadUntil.run(&conn.reader, conn.off + len);
             _ceu_vector_copy_buffer(&&tx_payload, 0,
-                                    &&(((_byte&&)&&bytes)[off]), len,
+                                    &&(((_byte&&)&&conn.bytes)[conn.off]), len,
                                     1);
             [[
-                G(tcp).tx.payload = @tx_payload;
+                G(conn.tcp).tx.payload = @tx_payload;
                 --print('[server] => PAYLOAD')
-                --print(tostring2(G(tcp).tx.payload))
+                --print(tostring2(G(conn.tcp).tx.payload))
             ]];
-            off = off + len;
+            conn.off = conn.off + len;
         end
 
         // => POS: TODO
         do
-            do UV_Stream_ReadUntil.run(&this.reader, off + 1);
-            var int pos = bytes[off];
+            do UV_Stream_ReadUntil.run(&conn.reader, conn.off + 1);
+            var int pos = conn.bytes[conn.off];
             //_printf("[server] POS = %X\n", pos);
-            [[ G(tcp).tx.pos = @pos ]];
+            [[ G(conn.tcp).tx.pos = @pos ]];
             //_printf("TODO: POS matches?\n");
-            off = off + 1;
+            conn.off = conn.off + 1;
         end
     end
 
@@ -285,21 +297,15 @@ _assert(0);
 end
 
 class Message10_recv with
-input:
-    var _uv_tcp_t&      tcp;
-    var byte[]&         bytes;
-    var UV_Stream_Read& reader;
-
-    function (_uv_tcp_t& tcp, byte[]& bytes, UV_Stream_Read& reader)=>Message10_recv run;
+    var Connection& conn;
+    function (Connection& conn)=>Message10_recv run;
 do
-    function (_uv_tcp_t& tcp, byte[]& bytes, UV_Stream_Read& reader)=>Message10_recv run do
-        this.tcp    = &tcp;
-        this.bytes  = &bytes;
-        this.reader = &reader;
+    function (Connection& conn)=>Message10_recv run do
+        this.conn = &conn;
     end
 
     [[
-        G(tcp) = {
+        G(conn.tcp) = {
             chain = nil,
         }
     ]];
@@ -310,17 +316,17 @@ do
 
     // <= ACK-header
     // bytes/reader received from message partially parsed
-    var int err = do Message10_header_recv.run(&tcp,&bytes,&reader);
-    kill reader;    // "reader" only used for decoding the header
+    var int err = do Message10_header_recv.run(&conn);
+    conn.reset();
     if err == _MESSAGE10_NOTSUB then
         var byte[1] send = [err];
-        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
+        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(conn.tcp), &send);
         escape err;     // terminate if not subcribed
     end
 
     // LOCK: only one "receive" per chain
     do
-        var bool is_locked = [[ G(tcp).chain.recv_is_locked ]];
+        var bool is_locked = [[ G(conn.tcp).chain.recv_is_locked ]];
         if is_locked then
             loop do
                 par/or do
@@ -328,31 +334,31 @@ do
                 with
                     await 1s;
                 end
-                is_locked = [[ G(tcp).chain.recv_is_locked ]];
+                is_locked = [[ G(conn.tcp).chain.recv_is_locked ]];
                 if not is_locked then
                     break;
                 end
             end
         end
-        [[ G(tcp).chain.recv_is_locked = true ]];
+        [[ G(conn.tcp).chain.recv_is_locked = true ]];
     end
 
 // TODO: primitive "lock"
 do
     finalize with
-        //var bool is_locked = [[ G(tcp).chain.recv_is_locked ]];
+        //var bool is_locked = [[ G(conn.tcp).chain.recv_is_locked ]];
         //_assert(not is_locked);
-        [[ G(tcp).chain.recv_is_locked = false ]];
+        [[ G(conn.tcp).chain.recv_is_locked = false ]];
     end
 
     do
         var byte[1] send = [err];
-        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
+        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(conn.tcp), &send);
     end
 
     [[
-        G(tcp).remote_head = nil
-        G(tcp).remote_base = nil
+        G(conn.tcp).remote_head = nil
+        G(conn.tcp).remote_base = nil
     ]];
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -363,10 +369,10 @@ do
     err = do
         loop i do
             [[
-                G(tcp).previous = G(tcp).block
-                G(tcp).block = {
+                G(conn.tcp).previous = G(conn.tcp).block
+                G(conn.tcp).block = {
                     id        = '1.0',
-                    chain_id  = G(tcp).chain.id,
+                    chain_id  = G(conn.tcp).chain.id,
                     txs       = {},
                     hash      = nil,
                     up_hash   = nil,
@@ -376,33 +382,38 @@ do
 
             // <= ACK-block
             do
-                var int err2 = do Message10_block_recv.run(&tcp);
+                var int err2 = do Message10_block_recv.run(&conn);
 
                 // consolidate previous block
-                var bool ok = [[ G(tcp).previous ~= nil ]];
+                var bool ok = [[ G(conn.tcp).previous ~= nil ]];
                 if ok then
                     [[
-                        G(tcp).previous.tail_hash = assert(G(tcp).block.hash)
-                        ARGS = { block=G(tcp).previous }
+                        G(conn.tcp).previous.tail_hash = assert(G(conn.tcp).block.hash)
+                        ARGS = { block=G(conn.tcp).previous }
                     ]];
                     var int ret = do BlockHash with
                         this.source = SourceBlockHash.NETWORK();
                     end;
                     if ret != _ERR_NONE then
+// TODO-REMOVE
+//_printf("ERR = %d [%d]\n", ret, _ERR_REMOTE_BUG_OR_MALICIOUS);
+//_assert(0);
                         escape ret;
                     end
                 end
 
+                conn.reset();
+
                 //[[ print('[server] => BLOCKS['..(@i)..'] : 
-                //'..tostring2(G(tcp).block.hash)) ]];
+                //'..tostring2(G(conn.tcp).block.hash)) ]];
 
                 do
-                    _dbg_tcp(0, &&this.tcp, "server", "<= ACK-block[%d] = %d",
-                            _ceu_uv_tcp_getsockport(&&this.tcp),
-                            _ceu_uv_tcp_getpeerport(&&this.tcp),
+                    _dbg_tcp(0, &&conn.tcp, "server", "<= ACK-block[%d] = %d",
+                            _ceu_uv_tcp_getsockport(&&conn.tcp),
+                            _ceu_uv_tcp_getpeerport(&&conn.tcp),
                             i, err2);
                     var byte[1] send = [err2];
-                    do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &send);
+                    do UV_Stream_Write.build(&_UV_STREAM_ALIAS(conn.tcp), &send);
                 end
 
                 // FOUND COMMON BLOCK?
@@ -417,13 +428,13 @@ do
                 // received at least one new block
                 [[
                     if (@i) == 0 then
-                        G(tcp).remote_head = G(tcp).block
+                        G(conn.tcp).remote_head = G(conn.tcp).block
                     else
-                        G(tcp).remote_base.tail_hash = G(tcp).block.hash
-                        G(tcp).block.up_hash = G(tcp).remote_base.hash
+                        G(conn.tcp).remote_base.tail_hash = G(conn.tcp).block.hash
+                        G(conn.tcp).block.up_hash = G(conn.tcp).remote_base.hash
                     end
 
-                    G(tcp).remote_base = G(tcp).block
+                    G(conn.tcp).remote_base = G(conn.tcp).block
                 ]];
             end
 
@@ -432,28 +443,30 @@ do
             ///////////////////////////////////////////////////////////////////////////
 
             do
-                var int txs_n = [[ G(tcp).block.txs_n ]];
-                _dbg_tcp(0, &&tcp, "server", "=> %d txs (ini)", txs_n);
+                var int txs_n = [[ G(conn.tcp).block.txs_n ]];
+                _dbg_tcp(0, &&conn.tcp, "server", "=> %d txs (ini)", txs_n);
                 loop j in txs_n do
-                    _dbg_tcp(0, &&tcp, "server", "=> %d txs[%d]", txs_n, j);
-                    var int err2 = do Message10_tx_recv.run(&tcp);
+                    _dbg_tcp(0, &&conn.tcp, "server", "=> %d txs[%d]", txs_n, j);
+                    var int err2 = do Message10_tx_recv.run(&conn);
                     if err2 != _ERR_NONE then
                         escape err2;
                     end
                     [[
-                        G(tcp).block.txs[@j+1] = G(tcp).tx.hash
-                        G(tcp).block.txs[G(tcp).tx.hash] = G(tcp).tx
+                        G(conn.tcp).block.txs[@j+1] = G(conn.tcp).tx.hash
+                        G(conn.tcp).block.txs[G(conn.tcp).tx.hash] = G(conn.tcp).tx
                     ]];
                 end
-                _dbg_tcp(0, &&tcp, "server", "=> %d txs (end)", txs_n);
+                _dbg_tcp(0, &&conn.tcp, "server", "=> %d txs (end)", txs_n);
             end
         end
         //_assert(0);
         escape _ERR_NONE;
     end;
 
+    kill conn.reader;
+
     // UNLOCK "receive"
-    [[ G(tcp).chain.recv_is_locked = false ]];
+    [[ G(conn.tcp).chain.recv_is_locked = false ]];   // TODO: remove?
 end
     emit global:recv_chain_unlocked;
 
@@ -465,9 +478,9 @@ end
 
     // BLOCK holds the COMMON node
     [[
-        common_hash = G(tcp).block.hash
-        assert(G(tcp).remote_head and G(tcp).remote_base, '1')
-        G(tcp).remote_base.tail_hash = common_hash
+        common_hash = G(conn.tcp).block.hash
+        assert(G(conn.tcp).remote_head and G(conn.tcp).remote_base, '1')
+        G(conn.tcp).remote_base.tail_hash = common_hash
     ]];
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -487,8 +500,8 @@ end
     // compare chains, set longest, apply shortest
     [[
         -- { base=?, head=?, size=? }
-        local_ = GG.chain_head_base_size(G(tcp).chain.head_hash)
-        remote = GG.chain_head_base_size(G(tcp).remote_head.hash)
+        local_ = GG.chain_head_base_size(G(conn.tcp).chain.head_hash)
+        remote = GG.chain_head_base_size(G(conn.tcp).remote_head.hash)
         --print('[server] LOC='..local_.size..' vs REM='..remote.size)
 
         -- dst is the longest
@@ -511,8 +524,8 @@ end
 
         -- relink current chain's head/common if longest is remote
         if dst == remote then
-            APP.blocks[common_hash].up_hash = G(tcp).remote_base.hash
-            G(tcp).chain.head_hash = dst.head.hash
+            APP.blocks[common_hash].up_hash = G(conn.tcp).remote_base.hash
+            G(conn.tcp).chain.head_hash = dst.head.hash
         else
             --print('[server] local wins')
             -- already ok
@@ -523,7 +536,7 @@ end
             id        = '1.0',  -- TODO
             txs       = {},
             up_hash   = nil,
-            chain_id  = G(tcp).chain.id,
+            chain_id  = G(conn.tcp).chain.id,
             -- set by Message10_block_parse_head
             --tail_hash = dst.head.hash,
             --hash      = error'TODO',
@@ -563,8 +576,8 @@ end
         end;
         _assert(ret == _ERR_NONE);
         [[
-            APP.blocks[G(tcp).chain.head_hash].up_hash = ARGS.block.hash
-            G(tcp).chain.head_hash = ARGS.block.hash
+            APP.blocks[G(conn.tcp).chain.head_hash].up_hash = ARGS.block.hash
+            G(conn.tcp).chain.head_hash = ARGS.block.hash
         ]]
     end
 
@@ -578,7 +591,7 @@ end
         //if has then
             [[
                 ARGS = {
-                    block = APP.blocks[G(tcp).chain.head_hash]
+                    block = APP.blocks[G(conn.tcp).chain.head_hash]
                 }
             ]];
             var int err2 = do Client10;
@@ -611,21 +624,20 @@ do
 
     var int err = _ERR_NONE;
 
-    var byte[] bytes;
-    var UV_Stream_Read reader =
-            UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
+    var Connection conn = Connection.build(&this.tcp);
 
     // => MESSAGE
-    do UV_Stream_ReadUntil.run(&reader, MESSAGE_BYTES);
+    do UV_Stream_ReadUntil.run(&conn.reader, conn.off + MESSAGE_BYTES);
+    conn.off = conn.off + MESSAGE_BYTES;
 
     //_printf("[server] => MESSAGE = [%d %d %d %d]\n",
                 //bytes[0], bytes[1], bytes[2], bytes[3]);
 
-    var bool ok = ( bytes[0]==MESSAGE_MAGIC_0 and
-                    bytes[1]==MESSAGE_MAGIC_1 );
+    var bool ok = ( conn.bytes[0]==MESSAGE_MAGIC_0 and
+                    conn.bytes[1]==MESSAGE_MAGIC_1 );
 
-    if ok and bytes[2]==1 and bytes[3]==0 then
-        err = do Message10_recv.run(&this.tcp, &bytes, &reader);
+    if ok and conn.bytes[2]==1 and conn.bytes[3]==0 then
+        err = do Message10_recv.run(&conn);
     else
         err = _ERR_MESSAGE;
     end

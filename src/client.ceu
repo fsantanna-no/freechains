@@ -131,11 +131,9 @@ do
     ///////////////////////////////////////////////////////////////////////////
     // BLOCKS
     ///////////////////////////////////////////////////////////////////////////
-
     loop i do
         // <= BLOCK_HASH
         // <= BLOCK_TXS_N
-        var int port = _ceu_uv_tcp_getpeerport(&&this.tcp);
         do
             var byte[] bytes;
 
@@ -207,7 +205,7 @@ do
 
     var char[] ip   = [[ ARGS.peer.host[1] ]];
     var int    port = [[ ARGS.peer.host[2] ]];
-    _dbg(2, "client | connecting to %s:%d", (_char&&)&&ip, port);
+    _dbg(2, "client:%p | connecting to %s:%d", &&this, (_char&&)&&ip, port);
     var UV_TCP_Client c = UV_TCP_Client.build(&ip, port);
 
     [[
@@ -226,7 +224,7 @@ do
             escape err_;
         end
 
-        _dbg(2, "client | connected to %s:%d", (_char&&)&&ip, port);
+        _dbg(2, "client:%p | connected to %s:%d", &&this, (_char&&)&&ip, port);
         watching err_ in c do
             err_ = _ERR_NONE;
             if is_10 then
@@ -242,9 +240,11 @@ do
         //escape _ERR_DISCONNECTED;
     end;
 
-    _dbg(2, "client | disconnected from %s:%d", (_char&&)&&ip, port);
+    _dbg(2, "client:%p | disconnected from %s:%d", &&this, (_char&&)&&ip, port);
     if err != _ERR_NONE then
-        _dbg(2, "client | %s", _uv_strerror(err));
+        _dbg(3, "client:%p | %s", &&this, _uv_strerror(err));
+// TODO-REMOVE
+//_assert(0);
     end
     emit client.ok => err;
     escape err;
@@ -319,15 +319,15 @@ do
             _assert(p! != null);
         end
     end
-    _dbg(0, "client | broadcasting messages to %d peer(s)", ps_ok);
+    _dbg(0, "client:%p | broadcasting messages to %d peer(s)", &&this, ps_ok);
     loop i in ps_ok do
         var int err = await this.ok;
-        _dbg(0, "client | peer %d", err);
+        _dbg(0, "client:%p | peer %d", &&this, err);
     end
-    _dbg(0, "client | broadcasts OK");
+    _dbg(0, "client:%p | broadcasts OK", &&this);
 
     // UNLOCK "send"
-    [[ G(this).chain.send_is_locked = false ]];
+    [[ G(this).chain.send_is_locked = false ]];  // TODO: remove?
 end
     emit global:send_chain_unlocked;
 

@@ -187,6 +187,8 @@ _assert(0);
                 var bool ok = [[ G(this).tx_hash == G(this).tx.hash ]];
                 if not ok then
                     // received hash+nonce do not match
+// TODO-REMOVE
+//_assert(0);
                     escape _ERR_REMOTE_BUG_OR_MALICIOUS;
                 end
             else
