@@ -42,9 +42,7 @@ par/and do
                 key   = '',
                 zeros = 0,
             },
-            payload = [[
-1.1
-]],
+            payload = [[1.1]],
         }
         MESSAGE {
             id = '1.0',
@@ -52,9 +50,7 @@ par/and do
                 key   = '',
                 zeros = 0,
             },
-            payload = [[
-1.2
-]],
+            payload = [[1.2]],
         }
     ]=];
 
@@ -111,9 +107,7 @@ with
                 key   = '',
                 zeros = 0,
             },
-            payload = [[
-2.1
-]],
+            payload = [[2.1]],
         }
         MESSAGE {
             id = '1.0',
@@ -121,9 +115,7 @@ with
                 key   = '',
                 zeros = 0,
             },
-            payload = [[
-2.2
-]],
+            payload = [[2.2]],
         }
     ]=];
 
@@ -192,6 +184,7 @@ end
 
 [[
     assert(#CHAIN0==2 and #CHAIN1==3 and #CHAIN2==3)
+    assert(CHAIN1[3].txs[2] == '2.2')
     assert( tostring2(CHAIN1) == tostring2(CHAIN2) )
     print'OK!'
 ]]

@@ -46,9 +46,7 @@ par/and do
                 key   = '',
                 zeros = 0,
             },
-            payload = [[
-1.1
-]],
+            payload = [[1.1]],
         }
         MESSAGE {
             id = '1.0',
@@ -56,9 +54,7 @@ par/and do
                 key   = '',
                 zeros = 0,
             },
-            payload = [[
-1.2
-]],
+            payload = [[1.2]],
         }
     ]=];
 
@@ -75,10 +71,10 @@ par/and do
     await 4s;
 
     [[
-        CHAIN1 = GG.chain_flatten('||0|')
-        print'===> 1'
+        CHAIN0 = GG.chain_flatten('||0|')
+        print'===> 0'
         print('>'..string.rep('=',78))
-        print(tostring2(CHAIN1))
+        print(tostring2(CHAIN0))
         print('<'..string.rep('=',78))
     ]];
 with
@@ -121,9 +117,7 @@ with
                 key   = '',
                 zeros = 0,
             },
-            payload = [[
-2.1
-]],
+            payload = [[2.1]],
         }
         MESSAGE {
             id = '1.0',
@@ -131,9 +125,7 @@ with
                 key   = '',
                 zeros = 0,
             },
-            payload = [[
-2.2
-]],
+            payload = [[2.2]],
         }
     ]=];
 
@@ -150,10 +142,10 @@ with
     await 1s;
 
     [[
-        CHAIN2 = GG.chain_flatten('||0|')
-        print'===> 2'
+        CHAIN1 = GG.chain_flatten('||0|')
+        print'===> 1'
         print('>'..string.rep('=',78))
-        print(tostring2(CHAIN2))
+        print(tostring2(CHAIN1))
         print('<'..string.rep('=',78))
     ]];
 with
@@ -202,18 +194,18 @@ with
 
     await 5s;
     [[
-        CHAIN3 = GG.chain_flatten('||0|')
-        print'===> 3'
+        CHAIN2 = GG.chain_flatten('||0|')
+        print'===> 2'
         print('>'..string.rep('=',78))
-        print(tostring2(CHAIN3))
+        print(tostring2(CHAIN2))
         print('<'..string.rep('=',78))
     ]];
 end
 
 [[
-    assert(#CHAIN1==3 and #CHAIN2==3 and #CHAIN3==3)
+    assert(#CHAIN0==3 and #CHAIN1==3 and #CHAIN2==3)
+    assert( tostring2(CHAIN0) == tostring2(CHAIN1) )
     assert( tostring2(CHAIN1) == tostring2(CHAIN2) )
-    assert( tostring2(CHAIN2) == tostring2(CHAIN3) )
     print'OK!'
 ]]
 
