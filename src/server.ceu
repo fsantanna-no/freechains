@@ -575,9 +575,9 @@ end
         ]]
     end
 
-    ///////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////
     // RETRANSMIT NEW HEAD
-    ///////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////
 
     do
         // TODO: conditions to not propagate changes
@@ -585,15 +585,16 @@ end
         //if has then
             [[
                 ARGS = {
-                    --app   = APP,
+                    app   = APP,
                     block = APP.blocks[G(conn.tcp).chain.head_hash],
                 }
             ]];
-            do Client10;
+#if 0
             // TODO: kill current Client10?
-            //var Client10&&? c = spawn Client10 in global:clients;
-            //_assert(c! != null);
-            //emit global:go_client;
+            do Client10;
+#else
+            emit global:go_client;
+#endif
         //end
     end
 

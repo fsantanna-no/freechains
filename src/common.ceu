@@ -706,7 +706,7 @@ do
             [[ APP = G(this) ]];
         end
     with
-#if 1
+#if 0
         await FOREVER;
 #else
         pool Client10[4] clients;

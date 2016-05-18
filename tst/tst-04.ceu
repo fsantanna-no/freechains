@@ -112,6 +112,7 @@ with
 
     await 100ms;
     do ClientMessages;
+    await 1s;
     [[
         CHAIN2 = GG.chain_flatten('||0|')
         print'===> CLIENT'

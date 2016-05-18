@@ -347,7 +347,8 @@ do
 
     var int err = do Client;
     _assert(err == _ERR_NONE);
-#if 0
+#if 1
+    // go_client
     async do end;   // HACK_1
 #endif
     escape err;
@@ -425,9 +426,13 @@ do
             chain.head_hash = block.hash
         ]]
 
+#if 0
         do Client10;
-        //[[ ARGS.app = APP ]];
-        //emit global:go_client;
+#else
+        [[ ARGS.app = APP ]];
+        emit global:go_client;
+        await 100ms;
+#endif
     else
         _assert(0);  // message not supported
     end
