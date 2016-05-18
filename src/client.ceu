@@ -344,7 +344,13 @@ do
             block = ARGS.block,
         }
     ]];
-    do Client;
+
+    var int err = do Client;
+    _assert(err == _ERR_NONE);
+#if 0
+    async do end;   // HACK_1
+#endif
+    escape err;
 end
 
 class ClientMessages with
@@ -409,6 +415,7 @@ do
         [[ ARGS = { block=block } ]];
         var int ret = do BlockHash with
             this.source = SourceBlockHash.NEW();
+            // returns [[ ARGS = { block=block } ]];
         end;
         _assert(ret == _ERR_NONE);
         [[
@@ -419,6 +426,8 @@ do
         ]]
 
         do Client10;
+        //[[ ARGS.app = APP ]];
+        //emit global:go_client;
     else
         _assert(0);  // message not supported
     end

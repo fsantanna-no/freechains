@@ -19,19 +19,7 @@ par/and do
 // 0
 ///////////////////////////////////////////////////////////////////////////////
 
-    var int unique = 0;
-    [[
-        G(unique) = app_create()
-        APP = G(unique)
-    ]];
-    spawn do
-        every ANY do
-            [[ APP = G(unique) ]];
-        end
-    end
-
-    ///////////////////////////////////////////////////////////////////////////
-
+    var App _;
     [=[
         dofile 'cfg/config.lua'
 
@@ -79,19 +67,7 @@ with
 // 1
 ///////////////////////////////////////////////////////////////////////////////
 
-    var int unique = 0;
-    [[
-        G(unique) = app_create()
-        APP = G(unique)
-    ]];
-    spawn do
-        every ANY do
-            [[ APP = G(unique) ]];
-        end
-    end
-
-    ///////////////////////////////////////////////////////////////////////////
-
+    var App _;
     [[
         dofile 'cfg/config.lua'
         SERVER {

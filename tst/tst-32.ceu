@@ -13,16 +13,7 @@ input void ANY;
 class Node with
     var int i;
 do
-    var int unique = 0;
-    [[
-        G(unique) = app_create()
-        APP = G(unique)
-    ]];
-    spawn do
-        every ANY do
-            [[ APP = G(unique) ]];
-        end
-    end
+    var App _;
 
     var int local  = 8330+i;
     var int remote = 8331+i;
@@ -57,7 +48,7 @@ do
 
         loop j in N do
             // how much time between each message?
-            await (100+_rand()%1000) ms;
+            await (N*1000/2 + _rand()%1000)ms;
 _printf(">>> I=%d j=%d\n", this.i, j);
             [[
                 APP.messages = {}

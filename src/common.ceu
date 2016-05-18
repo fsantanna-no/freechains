@@ -1,8 +1,8 @@
 #ifndef _COMMON_CEU
 #define _COMMON_CEU
 
-//#define DBG 0
-#define FREECHAINS_NO_MALICIOUS
+//#define DBG 2
+//#define FREECHAINS_NO_MALICIOUS
 
 #include "c.ceu"
 #include "uv.ceu"
@@ -94,9 +94,11 @@ end
 interface Global with
     event void recv_chain_unlocked;
     event void send_chain_unlocked;
+    event void go_client;
 end
 event void recv_chain_unlocked;
 event void send_chain_unlocked;
+event void go_client;
 
 data SourceBlockHash with
     tag NETWORK;
@@ -648,6 +650,7 @@ do
 end
 
 #include "client.ceu"
+
 #define UV_TCP_SERVER_HANDLER_CEU server.ceu
 #include "uv-server.ceu"
 
@@ -688,6 +691,46 @@ do
             this.source = SourceBlockHash.FILE();
         end;
         [[ APP.chains[@i+1].head_hash = ARGS.block.hash ]]
+    end
+end
+
+input void ANY;
+class App with
+do
+    [[
+        G(this) = app_create()
+        APP = G(this)
+    ]];
+    par do
+        every ANY do
+            [[ APP = G(this) ]];
+        end
+    with
+#if 1
+        await FOREVER;
+#else
+        pool Client10[4] clients;
+        every global:go_client do
+            var bool is_me = [[ G(this) == ARGS.app ]];
+            if is_me then
+                var Client10&&? c_new = spawn Client10 in clients;
+                _assert(c_new! != null);    // HACK_1
+
+                // kill last/idle client
+                var int i = 0;
+                var Client10&&? c_lst;
+                loop c in clients do
+                    i = i + 1;
+                    if c != c_new! then
+                        c_lst = c;
+                    end
+                end
+                if i == 4 then
+                    kill *c_lst!;
+                end
+            end
+        end
+#endif
     end
 end
 

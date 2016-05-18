@@ -93,12 +93,6 @@ do
     // => BLOCK_HASH
     // => BLOCK_TXS_N
     do
-spawn do
-    await 60s;
-_printf("SERVER-a\n");
-    await FOREVER;
-end
-
         // hash
         do UV_Stream_ReadUntil.run(&conn.reader, conn.off+HASH_BYTES);
         var byte[HASH_BYTES] hash;
@@ -591,13 +585,15 @@ end
         //if has then
             [[
                 ARGS = {
-                    block = APP.blocks[G(conn.tcp).chain.head_hash]
+                    --app   = APP,
+                    block = APP.blocks[G(conn.tcp).chain.head_hash],
                 }
             ]];
-            var int err2 = do Client10;
-            if err2 != _ERR_NONE then
-                escape err2;
-            end
+            do Client10;
+            // TODO: kill current Client10?
+            //var Client10&&? c = spawn Client10 in global:clients;
+            //_assert(c! != null);
+            //emit global:go_client;
         //end
     end
 
@@ -645,6 +641,10 @@ do
     if err != _ERR_NONE then
         [[ APP.errs[#APP.errs+1] = @err ]];
     end
+
+#ifdef FREECHAINS_NO_MALICIOUS
+    _assert(err == _ERR_NONE);
+#endif
 
     //_printf("[server] DONE: %d\n", err);
     escape err;
