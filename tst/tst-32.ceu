@@ -79,7 +79,7 @@ _printf("\t\t<<< I=%d\n", this.i);
         end
 
         // how much time to wait for consensus???
-        await (2*N) s;
+        await (N/2) s;
 _printf("<<< out=%d\n", this.i);
     end
 
@@ -106,7 +106,7 @@ end
 
 // wait all nodes to terminate
 loop do
-    await 5s;
+    await 1s;   // periodic check (any number is ok)
     var bool ok = true;
     loop n in nodes do
         ok = false;
@@ -115,6 +115,8 @@ loop do
         break;
     end
 end
+
+_printf("BLOCKS = %d\n", _BLOCKS);
 
 // assert consensus
 [[ file1 = io.open('/tmp/000.chain'):read'*a' ]]

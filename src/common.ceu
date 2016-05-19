@@ -709,7 +709,7 @@ do
 #if 0
         await FOREVER;
 #else
-        pool Client10[4] clients;
+        pool Client10[3] clients;
         every global:go_client do
             var bool is_me = [[ G(this) == ARGS.app ]];
             if is_me then
@@ -725,7 +725,7 @@ do
                         c_lst = c;
                     end
                 end
-                if i == 4 then
+                if i == 3 then
                     kill *c_lst!;
                 end
             end
