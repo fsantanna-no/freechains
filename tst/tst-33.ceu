@@ -3,11 +3,10 @@
 _srand(_time(null));
 
 ///////////////////////////////////////////////////////////////////////////////
-// 0<->1<->...<->N<->0
-// - all to all
+// 0->1->...->N->0
 ///////////////////////////////////////////////////////////////////////////////
 
-#define N 20
+#define N 50
 
 input void ANY;
 
@@ -16,7 +15,11 @@ class Node with
 do
     var App _;
 
-    var int local = 8330+i;
+    var int local  = 8330+i;
+    var int remote = 8331+i;
+    if i == (N-1) then
+        remote = 8330;
+    end
 
     [=[
         dofile 'cfg/config.lua'
@@ -25,16 +28,12 @@ do
             host = { '127.0.0.1', @local },
         }
 
-        peers = {}
-        for j=0, N-1 do
-            if j ~= @this.i then
-                peers[#peers+1] = {
-                    host = { '127.0.0.1', (8330+j) },
-                }
-            end
-        end
         CLIENT {
-            peers = peers,
+            peers = {
+                {
+                    host = { '127.0.0.1', @remote },
+                },
+            },
         }
     ]=]
 
@@ -72,13 +71,6 @@ _printf("\t\t<<< I=%d\n", this.i);
             [[
                 t = GG.chain_head_base_size(APP.chains['||0|'].head_hash)
             ]]
-#if 0
-[[
-print(@this.i, '>'..string.rep('=',70))
-print(GG.chain_tostring('||0|'))
-print(@this.i, '<'..string.rep('=',70))
-]];
-#endif
             var int size = [[ t.size ]];
 //_printf("<<< I=%d n=%d\n", this.i, size);
             if size == N*N+1 then
@@ -87,7 +79,7 @@ print(@this.i, '<'..string.rep('=',70))
         end
 
         // how much time to wait for consensus???
-        await (2*N) s;
+        await (5*N) s;
 _printf("<<< out=%d\n", this.i);
     end
 
