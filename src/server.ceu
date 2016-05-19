@@ -318,10 +318,34 @@ do
         escape err;     // terminate if not subcribed
     end
 
-_SERVERS = _SERVERS + 1;
-finalize with
-    _SERVERS = _SERVERS - 1;
-end
+    // LOCK: only one "receive" per chain
+    do
+        var bool is_locked = [[ G(conn.tcp).chain.recv_is_locked ]];
+        if is_locked then
+            loop do
+                par/or do
+                    await global:recv_chain_unlocked;
+                with
+                    await 1s;
+                end
+                is_locked = [[ G(conn.tcp).chain.recv_is_locked ]];
+                if not is_locked then
+                    break;
+                end
+            end
+        end
+        [[ G(conn.tcp).chain.recv_is_locked = true ]];
+    end
+
+// TODO: primitive "lock"
+do
+_SERVERS_ALIVE = _SERVERS_ALIVE + 1;
+    finalize with
+        //var bool is_locked = [[ G(conn.tcp).chain.recv_is_locked ]];
+        //_assert(not is_locked);
+        [[ G(conn.tcp).chain.recv_is_locked = false ]];
+_SERVERS_ALIVE = _SERVERS_ALIVE - 1;
+    end
 
     do
         var byte[1] send = [err];
@@ -333,14 +357,14 @@ end
         G(conn.tcp).remote_base = nil
     ]];
 
-    ///////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////
     // BLOCKS:
-    ///////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////
 
     err = _ERR_NONE;
     err = do
         loop i do
-_BLOCKS = _BLOCKS + 1;
+_BLOCKS_RECEIVED = _BLOCKS_RECEIVED + 1;
             [[
                 G(conn.tcp).previous = G(conn.tcp).block
                 G(conn.tcp).block = {
@@ -437,6 +461,11 @@ _BLOCKS = _BLOCKS + 1;
     end;
 
     kill conn.reader;
+
+    // UNLOCK "receive"
+    [[ G(conn.tcp).chain.recv_is_locked = false ]];   // TODO: remove?
+end
+    emit global:recv_chain_unlocked;
 
     if err == _MESSAGE10_HAVE then
         escape _ERR_NONE;   // nothing new, but no error
@@ -536,6 +565,7 @@ _BLOCKS = _BLOCKS + 1;
     ]];
     var bool has_txs = [[ #block_new.txs > 0 ]];
     if has_txs then
+_BLOCKS_RECREATED = _BLOCKS_RECREATED + 1;
         [[
             ARGS = { block=block_new }
         ]];

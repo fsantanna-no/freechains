@@ -124,7 +124,8 @@ loop do
     end
 end
 
-_printf("BLOCKS = %d\n", _BLOCKS);
+_printf("BLOCKS_RECEIVED  = %d\n", _BLOCKS_RECEIVED);
+_printf("BLOCKS_RECREATED = %d\n", _BLOCKS_RECREATED);
 
 // assert consensus
 [[ file1 = io.open('/tmp/000.chain'):read'*a' ]]

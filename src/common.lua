@@ -1,3 +1,5 @@
+--assert = function (...) return (...) end
+
 GG = {}
 
 function app_create ()

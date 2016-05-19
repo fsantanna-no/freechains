@@ -203,9 +203,9 @@ do
         this.client = &client;
     end
 
-_CLIENTS = _CLIENTS + 1;
+_CLIENTS_ALIVE = _CLIENTS_ALIVE + 1;
 finalize with
-    _CLIENTS = _CLIENTS - 1;
+    _CLIENTS_ALIVE = _CLIENTS_ALIVE - 1;
 end
 
     var char[] ip   = [[ ARGS.peer.host[1] ]];
@@ -247,7 +247,9 @@ end
 
     _dbg(2, "client:%p | disconnected from %s:%d", &&this, (_char&&)&&ip, port);
     if err != _ERR_NONE then
+#ifdef DBG
         _dbg(3, "client:%p | %s", &&this, _uv_strerror(err));
+#endif
 #ifdef FREECHAINS_NO_MALICIOUS
         _assert(0);
 #endif

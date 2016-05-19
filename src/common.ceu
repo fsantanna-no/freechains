@@ -1,7 +1,7 @@
 #ifndef _COMMON_CEU
 #define _COMMON_CEU
 
-//#define DBG 2
+//#define DBG 3
 //#define FREECHAINS_NO_MALICIOUS
 
 #include "c.ceu"
@@ -92,9 +92,11 @@ end
 #define G(v) GG[@(&&(v))]
 
 interface Global with
+    event void recv_chain_unlocked;
     event void send_chain_unlocked;
     event void go_client;
 end
+event void recv_chain_unlocked;
 event void send_chain_unlocked;
 event void go_client;
 
@@ -648,14 +650,15 @@ do
 end
 
 native do
-    int SERVERS = 0;
-    int CLIENTS = 0;
-    int BLOCKS  = 0;
+    int SERVERS_ALIVE    = 0;
+    int CLIENTS_ALIVE    = 0;
+    int BLOCKS_RECEIVED  = 0;
+    int BLOCKS_RECREATED = 0;
 end
 spawn do
     every 10s do
-        _printf("SERVERS = %d\n", _SERVERS);
-        _printf("CLIENTS = %d\n", _CLIENTS);
+        _printf("SERVERS_ALIVE = %d\n", _SERVERS_ALIVE);
+        _printf("CLIENTS_ALIVE = %d\n", _CLIENTS_ALIVE);
     end
 end
 
