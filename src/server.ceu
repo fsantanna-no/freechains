@@ -318,32 +318,10 @@ do
         escape err;     // terminate if not subcribed
     end
 
-    // LOCK: only one "receive" per chain
-    do
-        var bool is_locked = [[ G(conn.tcp).chain.recv_is_locked ]];
-        if is_locked then
-            loop do
-                par/or do
-                    await global:recv_chain_unlocked;
-                with
-                    await 1s;
-                end
-                is_locked = [[ G(conn.tcp).chain.recv_is_locked ]];
-                if not is_locked then
-                    break;
-                end
-            end
-        end
-        [[ G(conn.tcp).chain.recv_is_locked = true ]];
-    end
-
-// TODO: primitive "lock"
-do
-    finalize with
-        //var bool is_locked = [[ G(conn.tcp).chain.recv_is_locked ]];
-        //_assert(not is_locked);
-        [[ G(conn.tcp).chain.recv_is_locked = false ]];
-    end
+_SERVERS = _SERVERS + 1;
+finalize with
+    _SERVERS = _SERVERS - 1;
+end
 
     do
         var byte[1] send = [err];
@@ -362,6 +340,7 @@ do
     err = _ERR_NONE;
     err = do
         loop i do
+_BLOCKS = _BLOCKS + 1;
             [[
                 G(conn.tcp).previous = G(conn.tcp).block
                 G(conn.tcp).block = {
@@ -458,11 +437,6 @@ do
     end;
 
     kill conn.reader;
-
-    // UNLOCK "receive"
-    [[ G(conn.tcp).chain.recv_is_locked = false ]];   // TODO: remove?
-end
-    emit global:recv_chain_unlocked;
 
     if err == _MESSAGE10_HAVE then
         escape _ERR_NONE;   // nothing new, but no error

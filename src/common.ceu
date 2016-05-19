@@ -92,11 +92,9 @@ end
 #define G(v) GG[@(&&(v))]
 
 interface Global with
-    event void recv_chain_unlocked;
     event void send_chain_unlocked;
     event void go_client;
 end
-event void recv_chain_unlocked;
 event void send_chain_unlocked;
 event void go_client;
 
@@ -647,6 +645,18 @@ do
     end
 
     escape _ERR_NONE;
+end
+
+native do
+    int SERVERS = 0;
+    int CLIENTS = 0;
+    int BLOCKS  = 0;
+end
+spawn do
+    every 10s do
+        _printf("SERVERS = %d\n", _SERVERS);
+        _printf("CLIENTS = %d\n", _CLIENTS);
+    end
 end
 
 #include "client.ceu"
