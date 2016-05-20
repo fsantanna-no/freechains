@@ -304,9 +304,9 @@ do
         }
     ]];
 
-    ///////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////
     // HEADER
-    ///////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////
 
     // <= ACK-header
     // bytes/reader received from message partially parsed
@@ -589,16 +589,11 @@ _BLOCKS_RECREATED = _BLOCKS_RECREATED + 1;
         //if has then
             [[
                 ARGS = {
-                    app   = APP,
-                    block = APP.blocks[G(conn.tcp).chain.head_hash],
+                    app      = APP,
+                    chain_id = G(conn.tcp).chain.id,
                 }
             ]];
-#if 0
-            // TODO: kill current Client10?
-            do Client10;
-#else
             emit global:go_client;
-#endif
         //end
     end
 
