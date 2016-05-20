@@ -722,16 +722,17 @@ do
 #if 0
         await FOREVER;
 #else
-        pool Client10[3] clients;
+        pool Client[3] clients;
         every global:go_client do
             var bool is_me = [[ G(this) == ARGS.app ]];
             if is_me then
-                var Client10&&? c_new = spawn Client10 in clients;
+                //[[ ARGS = { app=?, chain_id=? } ]];
+                var Client&&? c_new = spawn Client in clients;
                 _assert(c_new! != null);    // HACK_1
 
                 // kill last/idle client
                 var int i = 0;
-                var Client10&&? c_lst;
+                var Client&&? c_lst;
                 loop c in clients do
                     i = i + 1;
                     if c != c_new! then
