@@ -94,11 +94,11 @@ end
 interface Global with
     event void recv_chain_unlocked;
     event void send_chain_unlocked;
-    event void go_client;
+    event void go_client, ok_client;
 end
 event void recv_chain_unlocked;
 event void send_chain_unlocked;
-event void go_client;
+event void go_client, ok_client;
 
 data SourceBlockHash with
     tag NETWORK;
@@ -719,32 +719,46 @@ do
             [[ APP = G(this) ]];
         end
     with
-#if 0
-        await FOREVER;
-#else
-        pool Client[3] clients;
-        every global:go_client do
-            var bool is_me = [[ G(this) == ARGS.app ]];
-            if is_me then
+        pool Client[] clients;
+        [[
+            G(clients) = {
+                is_txing   = {},
+                is_waiting = {},
+            }
+        ]];
+        par do
+            every global:go_client do
                 //[[ ARGS = { app=?, chain_id=? } ]];
-                var Client&&? c_new = spawn Client in clients;
-                _assert(c_new! != null);    // HACK_1
-
-                // kill last/idle client
-                var int i = 0;
-                var Client&&? c_lst;
-                loop c in clients do
-                    i = i + 1;
-                    if c != c_new! then
-                        c_lst = c;
+                var bool is_me = [[ G(this) == ARGS.app ]];
+                if is_me then
+                    var bool is_txing =
+                                [[ G(clients).is_txing[ARGS.chain_id] ]];
+                    if is_txing then
+                        // wait...
+                        [[ G(clients).is_waiting[ARGS.chain_id] = true ]];
+                    else
+                        // transmit!
+                        [[ G(clients).is_txing[ARGS.chain_id] = true ]];
+                        spawn Client in clients; // ARGS.chain_id
                     end
                 end
-                if i == 3 then
-                    kill *c_lst!;
+            end
+        with
+            every global:ok_client do
+                //[[ ARGS = { app=?, chain_id=? } ]];
+                var bool is_me = [[ G(this) == ARGS.app ]];
+                if is_me then
+                    [[ G(clients).is_txing[ARGS.chain_id] = false ]];
+                    var bool is_waiting =
+                                [[ G(clients).is_waiting[ARGS.chain_id] ]];
+                    if is_waiting then
+                        [[ G(clients).is_waiting[ARGS.chain_id] = false ]];
+_assert(0);
+                        emit global:go_client;  // same ARGS
+                    end
                 end
             end
         end
-#endif
     end
 end
 

@@ -265,8 +265,9 @@ do
     [[
         chain = assert(APP.chains[ARGS.chain_id])
         G(this) = {
-            block = assert(APP.blocks[chain.head_hash]),
-            chain = chain,
+            chain_id = ARGS.chain_id,
+            block    = assert(APP.blocks[chain.head_hash]),
+            chain    = chain,
         }
     ]]
 
@@ -346,8 +347,13 @@ do
 end
     emit global:send_chain_unlocked;
 
-    // go_client
-    async do end;   // HACK_1
+    [[
+        ARGS = {
+            app      = APP,
+            chain_id = G(this).chain_id,
+        }
+    ]];
+    emit global:ok_client;
 
     escape _ERR_NONE;   // trasmitted messages
 end
