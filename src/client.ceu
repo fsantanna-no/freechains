@@ -271,6 +271,7 @@ do
         }
     ]]
 
+#ifdef CLIENT_LOCK
     // LOCK: only one "send" per chain
     do
         var bool is_locked = [[ G(this).chain.send_is_locked ]];
@@ -292,20 +293,13 @@ do
 
 // TODO: primitive "lock"
 do
-#if 0
-    lock X do
-        finalize with
-            ...
-        end
-        ...
-    end
-#endif
 
     finalize with
         //var bool is_locked = [[ G(this).chain.send_is_locked ]];
         //_assert(not is_locked);
         [[ G(this).chain.send_is_locked = false ]];
     end
+#endif
 
     var int ps = [[#APP.client.peers]];
     var int ps_ok = 0;
@@ -342,10 +336,12 @@ do
     end
     _dbg(0, "client:%p | broadcasts OK", &&this);
 
+#ifdef CLIENT_LOCK
     // UNLOCK "send"
     [[ G(this).chain.send_is_locked = false ]];  // TODO: remove?
 end
     emit global:send_chain_unlocked;
+#endif
 
     [[
         ARGS = {

@@ -91,13 +91,24 @@ native do
 end
 #define G(v) GG[@(&&(v))]
 
+#define SERVER_LOCK
+#define CLIENT_LOCK
+
 interface Global with
+#ifdef SERVER_LOCK
     event void recv_chain_unlocked;
+#endif
+#ifdef CLIENT_LOCK
     event void send_chain_unlocked;
+#endif
     event void go_client, ok_client;
 end
+#ifdef SERVER_LOCK
 event void recv_chain_unlocked;
+#endif
+#ifdef CLIENT_LOCK
 event void send_chain_unlocked;
+#endif
 event void go_client, ok_client;
 
 data SourceBlockHash with
@@ -753,7 +764,12 @@ do
                                 [[ G(clients).is_waiting[ARGS.chain_id] ]];
                     if is_waiting then
                         [[ G(clients).is_waiting[ARGS.chain_id] = false ]];
-_assert(0);
+//_assert(0);
+//- medir tempos
+//- remover locks
+//- medir tempos
+//- aplicar regra do e-mail
+// TODO: remover e ver se falha o tst-xx.ceu
                         emit global:go_client;  // same ARGS
                     end
                 end

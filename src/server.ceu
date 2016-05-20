@@ -318,6 +318,7 @@ do
         escape err;     // terminate if not subcribed
     end
 
+#ifdef SERVER_LOCK
     // LOCK: only one "receive" per chain
     do
         var bool is_locked = [[ G(conn.tcp).chain.recv_is_locked ]];
@@ -339,13 +340,17 @@ do
 
 // TODO: primitive "lock"
 do
-_SERVERS_ALIVE = _SERVERS_ALIVE + 1;
     finalize with
         //var bool is_locked = [[ G(conn.tcp).chain.recv_is_locked ]];
         //_assert(not is_locked);
         [[ G(conn.tcp).chain.recv_is_locked = false ]];
-_SERVERS_ALIVE = _SERVERS_ALIVE - 1;
     end
+#endif
+
+_SERVERS_ALIVE = _SERVERS_ALIVE + 1;
+finalize with
+    _SERVERS_ALIVE = _SERVERS_ALIVE - 1;
+end
 
     do
         var byte[1] send = [err];
@@ -462,10 +467,12 @@ _BLOCKS_RECEIVED = _BLOCKS_RECEIVED + 1;
 
     kill conn.reader;
 
+#ifdef SERVER_LOCK
     // UNLOCK "receive"
     [[ G(conn.tcp).chain.recv_is_locked = false ]];   // TODO: remove?
 end
     emit global:recv_chain_unlocked;
+#endif
 
     if err == _MESSAGE10_HAVE then
         escape _ERR_NONE;   // nothing new, but no error
