@@ -43,10 +43,9 @@ par/and do
 
     loop i in 10 do
         [=[
-            APP.messages = {}
-            ARGS = { block = APP.blocks[ APP.chains['||0|'].head_hash ] }
+            ARGS = { chain_id = '||0|' }
         ]=];
-        do Client10;
+        do Client;
     end
 with
 

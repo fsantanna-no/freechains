@@ -1,7 +1,7 @@
 #ifndef _COMMON_CEU
 #define _COMMON_CEU
 
-//#define DBG 3
+//#define DBG 2
 //#define FREECHAINS_NO_MALICIOUS
 
 #include "c.ceu"
@@ -92,7 +92,7 @@ end
 #define G(v) GG[@(&&(v))]
 
 #define SERVER_LOCK
-#define CLIENT_LOCK
+//#define CLIENT_LOCK
 
 interface Global with
 #ifdef SERVER_LOCK
@@ -739,18 +739,30 @@ do
         ]];
         par do
             every global:go_client do
-                //[[ ARGS = { app=?, chain_id=? } ]];
+                //[[ ARGS = { app=?, to_awake=?, chain_id=? } ]];
                 var bool is_me = [[ G(this) == ARGS.app ]];
                 if is_me then
                     var bool is_txing =
                                 [[ G(clients).is_txing[ARGS.chain_id] ]];
                     if is_txing then
                         // wait...
-                        [[ G(clients).is_waiting[ARGS.chain_id] = true ]];
+                        [[
+                            t = G(clients).is_waiting[ARGS.chain_id] or {}
+                            G(clients).is_waiting[ARGS.chain_id] = t
+                            for k, v in pairs(ARGS.to_awake) do
+                                t[k] = v
+                            end
+                        ]];
                     else
                         // transmit!
-                        [[ G(clients).is_txing[ARGS.chain_id] = true ]];
-                        spawn Client in clients; // ARGS.chain_id
+                        [[
+                            G(clients).is_txing[ARGS.chain_id] = true
+                            ARGS = {
+                                chain_id = ARGS.chain_id,
+                                to_awake = ARGS.to_awake,
+                            }
+                        ]]
+                        spawn Client in clients;
                     end
                 end
             end
@@ -761,9 +773,13 @@ do
                 if is_me then
                     [[ G(clients).is_txing[ARGS.chain_id] = false ]];
                     var bool is_waiting =
-                                [[ G(clients).is_waiting[ARGS.chain_id] ]];
+                              [[ G(clients).is_waiting[ARGS.chain_id]~=nil ]];
                     if is_waiting then
-                        [[ G(clients).is_waiting[ARGS.chain_id] = false ]];
+                        [[
+                            ARGS.to_awake =
+                                G(clients).is_waiting[ARGS.chain_id]
+                            G(clients).is_waiting[ARGS.chain_id] = nil
+                        ]];
 //_assert(0);
 //- medir tempos
 //- remover locks

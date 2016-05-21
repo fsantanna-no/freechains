@@ -265,6 +265,7 @@ do
     [[
         chain = assert(APP.chains[ARGS.chain_id])
         G(this) = {
+            to_awake = ARGS.to_awake,
             chain_id = ARGS.chain_id,
             block    = assert(APP.blocks[chain.head_hash]),
             chain    = chain,
@@ -348,6 +349,7 @@ end
             app      = APP,
             chain_id = G(this).chain_id,
         }
+        TO_AWAKE = G(this).to_awake     -- TODO: global/fragile
     ]];
     emit global:ok_client;
 
@@ -429,11 +431,20 @@ do
             APP.blocks[chain.head_hash].up_hash = block.hash
             chain.head_hash = block.hash
 
-            ARGS.app = APP
-            ARGS.chain_id = ARGS.block.chain_id
+            ARGS = {
+                app      = APP,
+                to_awake = { [@(&&this)]=true },
+                chain_id = ARGS.block.chain_id,
+            }
         ]];
         emit global:go_client;
-        await 100ms;
+        loop do
+            await global:ok_client;
+            var bool to_awake = [[ TO_AWAKE[@(&&this)] ]];
+            if to_awake then
+                break;
+            end
+        end
     else
         _assert(0);  // message not supported
     end
