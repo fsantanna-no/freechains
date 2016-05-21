@@ -15,7 +15,7 @@
 
 input void ANY;
 
-par/or do
+par/and do
 
 ///////////////////////////////////////////////////////////////////////////////
 // 0
@@ -50,7 +50,6 @@ par/or do
         ]=];
         do ClientMessages;
     end
-    await FOREVER;
 with
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -115,7 +114,6 @@ with
         ]=];
     end
     do ClientMessages;
-    await FOREVER;
 end
 
 [=[
