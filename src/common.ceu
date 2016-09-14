@@ -5,7 +5,7 @@
 //#define FREECHAINS_NO_MALICIOUS
 
 #include "c.ceu"
-#include "uv.ceu"
+#include "uv/tcp.ceu"
 #include "sodium.ceu"
 
 #define MESSAGE_BYTES   4
@@ -16,53 +16,23 @@
 #define NONCE_BYTES     16
 #define CHAIN_KEY_BYTES 256
 
-native @pure _leading_zeros();
-native @nohold _dbg(), _dbg_tcp();
-native do
-    ##define VOID_ALIAS(x) ((void*)&x)
+#define G(v) GG[@(&&(v))]
 
+native _byte;
+native/const _ERR_NONE, _ERR_MESSAGE, _ERR_REMOTE_BUG_OR_MALICIOUS;
+native/pure _leading_zeros;
+native/nohold _dbg;
+native/pre do
     enum {
         ERR_NONE                    =  0,
         ERR_MESSAGE                 = -1,
         ERR_REMOTE_BUG_OR_MALICIOUS = -2,
     };
 
-    enum {
-        MESSAGE10 = 1,
-    };
-
-    enum {
-        MESSAGE10_NOTSUB = 1,   // [ok ACK] not subscribed to this chain
-        MESSAGE10_HAVE,         // [ok ACK] already has it
-        MESSAGE10_LIMIT,        // [ok ACK] too big for untrusted client
-    };
-
     void dbg (int level, const char* fmt, ...) {
 #ifdef DBG
         if (level < DBG) return;
         fprintf(stderr, "[%d] | ", level);
-        va_list args;
-        va_start(args, fmt);
-        vfprintf(stderr, fmt, args);
-        va_end (args);
-        fprintf(stderr, "\n");
-#endif
-    }
-
-    void dbg_tcp (int level, uv_tcp_t* tcp, char* client_server, const char* fmt, ...) {
-#ifdef DBG
-        if (level < DBG) return;
-        int p1 = ceu_uv_tcp_getsockport(tcp);
-        int p2 = ceu_uv_tcp_getpeerport(tcp);
-        char str[255];
-        char* arrow;
-        if (strcmp(client_server,"server") == 0) {
-            arrow = "<-";
-        } else {
-            arrow = "->";
-        }
-        fprintf(stderr, "[%d] | %s:%d%s%d | ", level, client_server, p1, arrow, p2);
-
         va_list args;
         va_start(args, fmt);
         vfprintf(stderr, fmt, args);
@@ -89,42 +59,26 @@ native do
         return zeros;
     }
 end
-#define G(v) GG[@(&&(v))]
 
-#define SERVER_LOCK
-//#define CLIENT_LOCK
+[[
+    dofile'src/common.lua'
+#if 0
+    GG.ERR_REMOTE_BUG_OR_MALICIOUS = @(_ERR_REMOTE_BUG_OR_MALICIOUS as int)
+    GG.MESSAGE10_NOTSUB = @(_MESSAGE10_NOTSUB as int)
+#endif
+]];
 
-interface Global with
-#ifdef SERVER_LOCK
-    event void recv_chain_unlocked;
-#endif
-#ifdef CLIENT_LOCK
-    event void send_chain_unlocked;
-#endif
-    event void go_client, ok_client;
-end
-#ifdef SERVER_LOCK
-event void recv_chain_unlocked;
-#endif
-#ifdef CLIENT_LOCK
-event void send_chain_unlocked;
-#endif
-event void go_client, ok_client;
+data BlockHashSource;
+data BlockHashSource.Network;
+data BlockHashSource.File;
+data BlockHashSource.New;
 
-data SourceBlockHash with
-    tag NETWORK;
-or
-    tag FILE;
-or
-    tag NEW;
-end
-
-class BlockHash with
+code/await BlockHash (var BlockHashSource source) => int
     // input  [[ ARGS = { block={ txs={ tx1, tx2, ... } } }
     // output [[ ARGS = { block={ txs={ tx1_hash, tx2_hash, ... } } }
     // output [[ APP.block[hash]=blk APP.txs[hash]=txs ]]
-    var SourceBlockHash source;
 do
+    var int this = 0;
     [[
         G(this) = {
             block = ARGS.block,
@@ -136,78 +90,80 @@ do
 
     // => TX_HASH
     var int txs_n = [[ #G(this).block.txs ]];
-    loop i in txs_n do
+    loop i in [0 -> txs_n[ do
         [[ G(this).tx = G(this).block.txs[@txs_n-i] ]];
 
-        if this.source.NETWORK then
+        if source is BlockHashSource.Network then
             [[
                 assert( type(G(this).tx) == 'string' )
                 G(this).tx = G(this).block.txs[G(this).tx] or APP.txs[G(this).tx]
                 assert( G(this).tx.nonce ~= nil )
             ]];
-        else/if this.source.FILE then
+        else/if source is BlockHashSource.File then
             [[
                 assert( type(G(this).tx) == 'table' )
                 assert( G(this).tx.nonce ~= nil )
             ]];
-        else/if this.source.NEW then
+        else/if source is BlockHashSource.New then
             [[
                 assert( type(G(this).tx) == 'table' )
                 assert( G(this).tx.nonce == nil )
             ]];
         else
-            _assert(0);
+            _ceu_dbg_assert(0);
         end
 
         var u8 zeros_wanted = [[ G(this).chain.zeros ]];
 
-        if this.source.NETWORK then
-            var char[HASH_BYTES] tx_hash;
-            tx_hash = [[ G(this).tx.hash ]];
-            if zeros_wanted > _leading_zeros((_char&&)&&tx_hash,HASH_BYTES) then
+        if source is BlockHashSource.Network then
+            vector[HASH_BYTES] byte tx_hash;
+            tx_hash = []..[[ G(this).tx.hash ]];
+            if zeros_wanted > _leading_zeros(&&tx_hash[0],HASH_BYTES) then
 // TODO: test-case to fail here
 // TODO: also change from ">" to "!="
-_assert(0);
+_ceu_dbg_assert(0);
                 escape _ERR_REMOTE_BUG_OR_MALICIOUS;
             end
         end
 
-        var byte[] plain;
-        var char[HASH_BYTES] back_hash = [[ G(this).tx.back_hash ]];
-        var char[]           payload   = [[ G(this).tx.payload   ]];
+        vector[]           byte plain;
+        vector[HASH_BYTES] byte back_hash = []..[[ G(this).tx.back_hash ]];
+        vector[]           byte payload   = []..[[ G(this).tx.payload   ]];
 
         is_genesis = [[ G(this).tx.back_hash == string.rep('\0',HASH_BYTES) ]];
         if is_genesis then
-            _assert(not this.source.NETWORK);
-            _assert(txs_n == 1);
+            _ceu_dbg_assert(not (source is BlockHashSource.Network));
+            _ceu_dbg_assert(txs_n == 1);
             [[
                 assert( G(this).tx.payload == '' )
                 assert( G(this).tx.nonce   == string.rep('\0',NONCE_BYTES) )
             ]];
             break;
 
-        else/if this.source.NETWORK or this.source.FILE then
-            var char[HASH_BYTES] nonce = [[ G(this).tx.nonce ]];
+        else/if (source is BlockHashSource.Network) or
+                (source is BlockHashSource.File)
+        then
+            vector[HASH_BYTES] byte nonce = []..[[ G(this).tx.nonce ]];
             plain = []..nonce..back_hash..payload;
 
-            var char[HASH_BYTES] tx_hash;
-            $tx_hash := HASH_BYTES;
-            _crypto_generichash((_byte&&)(_char&&)&&tx_hash, HASH_BYTES,
-                                (_byte&&)&&plain, $plain,
+            vector[HASH_BYTES] byte tx_hash;
+            _ceu_vector_setlen(&&tx_hash, HASH_BYTES, 1);
+            _crypto_generichash(&&tx_hash[0], HASH_BYTES,
+                                &&plain[0], $plain,
                                 null, 0);
 
             [[ G(this).tx_hash = @tx_hash ]];
-            if this.source.NETWORK then
+            if source is BlockHashSource.Network then
                 var bool ok = [[ G(this).tx_hash == G(this).tx.hash ]];
                 if not ok then
                     // received hash+nonce do not match
 #ifdef FREECHAINS_NO_MALICIOUS
-                    _assert(0);
+                    _ceu_dbg_assert(0);
 #endif
                     escape _ERR_REMOTE_BUG_OR_MALICIOUS;
                 end
             else
-                _assert(zeros_wanted <= _leading_zeros((_char&&)&&tx_hash,HASH_BYTES));
+                _ceu_dbg_assert(zeros_wanted <= _leading_zeros(&&tx_hash[0],HASH_BYTES));
 // TODO: change from "<=" to "=="
             end
         else
@@ -227,45 +183,45 @@ _assert(0);
 #endif
 
             // calculate nonce for the leading zeros
-            var byte[HASH_BYTES] tx_hash;
-#if 1
-            async/thread (plain,tx_hash,zeros_wanted)
+            vector[HASH_BYTES] byte tx_hash;
+#if 0
+            await async/thread (plain,tx_hash,zeros_wanted)
 #endif
             do
-                var int len;
+                var usize len;
                 atomic do
                     len = $plain;
                 end
-                _assert(len <= 1024);
+                _ceu_dbg_assert(len <= 1024);
 
-                var _byte[1024] plain2 = [];
-                _memcpy(plain2, (_byte&&)&&plain, len*sizeof(byte));;
+                vector[1024] _byte plain2 = _;
+                _memcpy(&&plain2[0], &&plain[0], len*sizeof(byte));;
 
-                var _byte[HASH_BYTES] tx_hash2 = [];
+                vector[HASH_BYTES] _byte tx_hash2 = _;
 
                 var int zeros_found = 0;
                 var u32 n = do
                     var u32 n_ = 0;
-                    loop b00 in 256 do loop b01 in 256 do loop b02 in 256 do loop b03 in 256 do
-                    loop b04 in 256 do loop b05 in 256 do loop b06 in 256 do loop b07 in 256 do
-                    loop b08 in 256 do loop b09 in 256 do loop b10 in 256 do loop b11 in 256 do
-                    loop b12 in 256 do loop b13 in 256 do loop b14 in 256 do loop b15 in 256 do
+                    loop b00 in [0->256] do loop b01 in [0->256] do loop b02 in [0->256] do loop b03 in [0->256] do
+                    loop b04 in [0->256] do loop b05 in [0->256] do loop b06 in [0->256] do loop b07 in [0->256] do
+                    loop b08 in [0->256] do loop b09 in [0->256] do loop b10 in [0->256] do loop b11 in [0->256] do
+                    loop b12 in [0->256] do loop b13 in [0->256] do loop b14 in [0->256] do loop b15 in [0->256] do
                         n_ = n_ + 1;
                         plain2[ 0]=b00; plain2[ 1]=b01; plain2[ 2]=b02; plain2[ 3]=b03;
                         plain2[ 4]=b04; plain2[ 5]=b05; plain2[ 6]=b06; plain2[ 7]=b07;
                         plain2[ 8]=b08; plain2[ 9]=b09; plain2[10]=b10; plain2[11]=b11;
                         plain2[12]=b12; plain2[13]=b13; plain2[14]=b14; plain2[15]=b15;
-                        _crypto_generichash(tx_hash2, HASH_BYTES,
-                                            plain2, len,
+                        _crypto_generichash(&&tx_hash2[0], HASH_BYTES,
+                                            &&plain2[0], len,
                                             null, 0);
-                        zeros_found = _leading_zeros(tx_hash2, HASH_BYTES);
+                        zeros_found = _leading_zeros(&&tx_hash2[0], HASH_BYTES);
                         if zeros_found >= zeros_wanted then
                             atomic do
-                                _ceu_vector_copy_buffer(&&plain, 0,
-                                                        plain2, len*sizeof(byte), 0);
-                                $tx_hash := HASH_BYTES;
-                                _ceu_vector_copy_buffer(&&tx_hash, 0,
-                                                        tx_hash2, HASH_BYTES*sizeof(byte), 0);
+                                _ceu_vector_buf_set(&&plain, 0,
+                                                    &&plain2[0], len*sizeof(byte));
+                                _ceu_vector_setlen(&&tx_hash, HASH_BYTES, 1);
+                                _ceu_vector_buf_set(&&tx_hash, 0,
+                                                    &&tx_hash2[0], HASH_BYTES*sizeof(byte));
                             end
                             escape n_;
                         end
@@ -277,10 +233,10 @@ _assert(0);
                 end;
                 _dbg(0, "client: POW rounds: %d\n", n);
             end
-
             [[ nonce = {} ]];
-            loop j in NONCE_BYTES do
-                [[ nonce[@(j+1)] = string.char(@(plain[j])) ]];
+            loop j in [1 -> NONCE_BYTES] do
+                var byte c = plain[j];
+                [[ nonce[@j] = string.char(@c) ]];
             end
             [[
                 G(this).tx.nonce = table.concat(nonce)
@@ -288,7 +244,7 @@ _assert(0);
             ]];
         end
 
-        if not this.source.NETWORK then
+        if not (source is BlockHashSource.Network) then
             [[
                 G(this).tx.hash = G(this).tx_hash
                 G(this).block.txs[@(txs_n-i)] = G(this).tx_hash
@@ -300,21 +256,23 @@ _assert(0);
     end
 
     // => BLOCK_HASH
-    do
-        var char[HASH_BYTES] block_hash;
-        $block_hash := HASH_BYTES;
+    do/_
+        vector[HASH_BYTES] byte block_hash;
+        _ceu_vector_setlen(&&block_hash, HASH_BYTES, 1);
 
+_printf("\t>1>\n");
         if is_genesis then
+_printf("\t>3>\n");
             [[ assert( G(this).block.tail_hash == nil ) ]];
 
-            var char[] plain = [[ G(this).chain.id ]];
-            _crypto_generichash((_byte&&)(_char&&)&&block_hash, HASH_BYTES,
-                                (_byte&&)(_char&&)&&plain, $plain,
+            vector[] byte plain = []..[[ G(this).chain.id ]];
+            _crypto_generichash(&&block_hash[0], HASH_BYTES,
+                                &&plain[0], $plain,
                                 null, 0);
-            var byte[HASH_BYTES] tx_hash;
-            $tx_hash := HASH_BYTES;
-            _crypto_generichash((_byte&&)&&tx_hash, HASH_BYTES,
-                                (_byte&&)(_char&&)&&block_hash, $block_hash,
+            vector[HASH_BYTES] byte tx_hash;
+            _ceu_vector_setlen(&&tx_hash, HASH_BYTES, 1);
+            _crypto_generichash(&&tx_hash[0], HASH_BYTES,
+                                &&block_hash[0], $block_hash,
                                 null, 0);
             [[
                 tx = G(this).block.txs[1]
@@ -322,11 +280,12 @@ _assert(0);
                 G(this).block.txs[1] = tx.hash
                 APP.txs[tx.hash] = tx
             ]];
+_printf("\t<3<\n");
         else
             //var int txs_n = [[ #G(this).block.txs ]]; // TODO: assert G(this).block.chain.limits.block
             if txs_n == 0 then
 // TODO: test-case
-_assert(0);
+_ceu_dbg_assert(0);
                 escape _ERR_REMOTE_BUG_OR_MALICIOUS;
             end
 
@@ -336,22 +295,24 @@ _assert(0);
                     G(this).block.tail_hash = APP.chains[G(this).block.chain_id].head_hash
                 end
             ]];
-            var char[] plain = [[ G(this).block.tail_hash ]];
-            loop i in txs_n do
-                var char[HASH_BYTES] tx_hash = [[ G(this).block.txs[@i+1] ]];
-                plain = []..plain..tx_hash;
+            vector[] byte plain = []..[[ G(this).block.tail_hash ]];
+            loop i in [1 -> txs_n] do
+                vector[HASH_BYTES] byte tx_hash = []..[[ G(this).block.txs[@i] ]];
+                plain = plain..tx_hash;
             end
 
-            _crypto_generichash((_byte&&)(_char&&)&&block_hash, HASH_BYTES,
-                                (_byte&&)(_char&&)&&plain, $plain,
+            _crypto_generichash(&&block_hash[0], HASH_BYTES,
+                                &&plain[0], $plain,
                                 null, 0);
         end
 
+_printf("\t|2|\n");
         [[
             --print('block',string.len(@block_hash),'\n'..tostring2(@block_hash))
             G(this).block.hash = @block_hash
             APP.blocks[G(this).block.hash] = G(this).block
         ]];
+_printf("\t<1<\n");
     end
 
     [[ ARGS = { block=G(this).block } ]];
@@ -359,337 +320,11 @@ _assert(0);
     escape _ERR_NONE;
 end
 
-class FS_read_10 with
-    var char[]& path;
-    // output [[ ARGS = { chain_id, head_hash } ]]
-    function (char[]& path)=>FS_read_10 run;
-do
-    function (char[]& path)=>FS_read_10 run do
-        this.path = &path;
-    end
-
-    [[
-        G(this) = {
-            chain_id = nil,
-            head     = nil,
-            base     = nil,
-        }
-    ]];
-
-    var UV_FS_open o = UV_FS_open.build(&this.path, _O_RDONLY, 0);
-    await o.ok;
-    if o.fd < 0 then
-        escape o.fd;
-    end
-
-    var _uv_stat_t stat = _uv_stat_t();
-    do UV_FS_fstat.run(&o, &stat);
-    var u64 size = stat.st_size;
-
-    var int off = 0;
-
-    // => HEADER
-    do
-        var byte[4] buf;
-        var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
-        _assert(buf[0] == MESSAGE_MAGIC_0);
-        _assert(buf[1] == MESSAGE_MAGIC_1);
-        _assert(buf[2] == 1);
-        _assert(buf[3] == 0);
-        _assert(n == 4);
-        off = off + 4;
-    end
-
-    // => CHAIN_ID
-    do
-        var u8[1] len_;
-        do
-            var int n = do UV_FS_read.run(&o,&len_,$$len_,off);
-            _assert(n == sizeof(u8));
-            off = off + 1;
-        end
-        var u8 len = len_[0];
-
-        var char[len] buf;
-        do
-            var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
-            _assert(n == len);
-            off = off + len;
-        end
-        [[ G(this).chain_id = @buf ]];
-    end
-
-    // => BLOCKS
-    loop do
-        if off >= size then
-            _assert(off == size);
-            break;  // EOF
-        end
-
-        [[
-            G(this).previous = G(this).block
-            G(this).block = {
-                txs = {},
-                tail_hash = (G(this).previous and G(this).previous.hash) or nil,
-            }
-        ]];
-
-        // => TXS
-        var u32 txs_n = 0;
-        do
-            // => TXS_N
-            var byte[sizeof(u32)] buf;
-            var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
-            if n <= 0 then
-                break;
-            end
-            _assert(n == sizeof(u32));
-            txs_n = *((u32&&)(_byte&&)&&buf);
-            off = off + sizeof(u32);
-        end
-        loop i in txs_n do
-            // => TXS[i]
-            [[
-                G(this).tx = {}
-                G(this).block.txs[@(i+1)] = G(this).tx
-            ]];
-
-            // => NONCE
-            var char[NONCE_BYTES] nonce;
-            do
-                var int n = do UV_FS_read.run(&o,&nonce,$$nonce,off);
-                _assert(n == NONCE_BYTES);
-                [[ G(this).tx.nonce = @nonce ]];
-                //[[ print('nonce','\n'..tostring2(G(this).tx.nonce)) ]];
-                off = off + NONCE_BYTES;
-            end
-
-            // => TX_BACH_HASH
-            var char[HASH_BYTES] tx_back_hash;
-            do
-                var int n = do UV_FS_read.run(&o,&tx_back_hash,$$tx_back_hash,off);
-                _assert(n == HASH_BYTES);
-                [[ G(this).tx.back_hash = @tx_back_hash ]];
-                //[[ print('back_hash','\n'..tostring2(G(this).tx.back_hash)) ]];
-                off = off + HASH_BYTES;
-            end
-
-            // => TX_PAYLOAD
-            var char[] payload;
-            do
-                var u32 payload_len = 0;
-                do
-                    var byte[sizeof(u32)] buf;
-                    var int n = do UV_FS_read.run(&o,&buf,$$buf,off);
-                    _assert(n == sizeof(u32));
-                    payload_len = *((u32&&)(_byte&&)&&buf);
-                    //[[ print('payload_len', @payload_len) ]];
-                    off = off + sizeof(u32);
-                end
-                do
-                    $payload := payload_len;
-                    var int n = do UV_FS_read.run(&o,&payload,payload_len,off);
-                    _assert(n == payload_len);
-                    [[ G(this).tx.payload = @payload ]];
-                    //[[ print('payload', G(this).tx.payload) ]];
-                    off = off + payload_len;
-                end
-            end
-        end
-
-        [[
-            G(this).block.chain_id = G(this).chain_id
-            ARGS = {
-                block = G(this).block,
-            }
-        ]];
-        var int ret = do BlockHash with
-            this.source = SourceBlockHash.FILE();
-        end;
-        _assert(ret == _ERR_NONE);
-
-        [[
-            if G(this).previous then
-                G(this).previous.up_hash = G(this).block.hash
-            end
-        ]];
-    end
-
-    [[
-        ARGS = {
-            chain_id  = G(this).chain_id,
-            head_hash = G(this).block.hash,
-        }
-    ]];
-    escape _ERR_NONE;
-end
-
-class FS_write_10 with
-    var char[]& path;
-    // input [[ ARGS = { chain_id } ]]
-    function (char[]& path)=>FS_write_10 run;
-do
-    function (char[]& path)=>FS_write_10 run do
-        this.path = &path;
-    end
-
-    #if 0
-    PS10
-    [i]/*BLOCK_HASH*/ (genesis)
-        TXS_N
-        [j]/*TX_HASH*/ NONCE TX_BACK_HASH TX_PAYLOAD_LEN TX_PAYLOAD
-        ...
-    ...
-    [n]/*BLOCK_HASH*/ (head)
-        ...
-    #endif
-
-    [[
-        chain = APP.chains[ ARGS.chain_id ]
-        t = GG.chain_head_base_size(chain.head_hash)
-        G(this) = {
-            base  = t.base,
-            chain = chain,
-        }
-    ]];
-
-    // create/truncate file
-    do
-        var int flags = _O_CREAT|_O_WRONLY|_O_TRUNC;
-        var _mode_t mode = _S_IRUSR|_S_IWUSR|_S_IRGRP|_S_IWGRP|_S_IROTH;
-        var UV_FS_open o = UV_FS_open.build(&this.path, flags, mode);
-        await o.ok;
-        if o.fd < 0 then
-            escape o.fd;
-        end
-    end
-
-    // <= (append)
-    var UV_FS_open o = UV_FS_open.build(&this.path, _O_APPEND|_O_WRONLY, 0);
-    await o.ok;
-    _assert(o.fd >= 0);
-
-    // <= HEADER
-    do
-        var byte[4] buf = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 1, 0];
-        var int n = do UV_FS_write.run(&o,&buf,$buf,0);
-        _assert(n == 4);
-    end
-
-    // <= CHAIN_ID
-    do
-        var u8 len = [[ string.len(G(this).chain.id) ]];
-        var byte[1] len_ = [len];
-        do
-            var int n = do UV_FS_write.run(&o,&len_,1,0);
-            _assert(n == sizeof(u8));
-        end
-
-        var char[len] buf = [[ G(this).chain.id ]];
-        do
-            var int n = do UV_FS_write.run(&o,&buf,$buf,0);
-            _assert(n == len);
-        end
-    end
-
-    // <= BLOCKS
-    loop do
-        // <= TXS
-        var u32 txs_n = [[ #G(this).base.txs ]];
-        do
-            // <= TXS_N
-            var char[sizeof(u32)] buf;
-            _ceu_vector_copy_buffer(&&buf, 0, (byte&&)&&txs_n, sizeof(u32), 1);
-            var int n = do UV_FS_write.run(&o,&buf,$buf,0);
-            _assert(n == sizeof(u32));
-        end
-        loop i in txs_n do
-            // <= TXS[i]
-            // TX_HASH NONCE TX_BACK_HASH TX_PAYLOAD_LEN TX_PAYLOAD
-
-            [[
-                tx_hash = G(this).base.txs[@i+1]
-                G(this).tx = assert(APP.txs[tx_hash])
-            ]];
-
-            // <= NONCE
-            do
-                var char[NONCE_BYTES] buf = [[ G(this).tx.nonce ]];
-                var int n = do UV_FS_write.run(&o,&buf,$buf,0);
-                _assert(n == NONCE_BYTES);
-            end
-
-            // <= TX_BACK_HASH
-            do
-                var char[HASH_BYTES] buf = [[ G(this).tx.back_hash ]];
-                var int n = do UV_FS_write.run(&o,&buf,$buf,0);
-                _assert(n == HASH_BYTES);
-            end
-
-            // <= TX_PAYLOAD_LEN
-            // <= TX_PAYLOAD
-            do
-                var u32 len = [[ string.len(G(this).tx.payload) ]];
-                // <= TX_PAYLOAD_LEN
-                do
-                    var char[sizeof(u32)] buf;
-                    _ceu_vector_copy_buffer(&&buf, 0, (byte&&)&&len, sizeof(u32), 1);
-                    var int n = do UV_FS_write.run(&o,&buf,$buf,0);
-                    _assert(n == sizeof(u32));
-                end
-                // <= TX_PAYLOAD
-                do
-                    var char[] buf = [[ G(this).tx.payload ]];
-                    var int n = do UV_FS_write.run(&o,&buf,$buf,0);
-                    _assert(n == len);
-                end
-            end
-        end
-
-        // NEXT BLOCK
-        var bool has = [[ G(this).base.up_hash ~= nil ]];
-        if not has then
-            break;
-        end
-        [[
-            --print('<<<', '|'..tostring2(G(this).base.hash)..'|')
-            G(this).base = assert(APP.blocks[G(this).base.up_hash])
-        ]];
-    end
-
-    escape _ERR_NONE;
-end
-
-native do
-    int SERVERS_ALIVE    = 0;
-    int CLIENTS_ALIVE    = 0;
-    int BLOCKS_RECEIVED  = 0;
-    int BLOCKS_RECREATED = 0;
-end
-spawn do
-    every 10s do
-        _printf("SERVERS_ALIVE = %d\n", _SERVERS_ALIVE);
-        _printf("CLIENTS_ALIVE = %d\n", _CLIENTS_ALIVE);
-    end
-end
-
-#include "client.ceu"
-
-#define UV_TCP_SERVER_HANDLER_CEU server.ceu
-#include "uv-server.ceu"
-
-[[
-    dofile'src/common.lua'
-    GG.ERR_REMOTE_BUG_OR_MALICIOUS = @((int)_ERR_REMOTE_BUG_OR_MALICIOUS)
-    GG.MESSAGE10_NOTSUB = @((int)_MESSAGE10_NOTSUB)
-]];
-
-class Init with
-do
+code/await Init (void) => void do
     var int n_chains = [[ #APP.chains ]];
-    loop i in n_chains do
+    loop i in [1 -> n_chains] do
         [[
-            chain = APP.chains[@i+1]
+            chain = APP.chains[@i]
             assert(not chain.head_hash)
         ]];
 
@@ -711,87 +346,39 @@ do
             }
         ]];
 
-        var int ret = do BlockHash with
-            this.source = SourceBlockHash.FILE();
-        end;
-        [[ APP.chains[@i+1].head_hash = ARGS.block.hash ]]
+_printf(">>> %d\n", i);
+        var int ret = await BlockHash(BlockHashSource.File());
+_printf("<<< %d\n", i);
+        [[ APP.chains[@i].head_hash = ARGS.block.hash ]]
+    end
+_ceu_dbg_assert(0);
+end
+
+#if 0
+native _SERVERS_ALIVE, _CLIENTS_ALIVE, _BLOCKS_RECEIVED, _BLOCKS_RECREATED;
+native/pre do
+    int SERVERS_ALIVE    = 0;
+    int CLIENTS_ALIVE    = 0;
+    int BLOCKS_RECEIVED  = 0;
+    int BLOCKS_RECREATED = 0;
+end
+spawn do
+    every 10s do
+        _printf("SERVERS_ALIVE = %d\n", _SERVERS_ALIVE);
+        _printf("CLIENTS_ALIVE = %d\n", _CLIENTS_ALIVE);
     end
 end
 
-input void ANY;
-class App with
-do
+#include "client.ceu"
+#endif
+
+code/await App (void) => FOREVER do
+    var int this = 0;
     [[
         G(this) = app_create()
         APP = G(this)
     ]];
-    par do
-        every ANY do
-            [[ APP = G(this) ]];
-        end
-    with
-        pool Client[] clients;
-        [[
-            G(clients) = {
-                is_txing   = {},
-                is_waiting = {},
-            }
-        ]];
-        par do
-            every global:go_client do
-                //[[ ARGS = { app=?, to_awake=?, chain_id=? } ]];
-                var bool is_me = [[ G(this) == ARGS.app ]];
-                if is_me then
-                    var bool is_txing =
-                                [[ G(clients).is_txing[ARGS.chain_id] ]];
-                    if is_txing then
-                        // wait...
-                        [[
-                            t = G(clients).is_waiting[ARGS.chain_id] or {}
-                            G(clients).is_waiting[ARGS.chain_id] = t
-                            for k, v in pairs(ARGS.to_awake) do
-                                t[k] = v
-                            end
-                        ]];
-                    else
-                        // transmit!
-                        [[
-                            G(clients).is_txing[ARGS.chain_id] = true
-                            ARGS = {
-                                chain_id = ARGS.chain_id,
-                                to_awake = ARGS.to_awake,
-                            }
-                        ]]
-                        spawn Client in clients;
-                    end
-                end
-            end
-        with
-            every global:ok_client do
-                //[[ ARGS = { app=?, chain_id=? } ]];
-                var bool is_me = [[ G(this) == ARGS.app ]];
-                if is_me then
-                    [[ G(clients).is_txing[ARGS.chain_id] = false ]];
-                    var bool is_waiting =
-                              [[ G(clients).is_waiting[ARGS.chain_id]~=nil ]];
-                    if is_waiting then
-                        [[
-                            ARGS.to_awake =
-                                G(clients).is_waiting[ARGS.chain_id]
-                            G(clients).is_waiting[ARGS.chain_id] = nil
-                        ]];
-//_assert(0);
-//- medir tempos
-//- remover locks
-//- medir tempos
-//- aplicar regra do e-mail
-// TODO: remover e ver se falha o tst-xx.ceu
-                        emit global:go_client;  // same ARGS
-                    end
-                end
-            end
-        end
-    end
+    await FOREVER;
 end
 
 #endif

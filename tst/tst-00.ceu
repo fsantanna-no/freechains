@@ -1,0 +1,44 @@
+#include "common.ceu"
+
+par/and do
+
+    spawn App();
+    [=[
+        dofile 'cfg/config.lua'
+    ]=];
+    await Init();
+
+    [[
+        CHAIN1 = GG.chain_flatten('||0|')
+        print'===> CLIENT'
+        print('>'..string.rep('=',78))
+        print(GG.chain_tostring('||0|'))
+        print('<'..string.rep('=',78))
+    ]];
+
+with
+
+#if 0
+    spawn App();
+    [[
+        dofile 'cfg/config.lua'
+    ]];
+    await Init();
+
+    [[
+        CHAIN2 = GG.chain_flatten('||0|')
+        print'===> SERVER'
+        print('>'..string.rep('=',78))
+        print(GG.chain_tostring('||0|'))
+        print('<'..string.rep('=',78))
+    ]];
+#endif
+
+end
+
+[[
+    assert( tostring2(CHAIN1) == tostring2(CHAIN2) )
+    print'OK!'
+]]
+
+escape 0;

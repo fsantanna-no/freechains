@@ -1,0 +1,12 @@
+#ifndef _SODIUM_CEU
+#define _SODIUM_CEU
+
+native/pure
+    _crypto_generichash;
+
+native/pre do
+    ##include <sodium.h>
+end
+
+#endif
+

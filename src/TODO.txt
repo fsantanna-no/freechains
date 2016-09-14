@@ -1,5 +1,6 @@
 #if 0
 = TODO:
+    - // TODO: TX_BACK_HAS => BLOCK_BACK_HASH
     - merkle tree of all TX_HASH
     - TXS_n => u16
     - remove COMMON, remove up_hash?
