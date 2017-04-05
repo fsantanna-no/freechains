@@ -4,15 +4,13 @@
 // 0->1
 ///////////////////////////////////////////////////////////////////////////////
 
-input void ANY;
-
 par/and do
 
 ///////////////////////////////////////////////////////////////////////////////
 // 0
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
+    spawn App();
     [=[
         dofile 'cfg/config.lua'
 
@@ -36,10 +34,10 @@ Ola Mundo!
         }
     ]=];
 
-    do Init;
+    await Init();
 
-    async do end;
-    do ClientMessages;
+    await async do end;
+    await ClientMessages();
     await 1s;
 
     [[
@@ -55,7 +53,7 @@ with
 // 1
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
+    spawn App();
     [[
         dofile 'cfg/config.lua'
         SERVER {
@@ -63,13 +61,13 @@ with
         }
     ]];
 
-    do Init;
+    await Init();
 
-    var char[] ip      = [[ APP.server.host[1] ]];
-    var int    port    = [[ APP.server.host[2] ]];
-    var int    backlog = [[ APP.server.backlog ]];
-    _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
-    var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
+    vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
+    var      int  port    = [[ APP.server.host[2] ]];
+    var      int  backlog = [[ APP.server.backlog ]];
+    _dbg(0, "server | listening in %s:%d", &&ip[0], port);
+    spawn UV_TCP_Server(&&ip[0], port, backlog);
 
     await 1s;
     [[
