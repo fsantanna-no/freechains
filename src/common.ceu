@@ -117,49 +117,49 @@ code/await BlockHash (var SourceBlockHash source) -> int
     // output [[ APP.block[hash]=blk APP.txs[hash]=txs ]]
 do
     [[
-        G({_ceu_mem}) = {
+        this = {
             block = ARGS.block,
             chain = APP.chains[ARGS.block.chain_id],
         }
-print('>>>', G({_ceu_mem}))
+print('>>>', this)
     ]];
         _printf(">>> BlockHash: %p/%p\n", {_ceu_mem}, {_ceu_mem->lua});
-[[ print('>1>', G({_ceu_mem})) ]]
+[[ print('>1>', this) ]]
 
     var bool is_genesis = false;
 
     // => TX_HASH
-    var int txs_n = [[ #G({_ceu_mem}).block.txs ]];
+    var int txs_n = [[ #this.block.txs ]];
     var int i;
     loop i in [0 -> txs_n[ do
-[[ print('>2>', G({_ceu_mem})) ]]
-        [[ G({_ceu_mem}).tx = G({_ceu_mem}).block.txs[@txs_n-i] ]];
+[[ print('>2>', this) ]]
+        [[ this.tx = this.block.txs[@txs_n-i] ]];
 
         if source is SourceBlockHash.Network then
             [[
-                assert( type(G({_ceu_mem}).tx) == 'string' )
-                G({_ceu_mem}).tx = G({_ceu_mem}).block.txs[G({_ceu_mem}).tx] or APP.txs[G({_ceu_mem}).tx]
-                assert( G({_ceu_mem}).tx.nonce ~= nil )
+                assert( type(this.tx) == 'string' )
+                this.tx = this.block.txs[this.tx] or APP.txs[this.tx]
+                assert( this.tx.nonce ~= nil )
             ]];
         else/if source is SourceBlockHash.File then
             [[
-                assert( type(G({_ceu_mem}).tx) == 'table' )
-                assert( G({_ceu_mem}).tx.nonce ~= nil )
+                assert( type(this.tx) == 'table' )
+                assert( this.tx.nonce ~= nil )
             ]];
         else/if source is SourceBlockHash.New then
             [[
-                assert( type(G({_ceu_mem}).tx) == 'table' )
-                assert( G({_ceu_mem}).tx.nonce == nil )
+                assert( type(this.tx) == 'table' )
+                assert( this.tx.nonce == nil )
             ]];
         else
             _ceu_dbg_assert(0);
         end
 
-        var u8 zeros_wanted = [[ G({_ceu_mem}).chain.zeros ]];
+        var u8 zeros_wanted = [[ this.chain.zeros ]];
 
         if source is SourceBlockHash.Network then
             vector[HASH_BYTES] byte tx_hash;
-            tx_hash = [] .. [[ G({_ceu_mem}).tx.hash ]];
+            tx_hash = [] .. [[ this.tx.hash ]];
             if zeros_wanted > _leading_zeros(&&tx_hash[0],HASH_BYTES) then
 // TODO: test-case to fail here
 // TODO: also change from ">" to "!="
@@ -168,23 +168,23 @@ _ceu_dbg_assert(0);
             end
         end
 
-[[ print('>3>', G({_ceu_mem})) ]]
+[[ print('>3>', this) ]]
         vector[] byte pln;
-        vector[HASH_BYTES] byte back_hash = [] .. [[ G({_ceu_mem}).tx.back_hash ]];
-        vector[] byte           payload   = [] .. [[ G({_ceu_mem}).tx.payload   ]];
+        vector[HASH_BYTES] byte back_hash = [] .. [[ this.tx.back_hash ]];
+        vector[] byte           payload   = [] .. [[ this.tx.payload   ]];
 
-        is_genesis = [[ G({_ceu_mem}).tx.back_hash == string.rep('\0',HASH_BYTES) ]];
+        is_genesis = [[ this.tx.back_hash == string.rep('\0',HASH_BYTES) ]];
         if is_genesis then
             _ceu_dbg_assert(not (source is SourceBlockHash.Network));
             _ceu_dbg_assert(txs_n == 1);
             [[
-                assert( G({_ceu_mem}).tx.payload == '' )
-                assert( G({_ceu_mem}).tx.nonce   == string.rep('\0',NONCE_BYTES) )
+                assert( this.tx.payload == '' )
+                assert( this.tx.nonce   == string.rep('\0',NONCE_BYTES) )
             ]];
             break;
 
         else/if (source is SourceBlockHash.Network) or (source is SourceBlockHash.File) then
-            vector[HASH_BYTES] byte nonce = [] .. [[ G({_ceu_mem}).tx.nonce ]];
+            vector[HASH_BYTES] byte nonce = [] .. [[ this.tx.nonce ]];
             pln = []..nonce..back_hash..payload;
 
             vector[HASH_BYTES] byte tx_hash;
@@ -193,9 +193,9 @@ _ceu_dbg_assert(0);
                                 &&pln[0], $pln,
                                 null, 0);
 
-            [[ G({_ceu_mem}).tx_hash = @tx_hash ]];
+            [[ this.tx_hash = @tx_hash ]];
             if source is SourceBlockHash.Network then
-                var bool ok = [[ G({_ceu_mem}).tx_hash == G({_ceu_mem}).tx.hash ]];
+                var bool ok = [[ this.tx_hash == this.tx.hash ]];
                 if not ok then
                     // received hash+nonce do not match
 #ifdef FREECHAINS_NO_MALICIOUS
@@ -222,11 +222,11 @@ _ceu_dbg_assert(0);
                 end
             end
 #endif
-[[ print('>4>', G({_ceu_mem})) ]]
+[[ print('>4>', this) ]]
 
             // calculate nonce for the leading zeros
             vector[HASH_BYTES] byte tx_hash;
-#if 0
+#if 1
             await async/thread (pln,tx_hash,zeros_wanted)
 #endif
             do
@@ -291,7 +291,7 @@ _ceu_dbg_assert(0);
                 end;
                 _dbg(0, "client: POW rounds: %d\n", n);
             end
-[[ print('>Z>', G({_ceu_mem})) ]]
+[[ print('>Z>', this) ]]
 
             [[ nonce = {} ]];
             var int j;
@@ -300,20 +300,20 @@ _ceu_dbg_assert(0);
             end
 _printf(">>> later: %p/%p\n", {_ceu_mem}, {_ceu_mem->lua});
             [[
-print('>>>', G({_ceu_mem}))
-                G({_ceu_mem}).tx.nonce = table.concat(nonce)
-                G({_ceu_mem}).tx_hash = @tx_hash
+print('>>>', this)
+                this.tx.nonce = table.concat(nonce)
+                this.tx_hash = @tx_hash
             ]];
         end
 
         if not (source is SourceBlockHash.Network) then
             [[
-                G({_ceu_mem}).tx.hash = G({_ceu_mem}).tx_hash
-                G({_ceu_mem}).block.txs[@(txs_n-i)] = G({_ceu_mem}).tx_hash
+                this.tx.hash = this.tx_hash
+                this.block.txs[@(txs_n-i)] = this.tx_hash
             ]];
         end
         [[
-            APP.txs[G({_ceu_mem}).tx_hash] = G({_ceu_mem}).tx
+            APP.txs[this.tx_hash] = this.tx
         ]];
     end
 
@@ -323,9 +323,9 @@ print('>>>', G({_ceu_mem}))
         _ceu_vector_setlen(&&block_hash,HASH_BYTES,1);
 
         if is_genesis then
-            [[ assert( G({_ceu_mem}).block.tail_hash == nil ) ]];
+            [[ assert( this.block.tail_hash == nil ) ]];
 
-            vector[] byte pln = [] .. [[ G({_ceu_mem}).chain.id ]];
+            vector[] byte pln = [] .. [[ this.chain.id ]];
             _crypto_generichash(&&block_hash[0], HASH_BYTES,
                                 &&pln[0], $pln,
                                 null, 0);
@@ -335,13 +335,13 @@ print('>>>', G({_ceu_mem}))
                                 &&block_hash[0], $block_hash,
                                 null, 0);
             [[
-                tx = G({_ceu_mem}).block.txs[1]
+                tx = this.block.txs[1]
                 tx.hash = @tx_hash
-                G({_ceu_mem}).block.txs[1] = tx.hash
+                this.block.txs[1] = tx.hash
                 APP.txs[tx.hash] = tx
             ]];
         else
-            //var int txs_n = [[ #G({_ceu_mem}).block.txs ]]; // TODO: assert G({_ceu_mem}).block.chain.limits.block
+            //var int txs_n = [[ #this.block.txs ]]; // TODO: assert this.block.chain.limits.block
             if txs_n == 0 then
 // TODO: test-case
 _ceu_dbg_assert(0);
@@ -349,15 +349,15 @@ _ceu_dbg_assert(0);
             end
 
             [[
-                if not G({_ceu_mem}).block.tail_hash then
+                if not this.block.tail_hash then
                     -- relink only after the yielding parts, avoid "head_hash" race
-                    G({_ceu_mem}).block.tail_hash = APP.chains[G({_ceu_mem}).block.chain_id].head_hash
+                    this.block.tail_hash = APP.chains[this.block.chain_id].head_hash
                 end
             ]];
-            vector[] byte pln = [] .. [[ G({_ceu_mem}).block.tail_hash ]];
+            vector[] byte pln = [] .. [[ this.block.tail_hash ]];
             var int i;
             loop i in [0 -> txs_n[ do
-                vector[HASH_BYTES] byte tx_hash = [] .. [[ G({_ceu_mem}).block.txs[@i+1] ]];
+                vector[HASH_BYTES] byte tx_hash = [] .. [[ this.block.txs[@i+1] ]];
                 pln = pln..tx_hash;
             end
 
@@ -368,12 +368,12 @@ _ceu_dbg_assert(0);
 
         [[
             --print('block',string.len(@block_hash),'\n'..tostring2(@block_hash))
-            G({_ceu_mem}).block.hash = @block_hash
-            APP.blocks[G({_ceu_mem}).block.hash] = G({_ceu_mem}).block
+            this.block.hash = @block_hash
+            APP.blocks[this.block.hash] = this.block
         ]];
     end
 
-    [[ ARGS = { block=G({_ceu_mem}).block } ]];
+    [[ ARGS = { block=this.block } ]];
 
     escape _ERR_NONE;
 end
@@ -382,7 +382,7 @@ code/await FS_read_10 (vector&[] byte path) -> int
     // output [[ ARGS = { chain_id, head_hash } ]]
 do
     [[
-        G({_ceu_mem}) = {
+        this = {
             chain_id = nil,
             head     = nil,
             base     = nil,
@@ -431,7 +431,7 @@ do
                     _ceu_dbg_assert(n == (len as ssize));
                     off = off + len;
                 end
-                [[ G({_ceu_mem}).chain_id = @buf ]];
+                [[ this.chain_id = @buf ]];
             end
 
             // => BLOCKS
@@ -442,10 +442,10 @@ do
                 end
 
                 [[
-                    G({_ceu_mem}).previous = G({_ceu_mem}).block
-                    G({_ceu_mem}).block = {
+                    this.previous = this.block
+                    this.block = {
                         txs = {},
-                        tail_hash = (G({_ceu_mem}).previous and G({_ceu_mem}).previous.hash) or nil,
+                        tail_hash = (this.previous and this.previous.hash) or nil,
                     }
                 ]];
 
@@ -466,8 +466,8 @@ do
                 loop i in [0 -> txs_n[ do
                     // => TXS[i]
                     [[
-                        G({_ceu_mem}).tx = {}
-                        G({_ceu_mem}).block.txs[@(i+1)] = G({_ceu_mem}).tx
+                        this.tx = {}
+                        this.block.txs[@(i+1)] = this.tx
                     ]];
 
                     // => NONCE
@@ -475,8 +475,8 @@ do
                     do
                         var ssize n = await UV_FS_Read(&f!.file,&nonce,$$nonce,off);
                         _ceu_dbg_assert(n == NONCE_BYTES);
-                        [[ G({_ceu_mem}).tx.nonce = @nonce ]];
-                        //[[ print('nonce','\n'..tostring2(G({_ceu_mem}).tx.nonce)) ]];
+                        [[ this.tx.nonce = @nonce ]];
+                        //[[ print('nonce','\n'..tostring2(this.tx.nonce)) ]];
                         off = off + NONCE_BYTES;
                     end
 
@@ -485,8 +485,8 @@ do
                     do
                         var ssize n = await UV_FS_Read(&f!.file,&tx_back_hash,$$tx_back_hash,off);
                         _ceu_dbg_assert(n == HASH_BYTES);
-                        [[ G({_ceu_mem}).tx.back_hash = @tx_back_hash ]];
-                        //[[ print('back_hash','\n'..tostring2(G({_ceu_mem}).tx.back_hash)) ]];
+                        [[ this.tx.back_hash = @tx_back_hash ]];
+                        //[[ print('back_hash','\n'..tostring2(this.tx.back_hash)) ]];
                         off = off + HASH_BYTES;
                     end
 
@@ -506,33 +506,33 @@ do
                             _ceu_vector_setlen(&&payload,payload_len,1);
                             var ssize n = await UV_FS_Read(&f!.file,&payload,payload_len as usize,off);
                             _ceu_dbg_assert(n == (payload_len as ssize));
-                            [[ G({_ceu_mem}).tx.payload = @payload ]];
-                            //[[ print('payload', G({_ceu_mem}).tx.payload) ]];
+                            [[ this.tx.payload = @payload ]];
+                            //[[ print('payload', this.tx.payload) ]];
                             off = off + (payload_len as usize);
                         end
                     end
                 end
 
                 [[
-                    G({_ceu_mem}).block.chain_id = G({_ceu_mem}).chain_id
+                    this.block.chain_id = this.chain_id
                     ARGS = {
-                        block = G({_ceu_mem}).block,
+                        block = this.block,
                     }
                 ]];
                 var int ret = await BlockHash(SourceBlockHash.File());
                 _ceu_dbg_assert(ret == _ERR_NONE);
 
                 [[
-                    if G({_ceu_mem}).previous then
-                        G({_ceu_mem}).previous.up_hash = G({_ceu_mem}).block.hash
+                    if this.previous then
+                        this.previous.up_hash = this.block.hash
                     end
                 ]];
             end
 
             [[
                 ARGS = {
-                    chain_id  = G({_ceu_mem}).chain_id,
-                    head_hash = G({_ceu_mem}).block.hash,
+                    chain_id  = this.chain_id,
+                    head_hash = this.block.hash,
                 }
             ]];
             escape _ERR_NONE;
@@ -557,7 +557,7 @@ do
     [[
         chain = APP.chains[ ARGS.chain_id ]
         t = GG.chain_head_base_size(chain.head_hash)
-        G({_ceu_mem}) = {
+        this = {
             base  = t.base,
             chain = chain,
         }
@@ -589,14 +589,14 @@ do
 
         // <= CHAIN_ID
         do
-            var byte len = [[ string.len(G({_ceu_mem}).chain.id) ]];
+            var byte len = [[ string.len(this.chain.id) ]];
             vector[1] byte len_ = [len];
             do
                 var ssize n = await UV_FS_Write(&f!.file,&len_,1,0);
                 _ceu_dbg_assert(n == 1);
             end
 
-            vector[len] byte buf = [] .. [[ G({_ceu_mem}).chain.id ]];
+            vector[len] byte buf = [] .. [[ this.chain.id ]];
             do
                 var ssize n = await UV_FS_Write(&f!.file,&buf,$buf,0);
                 _ceu_dbg_assert(n == (len as ssize));
@@ -606,7 +606,7 @@ do
         // <= BLOCKS
         loop do
             // <= TXS
-            var u32 txs_n = [[ #G({_ceu_mem}).base.txs ]];
+            var u32 txs_n = [[ #this.base.txs ]];
             do
                 // <= TXS_N
                 vector[sizeof(u32)] byte buf;
@@ -621,20 +621,20 @@ do
                 // TX_HASH NONCE TX_BACK_HASH TX_PAYLOAD_LEN TX_PAYLOAD
 
                 [[
-                    tx_hash = G({_ceu_mem}).base.txs[@i+1]
-                    G({_ceu_mem}).tx = assert(APP.txs[tx_hash])
+                    tx_hash = this.base.txs[@i+1]
+                    this.tx = assert(APP.txs[tx_hash])
                 ]];
 
                 // <= NONCE
                 do
-                    vector[NONCE_BYTES] byte buf = [] .. [[ G({_ceu_mem}).tx.nonce ]];
+                    vector[NONCE_BYTES] byte buf = [] .. [[ this.tx.nonce ]];
                     var ssize n = await UV_FS_Write(&f!.file,&buf,$buf,0);
                     _ceu_dbg_assert(n == NONCE_BYTES);
                 end
 
                 // <= TX_BACK_HASH
                 do
-                    vector[HASH_BYTES] byte buf = [] .. [[ G({_ceu_mem}).tx.back_hash ]];
+                    vector[HASH_BYTES] byte buf = [] .. [[ this.tx.back_hash ]];
                     var ssize n = await UV_FS_Write(&f!.file,&buf,$buf,0);
                     _ceu_dbg_assert(n == HASH_BYTES);
                 end
@@ -642,7 +642,7 @@ do
                 // <= TX_PAYLOAD_LEN
                 // <= TX_PAYLOAD
                 do
-                    var u32 len = [[ string.len(G({_ceu_mem}).tx.payload) ]];
+                    var u32 len = [[ string.len(this.tx.payload) ]];
                     // <= TX_PAYLOAD_LEN
                     do
                         vector[sizeof(u32)] byte buf;
@@ -653,7 +653,7 @@ do
                     end
                     // <= TX_PAYLOAD
                     do
-                        vector[] byte buf = [] .. [[ G({_ceu_mem}).tx.payload ]];
+                        vector[] byte buf = [] .. [[ this.tx.payload ]];
                         var ssize n = await UV_FS_Write(&f!.file,&buf,$buf,0);
                         _ceu_dbg_assert(n == (len as ssize));
                     end
@@ -661,13 +661,13 @@ do
             end
 
             // NEXT BLOCK
-            var bool has = [[ G({_ceu_mem}).base.up_hash ~= nil ]];
+            var bool has = [[ this.base.up_hash ~= nil ]];
             if not has then
                 break;
             end
             [[
-                --print('<<<', '|'..tostring2(G({_ceu_mem}).base.hash)..'|')
-                G({_ceu_mem}).base = assert(APP.blocks[G({_ceu_mem}).base.up_hash])
+                --print('<<<', '|'..tostring2(this.base.hash)..'|')
+                this.base = assert(APP.blocks[this.base.up_hash])
             ]];
         end
 
@@ -733,47 +733,39 @@ do
         dofile'src/common.lua'
         GG.ERR_REMOTE_BUG_OR_MALICIOUS = @(_ERR_REMOTE_BUG_OR_MALICIOUS as int)
         GG.MESSAGE10_NOTSUB = @(_MESSAGE10_NOTSUB as int)
-
-        G({_ceu_mem}) = app_create()
-        APP = G({_ceu_mem})
+        APP = app_create()
     ]];
-    par do
-        every ANY do
-            [[ APP = G({_ceu_mem}) ]];
-        end
-    with
 #if 0
-        await FOREVER;
+    await FOREVER;
 #else
-        pool[3] Client clients;
-        every outer.go_client do
-            var bool is_me = [[ G({_ceu_mem}) == ARGS.app ]];
-            if is_me then
-            [[
-                --ARGS = {
-                    --app      = ?,
-                    --chain_id = ?,
-                --}
+    pool[3] Client clients;
+    every outer.go_client do
+        var bool is_me = [[ this == ARGS.app ]];
+        if is_me then
+        [[
+            --ARGS = {
+                --app      = ?,
+                --chain_id = ?,
+            --}
 chain = assert(APP.chains[ARGS.chain_id])
 ARGS.block = assert(APP.blocks[chain.head_hash])
 ARGS.chain = chain
-            ]];
-                var&? Client c_new = spawn Client() in clients;
-                _ceu_dbg_assert(c_new?);    // HACK_1
+        ]];
+            var&? Client c_new = spawn Client() in clients;
+            _ceu_dbg_assert(c_new?);    // HACK_1
 
-                // kill last/idle client
-                var int i = 0;
-                var&? Client c;
-                loop c in clients do
-                    i = i + 1;
-                    if &&c!!=&&c_new! and i==3 then
-                        kill c;
-                    end
+            // kill last/idle client
+            var int i = 0;
+            var&? Client c;
+            loop c in clients do
+                i = i + 1;
+                if &&c!!=&&c_new! and i==3 then
+                    kill c;
                 end
             end
         end
-#endif
     end
+#endif
 end
 
 #endif
