@@ -1,28 +1,45 @@
-###############################################################################
-# EDIT
-###############################################################################
+#CEU_DIR     = $(error set absolute path to "<ceu>" repository)
+#CEU_SDL_DIR = $(error set absolute path to "<ceu-libuv>" repository)
+CEU_DIR    = /data/ceu/ceu
+CEU_UV_DIR = /data/ceu/ceu-libuv
 
-C_FLAGS ?= -DCEU_DEBUG -DDEBUG -g
-UV_DIR = /data/ceu/ceu-libuv
-#UV_DIR ?= $(error set absolute path to "<ceu-sdl>" repository)
+all:
+	ceu --pre --pre-args="-I$(CEU_DIR)/include -I$(CEU_UV_DIR)/include -Isrc/" \
+	          --pre-input=$(CEU_SRC)                                           \
+	    --ceu --ceu-features-lua=true --ceu-features-thread=true               \
+	          --ceu-err-unused=pass --ceu-err-uninitialized=pass               \
+	          --ceu-line-directives=false \
+	    --env --env-types=$(CEU_DIR)/env/types.h                               \
+	          --env-threads=$(CEU_UV_DIR)/env/threads.h                        \
+	          --env-main=$(CEU_DIR)/env/main.c  --env-output=/tmp/x.c                                \
+	    --cc --cc-args="-lm -llua5.3 -luv -lsodium -g"							   \
+	         --cc-output=freechains
 
-###############################################################################
-# DO NOT EDIT
-###############################################################################
+pre:
+	ceu --pre --pre-args="-I$(CEU_DIR)/include -I$(CEU_UV_DIR)/include -Isrc/" \
+	          --pre-input=$(CEU_SRC)  --pre-output=/tmp/x.ceu
 
-OUT_DIR = build
-SRC = src/main.ceu
-C_FLAGS += -Isrc/ -llua5.3 -lsodium
+ceu:
+	ceu --ceu --ceu-input=/tmp/x.ceu --ceu-features-lua=true --ceu-features-thread=true               \
+	          --ceu-err-unused=pass --ceu-err-uninitialized=pass               \
+	          --ceu-line-directives=false \
+	    --env --env-types=$(CEU_DIR)/env/types.h                               \
+	          --env-threads=$(CEU_UV_DIR)/env/threads.h                        \
+	          --env-main=$(CEU_DIR)/env/main.c  --env-output=/tmp/x.c                                \
+	    --cc --cc-args="-lm -llua5.3 -luv -lsodium -g"							   \
+	         --cc-output=freechains
 
-_all: all
+c:
+	ceu --cc --cc-input=/tmp/x.c --cc-args="-lm -llua5.3 -luv -lsodium -g"							   \
+	         --cc-output=freechains
 
 tests:
-	for i in tst/*.ceu; do					\
-		echo;						\
-		echo "#####################################";	\
-		echo File: "$$i";				\
-		echo "#####################################";	\
-		make SRC=$$i all || exit 1;			\
+	for i in tst/*.ceu; do                               \
+		echo;                                            \
+		echo "#####################################";    \
+		echo File: "$$i";                                \
+		echo "#####################################";    \
+		make CEU_SRC=$$i c || exit 1;                  \
 		if [ "$$i" = "tst/tst-32.ceu" ]; then break; fi; \
 	done
 
@@ -45,8 +62,3 @@ tests:
 #real	0m39.997s
 #user	0m15.252s
 #sys	0m0.588s
-
-
-
-
-include $(UV_DIR)/Makefile
