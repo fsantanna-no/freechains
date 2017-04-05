@@ -121,7 +121,10 @@ do
             block = ARGS.block,
             chain = APP.chains[ARGS.block.chain_id],
         }
+print('>>>', G({_ceu_mem}))
     ]];
+        _printf(">>> BlockHash: %p/%p\n", {_ceu_mem}, {_ceu_mem->lua});
+[[ print('>1>', G({_ceu_mem})) ]]
 
     var bool is_genesis = false;
 
@@ -129,6 +132,7 @@ do
     var int txs_n = [[ #G({_ceu_mem}).block.txs ]];
     var int i;
     loop i in [0 -> txs_n[ do
+[[ print('>2>', G({_ceu_mem})) ]]
         [[ G({_ceu_mem}).tx = G({_ceu_mem}).block.txs[@txs_n-i] ]];
 
         if source is SourceBlockHash.Network then
@@ -164,6 +168,7 @@ _ceu_dbg_assert(0);
             end
         end
 
+[[ print('>3>', G({_ceu_mem})) ]]
         vector[] byte pln;
         vector[HASH_BYTES] byte back_hash = [] .. [[ G({_ceu_mem}).tx.back_hash ]];
         vector[] byte           payload   = [] .. [[ G({_ceu_mem}).tx.payload   ]];
@@ -217,10 +222,11 @@ _ceu_dbg_assert(0);
                 end
             end
 #endif
+[[ print('>4>', G({_ceu_mem})) ]]
 
             // calculate nonce for the leading zeros
             vector[HASH_BYTES] byte tx_hash;
-#if 1
+#if 0
             await async/thread (pln,tx_hash,zeros_wanted)
 #endif
             do
@@ -285,14 +291,16 @@ _ceu_dbg_assert(0);
                 end;
                 _dbg(0, "client: POW rounds: %d\n", n);
             end
+[[ print('>Z>', G({_ceu_mem})) ]]
 
             [[ nonce = {} ]];
             var int j;
             loop j in [0 -> NONCE_BYTES[ do
-                //[[ nonce[@(j+1)] = string.char(@pln[j]) ]];
-_ceu_dbg_assert(0); // pln
+                [[ nonce[@(j+1)] = string.char(@pln[j]) ]];
             end
+_printf(">>> later: %p/%p\n", {_ceu_mem}, {_ceu_mem->lua});
             [[
+print('>>>', G({_ceu_mem}))
                 G({_ceu_mem}).tx.nonce = table.concat(nonce)
                 G({_ceu_mem}).tx_hash = @tx_hash
             ]];
@@ -685,12 +693,6 @@ end
 #include "server.ceu"
 #include "uv/tcp-server.ceu"
 
-[[
-    dofile'src/common.lua'
-    GG.ERR_REMOTE_BUG_OR_MALICIOUS = @(_ERR_REMOTE_BUG_OR_MALICIOUS as int)
-    GG.MESSAGE10_NOTSUB = @(_MESSAGE10_NOTSUB as int)
-]];
-
 code/await Init (void) -> void
 do
     var int n_chains = [[ #APP.chains ]];
@@ -728,6 +730,10 @@ input void ANY;
 code/await App (void) -> void
 do
     [[
+        dofile'src/common.lua'
+        GG.ERR_REMOTE_BUG_OR_MALICIOUS = @(_ERR_REMOTE_BUG_OR_MALICIOUS as int)
+        GG.MESSAGE10_NOTSUB = @(_MESSAGE10_NOTSUB as int)
+
         G({_ceu_mem}) = app_create()
         APP = G({_ceu_mem})
     ]];
