@@ -1,3 +1,7 @@
+- lock
+- remover asyncs
+- eliminar tempos de espera dos testes
+
 #if 0
 = TODO:
     - merkle tree of all TX_HASH

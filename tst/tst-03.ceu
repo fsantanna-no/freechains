@@ -4,170 +4,195 @@
 // 0->1->2->0
 ///////////////////////////////////////////////////////////////////////////////
 
+[[ dofile'src/common.lua' ]]
+
+vector[] byte chain0;
+vector[] byte chain1;
+vector[] byte chain2;
+
+var int chain0_len = _;
+var int chain1_len = _;
+var int chain2_len = _;
+
 par/and do
 
 ///////////////////////////////////////////////////////////////////////////////
 // 0
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
-    [=[
-        dofile 'cfg/config.lua'
+    lua[] do
+        spawn App();
+        [=[
+            dofile 'cfg/config.lua'
 
-        SERVER {
-            host = { '127.0.0.1', '8330' },
-        }
+            SERVER {
+                host = { '127.0.0.1', '8330' },
+            }
 
-        CLIENT {
-            peers = {
-                {
-                    host = { '127.0.0.1', '8331' },
+            CLIENT {
+                peers = {
+                    {
+                        host = { '127.0.0.1', '8331' },
+                    },
                 },
-            },
-        }
+            }
 
-        MESSAGE {
-            id = '1.0',
-            chain = {
-                key   = '',
-                zeros = 0,
-            },
-            payload = [[0.1]],
-        }
-        MESSAGE {
-            id = '1.0',
-            chain = {
-                key   = '',
-                zeros = 0,
-            },
-            payload = [[0.2]],
-        }
-    ]=];
+            MESSAGE {
+                id = '1.0',
+                chain = {
+                    key   = '',
+                    zeros = 0,
+                },
+                payload = [[0.1]],
+            }
+            MESSAGE {
+                id = '1.0',
+                chain = {
+                    key   = '',
+                    zeros = 0,
+                },
+                payload = [[0.2]],
+            }
+        ]=];
 
-    do Init;
+        await Init();
 
-    var char[] ip      = [[ APP.server.host[1] ]];
-    var int    port    = [[ APP.server.host[2] ]];
-    var int    backlog = [[ APP.server.backlog ]];
-    _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
-    var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
+        vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
+        var      int  port    = [[ APP.server.host[2] ]];
+        var      int  backlog = [[ APP.server.backlog ]];
+        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
+        spawn UV_TCP_Server(&&ip[0], port, backlog);
 
-    async do end;
-    do ClientMessages;
-    await 4s;
+        await async do end;
+        await ClientMessages();
+        await 4s;
 
-    [[
-        CHAIN0 = GG.chain_flatten('||0|')
-        print'===> 0'
-        print('>'..string.rep('=',78))
-        print(tostring2(CHAIN0))
-        print('<'..string.rep('=',78))
-    ]];
+        [[
+            chain0 = GG.chain_flatten('||0|')
+            print'===> 0'
+            print('>'..string.rep('=',78))
+            print(tostring2(chain0))
+            print('<'..string.rep('=',78))
+        ]];
+        chain0 = []..[[tostring2(chain0)]];
+        chain0_len = [[#chain0]];
+    end
+
 with
 
 ///////////////////////////////////////////////////////////////////////////////
 // 1
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
-    [=[
-        dofile 'cfg/config.lua'
+    lua[] do
+        spawn App();
+        [=[
+            dofile 'cfg/config.lua'
 
-        SERVER {
-            host = { '127.0.0.1', '8331' },
-        }
+            SERVER {
+                host = { '127.0.0.1', '8331' },
+            }
 
-        CLIENT {
-            peers = {
-                {
-                    host = { '127.0.0.1', '8332' },
+            CLIENT {
+                peers = {
+                    {
+                        host = { '127.0.0.1', '8332' },
+                    },
                 },
-            },
-        }
+            }
 
-        MESSAGE {
-            id = '1.0',
-            chain = {
-                key   = '',
-                zeros = 0,
-            },
-            payload = [[1.1]],
-        }
-        MESSAGE {
-            id = '1.0',
-            chain = {
-                key   = '',
-                zeros = 0,
-            },
-            payload = [[1.2]],
-        }
-    ]=];
+            MESSAGE {
+                id = '1.0',
+                chain = {
+                    key   = '',
+                    zeros = 0,
+                },
+                payload = [[1.1]],
+            }
+            MESSAGE {
+                id = '1.0',
+                chain = {
+                    key   = '',
+                    zeros = 0,
+                },
+                payload = [[1.2]],
+            }
+        ]=];
 
-    do Init;
+        await Init();
 
-    var char[] ip      = [[ APP.server.host[1] ]];
-    var int    port    = [[ APP.server.host[2] ]];
-    var int    backlog = [[ APP.server.backlog ]];
-    _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
-    var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
+        vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
+        var      int  port    = [[ APP.server.host[2] ]];
+        var      int  backlog = [[ APP.server.backlog ]];
+        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
+        spawn UV_TCP_Server(&&ip[0], port, backlog);
 
-    await 1s;
-    do ClientMessages;
-    await 1s;
+        await 1s;
+        await ClientMessages();
+        await 1s;
 
-    [[
-        CHAIN1 = GG.chain_flatten('||0|')
-        print'===> 1'
-        print('>'..string.rep('=',78))
-        print(tostring2(CHAIN1))
-        print('<'..string.rep('=',78))
-    ]];
+        [[
+            chain1 = GG.chain_flatten('||0|')
+            print'===> 1'
+            print('>'..string.rep('=',78))
+            print(tostring2(chain1))
+            print('<'..string.rep('=',78))
+        ]];
+        chain1 = []..[[tostring2(chain1)]];
+        chain1_len = [[#chain1]];
+    end
+
 with
 
 ///////////////////////////////////////////////////////////////////////////////
 // 2
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
-    [[
-        dofile 'cfg/config.lua'
+    lua[] do
+        spawn App();
+        [[
+            dofile 'cfg/config.lua'
 
-        SERVER {
-            host = { '127.0.0.1', '8332' },
-        }
+            SERVER {
+                host = { '127.0.0.1', '8332' },
+            }
 
-        CLIENT {
-            peers = {
-                {
-                    host = { '127.0.0.1', '8330' },
+            CLIENT {
+                peers = {
+                    {
+                        host = { '127.0.0.1', '8330' },
+                    },
                 },
-            },
-        }
+            }
 
-    ]];
+        ]];
 
-    do Init;
+        await Init();
 
-    var char[] ip      = [[ APP.server.host[1] ]];
-    var int    port    = [[ APP.server.host[2] ]];
-    var int    backlog = [[ APP.server.backlog ]];
-    _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
-    var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
+        vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
+        var      int  port    = [[ APP.server.host[2] ]];
+        var      int  backlog = [[ APP.server.backlog ]];
+        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
+        spawn UV_TCP_Server(&&ip[0], port, backlog);
 
-    await 5s;
-    [[
-        CHAIN2 = GG.chain_flatten('||0|')
-        print'===> 2'
-        print('>'..string.rep('=',78))
-        print(tostring2(CHAIN2))
-        print('<'..string.rep('=',78))
-    ]];
+        await 5s;
+        [[
+            chain2 = GG.chain_flatten('||0|')
+            print'===> 2'
+            print('>'..string.rep('=',78))
+            print(tostring2(chain2))
+            print('<'..string.rep('=',78))
+        ]];
+        chain2 = []..[[tostring2(chain2)]];
+        chain2_len = [[#chain2]];
+    end
+
 end
 
 [[
-    assert(#CHAIN0==3 and #CHAIN1==3 and #CHAIN2==3)
-    assert( tostring2(CHAIN0) == tostring2(CHAIN1) )
-    assert( tostring2(CHAIN1) == tostring2(CHAIN2) )
+    assert(@chain0_len==3 and @chain1_len==3 and @chain2_len==3)
+    assert(@chain0 == @chain1)
+    assert(@chain1 == @chain2)
     print'OK!'
 ]]
 
