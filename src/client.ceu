@@ -226,46 +226,31 @@ end
     escape err!;
 end
 
-code/await Client (void) -> (event int ok) -> int
+code/await Client (var& UV_TCP_Server_Data shared) -> (event int ok) -> int
     // [[ ARGS = { chain=?, block=? } ]]
 do
     [[ THIS = ARGS ]];
 
     // LOCK: only one "send" per chain
-    do
-        var bool is_locked = [[ THIS.chain.send_is_locked ]];
-        if is_locked then
-_ceu_dbg_assert(0);
-            loop do
-                par/or do
-                    //await outer.send_chain_unlocked;
-                with
-                    await 1s;
-                end
-                is_locked = [[ THIS.chain.send_is_locked ]];
-                if not is_locked then
-                    break;
-                end
+    var bool is_locked = [[ THIS.chain.send_is_locked ]];
+    if is_locked then
+        loop do
+            par/or do
+                await shared.unlock;
+            with
+                await 1s;
+            end
+            is_locked = [[ THIS.chain.send_is_locked ]];
+            if not is_locked then
+                break;
             end
         end
-        [[ THIS.chain.send_is_locked = true ]];
     end
-
-// TODO: primitive "lock"
-do
-#if 0
-    lock X do
-        finalize with
-            ...
-        end
-        ...
-    end
-#endif
-
+do  // TODO: try to remove this do-end
+    [[ THIS.chain.send_is_locked = true ]];
     do finalize with
-        //var bool is_locked = [[ THIS.chain.send_is_locked ]];
-        //_ceu_dbg_assert(not is_locked);
         [[ THIS.chain.send_is_locked = false ]];
+        emit shared.unlock;
     end
 
     var int ps = [[#APP.client.peers]];
@@ -305,11 +290,7 @@ do
         _dbg(0, "client:%p | peer %d", {&_ceu_mem}, err);
     end
     _dbg(0, "client:%p | broadcasts OK", {&_ceu_mem});
-
-    // UNLOCK "send"
-    [[ THIS.chain.send_is_locked = false ]];  // TODO: remove?
 end
-    //emit outer.send_chain_unlocked;
 
     // go_client
     await async do end;   // HACK_1

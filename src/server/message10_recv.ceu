@@ -281,7 +281,6 @@ do
             end
         end
     end
-
     [[ G(outer.conn.tcp).chain.recv_is_locked = true ]];
     do finalize with
         [[ G(outer.conn.tcp).chain.recv_is_locked = false ]];

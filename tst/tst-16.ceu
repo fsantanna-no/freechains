@@ -8,7 +8,7 @@
 
 input void ANY;
 
-native do
+native/pre do
     uv_handle_t* XXX;
 end
 
@@ -18,136 +18,151 @@ par/and do
 // 0
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
-    [=[
-        dofile 'cfg/config.lua'
-
-        CLIENT {
-            peers = {
-                {
-                    host = { '127.0.0.1', '8331' },
-                },
-                {
-                    host = { '127.0.0.1', '8332' },
-                },
-            },
-        }
-    ]=];
-
-    do Init;
-
-    class Disconnect with
-        var _uv_stream_t& h;
-    do
-        async (h) do
-            emit UV_ERROR => (&&h,-_ECONNRESET);
-        end
-    end
-    pool Disconnect[1] ds;
-
-    async do end
-    loop i in 3 do
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        spawn App(&shared);
         [=[
-            APP.messages = {}
-            MESSAGE {
-                id = '1.0',
-                chain = {
-                    key   = '',
-                    zeros = 0,
+            dofile 'cfg/config.lua'
+
+            CLIENT {
+                peers = {
+                    {
+                        host = { '127.0.0.1', '8331' },
+                    },
+                    {
+                        host = { '127.0.0.1', '8332' },
+                    },
                 },
-                payload = '0.'..@(i+1)
             }
         ]=];
-        var ClientMessages c;
 
-        // close 1st connection for 3rd message
-        if i == 2 then
-            // 2nd message
-            loop j in 1 do
-                // 4 connections
-                //  client -> server = 2
-                //  client -> server = 2
-                var _uv_connect_t&& c;
-                var int err;
-                (c,err) = await UV_CONNECT;
-                if j == 0 then
-                    spawn Disconnect in ds with
-                        this.h = &_UNSAFE_POINTER_TO_ALIAS(c:handle);
-                    end;
-                end
+        await Init();
+
+        native/plain _uv_stream_t_ptr;
+        native/pre do
+            typedef uv_stream_t* uv_stream_t_ptr;
+        end
+        code/await Disconnect (var _uv_stream_t_ptr h) -> void do
+            await async (h) do
+                emit UV_STREAM_ERROR(h,-_ECONNRESET);
             end
         end
-        await c;
+        pool[1] Disconnect ds;
+
+        await async do end
+        var int i;
+        loop i in [1 -> 3] do
+            [=[
+                APP.messages = {}
+                MESSAGE {
+                    id = '1.0',
+                    chain = {
+                        key   = '',
+                        zeros = 0,
+                    },
+                    payload = '0.'..@i
+                }
+            ]=];
+            var&? ClientMessages c = spawn ClientMessages(&shared);
+
+            // close 1st connection for 3rd message
+            if i == 3 then
+                // 2nd message
+                var int j;
+                loop j in [1 -> 1] do
+                    // 4 connections
+                    //  client -> server = 2
+                    //  client -> server = 2
+                    var _uv_connect_t&& c;
+                    var int err;
+                    (c,err) = await UV_STREAM_CONNECT;
+                    if j == 1 then
+                        spawn Disconnect(_ID(c:handle)) in ds;
+                    end
+                end
+            end
+            await c;
+        end
     end
+
 with
 
 ///////////////////////////////////////////////////////////////////////////////
 // 1
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
-    [[
-        dofile 'cfg/config.lua'
-        SERVER {
-            host = { '127.0.0.1', '8331' },
-        }
-    ]];
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        spawn App(&shared);
+        [[
+            dofile 'cfg/config.lua'
+            SERVER {
+                host = { '127.0.0.1', '8331' },
+            }
+        ]];
 
-    do Init;
+        await Init();
 
-    var char[] ip      = [[ APP.server.host[1] ]];
-    var int    port    = [[ APP.server.host[2] ]];
-    var int    backlog = [[ APP.server.backlog ]];
-    _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
-    var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
+        vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
+        var      int  port    = [[ APP.server.host[2] ]];
+        var      int  backlog = [[ APP.server.backlog ]];
+        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
+        spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
-    await 1s;
-    [[
-        CHAIN1 = GG.chain_flatten('||0|')
-        print'===> SERVER'
-        print('>'..string.rep('=',78))
-        print(GG.chain_tostring('||0|'))
-        print('<'..string.rep('=',78))
-    ]];
+        await 1s;
+        [[
+            CHAIN1 = GG.chain_flatten('||0|')
+            print'===> SERVER'
+            print('>'..string.rep('=',78))
+            print(GG.chain_tostring('||0|'))
+            print('<'..string.rep('=',78))
+        ]];
+        [=[
+            assert( #CHAIN1==3 and
+                    CHAIN1[3].txs[1]==[[0.2]])
+            print'OK 1/2!'
+        ]=];
+    end
+
 with
 
 ///////////////////////////////////////////////////////////////////////////////
 // 2
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
-    [[
-        dofile 'cfg/config.lua'
-        SERVER {
-            host = { '127.0.0.1', '8332' },
-        }
-    ]];
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        spawn App(&shared);
+        [[
+            dofile 'cfg/config.lua'
+            SERVER {
+                host = { '127.0.0.1', '8332' },
+            }
+        ]];
 
-    do Init;
+        await Init();
 
-    var char[] ip      = [[ APP.server.host[1] ]];
-    var int    port    = [[ APP.server.host[2] ]];
-    var int    backlog = [[ APP.server.backlog ]];
-    _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
-    var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
+        vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
+        var      int  port    = [[ APP.server.host[2] ]];
+        var      int  backlog = [[ APP.server.backlog ]];
+        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
+        spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
-    await 1s;
-    [[
-        CHAIN2 = GG.chain_flatten('||0|')
-        print'===> SERVER'
-        print('>'..string.rep('=',78))
-        print(GG.chain_tostring('||0|'))
-        print('<'..string.rep('=',78))
-    ]];
+        await 1s;
+        [[
+            CHAIN2 = GG.chain_flatten('||0|')
+            print'===> SERVER'
+            print('>'..string.rep('=',78))
+            print(GG.chain_tostring('||0|'))
+            print('<'..string.rep('=',78))
+        ]];
+        [=[
+            assert( #CHAIN2==4 and
+                    CHAIN2[4].txs[1]==[[0.3]])
+            print'OK 2/2!'
+        ]=];
+    end
+
 end
-
-[=[
-    assert( #CHAIN1==3 and
-            CHAIN1[3].txs[1]==[[0.2]])
-    assert( #CHAIN2==4 and
-            CHAIN2[4].txs[1]==[[0.3]])
-    print'OK!'
-]=];
-
 
 escape 0;

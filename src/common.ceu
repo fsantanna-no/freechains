@@ -738,7 +738,7 @@ do
                 chain = chain,
             }
         ]]
-        var&? Client c_new = spawn Client() in clients;
+        var&? Client c_new = spawn Client(&shared) in clients;
         _ceu_dbg_assert(c_new?);    // HACK_1
 
         // kill last/idle client
