@@ -4,6 +4,11 @@
 // 0->1
 ///////////////////////////////////////////////////////////////////////////////
 
+[[ dofile'src/common.lua' ]]
+
+vector[] byte chain1;
+vector[] byte chain2;
+
 par/and do
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -42,12 +47,14 @@ Ola Mundo!
         await 1s;
 
         [[
-            CHAIN1 = GG.chain_flatten('||0|')
+            chain1 = GG.chain_flatten('||0|')
             print'===> CLIENT'
             print('>'..string.rep('=',78))
             print(GG.chain_tostring('||0|'))
             print('<'..string.rep('=',78))
         ]];
+        chain1 = []..[[tostring2(chain1)]];
+        [[ print('-=-=->', @chain1) ]]
     end
 with
 
@@ -74,17 +81,19 @@ with
 
         await 1s;
         [[
-            CHAIN2 = GG.chain_flatten('||0|')
+            chain2 = GG.chain_flatten('||0|')
             print'===> SERVER'
             print('>'..string.rep('=',78))
             print(GG.chain_tostring('||0|'))
             print('<'..string.rep('=',78))
         ]];
+        chain2 = []..[[tostring2(chain2)]];
+        [[ print('-=-=->', @chain2) ]]
     end
 end
 
 [[
-    assert( tostring2(CHAIN1) == tostring2(CHAIN2) )
+    assert(@chain1 == @chain2)
     print'OK!'
 ]]
 
