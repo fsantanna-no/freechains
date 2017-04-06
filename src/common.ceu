@@ -724,9 +724,7 @@ do
         GG.ERR_REMOTE_BUG_OR_MALICIOUS = @(_ERR_REMOTE_BUG_OR_MALICIOUS as int)
         GG.MESSAGE10_NOTSUB = @(_MESSAGE10_NOTSUB as int)
         APP = app_create()
-print('kkk', APP, APP.client)
     ]];
-{printf("LUA %p\n", _ceu_mem->lua);}
 #if 0
     await FOREVER;
 #else

@@ -100,6 +100,7 @@ do
             vector[1] byte recv;
             var&? UV_Stream_Read reader = spawn UV_TCP_Read(&tcp,&recv);
             await UV_Stream_ReadUntil(&reader!, 1);
+_dbg(0, "client | ok-E\n");
             var int ret = recv[0];
 
             _dbg_tcp(0, &&tcp, "client", "=> ACK-header = %d", ret);
@@ -197,40 +198,30 @@ end
     var bool is_10 = [[ G(c!.tcp).block~=nil and G(c!.tcp).block.id=='1.0' ]];
     // ...
 
-    watching c do
-        var int err =
-        do
-            await c!.ok;
-
-            _dbg(2, "client:%p | connected to %s:%d", {&_ceu_mem}, &&ip[0], port);
-            var int? err__ =
-                watching c do
-                    var int err_ = _ERR_NONE;
-                    if is_10 then
-                        err_ = await Message10_send(&c!.tcp);
-                    else
-                        // ...
-                        err_ = _ERR_MESSAGE;
-                    end
-                    escape err_;
-                end;
-            escape err__!;
-    // TODO: usar erro de c
-            //escape _ERR_DISCONNECTED;
-        end;
-
+    do finalize with
         _dbg(2, "client:%p | disconnected from %s:%d", {&_ceu_mem}, &&ip[0], port);
-        if err != _ERR_NONE then
-#ifdef DBG
-            _dbg(3, "client:%p | %s", {&_ceu_mem}, _uv_strerror(err));
-#endif
-#ifdef FREECHAINS_NO_MALICIOUS
-            _ceu_dbg_assert(0);
-#endif
-        end
-        emit client_ok(err);
-        escape err;
     end
+    var int? err =
+        watching c do
+            await c!.ok;
+            _dbg(2, "client:%p | connected to %s:%d", {&_ceu_mem}, &&ip[0], port);
+            var int err_ = _ERR_NONE;
+            if is_10 then
+                err_ = await Message10_send(&c!.tcp);
+            else
+                // ...
+                err_ = _ERR_MESSAGE;
+            end
+            if err_ != _ERR_NONE then
+                _dbg(3, "client:%p | %s", {&_ceu_mem}, _uv_strerror(err_));
+#ifdef FREECHAINS_NO_MALICIOUS
+                _ceu_dbg_assert(0);
+#endif
+            end
+            emit client_ok(err_);
+            escape err_;
+        end;
+    escape err!;
 end
 
 code/await Client (void) -> (event int ok) -> int
@@ -274,11 +265,10 @@ do
         [[ THIS.chain.send_is_locked = false ]];
     end
 
-{printf("LUA %p\n", _ceu_mem->lua);}
-[[print('kkk', THIS, APP.client)]]
     var int ps = [[#APP.client.peers]];
     var int ps_ok = 0;
     var int i;
+    pool[] PeerSend peers;
     loop i in [0 -> ps[ do
         [[
             peer = APP.client.peers[@(i+1)]
@@ -301,7 +291,7 @@ do
                     block = APP.blocks[THIS.chain.head_hash],
                 }
             ]];
-            var&? PeerSend p = spawn PeerSend(&ok);
+            var&? PeerSend p = spawn PeerSend(&ok) in peers;
             _ceu_dbg_assert(p?);
         end
     end

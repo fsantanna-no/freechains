@@ -265,8 +265,7 @@ do
     // <= ACK-header
     // bytes/reader received from message partially parsed
     var int err = await Message10_header_recv(&conn);
-    //call conn.Reset();
-_ceu_dbg_assert(0); // Reset
+    call conn.reader!.Reset();
     if err == _MESSAGE10_NOTSUB then
         vector[1] byte send = [err];
         await UV_TCP_Write(&conn.tcp, &send);
@@ -353,8 +352,7 @@ do
                     end
                 end
 
-                //conn.reset();
-                _ceu_dbg_assert(0); // Reset
+                call conn.reader!.Reset();
 
                 //[[ print('[server] => BLOCKS['..(@i)..'] : 
                 //'..tostring2(G(conn.tcp).block.hash)) ]];
