@@ -102,9 +102,10 @@ native/pre do
 end
 #define G(v) GG[@(&&(v))]
 
-event void recv_chain_unlocked;
-event void send_chain_unlocked;
-event void go_client;
+data UV_TCP_Server_Data with
+    event void go_client;
+    event void unlock;
+end
 
 data SourceBlockHash;
 data SourceBlockHash.Network;
@@ -717,7 +718,7 @@ do
     end
 end
 
-code/await App (void) -> void
+code/await App (var& UV_TCP_Server_Data shared) -> void
 do
     [[
         dofile'src/common.lua'
@@ -729,12 +730,7 @@ do
     await FOREVER;
 #else
     pool[3] Client clients;
-    every outer.go_client do
-        var bool is_me = [[ GO_CLIENT==true ]];
-        if not is_me then
-            continue;                           // TODO: "await Spawn_Client()"
-        end
-
+    every shared.go_client do       // TODO: "await Spawn_Client()"
         [[
             local chain = assert(APP.chains[ARGS.chain_id])
             ARGS = {

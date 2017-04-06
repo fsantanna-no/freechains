@@ -6,7 +6,7 @@
 //  - 0->2->''
 ///////////////////////////////////////////////////////////////////////////////
 
-input void ANY;
+[[ dofile'src/common.lua' ]]
 
 par/and do
 
@@ -14,40 +14,43 @@ par/and do
 // 0
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
-    [=[
-        dofile 'cfg/config.lua'
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        spawn App(&shared);
 
-        CLIENT {
-            peers = {
-                {
-                    host = { '127.0.0.1', '8331' },
+        [=[
+            dofile 'cfg/config.lua'
+
+            CLIENT {
+                peers = {
+                    {
+                        host = { '127.0.0.1', '8331' },
+                    },
                 },
-            },
-        }
+            }
 
-        MESSAGE {
-            id = '1.0',
-            chain = {
-                key   = '',
-                zeros = 0,
-            },
-            payload = [[ 0->1 ]],
-        }
-    ]=];
+            MESSAGE {
+                id = '1.0',
+                chain = {
+                    key   = '',
+                    zeros = 0,
+                },
+                payload = [[ 0->1 ]],
+            }
+        ]=];
 
-    do Init;
+        await Init();
+        await async do end;
+        await ClientMessages(&shared);
+        await 2s;
 
-    async do end;
-    do ClientMessages;
-
-    await 2s;
-    [[
-        print'===> CLIENT'
-        print('>'..string.rep('=',78))
-        print(GG.chain_tostring('||0|'))
-        print('<'..string.rep('=',78))
-    ]];
+        [[
+            print'===> CLIENT'
+            print('>'..string.rep('=',78))
+            print(GG.chain_tostring('||0|'))
+            print('<'..string.rep('=',78))
+        ]];
+    end
 
 with
 
@@ -55,30 +58,40 @@ with
 // 1
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
-    [[
-        dofile 'cfg/config.lua'
-        SERVER {
-            host = { '127.0.0.1', '8331' },
-        }
-    ]];
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        spawn App(&shared);
 
-    do Init;
+        [[
+            dofile 'cfg/config.lua'
+            SERVER {
+                host = { '127.0.0.1', '8331' },
+            }
+        ]];
 
-    var char[] ip      = [[ APP.server.host[1] ]];
-    var int    port    = [[ APP.server.host[2] ]];
-    var int    backlog = [[ APP.server.backlog ]];
-    _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
-    var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
+        await Init();
 
-    await 2s;
-    [[
-        CHAIN1 = GG.chain_flatten('||0|')
-        print'===> SERVER'
-        print('>'..string.rep('=',78))
-        print(GG.chain_tostring('||0|'))
-        print('<'..string.rep('=',78))
-    ]];
+        vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
+        var      int  port    = [[ APP.server.host[2] ]];
+        var      int  backlog = [[ APP.server.backlog ]];
+        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
+        spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
+
+        await 2s;
+        [[
+            CHAIN1 = GG.chain_flatten('||0|')
+            print'===> SERVER'
+            print('>'..string.rep('=',78))
+            print(GG.chain_tostring('||0|'))
+            print('<'..string.rep('=',78))
+        ]];
+
+        [=[
+            assert( CHAIN1[2].txs[1] == [[ 1<-2 ]] and
+                    CHAIN1[3].txs[1] == [[ 0->1 ]] )
+            print'OK!'
+        ]=];
+    end
 
 with
 
@@ -86,47 +99,45 @@ with
 // 2
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
-    [=[
-        dofile 'cfg/config.lua'
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        spawn App(&shared);
+        [=[
+            dofile 'cfg/config.lua'
 
-        CLIENT {
-            peers = {
-                {
-                    host = { '127.0.0.1', '8331' },
+            CLIENT {
+                peers = {
+                    {
+                        host = { '127.0.0.1', '8331' },
+                    },
                 },
-            },
-        }
+            }
 
-        MESSAGE {
-            id = '1.0',
-            chain = {
-                key   = '',
-                zeros = 0,
-            },
-            payload = [[ 1<-2 ]],
-        }
-    ]=];
+            MESSAGE {
+                id = '1.0',
+                chain = {
+                    key   = '',
+                    zeros = 0,
+                },
+                payload = [[ 1<-2 ]],
+            }
+        ]=];
 
-    do Init;
+        await Init();
+        await 100ms;
+        await ClientMessages(&shared);
+        await 1s;
 
-    await 100ms;
-    do ClientMessages;
-    await 1s;
-    [[
-        CHAIN2 = GG.chain_flatten('||0|')
-        print'===> CLIENT'
-        print('>'..string.rep('=',78))
-        print(GG.chain_tostring('||0|'))
-        print('<'..string.rep('=',78))
-    ]];
+        [[
+            CHAIN2 = GG.chain_flatten('||0|')
+            print'===> CLIENT'
+            print('>'..string.rep('=',78))
+            print(GG.chain_tostring('||0|'))
+            print('<'..string.rep('=',78))
+        ]];
+
+    end
 
 end
-
-[=[
-    assert( CHAIN1[2].txs[1] == [[ 1<-2 ]] and
-            CHAIN1[3].txs[1] == [[ 0->1 ]] )
-    print'OK!'
-]=];
 
 escape 0;
