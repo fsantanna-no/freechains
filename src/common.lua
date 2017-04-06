@@ -218,11 +218,11 @@ local function string2hex(buf,big)
 end
 
 function tostring2 (tbl, big)
-    if  "nil"       == type( tbl ) then
+    if "nil" == type(tbl) then
         return tostring(nil)
-    elseif  "table" == type( tbl ) then
+    elseif "table" == type(tbl) then
         return table_show(tbl)
-    elseif  "string" == type( tbl ) then
+    elseif "string" == type(tbl) then
         if is_binary(tbl) then
             return string2hex(tbl, big)
         else
@@ -319,7 +319,15 @@ function table_show(t, name, indent)
                cart = cart .. " = {};\n"
             else
                cart = cart .. " = {\n"
-               for k, v in pairs(value) do
+
+               local t = {}
+               for k in pairs(value) do
+                  t[#t+1] = k
+               end
+               table.sort(t)
+
+               for _, k in ipairs(t) do
+                  local v = value[k]
                   k = basicSerialize(k)
                   local fname = string.format("%s[%s]", name, k)
                   field = string.format("[%s]", k)
