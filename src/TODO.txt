@@ -2,6 +2,7 @@
 - remover asyncs
 - eliminar tempos de espera dos testes
 - colocar thread de volta
+- r/place
 
 #if 0
 = TODO:
