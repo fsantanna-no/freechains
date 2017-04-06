@@ -21,7 +21,8 @@ par/and do
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        spawn App();
+        var UV_TCP_Server_Data shared = _;
+        spawn App(&shared);
         [=[
             dofile 'cfg/config.lua'
 
@@ -54,7 +55,7 @@ par/and do
         await Init();
 
         await async do end;
-        await ClientMessages();
+        await ClientMessages(&shared);
         await 1s;
 
         [[
@@ -74,7 +75,8 @@ with
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        spawn App();
+        var UV_TCP_Server_Data shared = _;
+        spawn App(&shared);
         [=[
             dofile 'cfg/config.lua'
 
@@ -114,10 +116,10 @@ with
         var      int  port    = [[ APP.server.host[2] ]];
         var      int  backlog = [[ APP.server.backlog ]];
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-        spawn UV_TCP_Server(&&ip[0], port, backlog);
+        spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
         await 1s;
-        await ClientMessages();
+        await ClientMessages(&shared);
         await 1s;
 
         [[
@@ -138,7 +140,8 @@ with
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        spawn App();
+        var UV_TCP_Server_Data shared = _;
+        spawn App(&shared);
         [[
             dofile 'cfg/config.lua'
             SERVER {
@@ -152,7 +155,7 @@ with
         var      int  port    = [[ APP.server.host[2] ]];
         var      int  backlog = [[ APP.server.backlog ]];
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-        spawn UV_TCP_Server(&&ip[0], port, backlog);
+        spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
         await 3s;
         [[
