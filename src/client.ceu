@@ -236,11 +236,11 @@ end
 code/await Client (void) -> (event int ok) -> int
     // [[ ARGS = { chain=?, block=? } ]]
 do
-    [[ APP = ARGS ]];
+    [[ THIS = ARGS ]];
 
     // LOCK: only one "send" per chain
     do
-        var bool is_locked = [[ APP.chain.send_is_locked ]];
+        var bool is_locked = [[ THIS.chain.send_is_locked ]];
         if is_locked then
             loop do
                 par/or do
@@ -248,13 +248,13 @@ do
                 with
                     await 1s;
                 end
-                is_locked = [[ APP.chain.send_is_locked ]];
+                is_locked = [[ THIS.chain.send_is_locked ]];
                 if not is_locked then
                     break;
                 end
             end
         end
-        [[ APP.chain.send_is_locked = true ]];
+        [[ THIS.chain.send_is_locked = true ]];
     end
 
 // TODO: primitive "lock"
@@ -269,11 +269,13 @@ do
 #endif
 
     do finalize with
-        //var bool is_locked = [[ APP.chain.send_is_locked ]];
+        //var bool is_locked = [[ THIS.chain.send_is_locked ]];
         //_ceu_dbg_assert(not is_locked);
-        [[ APP.chain.send_is_locked = false ]];
+        [[ THIS.chain.send_is_locked = false ]];
     end
 
+{printf("LUA %p\n", _ceu_mem->lua);}
+[[print('kkk', THIS, APP.client)]]
     var int ps = [[#APP.client.peers]];
     var int ps_ok = 0;
     var int i;
@@ -282,8 +284,8 @@ do
             peer = APP.client.peers[@(i+1)]
             ok = false
             for _, chain in pairs(peer.chains) do
-                if chain.key==APP.chain.key and
-                   chain.zeros<=APP.chain.zeros then
+                if chain.key==THIS.chain.key and
+                   chain.zeros<=THIS.chain.zeros then
                     ok = true
                     break
                 end
@@ -295,8 +297,8 @@ do
             [[
                 ARGS = {
                     peer  = peer,
-                    --block = APP.block,
-                    block = APP.blocks[APP.chain.head_hash],
+                    --block = THIS.block,
+                    block = APP.blocks[THIS.chain.head_hash],
                 }
             ]];
             var&? PeerSend p = spawn PeerSend(&ok);
@@ -312,7 +314,7 @@ do
     _dbg(0, "client:%p | broadcasts OK", {&_ceu_mem});
 
     // UNLOCK "send"
-    [[ APP.chain.send_is_locked = false ]];  // TODO: remove?
+    [[ THIS.chain.send_is_locked = false ]];  // TODO: remove?
 end
     emit outer.send_chain_unlocked;
 
@@ -396,10 +398,15 @@ do
             APP.blocks[chain.head_hash].up_hash = block.hash
             chain.head_hash = block.hash
 
-            ARGS.app = APP
-            ARGS.chain_id = ARGS.block.chain_id
+            ARGS = {
+                chain_id = ARGS.block.chain_id
+            }
+            GO_CLIENT = true
         ]];
         emit outer.go_client;
+        [[
+            GO_CLIENT = nil
+        ]]
         await 100ms;
     else
         _ceu_dbg_assert(0);  // message not supported

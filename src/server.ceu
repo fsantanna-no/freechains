@@ -543,11 +543,14 @@ end
         //if has then
             [[
                 ARGS = {
-                    app      = APP,
                     chain_id = G(conn.tcp).chain.id,
                 }
+                GO_CLIENT = true
             ]];
             emit outer.go_client;
+            [[
+                GO_CLIENT = nil
+            ]]
         //end
     end
 

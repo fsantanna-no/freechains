@@ -54,7 +54,6 @@ Ola Mundo!
             print('<'..string.rep('=',78))
         ]];
         chain1 = []..[[tostring2(chain1)]];
-        [[ print('-=-=->', @chain1) ]]
     end
 with
 
@@ -88,7 +87,6 @@ with
             print('<'..string.rep('=',78))
         ]];
         chain2 = []..[[tostring2(chain2)]];
-        [[ print('-=-=->', @chain2) ]]
     end
 end
 
