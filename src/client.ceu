@@ -14,6 +14,7 @@ do
         ]];
         var      u32  payload_bytes = [[ string.len(G(tcp).tx.payload) ]];
         vector[] byte bytes         = [] .. [[ G(tcp).tx.hash ]];
+        _ceu_vector_setlen(&&bytes, $bytes+sizeof(u32), 1);
         PUT_NETWORK_U32(bytes, HASH_BYTES, payload_bytes);
         await UV_TCP_Write(&tcp, &bytes);
 
@@ -131,7 +132,8 @@ _dbg(0, "client | ok-E\n");
 
             // <= BLOCK_TXS_N
             var u32 txs_n = [[ #G(tcp).block.txs ]];
-            PUT_NETWORK_U32(bytes, $bytes, txs_n);
+            _ceu_vector_setlen(&&bytes, $bytes+sizeof(u32), 1);
+            PUT_NETWORK_U32(bytes, HASH_BYTES, txs_n);
 
             await UV_TCP_Write(&tcp, &bytes);
         end

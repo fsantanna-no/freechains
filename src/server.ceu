@@ -7,6 +7,10 @@ code/await Connection (var& _uv_tcp_t tcp)
 do
     off = 0;
     reader = spawn UV_TCP_Read(&tcp, &bytes);
+    code/tight Reset (void) -> void do
+        outer.off = 0;
+        call outer.reader!.Reset();
+    end
     await FOREVER;
 end
 
@@ -68,10 +72,14 @@ do
         _ceu_vector_setlen(&&hash, HASH_BYTES, 1);
         _ceu_vector_buf_set(&&hash, 0, &&conn.bytes[conn.off], HASH_BYTES);
         conn.off = conn.off + HASH_BYTES;
+        vector[] byte str = [] .. [[ tostring2(@hash) ]];
+        _dbg_tcp(0, &&conn.tcp, "server", "=> BLOCK_HASH : %s", &&str[0]);
 
         // txs_n
+        await UV_Stream_ReadUntil(&conn.reader, conn.off+sizeof(u32));
         var u32 txs_n = GET_HOST_U32(conn.bytes, conn.off);
         conn.off = conn.off + sizeof(u32);
+        _dbg_tcp(0, &&conn.tcp, "server", "=> BLOCK_TXS_N : %d", txs_n);
 
         [[
             G(conn.tcp).block.hash = @hash;
@@ -265,7 +273,7 @@ do
     // <= ACK-header
     // bytes/reader received from message partially parsed
     var int err = await Message10_header_recv(&conn);
-    call conn.reader!.Reset();
+    call conn.Reset();
     if err == _MESSAGE10_NOTSUB then
         vector[1] byte send = [err];
         await UV_TCP_Write(&conn.tcp, &send);
@@ -352,7 +360,7 @@ do
                     end
                 end
 
-                call conn.reader!.Reset();
+                call conn.Reset();
 
                 //[[ print('[server] => BLOCKS['..(@i)..'] : 
                 //'..tostring2(G(conn.tcp).block.hash)) ]];
