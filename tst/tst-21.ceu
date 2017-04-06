@@ -10,257 +10,301 @@
 //  - "4" is not in not sub'ed to '', only receives 'hello'
 ///////////////////////////////////////////////////////////////////////////////
 
-input void ANY;
-
-[[
-    function C1 ()
-        return {
-            key   = '',
-            zeros = 0,
-        }
-    end
-    function C2 ()
-        return {
-            key   = 'hello',
-            zeros = 0,
-        }
-    end
-]];
-
 par/and do
 
 ///////////////////////////////////////////////////////////////////////////////
 // 0
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
-    [=[
-        dofile 'cfg/config.lua'
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        spawn App(&shared);
+        [=[
+            dofile 'cfg/config.lua'
 
-        CHAINS {
-            C1(), C2(),
-        }
-
-        CLIENT {
-            peers = {
+            CHAINS {
                 {
-                    host = { '127.0.0.1', '8331' },
-                },
-                --{
-                    --host = { '127.0.0.1', '8332' },
-                --},
-                {
-                    host = { '127.0.0.1', '8333' },
-                    chains = { C2() }, -- 3 does not receive '||0|'
+                    key   = '',
+                    zeros = 0,
                 },
                 {
-                    host = { '127.0.0.1', '8334' },
+                    key   = 'hello',
+                    zeros = 0,
                 },
-            },
-        }
-    ]=];
+            }
+            CLIENT {
+                peers = {
+                    {
+                        host = { '127.0.0.1', '8331' },
+                    },
+                    --{
+                        --host = { '127.0.0.1', '8332' },
+                    --},
+                    {
+                        host = { '127.0.0.1', '8333' },
+                        chains = { -- 3 does not receive '||0|'
+                            {
+                                key   = 'hello',
+                                zeros = 0,
+                            },
+                        },
+                    },
+                    {
+                        host = { '127.0.0.1', '8334' },
+                    },
+                },
+            }
+        ]=];
 
-    [=[
-        MESSAGE {
-            id = '1.0',
-            chain = {
-                key   = '',
-                zeros = 0,
-            },
-            payload = [['']],
-        }
-    ]=];
+        [=[
+            MESSAGE {
+                id = '1.0',
+                chain = {
+                    key   = '',
+                    zeros = 0,
+                },
+                payload = [['']],
+            }
+        ]=];
 
-    do Init;
+        await Init();
 
-    async do end;
-    do ClientMessages;
+        await async do end;
+        await ClientMessages(&shared);
 
-    [=[
-        MESSAGE {
-            id = '1.0',
-            chain = {
-                key   = 'hello',
-                zeros = 0,
-            },
-            payload = [['hello']],
-        }
-    ]=];
-    async do end;
-    do ClientMessages;
+        [=[
+            MESSAGE {
+                id = '1.0',
+                chain = {
+                    key   = 'hello',
+                    zeros = 0,
+                },
+                payload = [['hello']],
+            }
+        ]=];
+        await async do end;
+        await ClientMessages(&shared);
 
-    await 1s;
+        await 1s;
 
-    [[
-        CHAIN0_1 = GG.chain_flatten('||0|')
-        CHAIN0_2 = GG.chain_flatten('|hello|0|')
-        print'===> CLIENT'
-        print('>'..string.rep('=',78))
-        print(GG.chain_tostring('||0|'))
-        print(GG.chain_tostring('|hello|0|'))
-        print('<'..string.rep('=',78))
-    ]];
+        [[
+            CHAIN0_1 = GG.chain_flatten('||0|')
+            CHAIN0_2 = GG.chain_flatten('|hello|0|')
+            print'===> CLIENT'
+            print('>'..string.rep('=',78))
+            print(GG.chain_tostring('||0|'))
+            print(GG.chain_tostring('|hello|0|'))
+            print('<'..string.rep('=',78))
+        ]];
+        [=[
+            assert(#CHAIN0_1==2 and #CHAIN0_2==2 and
+                   CHAIN0_1[2].txs[1]==[['']] and
+                   CHAIN0_2[2].txs[1]==[['hello']])
+            print'OK 0/4!'
+        ]=];
+    end
+
 with
 
 ///////////////////////////////////////////////////////////////////////////////
 // 1
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
-    [[
-        dofile 'cfg/config.lua'
-        CHAINS {
-            C1(), C2(),
-        }
-        SERVER {
-            host = { '127.0.0.1', '8331' },
-        }
-    ]];
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        spawn App(&shared);
+        [[
+            dofile 'cfg/config.lua'
+            CHAINS {
+                {
+                    key   = '',
+                    zeros = 0,
+                },
+                {
+                    key   = 'hello',
+                    zeros = 0,
+                }
+            }
+            SERVER {
+                host = { '127.0.0.1', '8331' },
+            }
+        ]];
 
-    do Init;
+        await Init();
 
-    var char[] ip      = [[ APP.server.host[1] ]];
-    var int    port    = [[ APP.server.host[2] ]];
-    var int    backlog = [[ APP.server.backlog ]];
-    _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
-    var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
+        vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
+        var      int  port    = [[ APP.server.host[2] ]];
+        var      int  backlog = [[ APP.server.backlog ]];
+        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
+        spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
-    await 1s;
-    [[
-        CHAIN1_1 = GG.chain_flatten('||0|')
-        CHAIN1_2 = GG.chain_flatten('|hello|0|')
-        print'===> SERVER-1'
-        print('>'..string.rep('=',78))
-        print(GG.chain_tostring('||0|'))
-        print(GG.chain_tostring('|hello|0|'))
-        print('<'..string.rep('=',78))
-    ]];
+        await 1s;
+        [[
+            CHAIN1_1 = GG.chain_flatten('||0|')
+            CHAIN1_2 = GG.chain_flatten('|hello|0|')
+            print'===> SERVER-1'
+            print('>'..string.rep('=',78))
+            print(GG.chain_tostring('||0|'))
+            print(GG.chain_tostring('|hello|0|'))
+            print('<'..string.rep('=',78))
+        ]];
+        [=[
+            assert(#CHAIN1_1==2 and #CHAIN1_2==2 and
+                   CHAIN1_1[2].txs[1]==[['']] and
+                   CHAIN1_2[2].txs[1]==[['hello']])
+            print'OK 1/4!'
+        ]=];
+    end
+
 with
 
 ///////////////////////////////////////////////////////////////////////////////
 // 2
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
-    [[
-        dofile 'cfg/config.lua'
-        CHAINS {
-            C1(), C2(),
-        }
-        SERVER {
-            host = { '127.0.0.1', '8332' },
-        }
-    ]];
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        spawn App(&shared);
+        [[
+            dofile 'cfg/config.lua'
+            CHAINS {
+                {
+                    key   = '',
+                    zeros = 0,
+                },
+                {
+                    key   = 'hello',
+                    zeros = 0,
+                }
+            }
+            SERVER {
+                host = { '127.0.0.1', '8332' },
+            }
+        ]];
 
-    do Init;
+        await Init();
 
-    var char[] ip      = [[ APP.server.host[1] ]];
-    var int    port    = [[ APP.server.host[2] ]];
-    var int    backlog = [[ APP.server.backlog ]];
-    _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
-    var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
+        vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
+        var      int  port    = [[ APP.server.host[2] ]];
+        var      int  backlog = [[ APP.server.backlog ]];
+        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
+        spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
-    await 1s;
-    [[
-        CHAIN2_1 = GG.chain_flatten('||0|')
-        CHAIN2_2 = GG.chain_flatten('|hello|0|')
-        print'===> SERVER-2'
-        print('>'..string.rep('=',78))
-        print(GG.chain_tostring('||0|'))
-        print(GG.chain_tostring('|hello|0|'))
-        print('<'..string.rep('=',78))
-    ]];
+        await 1s;
+        [[
+            CHAIN2_1 = GG.chain_flatten('||0|')
+            CHAIN2_2 = GG.chain_flatten('|hello|0|')
+            print'===> SERVER-2'
+            print('>'..string.rep('=',78))
+            print(GG.chain_tostring('||0|'))
+            print(GG.chain_tostring('|hello|0|'))
+            print('<'..string.rep('=',78))
+        ]];
+        [=[
+            assert(#CHAIN2_1==1 and #CHAIN2_2==1)
+            print'OK 2/4!'
+        ]=];
+    end
+
 with
 
 ///////////////////////////////////////////////////////////////////////////////
 // 3
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
-    [[
-        dofile 'cfg/config.lua'
-        CHAINS {
-            C1(), C2(),
-        }
-        SERVER {
-            host = { '127.0.0.1', '8333' },
-        }
-    ]];
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        spawn App(&shared);
+        [[
+            dofile 'cfg/config.lua'
+            CHAINS {
+                {
+                    key   = '',
+                    zeros = 0,
+                },
+                {
+                    key   = 'hello',
+                    zeros = 0,
+                }
+            }
+            SERVER {
+                host = { '127.0.0.1', '8333' },
+            }
+        ]];
 
-    do Init;
+        await Init();
 
-    var char[] ip      = [[ APP.server.host[1] ]];
-    var int    port    = [[ APP.server.host[2] ]];
-    var int    backlog = [[ APP.server.backlog ]];
-    _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
-    var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
+        vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
+        var      int  port    = [[ APP.server.host[2] ]];
+        var      int  backlog = [[ APP.server.backlog ]];
+        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
+        spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
-    await 1s;
-    [[
-        CHAIN3_1 = GG.chain_flatten('||0|')
-        CHAIN3_2 = GG.chain_flatten('|hello|0|')
-        print'===> SERVER-3'
-        print('>'..string.rep('=',78))
-        print(GG.chain_tostring('||0|'))
-        print(GG.chain_tostring('|hello|0|'))
-        print('<'..string.rep('=',78))
-    ]];
+        await 1s;
+        [[
+            CHAIN3_1 = GG.chain_flatten('||0|')
+            CHAIN3_2 = GG.chain_flatten('|hello|0|')
+            print'===> SERVER-3'
+            print('>'..string.rep('=',78))
+            print(GG.chain_tostring('||0|'))
+            print(GG.chain_tostring('|hello|0|'))
+            print('<'..string.rep('=',78))
+        ]];
+        [=[
+            assert(#CHAIN3_1==1 and #CHAIN3_2==2 and
+                   CHAIN3_2[2].txs[1]==[['hello']])
+            print'OK 3/4!'
+        ]=];
+    end
+
 with
 
 ///////////////////////////////////////////////////////////////////////////////
 // 4
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
-    [[
-        dofile 'cfg/config.lua'
-        CHAINS {
-            C2(),    -- not sub'ed to ''
-        }
-        SERVER {
-            host = { '127.0.0.1', '8334' },
-        }
-    ]];
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        spawn App(&shared);
+        [[
+            dofile 'cfg/config.lua'
+            CHAINS { -- not sub'ed to ''
+                {
+                    key   = 'hello',
+                    zeros = 0,
+                },
+            }
+            SERVER {
+                host = { '127.0.0.1', '8334' },
+            }
+        ]];
 
-    do Init;
+        await Init();
 
-    var char[] ip      = [[ APP.server.host[1] ]];
-    var int    port    = [[ APP.server.host[2] ]];
-    var int    backlog = [[ APP.server.backlog ]];
-    _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
-    var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
+        vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
+        var      int  port    = [[ APP.server.host[2] ]];
+        var      int  backlog = [[ APP.server.backlog ]];
+        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
+        spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
-    await 1s;
-    [[
-        assert(not APP.chains['||0|'])
-        CHAIN4_2 = GG.chain_flatten('|hello|0|')
-        print'===> SERVER-4'
-        print('>'..string.rep('=',78))
-        print(GG.chain_tostring('|hello|0|'))
-        print('<'..string.rep('=',78))
+        await 1s;
+        [[
+            assert(not APP.chains['||0|'])
+            CHAIN4_2 = GG.chain_flatten('|hello|0|')
+            print'===> SERVER-4'
+            print('>'..string.rep('=',78))
+            print(GG.chain_tostring('|hello|0|'))
+            print('<'..string.rep('=',78))
 
-        assert(#APP.errs==1 and APP.errs[1]==GG.MESSAGE10_NOTSUB)
-    ]];
+            assert(#APP.errs==1 and APP.errs[1]==GG.MESSAGE10_NOTSUB)
+        ]];
+        [=[
+            assert(#CHAIN4_2==2 and
+                   CHAIN4_2[2].txs[1]==[['hello']])
+            print'OK 4/4!'
+        ]=];
+    end
+
 end
-
-[=[
-    assert(#CHAIN0_1==2 and #CHAIN0_2==2 and
-           CHAIN0_1[2].txs[1]==[['']] and
-           CHAIN0_2[2].txs[1]==[['hello']])
-
-    assert(#CHAIN1_1==2 and #CHAIN1_2==2 and
-           CHAIN1_1[2].txs[1]==[['']] and
-           CHAIN1_2[2].txs[1]==[['hello']])
-
-    assert(#CHAIN2_1==1 and #CHAIN2_2==1)
-
-    assert(#CHAIN3_1==1 and #CHAIN3_2==2 and
-           CHAIN3_2[2].txs[1]==[['hello']])
-
-    assert(#CHAIN4_2==2 and
-           CHAIN4_2[2].txs[1]==[['hello']])
-
-    print'OK!'
-]=];
 
 escape 0;
