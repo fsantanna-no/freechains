@@ -1,26 +1,21 @@
-#CEU_DIR     = $(error set absolute path to "<ceu>" repository)
-#CEU_SDL_DIR = $(error set absolute path to "<ceu-libuv>" repository)
-CEU_DIR    = /data/ceu/ceu
-CEU_UV_DIR = /data/ceu/ceu-libuv
+CEU_DIR    = $(error set absolute path to "<ceu>" repository)
+CEU_UV_DIR = $(error set absolute path to "<ceu-libuv>" repository)
 
 all:
 	ceu --pre --pre-args="-I$(CEU_DIR)/include -I$(CEU_UV_DIR)/include -Isrc/" \
 	          --pre-input=$(CEU_SRC)                                           \
 	    --ceu --ceu-features-lua=true --ceu-features-thread=true               \
 	          --ceu-err-unused=pass --ceu-err-uninitialized=pass               \
-	          --ceu-line-directives=false \
 	    --env --env-types=$(CEU_DIR)/env/types.h                               \
 	          --env-threads=$(CEU_UV_DIR)/env/threads.h                        \
-	          --env-main=$(CEU_DIR)/env/main.c  --env-output=/tmp/x.c                                \
-	    --cc --cc-args="-lm -llua5.3 -luv -lsodium -g"							   \
+	          --env-main=$(CEU_DIR)/env/main.c                                 \
+	    --cc --cc-args="-lm -llua5.3 -luv -lsodium -g"                         \
 	         --cc-output=freechains
 
-pre:
-	ceu --pre --pre-args="-I$(CEU_DIR)/include -I$(CEU_UV_DIR)/include -Isrc/" \
-	          --pre-input=$(CEU_SRC)  --pre-output=/tmp/x.ceu
-
 ceu:
-	ceu --ceu --ceu-input=/tmp/x.ceu --ceu-features-lua=true --ceu-features-thread=true               \
+	ceu --pre --pre-args="-I$(CEU_DIR)/include -I$(CEU_UV_DIR)/include -Isrc/" \
+	          --pre-input=$(CEU_SRC)  --pre-output=/tmp/x.ceu \
+	    --ceu --ceu-input=/tmp/x.ceu --ceu-features-lua=true --ceu-features-thread=true               \
 	          --ceu-err-unused=pass --ceu-err-uninitialized=pass               \
 	          --ceu-line-directives=false \
 	    --env --env-types=$(CEU_DIR)/env/types.h                               \
@@ -39,7 +34,7 @@ tests:
 		echo "#####################################";    \
 		echo File: "$$i";                                \
 		echo "#####################################";    \
-		make CEU_SRC=$$i c || exit 1;                  \
+		make CEU_SRC=$$i && ./freechains || exit 1;      \
 		if [ "$$i" = "tst/tst-32.ceu" ]; then break; fi; \
 	done
 

@@ -244,7 +244,7 @@ do
             end
         end
     end
-do  // TODO: try to remove this do-end
+
     [[ THIS.chain.send_is_locked = true ]];
     do finalize with
         [[ THIS.chain.send_is_locked = false ]];
@@ -288,10 +288,6 @@ do  // TODO: try to remove this do-end
         //_dbg(0, "client:%p | peer %d", {&_ceu_mem}, err);
     end
     _dbg(0, "client:%p | broadcasts OK", {&_ceu_mem});
-end
-
-    // go_client
-    await async do end;   // HACK_1
 
     escape _ERR_NONE;   // trasmitted messages
 end
@@ -373,12 +369,8 @@ do
             ARGS = {
                 chain_id = ARGS.block.chain_id
             }
-            GO_CLIENT = true
         ]];
         emit shared.go_client;
-        [[
-            GO_CLIENT = nil
-        ]]
         await 100ms;
     else
         _ceu_dbg_assert(0);  // message not supported

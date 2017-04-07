@@ -756,8 +756,7 @@ do
             end
         end
 
-        var&? Client c_new = spawn Client(&shared) in clients;
-        _ceu_dbg_assert(c_new?);    // HACK_1
+        spawn Client(&shared) in clients;
     end
 #endif
 end

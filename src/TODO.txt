@@ -1,11 +1,9 @@
-- remover GO_CLIENT
-- remover HACK_1
 - remove await async do end do bug do Write/Read duplo
 - lock, criar abstracao
 - remover asyncs
 - eliminar tempos de espera dos testes
 - colocar thread de volta
-- r/place
+- reddit/place
 
 #if 0
 = TODO:
