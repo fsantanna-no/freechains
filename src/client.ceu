@@ -101,7 +101,6 @@ do
             vector[1] byte recv;
             var&? UV_Stream_Read reader = spawn UV_TCP_Read(&tcp,&recv);
             await UV_Stream_ReadUntil(&reader!, 1);
-_dbg(0, "client | ok-E\n");
             var int ret = recv[0];
 
             _dbg_tcp(0, &&tcp, "client", "=> ACK-header = %d", ret);

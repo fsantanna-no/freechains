@@ -8,12 +8,9 @@ _srand(_time(null));
 
 #define N 10
 
-input void ANY;
-
-class Node with
-    var int i;
-do
-    var App _;
+code/await Node (var int i) -> void do
+    var UV_TCP_Server_Data shared = _;
+    spawn App(&shared);
 
     var int local  = 8330+i;
     var int remote = 8331+i;
@@ -37,16 +34,17 @@ do
         }
     ]=]
 
-    do Init;
+    await Init();
 
     do
-        var char[] ip      = [[ APP.server.host[1] ]];
-        var int    port    = [[ APP.server.host[2] ]];
-        var int    backlog = [[ APP.server.backlog ]];
-        _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
-        var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
+        vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
+        var      int  port    = [[ APP.server.host[2] ]];
+        var      int  backlog = [[ APP.server.backlog ]];
+        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
+        spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
-        loop j in N do
+        var int j;
+        loop j in [0 -> N[ do
             // how much time between each message?
             await (100+_rand()%1000) ms;
             [[
@@ -57,10 +55,10 @@ do
                         key   = '',
                         zeros = 0,
                     },
-                    payload = string.format('%03d',@this.i)..'.'..string.format('%03d',@j),
+                    payload = string.format('%03d',@i)..'.'..string.format('%03d',@j),
                 }
             ]];
-            do ClientMessages;
+            await ClientMessages(&shared);
         end
 
         // wait all messages to be received
@@ -79,31 +77,31 @@ do
         await N s;
     end
 
-#if 0
+#if 1
 [[
-print(@this.i, '>'..string.rep('=',70))
+print(@i, '>'..string.rep('=',70))
 print(GG.chain_tostring('||0|'))
-print(@this.i, '<'..string.rep('=',70))
+print(@i, '<'..string.rep('=',70))
 ]];
 #endif
-    var char[] path = [[ '/tmp/'..string.format('%03d',@this.i)..'.chain' ]];
+    vector[] byte path = [] .. [[ '/tmp/'..string.format('%03d',@i)..'.chain' ]];
     [[ ARGS = { chain_id='||0|' } ]];
-    var int ret = do FS_write_10.run(&path);
-    _assert(ret == _ERR_NONE);
+    var int ret = await FS_write_10(&path);
+    _ceu_dbg_assert(ret == _ERR_NONE);
 end
 
-pool Node[N] nodes;
+pool[N] Node nodes;
 
-loop i in N do
-    spawn Node in nodes with
-        this.i = i;
-    end;
+var int i;
+loop i in [0 -> N[ do
+    spawn Node(i) in nodes;
 end
 
 // wait all nodes to terminate
 loop do
     await 5s;
     var bool ok = true;
+    var&? Node n;
     loop n in nodes do
         ok = false;
     end
@@ -114,7 +112,8 @@ end
 
 // assert consensus
 [[ file1 = io.open('/tmp/000.chain'):read'*a' ]]
-loop i in N do
+var int i;
+loop i in [0 -> N[ do
     [[
         file2 = io.open('/tmp/'..string.format('%03d',@i)..'.chain'):read'*a'
         assert(file1 == file2)
