@@ -101,6 +101,7 @@ native/pre do
     }
 end
 #define G(v) GG[@(&&(v))]
+#define THIS GG[@(&&{*_ceu_mem})]
 
 data UV_TCP_Server_Data with
     event void go_client;
@@ -118,7 +119,7 @@ code/await BlockHash (var SourceBlockHash source) -> int
     // output [[ APP.block[hash]=blk APP.txs[hash]=txs ]]
 do
     [[
-        this = {
+        THIS = {
             block = ARGS.block,
             chain = APP.chains[ARGS.block.chain_id],
         }
@@ -127,36 +128,36 @@ do
     var bool is_genesis = false;
 
     // => TX_HASH
-    var int txs_n = [[ #this.block.txs ]];
+    var int txs_n = [[ #THIS.block.txs ]];
     var int i;
     loop i in [0 -> txs_n[ do
-        [[ this.tx = this.block.txs[@txs_n-i] ]];
+        [[ THIS.tx = THIS.block.txs[@txs_n-i] ]];
 
         if source is SourceBlockHash.Network then
             [[
-                assert( type(this.tx) == 'string' )
-                this.tx = this.block.txs[this.tx] or APP.txs[this.tx]
-                assert( this.tx.nonce ~= nil )
+                assert( type(THIS.tx) == 'string' )
+                THIS.tx = THIS.block.txs[THIS.tx] or APP.txs[THIS.tx]
+                assert( THIS.tx.nonce ~= nil )
             ]];
         else/if source is SourceBlockHash.File then
             [[
-                assert( type(this.tx) == 'table' )
-                assert( this.tx.nonce ~= nil )
+                assert( type(THIS.tx) == 'table' )
+                assert( THIS.tx.nonce ~= nil )
             ]];
         else/if source is SourceBlockHash.New then
             [[
-                assert( type(this.tx) == 'table' )
-                assert( this.tx.nonce == nil )
+                assert( type(THIS.tx) == 'table' )
+                assert( THIS.tx.nonce == nil )
             ]];
         else
             _ceu_dbg_assert(0);
         end
 
-        var u8 zeros_wanted = [[ this.chain.zeros ]];
+        var u8 zeros_wanted = [[ THIS.chain.zeros ]];
 
         if source is SourceBlockHash.Network then
             vector[HASH_BYTES] byte tx_hash;
-            tx_hash = [] .. [[ this.tx.hash ]];
+            tx_hash = [] .. [[ THIS.tx.hash ]];
             if zeros_wanted > _leading_zeros(&&tx_hash[0],HASH_BYTES) then
 // TODO: test-case to fail here
 // TODO: also change from ">" to "!="
@@ -166,21 +167,21 @@ _ceu_dbg_assert(0);
         end
 
         vector[] byte pln;
-        vector[HASH_BYTES] byte back_hash = [] .. [[ this.tx.back_hash ]];
-        vector[] byte           payload   = [] .. [[ this.tx.payload   ]];
+        vector[HASH_BYTES] byte back_hash = [] .. [[ THIS.tx.back_hash ]];
+        vector[] byte           payload   = [] .. [[ THIS.tx.payload   ]];
 
-        is_genesis = [[ this.tx.back_hash == string.rep('\0',HASH_BYTES) ]];
+        is_genesis = [[ THIS.tx.back_hash == string.rep('\0',HASH_BYTES) ]];
         if is_genesis then
             _ceu_dbg_assert(not (source is SourceBlockHash.Network));
             _ceu_dbg_assert(txs_n == 1);
             [[
-                assert( this.tx.payload == '' )
-                assert( this.tx.nonce   == string.rep('\0',NONCE_BYTES) )
+                assert( THIS.tx.payload == '' )
+                assert( THIS.tx.nonce   == string.rep('\0',NONCE_BYTES) )
             ]];
             break;
 
         else/if (source is SourceBlockHash.Network) or (source is SourceBlockHash.File) then
-            vector[HASH_BYTES] byte nonce = [] .. [[ this.tx.nonce ]];
+            vector[HASH_BYTES] byte nonce = [] .. [[ THIS.tx.nonce ]];
             pln = []..nonce..back_hash..payload;
 
             vector[HASH_BYTES] byte tx_hash;
@@ -189,9 +190,9 @@ _ceu_dbg_assert(0);
                                 &&pln[0], $pln,
                                 null, 0);
 
-            [[ this.tx_hash = @tx_hash ]];
+            [[ THIS.tx_hash = @tx_hash ]];
             if source is SourceBlockHash.Network then
-                var bool ok = [[ this.tx_hash == this.tx.hash ]];
+                var bool ok = [[ THIS.tx_hash == THIS.tx.hash ]];
                 if not ok then
                     // received hash+nonce do not match
 #ifdef FREECHAINS_NO_MALICIOUS
@@ -293,19 +294,19 @@ _ceu_dbg_assert(0);
                 [[ nonce[@(j+1)] = string.char(@pln[j]) ]];
             end
             [[
-                this.tx.nonce = table.concat(nonce)
-                this.tx_hash = @tx_hash
+                THIS.tx.nonce = table.concat(nonce)
+                THIS.tx_hash = @tx_hash
             ]];
         end
 
         if not (source is SourceBlockHash.Network) then
             [[
-                this.tx.hash = this.tx_hash
-                this.block.txs[@(txs_n-i)] = this.tx_hash
+                THIS.tx.hash = THIS.tx_hash
+                THIS.block.txs[@(txs_n-i)] = THIS.tx_hash
             ]];
         end
         [[
-            APP.txs[this.tx_hash] = this.tx
+            APP.txs[THIS.tx_hash] = THIS.tx
         ]];
     end
 
@@ -315,9 +316,9 @@ _ceu_dbg_assert(0);
         _ceu_vector_setlen(&&block_hash,HASH_BYTES,1);
 
         if is_genesis then
-            [[ assert( this.block.tail_hash == nil ) ]];
+            [[ assert( THIS.block.tail_hash == nil ) ]];
 
-            vector[] byte pln = [] .. [[ this.chain.id ]];
+            vector[] byte pln = [] .. [[ THIS.chain.id ]];
             _crypto_generichash(&&block_hash[0], HASH_BYTES,
                                 &&pln[0], $pln,
                                 null, 0);
@@ -327,13 +328,13 @@ _ceu_dbg_assert(0);
                                 &&block_hash[0], $block_hash,
                                 null, 0);
             [[
-                tx = this.block.txs[1]
+                tx = THIS.block.txs[1]
                 tx.hash = @tx_hash
-                this.block.txs[1] = tx.hash
+                THIS.block.txs[1] = tx.hash
                 APP.txs[tx.hash] = tx
             ]];
         else
-            //var int txs_n = [[ #this.block.txs ]]; // TODO: assert this.block.chain.limits.block
+            //var int txs_n = [[ #THIS.block.txs ]]; // TODO: assert THIS.block.chain.limits.block
             if txs_n == 0 then
 // TODO: test-case
 _ceu_dbg_assert(0);
@@ -341,15 +342,15 @@ _ceu_dbg_assert(0);
             end
 
             [[
-                if not this.block.tail_hash then
+                if not THIS.block.tail_hash then
                     -- relink only after the yielding parts, avoid "head_hash" race
-                    this.block.tail_hash = APP.chains[this.block.chain_id].head_hash
+                    THIS.block.tail_hash = APP.chains[THIS.block.chain_id].head_hash
                 end
             ]];
-            vector[] byte pln = [] .. [[ this.block.tail_hash ]];
+            vector[] byte pln = [] .. [[ THIS.block.tail_hash ]];
             var int i;
             loop i in [0 -> txs_n[ do
-                vector[HASH_BYTES] byte tx_hash = [] .. [[ this.block.txs[@i+1] ]];
+                vector[HASH_BYTES] byte tx_hash = [] .. [[ THIS.block.txs[@i+1] ]];
                 pln = pln..tx_hash;
             end
 
@@ -360,12 +361,12 @@ _ceu_dbg_assert(0);
 
         [[
             --print('block',string.len(@block_hash),'\n'..tostring2(@block_hash))
-            this.block.hash = @block_hash
-            APP.blocks[this.block.hash] = this.block
+            THIS.block.hash = @block_hash
+            APP.blocks[THIS.block.hash] = THIS.block
         ]];
     end
 
-    [[ ARGS = { block=this.block } ]];
+    [[ ARGS = { block=THIS.block } ]];
 
     escape _ERR_NONE;
 end
@@ -374,7 +375,7 @@ code/await FS_read_10 (vector&[] byte path) -> int
     // output [[ ARGS = { chain_id, head_hash } ]]
 do
     [[
-        this = {
+        THIS = {
             chain_id = nil,
             head     = nil,
             base     = nil,
@@ -417,13 +418,15 @@ do
                 end
                 var usize len = len_[0] as usize;
 
+await async do end;
                 vector[len] byte buf;
                 do
                     var ssize n = await UV_FS_Read(&f!.file,&buf,$$buf,off);
                     _ceu_dbg_assert(n == (len as ssize));
                     off = off + len;
                 end
-                [[ this.chain_id = @buf ]];
+                [[ THIS.chain_id = @buf ]];
+                //[[ print('>>> chain_id',@buf) ]];
             end
 
             // => BLOCKS
@@ -434,10 +437,10 @@ do
                 end
 
                 [[
-                    this.previous = this.block
-                    this.block = {
+                    THIS.previous = THIS.block
+                    THIS.block = {
                         txs = {},
-                        tail_hash = (this.previous and this.previous.hash) or nil,
+                        tail_hash = (THIS.previous and THIS.previous.hash) or nil,
                     }
                 ]];
 
@@ -458,8 +461,8 @@ do
                 loop i in [0 -> txs_n[ do
                     // => TXS[i]
                     [[
-                        this.tx = {}
-                        this.block.txs[@(i+1)] = this.tx
+                        THIS.tx = {}
+                        THIS.block.txs[@(i+1)] = THIS.tx
                     ]];
 
                     // => NONCE
@@ -467,8 +470,8 @@ do
                     do
                         var ssize n = await UV_FS_Read(&f!.file,&nonce,$$nonce,off);
                         _ceu_dbg_assert(n == NONCE_BYTES);
-                        [[ this.tx.nonce = @nonce ]];
-                        //[[ print('nonce','\n'..tostring2(this.tx.nonce)) ]];
+                        [[ THIS.tx.nonce = @nonce ]];
+                        //[[ print('nonce','\n'..tostring2(THIS.tx.nonce)) ]];
                         off = off + NONCE_BYTES;
                     end
 
@@ -477,8 +480,8 @@ do
                     do
                         var ssize n = await UV_FS_Read(&f!.file,&tx_back_hash,$$tx_back_hash,off);
                         _ceu_dbg_assert(n == HASH_BYTES);
-                        [[ this.tx.back_hash = @tx_back_hash ]];
-                        //[[ print('back_hash','\n'..tostring2(this.tx.back_hash)) ]];
+                        [[ THIS.tx.back_hash = @tx_back_hash ]];
+                        //[[ print('back_hash','\n'..tostring2(THIS.tx.back_hash)) ]];
                         off = off + HASH_BYTES;
                     end
 
@@ -498,33 +501,33 @@ do
                             _ceu_vector_setlen(&&payload,payload_len,1);
                             var ssize n = await UV_FS_Read(&f!.file,&payload,payload_len as usize,off);
                             _ceu_dbg_assert(n == (payload_len as ssize));
-                            [[ this.tx.payload = @payload ]];
-                            //[[ print('payload', this.tx.payload) ]];
+                            [[ THIS.tx.payload = @payload ]];
+                            //[[ print('payload', THIS.tx.payload) ]];
                             off = off + (payload_len as usize);
                         end
                     end
                 end
 
                 [[
-                    this.block.chain_id = this.chain_id
+                    THIS.block.chain_id = THIS.chain_id
                     ARGS = {
-                        block = this.block,
+                        block = THIS.block,
                     }
                 ]];
                 var int ret = await BlockHash(SourceBlockHash.File());
                 _ceu_dbg_assert(ret == _ERR_NONE);
 
                 [[
-                    if this.previous then
-                        this.previous.up_hash = this.block.hash
+                    if THIS.previous then
+                        THIS.previous.up_hash = THIS.block.hash
                     end
                 ]];
             end
 
             [[
                 ARGS = {
-                    chain_id  = this.chain_id,
-                    head_hash = this.block.hash,
+                    chain_id  = THIS.chain_id,
+                    head_hash = THIS.block.hash,
                 }
             ]];
             escape _ERR_NONE;
@@ -549,7 +552,7 @@ do
     [[
         chain = APP.chains[ ARGS.chain_id ]
         t = GG.chain_head_base_size(chain.head_hash)
-        this = {
+        THIS = {
             base  = t.base,
             chain = chain,
         }
@@ -581,7 +584,7 @@ do
 
         // <= CHAIN_ID
         do
-            var byte len = [[ string.len(this.chain.id) ]];
+            var byte len = [[ string.len(THIS.chain.id) ]];
             vector[1] byte len_ = [len];
             do
                 var ssize n = await UV_FS_Write(&f!.file,&len_,1,0);
@@ -589,7 +592,7 @@ do
             end
 
 await async do end;
-            vector[len] byte buf = [] .. [[ this.chain.id ]];
+            vector[len] byte buf = [] .. [[ THIS.chain.id ]];
             do
                 var ssize n = await UV_FS_Write(&f!.file,&buf,$buf,0);
                 _ceu_dbg_assert(n == (len as ssize));
@@ -599,7 +602,7 @@ await async do end;
         // <= BLOCKS
         loop do
             // <= TXS
-            var u32 txs_n = [[ #this.base.txs ]];
+            var u32 txs_n = [[ #THIS.base.txs ]];
             do
                 // <= TXS_N
                 vector[sizeof(u32)] byte buf;
@@ -614,20 +617,20 @@ await async do end;
                 // TX_HASH NONCE TX_BACK_HASH TX_PAYLOAD_LEN TX_PAYLOAD
 
                 [[
-                    tx_hash = this.base.txs[@i+1]
-                    this.tx = assert(APP.txs[tx_hash])
+                    tx_hash = THIS.base.txs[@i+1]
+                    THIS.tx = assert(APP.txs[tx_hash])
                 ]];
 
                 // <= NONCE
                 do
-                    vector[NONCE_BYTES] byte buf = [] .. [[ this.tx.nonce ]];
+                    vector[NONCE_BYTES] byte buf = [] .. [[ THIS.tx.nonce ]];
                     var ssize n = await UV_FS_Write(&f!.file,&buf,$buf,0);
                     _ceu_dbg_assert(n == NONCE_BYTES);
                 end
 
                 // <= TX_BACK_HASH
                 do
-                    vector[HASH_BYTES] byte buf = [] .. [[ this.tx.back_hash ]];
+                    vector[HASH_BYTES] byte buf = [] .. [[ THIS.tx.back_hash ]];
                     var ssize n = await UV_FS_Write(&f!.file,&buf,$buf,0);
                     _ceu_dbg_assert(n == HASH_BYTES);
                 end
@@ -635,7 +638,7 @@ await async do end;
                 // <= TX_PAYLOAD_LEN
                 // <= TX_PAYLOAD
                 do
-                    var u32 len = [[ string.len(this.tx.payload) ]];
+                    var u32 len = [[ string.len(THIS.tx.payload) ]];
                     // <= TX_PAYLOAD_LEN
                     do
                         vector[sizeof(u32)] byte buf;
@@ -646,7 +649,7 @@ await async do end;
                     end
                     // <= TX_PAYLOAD
                     do
-                        vector[] byte buf = [] .. [[ this.tx.payload ]];
+                        vector[] byte buf = [] .. [[ THIS.tx.payload ]];
                         var ssize n = await UV_FS_Write(&f!.file,&buf,$buf,0);
                         _ceu_dbg_assert(n == (len as ssize));
                     end
@@ -654,13 +657,13 @@ await async do end;
             end
 
             // NEXT BLOCK
-            var bool has = [[ this.base.up_hash ~= nil ]];
+            var bool has = [[ THIS.base.up_hash ~= nil ]];
             if not has then
                 break;
             end
             [[
-                --print('<<<', '|'..tostring2(this.base.hash)..'|')
-                this.base = assert(APP.blocks[this.base.up_hash])
+                --print('<<<', '|'..tostring2(THIS.base.hash)..'|')
+                THIS.base = assert(APP.blocks[THIS.base.up_hash])
             ]];
         end
 

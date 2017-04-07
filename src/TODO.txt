@@ -1,4 +1,4 @@
-- remove await async do end do bug do Write duplo
+- remove await async do end do bug do Write/Read duplo
 - lock, criar abstracao
 - remover asyncs
 - eliminar tempos de espera dos testes
