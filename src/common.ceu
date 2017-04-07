@@ -745,18 +745,19 @@ do
                 chain = chain,
             }
         ]]
-        var&? Client c_new = spawn Client(&shared) in clients;
-        _ceu_dbg_assert(c_new?);    // HACK_1
 
         // kill last/idle client
         var int i = 0;
         var&? Client c;
         loop c in clients do
             i = i + 1;
-            if &&c!!=&&c_new! and i==3 then
+            if i == 3 then
                 kill c;
             end
         end
+
+        var&? Client c_new = spawn Client(&shared) in clients;
+        _ceu_dbg_assert(c_new?);    // HACK_1
     end
 #endif
 end
