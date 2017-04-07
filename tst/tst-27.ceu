@@ -7,22 +7,23 @@
 #include "common.ceu"
 
 [[
+    dofile 'src/common.lua'
     dofile 'cfg/config.lua'
 ]];
 
-do Init;
+await Init();
 
-var char[] src = [].."x.chain";
-var char[] dst = [].."y.chain";
+vector[] byte src = [].."x.chain";
+vector[] byte dst = [].."y.chain";
 
 do
-    var int ret = do FS_read_10.run(&src);
-    _assert(ret == _ERR_NONE);
+    var int ret = await FS_read_10(&src);
+    _ceu_dbg_assert(ret == _ERR_NONE);
 end
 
 do
-    var int ret = do FS_write_10.run(&dst);
-    _assert(ret == _ERR_NONE);
+    var int ret = await FS_write_10(&dst);
+    _ceu_dbg_assert(ret == _ERR_NONE);
 end
 
 [[
@@ -33,15 +34,18 @@ assert(src == dst)
 
 // error r/w
 do
-    var char[] err = [].."/no.chain";
+    vector[] byte err = [].."/no.chain";
 
-    var int ret = do FS_read_10.run(&err);
+[[print'1']]
+    var int ret = await FS_read_10(&err);
     _fprintf(_stderr, "[%d] uv-error: %s\n", ret, _uv_strerror(ret));
-    _assert(ret == -_ENOENT);
+    _ceu_dbg_assert(ret == -_ENOENT);
 
-    ret = do FS_write_10.run(&err);
+[[print'2']]
+    ret = await FS_write_10(&err);
+[[print'3']]
     _fprintf(_stderr, "[%d] uv-error: %s\n", ret, _uv_strerror(ret));
-    _assert(ret == -_EACCES);
+    _ceu_dbg_assert(ret == -_EACCES);
 end
 
 [[ print'OK!' ]];
