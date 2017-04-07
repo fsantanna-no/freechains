@@ -175,7 +175,7 @@ do
     escape _ERR_NONE;
 end
 
-code/await PeerSend (event& int client_ok) -> int
+code/await PeerSend (void) -> int
     // [[ ARGS = { peer=?, block=? } ]]
 do
 
@@ -219,13 +219,12 @@ end
                 _ceu_dbg_assert(0);
 #endif
             end
-            emit client_ok(err_);
             escape err_;
         end;
     escape err!;
 end
 
-code/await Client (var& UV_TCP_Server_Data shared) -> (event int ok) -> int
+code/await Client (var& UV_TCP_Server_Data shared) -> int
     // [[ ARGS = { chain=?, block=? } ]]
 do
     [[ THIS = ARGS ]];
@@ -278,15 +277,15 @@ do  // TODO: try to remove this do-end
                     block = APP.blocks[THIS.chain.head_hash],
                 }
             ]];
-            var&? PeerSend p = spawn PeerSend(&ok) in peers;
+            var&? PeerSend p = spawn PeerSend() in peers;
             _ceu_dbg_assert(p?);
         end
     end
     _dbg(0, "client:%p | broadcasting messages to %d peer(s)", {&_ceu_mem}, ps_ok);
-    var int i;
-    loop i in [0 -> ps_ok[ do
-        var int err = await ok;
-        _dbg(0, "client:%p | peer %d", {&_ceu_mem}, err);
+    var&? PeerSend p;
+    loop p in peers do
+        await p;
+        //_dbg(0, "client:%p | peer %d", {&_ceu_mem}, err);
     end
     _dbg(0, "client:%p | broadcasts OK", {&_ceu_mem});
 end

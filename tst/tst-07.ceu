@@ -51,7 +51,7 @@ par/and do
                     chain = assert(APP.chains[block.chain_id]),
                 }
             ]=];
-            await Client();
+            await Client(&shared);
         end
     end
 
