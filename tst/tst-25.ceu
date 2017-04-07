@@ -6,7 +6,10 @@
 //  - 333,444
 ///////////////////////////////////////////////////////////////////////////////
 
+var UV_TCP_Server_Data shared = _;
+
 [=[
+    dofile 'src/common.lua'
     dofile 'cfg/config.lua'
 
     CLIENT {
@@ -18,7 +21,7 @@
     }
 ]=];
 
-do Init;
+await Init();
 
 [=[
     MESSAGE {
@@ -40,7 +43,7 @@ do Init;
     }
 ]=];
 
-do ClientMessages;
+await ClientMessages(&shared);
 
 [=[
     MESSAGE {
@@ -61,7 +64,7 @@ do ClientMessages;
         payload = [[444]],
     }
 ]=];
-do ClientMessages;
+await ClientMessages(&shared);
 
 [[
     print('>'..string.rep('=',78))
@@ -69,15 +72,16 @@ do ClientMessages;
     print('<'..string.rep('=',78))
 ]];
 
-var char[] path = [].."x.chain";
+vector[] byte path = [].."x.chain";
 [[ ARGS={ chain_id='||0|' } ]];
-var int ret = do FS_write_10.run(&path);
-_assert(ret == _ERR_NONE);
+var int ret = await FS_write_10(&path);
+_ceu_dbg_assert(ret == _ERR_NONE);
 
 [[
-local src   = io.open('../src/x.chain'):read'*a'
+local src   = io.open('src/x.chain'):read'*a'
 local build = io.open('x.chain'):read'*a'
 assert(src == build)
+print 'OK!'
 ]];
 
 escape 0;
