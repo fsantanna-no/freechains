@@ -104,7 +104,6 @@ end
 #define THIS GG[@(&&{*_ceu_mem})]
 
 data UV_TCP_Server_Data with
-    event void go_client;
     event void unlock;
 end
 
@@ -422,7 +421,7 @@ await async do end;
                 vector[len] byte buf;
                 do
                     var ssize n = await UV_FS_Read(&f!.file,&buf,$$buf,off);
-                    _ceu_dbg_assert(n == (len as ssize));
+                    _ceu_dbg_assert(n == len);
                     off = off + len;
                 end
                 [[ THIS.chain_id = @buf ]];
@@ -453,7 +452,7 @@ await async do end;
                     if n <= 0 then
                         break;
                     end
-                    _ceu_dbg_assert(n == (sizeof(u32) as ssize));
+                    _ceu_dbg_assert(n == sizeof(u32));
                     txs_n = *(&&buf[0] as u32&&);
                     off = off + sizeof(u32);
                 end
@@ -492,7 +491,7 @@ await async do end;
                         do
                             vector[sizeof(u32)] byte buf;
                             var ssize n = await UV_FS_Read(&f!.file,&buf,$$buf,off);
-                            _ceu_dbg_assert(n == (sizeof(u32) as ssize));
+                            _ceu_dbg_assert(n == sizeof(u32));
                             payload_len = *(&&buf[0] as u32&&);
                             //[[ print('payload_len', @payload_len) ]];
                             off = off + sizeof(u32);
@@ -612,7 +611,7 @@ await async do end;
                 _ceu_vector_setlen(&&buf, sizeof(u32), 1);
                 _ceu_vector_buf_set(&&buf, 0, &&txs_n, sizeof(u32));
                 var ssize n = await UV_FS_Write(&f!.file,&buf,$buf,0);
-                _ceu_dbg_assert(n == (sizeof(u32) as ssize));
+                _ceu_dbg_assert(n == sizeof(u32));
             end
             var u32 i;
             loop i in [0 -> txs_n[ do
@@ -648,7 +647,7 @@ await async do end;
                         _ceu_vector_setlen(&&buf, sizeof(u32), 1);
                         _ceu_vector_buf_set(&&buf, 0, &&len, sizeof(u32));
                         var ssize n = await UV_FS_Write(&f!.file,&buf,$buf,0);
-                        _ceu_dbg_assert(n == (sizeof(u32) as ssize));
+                        _ceu_dbg_assert(n == sizeof(u32));
                     end
                     // <= TX_PAYLOAD
                     do
@@ -733,32 +732,7 @@ do
         GG.MESSAGE10_NOTSUB = @(_MESSAGE10_NOTSUB as int)
         APP = app_create()
     ]];
-#if 0
     await FOREVER;
-#else
-    pool[3] Client clients;
-    every shared.go_client do       // TODO: "await Spawn_Client()"
-        [[
-            local chain = assert(APP.chains[ARGS.chain_id])
-            ARGS = {
-                block = assert(APP.blocks[chain.head_hash]),
-                chain = chain,
-            }
-        ]]
-
-        // kill last/idle client
-        var int i = 0;
-        var&? Client c;
-        loop c in clients do
-            i = i + 1;
-            if i == 3 then
-                kill c;
-            end
-        end
-
-        spawn Client(&shared) in clients;
-    end
-#endif
 end
 
 #endif

@@ -527,11 +527,13 @@ do
     //var bool has = [[ block_new ~= dst.head ]];
     //if has then
         [[
+            local chain = assert(APP.chains[G(outer.conn.tcp).chain.id])
             ARGS = {
-                chain_id = G(outer.conn.tcp).chain.id,
+                block = assert(APP.blocks[chain.head_hash]),
+                chain = chain,
             }
         ]];
-        emit outer.shared.go_client;
+        await Client(&outer.shared);
     //end
 end
 

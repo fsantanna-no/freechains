@@ -366,12 +366,13 @@ do
             APP.blocks[chain.head_hash].up_hash = block.hash
             chain.head_hash = block.hash
 
+            local chain = assert(APP.chains[ARGS.block.chain_id])
             ARGS = {
-                chain_id = ARGS.block.chain_id
+                block = assert(APP.blocks[chain.head_hash]),
+                chain = chain,
             }
         ]];
-        emit shared.go_client;
-        await 100ms;
+        await Client(&shared);
     else
         _ceu_dbg_assert(0);  // message not supported
     end
