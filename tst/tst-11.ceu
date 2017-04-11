@@ -40,7 +40,6 @@ par/and do
 
         await Init();
 
-        await async do end;
         await ClientMessages(&shared);
     end
 

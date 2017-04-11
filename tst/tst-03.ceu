@@ -64,7 +64,6 @@ par/and do
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
         spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
-        await async do end;
         await ClientMessages(&shared);
         await 4s;
 

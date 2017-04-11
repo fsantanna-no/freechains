@@ -60,7 +60,6 @@ par/and do
 
         await Init();
 
-        await async do end;
         await ClientMessages(&shared);
 
         [=[
@@ -73,7 +72,6 @@ par/and do
                 payload = [[21.1]],
             }
         ]=];
-        await async do end;
         await ClientMessages(&shared);
 
         [=[
@@ -86,7 +84,6 @@ par/and do
                 payload = [[22.2]],
             }
         ]=];
-        await async do end;
         await ClientMessages(&shared);
 
         [=[
@@ -99,7 +96,6 @@ par/and do
                 payload = [[21.2]],
             }
         ]=];
-        await async do end;
         await ClientMessages(&shared);
 
         await 1s;

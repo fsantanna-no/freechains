@@ -43,7 +43,6 @@ par/and do
         end
         pool[1] Disconnect ds;
 
-        await async do end
 
         par/and do
             // close 2nd connection for 2nd message

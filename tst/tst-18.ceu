@@ -49,7 +49,6 @@ par/and do
         end
         pool[1] Disconnect ds;
 
-        await async do end
         var int i;
         loop i in [1 -> 3] do
             [=[

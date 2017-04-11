@@ -33,7 +33,6 @@ par/or do
 
         await Init();
 
-        await async do end
         var int i;
         loop i in [1 -> 9] do
             [=[

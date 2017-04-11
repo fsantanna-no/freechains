@@ -53,7 +53,6 @@ par/and do
             APP.chains['||0|'].head_hash = ARGS.head_hash
         ]];
 
-        await async do end;
         await ClientMessages(&shared);
         await 1s;
 

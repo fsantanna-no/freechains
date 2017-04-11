@@ -31,7 +31,6 @@ par/and do
 
         await Init();
 
-        await async do end
         var int i;
         loop i in [1 -> 3] do
             [=[
