@@ -417,7 +417,6 @@ do
                 end
                 var usize len = len_[0] as usize;
 
-await async do end;
                 vector[len] byte buf;
                 do
                     var ssize n = await UV_FS_Read(&f!.file,&buf,$$buf,off);
@@ -593,7 +592,6 @@ do
                 _ceu_dbg_assert(n == 1);
             end
 
-await async do end;
             vector[len] byte buf = [] .. [[ THIS.chain.id ]];
             do
                 var ssize n = await UV_FS_Write(&f!.file,&buf,$buf,0);
