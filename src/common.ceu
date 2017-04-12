@@ -104,6 +104,7 @@ end
 #define THIS GG[@(&&{*_ceu_mem})]
 
 data UV_TCP_Server_Data with
+    event (int,int) ok;
     event void unlock;
 end
 
