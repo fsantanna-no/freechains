@@ -10,7 +10,6 @@ _srand(_time(null));
 
 code/await Node (var int i) -> void do
     var UV_TCP_Server_Data shared = _;
-    spawn App(&shared);
 
     var int local  = 8330+i;
     var int remote = 8331+i;
@@ -19,6 +18,7 @@ code/await Node (var int i) -> void do
     end
 
     [=[
+        dofile 'src/common.lua'
         dofile 'cfg/config.lua'
 
         SERVER {

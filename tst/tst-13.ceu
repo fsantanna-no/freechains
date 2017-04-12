@@ -21,8 +21,8 @@ par/or do
 
     lua[] do
         var UV_TCP_Server_Data shared = _;
-        spawn App(&shared);
         [[
+            dofile 'src/common.lua'
             dofile 'cfg/config.lua'
             CLIENT {
                 peers = {
@@ -61,8 +61,8 @@ with
 
     lua[] do
         var UV_TCP_Server_Data shared = _;
-        spawn App(&shared);
         [[
+            dofile 'src/common.lua'
             dofile 'cfg/config.lua'
             SERVER {
                 host = { '127.0.0.1', '8331' },
@@ -101,8 +101,8 @@ with
 
     lua[] do
         var UV_TCP_Server_Data shared = _;
-        spawn App(&shared);
         [[
+            dofile 'src/common.lua'
             dofile 'cfg/config.lua'
             CLIENT {
                 peers = {

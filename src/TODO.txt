@@ -1,5 +1,3 @@
-- remover App
-- remover asyncs
 - eliminar tempos de espera dos testes
 - remove await async do end do bug do Write/Read duplo
 - lock, criar abstracao

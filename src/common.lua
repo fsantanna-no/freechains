@@ -2,39 +2,35 @@
 
 GG = {}
 
-function app_create ()
-    return {
-        server   = {},  -- server configurations
-        client   = {},  -- client configurations
-        chains   = {},  -- chains configurations
-        messages = {},  -- pending messages to transmit
-        blocks = {      -- blocks in memory
-            --[hash] = {
-            --    hash      = nil,
-            --    up_hash   = nil,
-            --    tail_hash = nil,
-            --    txs       = { tx_hash1, tx_hash2, ... },
-            --},
-            --...
-        },
-        txs = {         -- txs in memory
-            --[hash] = {
-            --    hash    = nil,
-            --    nonce   = nil,
-            --    bytes   = nil,
-            --    payload = nil,
-            --}
-        },
-        gs = {          -- ceu->lua globals
-            --[usedata-k] = {}
-        },
-        errs = {
-            -- NOTSUB, etc
-        },
-    }
-end
-
-APP = app_create()
+APP = {
+    server   = {},  -- server configurations
+    client   = {},  -- client configurations
+    chains   = {},  -- chains configurations
+    messages = {},  -- pending messages to transmit
+    blocks = {      -- blocks in memory
+        --[hash] = {
+        --    hash      = nil,
+        --    up_hash   = nil,
+        --    tail_hash = nil,
+        --    txs       = { tx_hash1, tx_hash2, ... },
+        --},
+        --...
+    },
+    txs = {         -- txs in memory
+        --[hash] = {
+        --    hash    = nil,
+        --    nonce   = nil,
+        --    bytes   = nil,
+        --    payload = nil,
+        --}
+    },
+    gs = {          -- ceu->lua globals
+        --[usedata-k] = {}
+    },
+    errs = {
+        -- NOTSUB, etc
+    },
+}
 
 function CHAINS (t)
     APP.chains = {}
