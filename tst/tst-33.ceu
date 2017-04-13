@@ -46,7 +46,7 @@ code/await Node (var int i) -> void do
         var int j;
         loop j in [0 -> N[ do
             // how much time between each message?
-            await (N*1000/2 + _rand()%1000)ms;
+            await (_rand()%100)ms;
 _printf(">>> I=%d j=%d\n", i, j);
             [[
                 APP.messages = {}
@@ -65,7 +65,7 @@ _printf("\t\t<<< I=%d\n", i);
 
         // wait all messages to be received
         loop do
-            await 1s;   // periodic check (any number is ok)
+            await 100ms;   // periodic check (any number is ok)
             [[
                 t = GG.chain_head_base_size(APP.chains['||0|'].head_hash)
             ]]
@@ -75,9 +75,6 @@ _printf("\t\t<<< I=%d\n", i);
                 break;
             end
         end
-
-        // how much time to wait for consensus???
-        await (5*N) s;
 _printf("<<< out=%d\n", i);
     end
 
@@ -102,20 +99,14 @@ loop i in [0 -> N[ do
 end
 
 // wait all nodes to terminate
-loop do
-    await 5s;   // periodic check (any number is ok)
-    var bool ok = true;
-    var&? Node n;
-    loop n in nodes do
-        ok = false;
-    end
-    if ok then
-        break;
-    end
+var&? Node n;
+loop n in nodes do
+    await n;
 end
 
 _printf("BLOCKS_RECEIVED  = %d\n", {BLOCKS_RECEIVED});
 _printf("BLOCKS_RECREATED = %d\n", {BLOCKS_RECREATED});
+_ceu_dbg_assert({BLOCKS_RECEIVED} == N*N);
 
 // assert consensus
 [[ file1 = io.open('/tmp/000.chain'):read'*a' ]]
