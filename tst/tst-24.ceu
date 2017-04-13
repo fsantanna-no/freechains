@@ -57,9 +57,7 @@ par/and do
                 payload = [[22.1]],
             }
         ]=];
-
         await Init();
-
         await ClientMessages(&shared);
 
         [=[
@@ -97,8 +95,6 @@ par/and do
             }
         ]=];
         await ClientMessages(&shared);
-
-        await 1s;
 
         [[
             CHAIN0_1 = GG.chain_flatten('||21|')
@@ -143,7 +139,8 @@ with
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
         spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
-        await 20s;
+        await shared.ok;
+        await shared.ok;
         [[
             CHAIN1_2 = GG.chain_flatten('||22|')
             print'===> SERVER-1'
@@ -155,7 +152,7 @@ with
         chain1_2 = []..[[tostring2(CHAIN1_2)]];
         [[
             assert(#CHAIN1_2==3 and CHAIN1_2[3].txs[1]=='22.2')
-            print'OK 1/3!'
+            print'OK 1/4!'
         ]];
     end
 
@@ -191,7 +188,10 @@ with
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
         spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
-        await 20s;
+        await shared.ok;
+        await shared.ok;
+        await shared.ok;
+        await shared.ok;
         [[
             CHAIN2_2 = GG.chain_flatten('||22|')
             print'===> SERVER-2'
@@ -227,7 +227,10 @@ with
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
         spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
-        await 20s;
+        await shared.ok;
+        await shared.ok;
+        await shared.ok;
+        await shared.ok;
         [[
             CHAIN3_1 = GG.chain_flatten('||21|')
             CHAIN3_2 = GG.chain_flatten('||22|')
@@ -240,7 +243,7 @@ with
         chain3_2 = []..[[tostring2(CHAIN3_2)]];
         [[
             assert(#CHAIN3_1==3 and CHAIN3_1[3].txs[1]=='21.2')
-            print'OK 2/3!'
+            print'OK 2/4!'
         ]];
     end
 
@@ -268,7 +271,8 @@ with
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
         spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
-        await 20s;
+        await shared.ok;
+        await shared.ok;
         [[
             CHAIN4_1 = GG.chain_flatten('||21|')
             CHAIN4_2 = GG.chain_flatten('||22|')
@@ -279,6 +283,9 @@ with
             print('<'..string.rep('=',78))
         ]];
         chain4_2 = []..[[tostring2(CHAIN4_2)]];
+        [[
+            print'OK 3/4!'
+        ]];
     end
 
 end
@@ -287,7 +294,7 @@ end
     assert(@chain1_2 == @chain2_2)
     assert(@chain1_2 == @chain3_2)
     assert(@chain1_2 == @chain4_2)
-    print'OK 3/3!'
+    print'OK 4/4!'
 ]];
 
 escape 0;

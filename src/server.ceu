@@ -40,11 +40,12 @@ do
     var bool ok = ( conn.bytes[0]==MESSAGE_MAGIC_0 and
                     conn.bytes[1]==MESSAGE_MAGIC_1 );
 
-    if ok and conn.bytes[2]==1 and conn.bytes[3]==0 then
+    var int msg = (conn.bytes[2]<<8) + (conn.bytes[3]<<0);
+
+    if ok and msg==0x100 then
         err = do ()
             #include "server/message10_recv.ceu"
         end;
-        emit shared.ok(10, err);
     else
         err = _ERR_MESSAGE;
     end
@@ -52,6 +53,7 @@ do
     if err != _ERR_NONE then
         [[ APP.errs[#APP.errs+1] = @err ]];
     end
+    emit shared.ok(msg, err);
 
 #ifdef FREECHAINS_NO_MALICIOUS
     _ceu_dbg_assert(err == _ERR_NONE);

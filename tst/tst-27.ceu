@@ -36,14 +36,11 @@ assert(src == dst)
 do
     vector[] byte err = [].."/no.chain";
 
-[[print'1']]
     var int ret = await FS_read_10(&err);
     _fprintf(_stderr, "[%d] uv-error: %s\n", ret, _uv_strerror(ret));
     _ceu_dbg_assert(ret == -_ENOENT);
 
-[[print'2']]
     ret = await FS_write_10(&err);
-[[print'3']]
     _fprintf(_stderr, "[%d] uv-error: %s\n", ret, _uv_strerror(ret));
     _ceu_dbg_assert(ret == -_EACCES);
 end

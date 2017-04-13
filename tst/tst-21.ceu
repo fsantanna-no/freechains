@@ -68,7 +68,6 @@ par/and do
         ]=];
 
         await Init();
-
         await ClientMessages(&shared);
 
         [=[
@@ -81,9 +80,8 @@ par/and do
                 payload = [['hello']],
             }
         ]=];
-        await ClientMessages(&shared);
 
-        await 1s;
+        await ClientMessages(&shared);
 
         [[
             CHAIN0_1 = GG.chain_flatten('||0|')
@@ -136,7 +134,8 @@ with
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
         spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
-        await 1s;
+        await shared.ok;
+        await shared.ok;
         [[
             CHAIN1_1 = GG.chain_flatten('||0|')
             CHAIN1_2 = GG.chain_flatten('|hello|0|')
@@ -188,7 +187,7 @@ with
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
         spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
-        await 1s;
+        await 500ms;
         [[
             CHAIN2_1 = GG.chain_flatten('||0|')
             CHAIN2_2 = GG.chain_flatten('|hello|0|')
@@ -238,7 +237,7 @@ with
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
         spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
-        await 1s;
+        await shared.ok;
         [[
             CHAIN3_1 = GG.chain_flatten('||0|')
             CHAIN3_2 = GG.chain_flatten('|hello|0|')
@@ -285,7 +284,8 @@ with
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
         spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
-        await 1s;
+        await shared.ok;
+        await shared.ok;
         [[
             assert(not APP.chains['||0|'])
             CHAIN4_2 = GG.chain_flatten('|hello|0|')
