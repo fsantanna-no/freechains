@@ -245,7 +245,9 @@ do
         end
     end
 
+#ifdef OLD
     [[ THIS.chain.send_is_locked = true ]];
+#endif
     do finalize with
         [[ THIS.chain.send_is_locked = false ]];
         emit shared.unlock;

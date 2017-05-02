@@ -106,6 +106,7 @@ end
 data UV_TCP_Server_Data with
     event (int,int) ok;
     event void unlock;
+    event void retransmit;
 end
 
 data SourceBlockHash;
@@ -678,13 +679,16 @@ native/pre do
     int CLIENTS_ALIVE    = 0;
     int BLOCKS_RECEIVED  = 0;
     int BLOCKS_RECREATED = 0;
+    int TXS_RECREATED = 0;
 end
+#if 0
 spawn do
     every 10s do
         _printf("SERVERS_ALIVE = %d\n", {SERVERS_ALIVE});
         _printf("CLIENTS_ALIVE = %d\n", {CLIENTS_ALIVE});
     end
 end
+#endif
 
 #include "client.ceu"
 #include "server.ceu"
