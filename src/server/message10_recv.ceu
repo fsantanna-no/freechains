@@ -60,7 +60,7 @@ do
         _ceu_vector_buf_set(&&hash, 0, &&conn.bytes[conn.off], HASH_BYTES);
         conn.off = conn.off + HASH_BYTES;
         vector[] byte str = [] .. [[ tostring2(@hash) ]];
-        _dbg_tcp(0, &&conn.tcp, "server", "=> BLOCK_HASH : %s", &&str[0]);
+_dbg_tcp(3, &&conn.tcp, "server", "=> BLOCK_HASH : %s", &&str[0]);
 
         // txs_n
         await UV_Stream_ReadUntil(&conn.reader, conn.off+sizeof(u32));
@@ -483,7 +483,9 @@ end
     -- insert all src* txs into block_new.txs if non existent
     cur = src.head
     T = {}  -- txs in base->head order
+fork = 0
     while cur.hash ~= common_hash do
+fork = fork+1
         t = {}
         for _, tx in ipairs(cur.txs) do
             assert(type(tx) == 'string')
@@ -504,9 +506,9 @@ end
         block = block_new
     }
 ]];
-var bool has_txs = [[ #block_new.txs > 0 ]];
-if has_txs then
-{BLOCKS_RECREATED++;}
+
+var int txs = [[ #block_new.txs ]];
+if txs>0 then
     [[
         ARGS = { block=block_new }
     ]];
@@ -518,13 +520,31 @@ if has_txs then
     ]]
 end
 
+var int fork = [[fork]];
+var bool is_remote = [[ dst == remote ]];
+if fork>1 and is_remote and txs>0 then
+    //_ceu_dbg_assert(has_txs);
+    _dbg_tcp(3, &&outer.conn.tcp, "server", "recreated: %d", fork);
+    {BLOCKS_RECREATED+=@fork;}
+    {TXS_RECREATED+=@txs;}
+end
+
 ///////////////////////////////////////////////////////////////////////////
 // RETRANSMIT NEW HEAD
 ///////////////////////////////////////////////////////////////////////////
 
+#ifndef OLD
+emit outer.shared.retransmit;
+#endif
+par/or do
+    await outer.shared.retransmit;
+    //_ceu_dbg_assert(0);
+with
+    //watching outer.shared.retransmit do
 do
     // TODO: conditions to not propagate changes
-    //var bool has = [[ block_new ~= dst.head ]];
+    var bool has = [[ block_new ~= dst.head ]];
+    _ceu_dbg_assert(has);
     //if has then
         [[
             local chain = assert(APP.chains[G(outer.conn.tcp).chain.id])
@@ -535,6 +555,7 @@ do
         ]];
         await Client(&outer.shared);
     //end
+end
 end
 
 escape _ERR_NONE;
