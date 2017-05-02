@@ -1,5 +1,6 @@
 #include "common.ceu"
 
+#if 0
 input (int, _char&& &&) OS_START;
 
 var int        argc;
@@ -33,3 +34,122 @@ end
 
 //_assert(0);
 escape 0;
+#endif
+
+var UV_TCP_Server_Data shared = _;
+[=[
+    dofile 'src/common.lua'
+    dofile 'cfg/config.lua'
+
+    SERVER {
+        host = { '127.0.0.1', '8331' },
+    }
+
+    CLIENT {
+        peers = {
+            {
+                host = { '127.0.0.1', '8332' },
+            },
+        },
+    }
+]=];
+
+await Init();
+
+vector[] byte path = [].."x.chain";
+do
+    var int ret = await FS_read_10(&path);
+    _ceu_dbg_assert(ret == _ERR_NONE);
+    [[            -- TODO: read from file
+        APP.chains['||0|'].head_hash = ARGS.head_hash
+        HEAD = ARGS.head_hash
+    ]];
+end
+
+vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
+var      int  port    = [[ APP.server.host[2] ]];
+var      int  backlog = [[ APP.server.backlog ]];
+_dbg(0, "server | listening in %s:%d", &&ip[0], port);
+spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
+
+par do
+    var bool pending = false;
+    loop do
+        if not pending then
+            await shared.ok;
+        end
+        pending = false;
+        _dbg(0, "server | received");
+        [[ ARGS={ chain_id='||0|' } ]];
+        var int? ret =
+            watching FS_write_10(&path) do
+                await shared.ok;
+                pending = true;
+                await FOREVER;
+            end;
+        _ceu_dbg_assert(ret! == _ERR_NONE);
+
+        [[
+            local f = assert(io.open('/tmp/fifo.out', 'w'))
+            local head = APP.chains['||0|'].head_hash
+            local cur = head
+            while true do
+                if HEAD == cur then
+                    break
+                end
+                local block = APP.blocks[cur]
+                for _,tx in pairs(block.txs) do
+                    tx = APP.txs[tx]
+                    --for k,v in pairs(tx) do
+                        --print(k,v)
+                    --end
+                    f:write(string.len(tx.payload)..'\n')
+                    f:write(tx.payload)
+                end
+                cur = block.tail_hash
+            end
+            f:close()
+            HEAD = head
+        ]]
+    end
+with
+    vector[] byte msgs;
+    event void ok;
+    par do
+        lua[] do
+            loop do
+                await async/thread (msgs) do
+                    [[
+                        local f = assert(io.open('/tmp/fifo.in', 'r+'))
+                        local n = assert(tonumber(assert(f:read('l'))))
+                        print(n)
+                        buf = f:read(n)
+                        print(buf)
+                    ]]
+                end
+                msgs = [] .. [[ buf ]];
+                par/and do
+                    emit ok;
+                with
+                    await ok;
+                end
+            end
+        end
+    with
+        await ok;
+        loop do
+            [[
+                assert(load(@msgs))()
+            ]]
+            _dbg(0, "client...");
+            await ClientMessages(&shared);
+            _dbg(0, "client | ok");
+            emit shared.ok(0x100, _ERR_NONE);
+            par/and do
+                emit ok;
+            with
+                await ok;
+            end
+        end
+    end
+end
