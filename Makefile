@@ -1,6 +1,9 @@
 CEU_DIR    = $(error set absolute path to "<ceu>" repository)
 CEU_UV_DIR = $(error set absolute path to "<ceu-libuv>" repository)
 
+main:
+	make CEU_SRC=src/main.ceu all
+
 all:
 	ceu --pre --pre-args="-I$(CEU_DIR)/include -I$(CEU_UV_DIR)/include -Isrc/" \
 	          --pre-input=$(CEU_SRC)                                           \
@@ -29,12 +32,12 @@ c:
 	         --cc-output=freechains
 
 tests:
-	for i in tst/*.ceu; do                               \
+	for i in tst/tst-*.ceu; do                           \
 		echo;                                            \
 		echo "#####################################";    \
 		echo File: "$$i";                                \
 		echo "#####################################";    \
-		make CEU_SRC=$$i && ./freechains || exit 1;      \
+		make CEU_SRC=$$i all && ./freechains || exit 1;  \
 		if [ "$$i" = "tst/tst-32.ceu" ]; then break; fi; \
 	done
 
@@ -42,7 +45,14 @@ tests:
 #real	8m57.250s
 #user	5m25.088s
 #sys	0m10.500s
-
+#---
+#real	12m18.462s
+#user	7m29.992s
+#sys	0m9.432s
+#---
+#real	8m13.586s
+#user	7m40.896s
+#sys	0m9.088s
 
 # 32
 # 20*20=400 messages, 400*20=8000 minimum receives
