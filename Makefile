@@ -1,5 +1,7 @@
-CEU_DIR    = $(error set absolute path to "<ceu>" repository)
-CEU_UV_DIR = $(error set absolute path to "<ceu-libuv>" repository)
+#CEU_DIR    = $(error set absolute path to "<ceu>" repository)
+#CEU_UV_DIR = $(error set absolute path to "<ceu-libuv>" repository)
+CEU_DIR    = /data/ceu/ceu
+CEU_UV_DIR = /data/ceu/ceu-libuv
 
 main:
 	make CEU_SRC=src/main.ceu all
@@ -40,6 +42,25 @@ tests:
 		make CEU_SRC=$$i all && ./freechains || exit 1;  \
 		if [ "$$i" = "tst/tst-32.ceu" ]; then break; fi; \
 	done
+
+milter:
+	cd $(CEU_DIR) && make CEU_SRC=$(CEU_UV_DIR)/ceu-libuv-freechains/util/milter.ceu CC_ARGS="-lmilter" one
+	mv /tmp/milter milter
+
+run:
+	rm -f /tmp/fifo.*
+	mkfifo /tmp/fifo.in
+	mkfifo /tmp/fifo.out
+	./freechains &
+	sudo rm -f /var/spool/postfix/freechains.milter
+	sudo ./milter &
+	sleep 1
+	sudo chmod 777 /var/spool/postfix/freechains.milter
+	lua5.3 util/freechains2mail.lua &
+	echo "--- ENTER TO KILL ALL ---"
+	read v
+	sudo killall milter
+	pkill -f freechains
 
 # 01->32
 #real	8m57.250s

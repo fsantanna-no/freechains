@@ -1,41 +1,5 @@
 #include "common.ceu"
 
-#if 0
-input (int, _char&& &&) OS_START;
-
-var int        argc;
-var _char&& && argv;
-(argc, argv) = await OS_START;
-if argc < 2 then
-    _fprintf(_stderr, "Usage: %s (<src.lua>)+\n", argv[0]);
-    _assert(0);
-end
-
-// load *.lua files
-loop i in argc-1 do
-    var char&& cfg = argv[i+1];
-    [[
-        dofile(@cfg)
-    ]];
-end
-
-par/or do
-    var int err = do ClientMessages;
-    if err != _ERR_NONE then
-        await FOREVER;
-    end
-with
-    var char[] ip      = [[ APP.server.host[1] ]];
-    var int    port    = [[ APP.server.host[2] ]];
-    var int    backlog = [[ APP.server.backlog ]];
-    _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
-    do UV_TCP_Server.build(&ip, port, backlog);
-end
-
-//_assert(0);
-escape 0;
-#endif
-
 var UV_TCP_Server_Data shared = _;
 [=[
     dofile 'src/common.lua'
