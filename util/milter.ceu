@@ -1,0 +1,128 @@
+/*
+ * make CEU_SRC=<.>/util/milter.ceu CC_ARGS="-lmilter" one
+ */
+
+#include "c.ceu"
+
+native/pre do
+    ##include <assert.h>
+    ##include <stdlib.h>
+    ##include <stdio.h>
+    ##include <libmilter/mfapi.h>
+
+    typedef SMFICTX* SMFICTX_ptr;
+end
+
+native/pos do
+    sfsistat mlfi_envrcpt (SMFICTX* ctx, char** argv) {
+        tceu_input_ENVRCPT args = { ctx, argv };
+        ceu_input(CEU_INPUT_ENVRCPT, &args);
+        printf("RCPT: %p %s\n", ctx, argv[0]);
+        return SMFIS_CONTINUE;
+    }
+
+    sfsistat mlfi_body (SMFICTX *ctx, unsigned char *bodyp, size_t len) {
+        tceu_input_BODY args = { ctx, bodyp, len };
+        bodyp[len-1] = '\0';
+        printf("BODY: %ld\n", len);
+        ceu_input(CEU_INPUT_BODY, &args);
+        return SMFIS_CONTINUE;
+    }
+
+    sfsistat mlfi_eom (SMFICTX* ctx) {
+        sfsistat ret = SMFIS_ACCEPT;
+        tceu_input_EOM args = { ctx, &ret };
+        printf("EOM: %p\n", ctx);
+        ceu_input(CEU_INPUT_EOM, &args);
+        return ret;
+    }
+
+    struct smfiDesc smfilter = {
+        "greylist",     /* filter name */
+        SMFI_VERSION,   /* version code */
+        SMFIF_ADDHDRS,  /* flags */
+        NULL,           /* connection info filter */
+        NULL,           /* SMTP HELO command filter */
+        NULL,           /* envelope sender filter */
+        mlfi_envrcpt,   /* envelope recipient filter */
+        NULL,           /* header filter */
+        NULL,           /* end of header */
+        mlfi_body,      /* body block filter */
+        mlfi_eom,       /* end of message */
+        NULL,           /* message aborted */
+        NULL,           /* connection cleanup */
+    };
+end
+
+native/plain _SMFICTX_ptr, _char, _sfsistat;
+input (_SMFICTX_ptr, _char&&&&)     ENVRCPT;
+input (_SMFICTX_ptr, byte&&, usize) BODY;
+input (_SMFICTX_ptr, _sfsistat&&)   EOM;
+
+code/await Handler (var _SMFICTX_ptr ctx) -> void do
+    vector[] byte body;
+    par/or do
+        var _SMFICTX_ptr ctx2;
+        var byte&& bodyp;
+        var usize len;
+        every (ctx2,bodyp,len) in BODY do
+            if ctx2 == ctx then
+                var usize old = $body;
+                _ceu_vector_setlen(&&body, $body+len, 1);
+                _ceu_vector_buf_set(&&body, old, bodyp, len);
+            end
+        end
+    with
+        loop do
+            var _SMFICTX_ptr ctx2;
+            var _sfsistat&& ret;
+            (ctx2,ret) = await EOM;
+            if ctx2 == ctx then
+                [[print('>>>', 'reject')]];
+                *ret = {SMFIS_DISCARD};
+                break;
+            end
+        end
+    end
+    [=[
+body = @body
+str = [[
+MESSAGE {
+    id = '1.0',
+    chain = {
+        key   = '',
+        zeros = 0,
+    },
+    payload = ]]..string.format('%q',body)..[[,
+}
+]]
+local f = assert(io.open('/tmp/fifo.in', 'w'))
+print(string.len(str))
+print(str)
+f:write(string.len(str)..'\n')
+f:write(str)
+f:close()
+    ]=]
+end
+
+pool[] Handler hs;
+
+par/or do
+    var _SMFICTX_ptr ctx;
+    var _char&&&& argv;
+    every (ctx,argv) in ENVRCPT do
+        var bool ok = [[(string.find(@(argv[0]), '@@freechains.org$'))]];
+        if ok then
+            [[print('>>>', 'spawn')]];
+            spawn Handler(ctx) in hs;
+        end
+    end
+with
+    {
+        smfi_setconn("unix:/var/spool/postfix/freechains.milter");
+        assert(smfi_register(smfilter) == MI_SUCCESS);
+        assert(smfi_main() == MI_SUCCESS);
+    }
+end
+
+escape 0;
