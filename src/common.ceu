@@ -231,7 +231,7 @@ _ceu_dbg_assert(0);
                 atomic do
                     len = $pln;
                 end
-// TODO: arbitrario
+// TODO: 65536 arbitrario
                 _ceu_dbg_assert(len <= 65536);
 
                 vector[65536] _byte plain2 = _;

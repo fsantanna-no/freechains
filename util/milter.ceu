@@ -99,12 +99,12 @@ code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> void do
         end
     end
 
-    // FETCHMAIL | * -> USER       | discard and forward to FC
+    // FETCHMAIL | * -> USER        | discard and forward to FC
     // FC        | * -> @freechains | discard and forward to FC
     // NORMAL    | * -> *           | accept  and forward to FC
     var bool accept = do
         var bool fecthmail = [[ (string.find(rcpt, USER..'@@localhost')) ]];
-        var bool fc        = [[ (string.find(rcpt, '@@freechains.org')) ]];
+        var bool fc        = [[ (string.find(rcpt, '@@freechains.org'))  ]];
         if fecthmail or fc then
             [[print'=== MILTER DISCARD']]
             escape false;
@@ -162,18 +162,20 @@ code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> void do
     [=[
 print'=== MILTER2FC'
 body = @(body)
---print('===\n'..body..'===')
+key, zeros = string.match(rcpt, '|([^|]*)|([^|]*)|@@freechains.org')
+assert(key, 'invalid freechains key')
+assert(tonumber(zeros), 'invalid freechains zeros')
+print('>>>', key, zeros)
 str = [[
 MESSAGE {
     id = '1.0',
     chain = {
-        key   = '',
-        zeros = 0,
+        key   = ']]..key..[[',
+        zeros = ]]..zeros..[[,
     },
     payload = ]]..string.format('%q',body)..[[,
 }
 ]]
-print('<<<', OUTPUT)
 local f = assert(io.open(OUTPUT, 'w'))
 f:write(string.len(str)..'\n')
 f:write(str)
@@ -183,7 +185,6 @@ end
 
 [[
     USER, OUTPUT = table.unpack(arg)
-    print('>>>', USER, OUTPUT)
 ]]
 
 pool[] Handler hs;
