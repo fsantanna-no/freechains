@@ -9,7 +9,8 @@ while true do
     end
 
     print'=== FC2MAIL'
-    local fout = assert(io.popen('mail --subject="Freechains" chico', 'w'))
+    --local fout = assert(io.popen('mail --subject="Freechains" chico', 'w'))
+    local fout = assert(io.popen('sendmail -t', 'w'))
     fout:write(buf)
     fout:close()
 end

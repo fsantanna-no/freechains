@@ -21,6 +21,13 @@ native/pos do
         return SMFIS_CONTINUE;
     }
 
+    sfsistat mlfi_header (SMFICTX* ctx, char* headerf, char* headerv) {
+        tceu_input_HEADER args = { ctx, headerf, headerv };
+        ceu_input(CEU_INPUT_HEADER, &args);
+        //printf("HEADER: %s %s\n", headerf, headerv);
+        return SMFIS_CONTINUE;
+    }
+
     sfsistat mlfi_envrcpt (SMFICTX* ctx, char** argv) {
         tceu_input_ENVRCPT args = { ctx, argv };
         ceu_input(CEU_INPUT_ENVRCPT, &args);
@@ -52,7 +59,7 @@ native/pos do
         NULL,           /* SMTP HELO command filter */
         mlfi_envfrom,   /* envelope sender filter */
         mlfi_envrcpt,   /* envelope recipient filter */
-        NULL,           /* header filter */
+        mlfi_header,    /* header filter */
         NULL,           /* end of header */
         mlfi_body,      /* body block filter */
         mlfi_eom,       /* end of message */
@@ -62,10 +69,11 @@ native/pos do
 end
 
 native/plain _SMFICTX_ptr, _char, _sfsistat;
-input (_SMFICTX_ptr, _char&&&&)     ENVFROM;
-input (_SMFICTX_ptr, _char&&&&)     ENVRCPT;
-input (_SMFICTX_ptr, byte&&, usize) BODY;
-input (_SMFICTX_ptr, _sfsistat&&)   EOM;
+input (_SMFICTX_ptr, _char&&&&)         ENVFROM;
+input (_SMFICTX_ptr, _char&&&&)         ENVRCPT;
+input (_SMFICTX_ptr, _char&&, _char&&)  HEADER;
+input (_SMFICTX_ptr, byte&&, usize)     BODY;
+input (_SMFICTX_ptr, _sfsistat&&)       EOM;
 
 code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> void do
     [[
@@ -91,19 +99,18 @@ code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> void do
         end
     end
 
-    // NORMAL    | * -> chico       | accept  and forward to FC
     // FETCHMAIL | * -> chico       | discard and forward to FC
     // FC        | * -> @freechains | discard and forward to FC
+    // NORMAL    | * -> *           | accept  and forward to FC
     var bool accept = do
-        var bool normal    = [[ not (string.find(rcpt, 'chico@@localhost')) ]];
-        var bool fecthmail = [[     (string.find(rcpt, 'chico@@localhost')) ]];
-        var bool fc        = [[     (string.find(rcpt, '@@freechains.org')) ]];
-        if normal then
-            [[print'=== MILTER ACCEPT']]
-            escape true;
-        else
+        var bool fecthmail = [[ (string.find(rcpt, 'chico@@localhost')) ]];
+        var bool fc        = [[ (string.find(rcpt, '@@freechains.org')) ]];
+        if fecthmail or fc then
             [[print'=== MILTER DISCARD']]
             escape false;
+        else
+            [[print'=== MILTER ACCEPT']]
+            escape true;
         end
     end;
 
@@ -111,9 +118,32 @@ code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> void do
     spawn do
         loop do
             var _SMFICTX_ptr ctx2;
+            var _char&& headerf;
+            var _char&& headerv;
+            (ctx2,headerf,headerv) = await HEADER until (ctx2 == ctx);
+            vector[] byte headerf_ = [] .. (headerf as _char&&);
+            vector[] byte headerv_ = [] .. (headerv as _char&&);
+            var bool to = [[ @headerf_ == 'To' ]];
+            if to then
+                headerv_ = [] .. "chico";
+            end
+            body = body .. headerf_;
+            body = body .. ": ";
+            body = body .. headerv_;
+            body = body .. "\n";
+        end
+    end
+    spawn do
+        var bool first = true;
+        loop do
+            var _SMFICTX_ptr ctx2;
             var byte&& bodyp;
             var usize len;
             (ctx2,bodyp,len) = await BODY until (ctx2 == ctx);
+            if first then
+                first = false;
+                body = body .. "\n";
+            end
             var usize old = $body;
             _ceu_vector_setlen(&&body, $body+len, 1);
             _ceu_vector_buf_set(&&body, old, bodyp, len);
@@ -132,6 +162,7 @@ code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> void do
     [=[
 print'=== MILTER2FC'
 body = @body
+--print('===\n'..body..'===')
 str = [[
 MESSAGE {
     id = '1.0',

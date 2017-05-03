@@ -231,9 +231,10 @@ _ceu_dbg_assert(0);
                 atomic do
                     len = $pln;
                 end
-                _ceu_dbg_assert(len <= 1024);
+// TODO: arbitrario
+                _ceu_dbg_assert(len <= 65536);
 
-                vector[1024] _byte plain2 = _;
+                vector[65536] _byte plain2 = _;
                 _memcpy(&&plain2[0], &&pln[0], len*sizeof(byte));;
 
                 vector[HASH_BYTES] _byte tx_hash2 = _;
