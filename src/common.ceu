@@ -1,7 +1,7 @@
 #ifndef _COMMON_CEU
 #define _COMMON_CEU
 
-#define DBG 0
+//#define DBG 0
 //#define FREECHAINS_NO_MALICIOUS
 
 #include "c.ceu"

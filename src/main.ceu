@@ -86,9 +86,9 @@ with
                     [[
                         local f = assert(io.open('/tmp/fifo.in', 'r+'))
                         local n = assert(tonumber(assert(f:read('l'))))
-                        print(n)
+                        --print(n)
                         buf = f:read(n)
-                        print(buf)
+                        --print(buf)
                     ]]
                 end
                 msgs = [] .. [[ buf ]];

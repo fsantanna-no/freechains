@@ -14,17 +14,24 @@ native/pre do
 end
 
 native/pos do
-    sfsistat mlfi_envrcpt (SMFICTX* ctx, char** argv) {
-        tceu_input_ENVRCPT args = { ctx, argv };
-        ceu_input(CEU_INPUT_ENVRCPT, &args);
-        printf("RCPT: %p %s\n", ctx, argv[0]);
+    sfsistat mlfi_envfrom (SMFICTX* ctx, char** argv) {
+        tceu_input_ENVFROM args = { ctx, argv };
+        ceu_input(CEU_INPUT_ENVFROM, &args);
+        //printf("FROM: %p %s\n", ctx, argv[0]);
         return SMFIS_CONTINUE;
     }
 
-    sfsistat mlfi_body (SMFICTX *ctx, unsigned char *bodyp, size_t len) {
+    sfsistat mlfi_envrcpt (SMFICTX* ctx, char** argv) {
+        tceu_input_ENVRCPT args = { ctx, argv };
+        ceu_input(CEU_INPUT_ENVRCPT, &args);
+        //printf("RCPT: %p %s\n", ctx, argv[0]);
+        return SMFIS_CONTINUE;
+    }
+
+    sfsistat mlfi_body (SMFICTX* ctx, unsigned char* bodyp, size_t len) {
         tceu_input_BODY args = { ctx, bodyp, len };
         bodyp[len-1] = '\0';
-        printf("BODY: %ld\n", len);
+        //printf("BODY: %ld\n", len);
         ceu_input(CEU_INPUT_BODY, &args);
         return SMFIS_CONTINUE;
     }
@@ -32,7 +39,7 @@ native/pos do
     sfsistat mlfi_eom (SMFICTX* ctx) {
         sfsistat ret = SMFIS_ACCEPT;
         tceu_input_EOM args = { ctx, &ret };
-        printf("EOM: %p\n", ctx);
+        //printf("EOM: %p\n", ctx);
         ceu_input(CEU_INPUT_EOM, &args);
         return ret;
     }
@@ -43,7 +50,7 @@ native/pos do
         SMFIF_ADDHDRS,  /* flags */
         NULL,           /* connection info filter */
         NULL,           /* SMTP HELO command filter */
-        NULL,           /* envelope sender filter */
+        mlfi_envfrom,   /* envelope sender filter */
         mlfi_envrcpt,   /* envelope recipient filter */
         NULL,           /* header filter */
         NULL,           /* end of header */
@@ -55,36 +62,75 @@ native/pos do
 end
 
 native/plain _SMFICTX_ptr, _char, _sfsistat;
+input (_SMFICTX_ptr, _char&&&&)     ENVFROM;
 input (_SMFICTX_ptr, _char&&&&)     ENVRCPT;
 input (_SMFICTX_ptr, byte&&, usize) BODY;
 input (_SMFICTX_ptr, _sfsistat&&)   EOM;
 
-code/await Handler (var _SMFICTX_ptr ctx) -> void do
-    vector[] byte body;
-    par/or do
+code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> void do
+    [[
+        print'=== MILTER'
+        from = @from[0]
+    ]]
+    do
         var _SMFICTX_ptr ctx2;
-        var byte&& bodyp;
-        var usize len;
-        every (ctx2,bodyp,len) in BODY do
-            if ctx2 == ctx then
-                var usize old = $body;
-                _ceu_vector_setlen(&&body, $body+len, 1);
-                _ceu_vector_buf_set(&&body, old, bodyp, len);
-            end
-        end
-    with
-        loop do
-            var _SMFICTX_ptr ctx2;
-            var _sfsistat&& ret;
-            (ctx2,ret) = await EOM;
-            if ctx2 == ctx then
-                [[print('>>>', 'reject')]];
-                *ret = {SMFIS_DISCARD};
-                break;
-            end
+        var _char&&&& rcpt;
+        (ctx2,rcpt) = await ENVRCPT until (ctx2 == ctx);
+        [[
+            rcpt = @rcpt[0]
+        ]]
+    end
+
+    // FC2MAIL | chico -> chico | accept and don't forward to FC
+    do/_
+        var bool ok = [[ (string.find(rcpt, 'chico@@localhost')) and
+                         (string.find(from, 'chico@@localhost')) ]];
+        if ok then
+            [[print'=== MILTER ACCEPT']]
+            escape;
         end
     end
+
+    // NORMAL    | * -> chico       | accept  and forward to FC
+    // FETCHMAIL | * -> chico       | discard and forward to FC
+    // FC        | * -> @freechains | discard and forward to FC
+    var bool accept = do
+        var bool normal    = [[ not (string.find(rcpt, 'chico@@localhost')) ]];
+        var bool fecthmail = [[     (string.find(rcpt, 'chico@@localhost')) ]];
+        var bool fc        = [[     (string.find(rcpt, '@@freechains.org')) ]];
+        if normal then
+            [[print'=== MILTER ACCEPT']]
+            escape true;
+        else
+            [[print'=== MILTER DISCARD']]
+            escape false;
+        end
+    end;
+
+    vector[] byte body;
+    spawn do
+        loop do
+            var _SMFICTX_ptr ctx2;
+            var byte&& bodyp;
+            var usize len;
+            (ctx2,bodyp,len) = await BODY until (ctx2 == ctx);
+            var usize old = $body;
+            _ceu_vector_setlen(&&body, $body+len, 1);
+            _ceu_vector_buf_set(&&body, old, bodyp, len);
+        end
+    end
+
+    do
+        var _SMFICTX_ptr ctx2;
+        var _sfsistat&& ret;
+        (ctx2,ret) = await EOM until (ctx2 == ctx);
+        if not accept then
+            *ret = {SMFIS_DISCARD};
+        end
+    end
+
     [=[
+print'=== MILTER2FC'
 body = @body
 str = [[
 MESSAGE {
@@ -97,8 +143,6 @@ MESSAGE {
 }
 ]]
 local f = assert(io.open('/tmp/fifo.in', 'w'))
-print(string.len(str))
-print(str)
 f:write(string.len(str)..'\n')
 f:write(str)
 f:close()
@@ -109,13 +153,9 @@ pool[] Handler hs;
 
 par/or do
     var _SMFICTX_ptr ctx;
-    var _char&&&& argv;
-    every (ctx,argv) in ENVRCPT do
-        var bool ok = [[(string.find(@(argv[0]), '@@freechains.org$'))]];
-        if ok then
-            [[print('>>>', 'spawn')]];
-            spawn Handler(ctx) in hs;
-        end
+    var _char&&&& from;
+    every (ctx,from) in ENVFROM do
+        spawn Handler(ctx,from) in hs;
     end
 with
     {
