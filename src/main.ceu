@@ -54,7 +54,8 @@ par do
         _ceu_dbg_assert(ret! == _ERR_NONE);
 
         [[
-            local f = assert(io.open('/tmp/fifo.out', 'w'))
+            _, OUTPUT = table.unpack(arg)
+            local f = assert(io.open(OUTPUT, 'w'))
             local head = APP.chains['||0|'].head_hash
             local cur = head
             while true do
@@ -81,10 +82,13 @@ with
     event void ok;
     par do
         lua[] do
+            [[
+                INPUT, _ = table.unpack(arg)
+            ]]
             loop do
                 await async/thread (msgs) do
                     [[
-                        local f = assert(io.open('/tmp/fifo.in', 'r+'))
+                        local f = assert(io.open(INPUT, 'r+'))
                         local n = assert(tonumber(assert(f:read('l'))))
                         --print(n)
                         buf = f:read(n)

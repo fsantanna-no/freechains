@@ -1,4 +1,5 @@
-local fin = assert(io.open('/tmp/fifo.out', 'r+'))
+local INPUT = table.unpack(arg)
+local fin = assert(io.open(INPUT, 'r+'))
 
 while true do
     local buf do
@@ -9,7 +10,7 @@ while true do
     end
 
     print'=== FC2MAIL'
-    --local fout = assert(io.popen('mail --subject="Freechains" chico', 'w'))
+    --local fout = assert(io.popen('mail --subject="Freechains" user', 'w'))
     local fout = assert(io.popen('sendmail -t', 'w'))
     fout:write(buf)
     fout:close()

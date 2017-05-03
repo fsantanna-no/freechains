@@ -89,21 +89,21 @@ code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> void do
         ]]
     end
 
-    // FC2MAIL | chico -> chico | accept and don't forward to FC
+    // FC2MAIL | USER -> USER | accept and don't forward to FC
     do/_
-        var bool ok = [[ (string.find(rcpt, 'chico@@localhost')) and
-                         (string.find(from, 'chico@@localhost')) ]];
+        var bool ok = [[ (string.find(rcpt, USER..'@@localhost')) and
+                         (string.find(from, USER..'@@localhost')) ]];
         if ok then
             [[print'=== MILTER ACCEPT']]
             escape;
         end
     end
 
-    // FETCHMAIL | * -> chico       | discard and forward to FC
+    // FETCHMAIL | * -> USER       | discard and forward to FC
     // FC        | * -> @freechains | discard and forward to FC
     // NORMAL    | * -> *           | accept  and forward to FC
     var bool accept = do
-        var bool fecthmail = [[ (string.find(rcpt, 'chico@@localhost')) ]];
+        var bool fecthmail = [[ (string.find(rcpt, USER..'@@localhost')) ]];
         var bool fc        = [[ (string.find(rcpt, '@@freechains.org')) ]];
         if fecthmail or fc then
             [[print'=== MILTER DISCARD']]
@@ -125,7 +125,7 @@ code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> void do
             vector[] byte headerv_ = [] .. (headerv as _char&&);
             var bool to = [[ @headerf_ == 'To' ]];
             if to then
-                headerv_ = [] .. "chico";
+                headerv_ = [] .. [[USER]];
             end
             body = body .. headerf_;
             body = body .. ": ";
@@ -161,7 +161,7 @@ code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> void do
 
     [=[
 print'=== MILTER2FC'
-body = @body
+body = @(body)
 --print('===\n'..body..'===')
 str = [[
 MESSAGE {
@@ -173,12 +173,18 @@ MESSAGE {
     payload = ]]..string.format('%q',body)..[[,
 }
 ]]
-local f = assert(io.open('/tmp/fifo.in', 'w'))
+print('<<<', OUTPUT)
+local f = assert(io.open(OUTPUT, 'w'))
 f:write(string.len(str)..'\n')
 f:write(str)
 f:close()
     ]=]
 end
+
+[[
+    USER, OUTPUT = table.unpack(arg)
+    print('>>>', USER, OUTPUT)
+]]
 
 pool[] Handler hs;
 
@@ -190,7 +196,7 @@ par/or do
     end
 with
     {
-        smfi_setconn("unix:/var/spool/postfix/freechains.milter");
+        smfi_setconn("unix:/var/spool/postfix/milters/freechains.milter");
         assert(smfi_register(smfilter) == MI_SUCCESS);
         assert(smfi_main() == MI_SUCCESS);
     }

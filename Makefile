@@ -45,22 +45,26 @@ tests:
 
 milter:
 	cd $(CEU_DIR) && make CEU_SRC=$(CEU_UV_DIR)/ceu-libuv-freechains/util/milter.ceu CC_ARGS="-lmilter" one
-	mv /tmp/milter milter
+	mv -f /tmp/milter milter
+	#sudo chown postfix milter
+	#sudo chmod 4755 milter
 
 run:
 	rm -f /tmp/fifo.*
 	mkfifo /tmp/fifo.in
 	mkfifo /tmp/fifo.out
-	./freechains &
-	sudo rm -f /var/spool/postfix/freechains.milter
-	sudo ./milter &
+	./freechains /tmp/fifo.in /tmp/fifo.out &
+	sudo rm -f /var/spool/postfix/milters/freechains.milter
+	./milter chico /tmp/fifo.in &
 	sleep 1
-	sudo chmod 777 /var/spool/postfix/freechains.milter
-	lua5.3 util/freechains2mail.lua &
+	sudo chmod 777 /var/spool/postfix/milters/freechains.milter
+	lua5.3 util/freechains2mail.lua /tmp/fifo.out &
 	echo "--- ENTER TO KILL ALL ---"
 	read v
-	sudo killall milter
+	killall milter
 	pkill -f freechains
+
+.PHONY: milter
 
 # 01->32
 #real	8m57.250s
