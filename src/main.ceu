@@ -92,12 +92,17 @@ with
         lua[] do
             [[
                 _, INPUT, _ = table.unpack(arg)
+                f = assert(io.open(INPUT, 'r+'))
             ]]
+            do finalize with
+                [[ f:close() ]]
+            end
             loop do
                 await async/thread (msgs) do
                     [[
-                        local f = assert(io.open(INPUT, 'r+'))
-                        local n = assert(tonumber(assert(f:read('l'))))
+                        local xxx = f:read('l')
+                        print('>>> xxx >>>', f, xxx)
+                        local n = assert(tonumber(xxx))--assert(f:read('l'))))
                         --print(n)
                         buf = f:read(n)
                         --print(buf)
