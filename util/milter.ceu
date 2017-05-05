@@ -162,7 +162,7 @@ code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> void do
     [=[
         print'=== MILTER2FC'
         local body = @(body)
-        local key, zeros = '', 0
+        local key, zeros = USER, 0
         if (string.find(rcpt, '@@freechains.org')) then
             key, zeros = string.match(rcpt, '|([^|]*)|([^|]*)|@@freechains.org')
             print('>>>', rcpt, key, zeros)
