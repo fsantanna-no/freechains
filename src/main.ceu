@@ -26,12 +26,15 @@ loop i in [1 -> n] do
         if ret == _ERR_NONE then
             [[
                 -- TODO: assert chain.id==file header
-                chain.head_hash = ARGS.head_hash
-                main.head_hash = ARGS.head_hash
+                --chain.genesis_hash  = ARGS.genesis_hash
+                chain.head_hash     = ARGS.head_hash
             ]];
         else
             _dbg(0, "main: file not found: %s\n", &&path[0]);
         end
+        [[
+            chain.prv_head_hash = chain.head_hash
+        ]]
     end
 end
 
@@ -80,7 +83,6 @@ par do
         [[
             _, _, OUTPUT = table.unpack(arg)
             local f = assert(io.open(OUTPUT, 'w'))
-            main.chain.prv_head_hash = main.chain.prv_head_hash or main.chain.head_hash
             local cur_hash = main.chain.head_hash
             while true do
                 if cur_hash == main.chain.prv_head_hash then
