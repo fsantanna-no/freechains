@@ -1,7 +1,7 @@
 #ifndef _COMMON_CEU
 #define _COMMON_CEU
 
-//#define DBG 0
+#define DBG 0
 //#define FREECHAINS_NO_MALICIOUS
 
 #include "c.ceu"
@@ -23,6 +23,7 @@ native/pure _leading_zeros;
 native/const
     _ERR_NONE,
     _ERR_MESSAGE,
+    _ERR_ABORTED,
     _ERR_REMOTE_BUG_OR_MALICIOUS,
     _MESSAGE10_NOTSUB,
     _MESSAGE10_HAVE,
@@ -34,8 +35,9 @@ native/pre do
 
     enum {
         ERR_NONE                    =  0,
-        ERR_MESSAGE                 = -1,
-        ERR_REMOTE_BUG_OR_MALICIOUS = -2,
+        ERR_ABORTED                 = -1,
+        ERR_MESSAGE                 = -2,
+        ERR_REMOTE_BUG_OR_MALICIOUS = -3,
     };
 
     enum {

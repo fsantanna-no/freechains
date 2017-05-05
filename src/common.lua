@@ -33,7 +33,9 @@ APP = {
 }
 
 function CHAINS (t)
-    APP.chains = {}
+    APP.chains = {
+        files = t.files,
+    }
     assert(type(t) == 'table')
     for _,chain in ipairs(t) do
         for i=chain.zeros,255 do
@@ -52,6 +54,8 @@ function SERVER (t)
     for k,v in pairs(t) do
         APP.server[k] = v
     end
+    APP.server.backlog = APP.server.backlog or 128
+    APP.server.message10_payload_len_limit = APP.server.message10_payload_len_limit or 1024 -- max payload length for untrusted clients
 end
 
 function CLIENT (t)

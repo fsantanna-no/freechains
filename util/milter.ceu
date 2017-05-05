@@ -160,13 +160,16 @@ code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> void do
     end
 
     [=[
-print'=== MILTER2FC'
-body = @(body)
-key, zeros = string.match(rcpt, '|([^|]*)|([^|]*)|@@freechains.org')
-assert(key, 'invalid freechains key')
-assert(tonumber(zeros), 'invalid freechains zeros')
-print('>>>', key, zeros)
-str = [[
+        print'=== MILTER2FC'
+        local body = @(body)
+        local key, zeros = '', 0
+        if (string.find(rcpt, '@@freechains.org')) then
+            key, zeros = string.match(rcpt, '|([^|]*)|([^|]*)|@@freechains.org')
+            print('>>>', rcpt, key, zeros)
+            assert(key, 'invalid freechains key')
+            assert(tonumber(zeros), 'invalid freechains zeros')
+        end
+        local str = [[
 MESSAGE {
     id = '1.0',
     chain = {
@@ -176,10 +179,10 @@ MESSAGE {
     payload = ]]..string.format('%q',body)..[[,
 }
 ]]
-local f = assert(io.open(OUTPUT, 'w'))
-f:write(string.len(str)..'\n')
-f:write(str)
-f:close()
+        local f = assert(io.open(OUTPUT, 'w'))
+        f:write(string.len(str)..'\n')
+        f:write(str)
+        f:close()
     ]=]
 end
 

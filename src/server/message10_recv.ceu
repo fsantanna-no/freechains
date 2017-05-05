@@ -536,28 +536,29 @@ end
 #ifndef OLD
 emit outer.shared.retransmit;
 #endif
-par/or do
+par do
     await outer.shared.retransmit;
+    escape _ERR_ABORTED;
     //_ceu_dbg_assert(0);
 with
     //watching outer.shared.retransmit do
-do
-    // TODO: conditions to not propagate changes
-    var bool has = [[ block_new ~= dst.head ]];
-    _ceu_dbg_assert(has);
-    //if has then
-        [[
-            local chain = assert(APP.chains[G(outer.conn.tcp).chain.id])
-            ARGS = {
-                block = assert(APP.blocks[chain.head_hash]),
-                chain = chain,
-            }
-        ]];
-        await Client(&outer.shared);
-    //end
+    do/_
+        // TODO: conditions to not propagate changes
+        var bool has = [[ block_new ~= dst.head ]];
+        _ceu_dbg_assert(has);
+        //if has then
+            [[
+                chain = assert(APP.chains[G(outer.conn.tcp).chain.id])
+                ARGS = {
+                    block = assert(APP.blocks[chain.head_hash]),
+                    chain = chain,
+                }
+            ]];
+            await Client(&outer.shared);
+            [[ ARGS = chain ]]
+            escape _ERR_NONE;
+        //end
+    end
 end
-end
-
-escape _ERR_NONE;
 
 #endif

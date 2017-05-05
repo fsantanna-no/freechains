@@ -3,31 +3,36 @@
 var UV_TCP_Server_Data shared = _;
 [=[
     dofile 'src/common.lua'
-    dofile 'cfg/config.lua'
-
-    SERVER {
-        host = { '127.0.0.1', '8331' },
-    }
-
-    CLIENT {
-        peers = {
-            {
-                host = { '127.0.0.1', '8332' },
-            },
-        },
-    }
+    CONFIG, _, _ = table.unpack(arg)
+    dofile(CONFIG)
 ]=];
 
 await Init();
 
-vector[] byte path = [].."x.chain";
-do
-    var int ret = await FS_read_10(&path);
-    _ceu_dbg_assert(ret == _ERR_NONE);
-    [[            -- TODO: read from file
-        APP.chains['||0|'].head_hash = ARGS.head_hash
-        HEAD = ARGS.head_hash
-    ]];
+[[ main = {} ]]
+
+var int n = [[ #APP.chains ]];
+var int i;
+loop i in [1 -> n] do
+    [[ chain = APP.chains[@i] ]];
+    var bool is_zero = [[ chain.zeros==0 ]];
+    if is_zero then
+        [[
+            path = APP.chains.files..'/'..chain.id..'.chain'
+            --print(chain.id, path)
+        ]]
+        vector[] byte path = [] .. [[path]];
+        var int ret = await FS_read_10(&path);
+        if ret == _ERR_NONE then
+            [[
+                -- TODO: assert chain.id==file header
+                chain.head_hash = ARGS.head_hash
+                main.head_hash = ARGS.head_hash
+            ]];
+        else
+            _dbg(0, "main: file not found: %s\n", &&path[0]);
+        end
+    end
 end
 
 vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
@@ -37,32 +42,51 @@ _dbg(0, "server | listening in %s:%d", &&ip[0], port);
 spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
 par do
-    var bool pending = false;
-    loop do
-        if not pending then
-            await shared.ok;
+    [[
+        main.pending = {}
+    ]]
+    spawn do
+        var int msg;
+        var int err;
+        every (msg, err) in shared.ok do
+            _ceu_dbg_assert(msg == 0x100);
+            [[ print('>>> PENDING >>>', ARGS.chain.id) ]];
+            [[ main.pending[#main.pending+1] = ARGS.chain ]];
         end
-        pending = false;
-        _dbg(0, "server | received");
-        [[ ARGS={ chain_id='||0|' } ]];
-        var int? ret =
-            watching FS_write_10(&path) do
+    end
+
+    loop do
+        loop do
+            var bool has_pending = [[ #main.pending>0 ]];
+            if has_pending then
+                break;
+            else
                 await shared.ok;
-                pending = true;
-                await FOREVER;
-            end;
+            end
+        end
+
+        [[
+            main.chain = table.remove(main.pending,1)
+            path = APP.chains.files..'/'..main.chain.id..'.chain'
+            print('>>> WRITE >>>', main.chain.id, path)
+        ]]
+        vector[] byte path = [] .. [[path]];
+
+        _dbg(0, "server | received");
+        [[ ARGS={ chain_id=main.chain.id } ]];
+        var int? ret = await FS_write_10(&path);
         _ceu_dbg_assert(ret! == _ERR_NONE);
 
         [[
-            _, OUTPUT = table.unpack(arg)
+            _, _, OUTPUT = table.unpack(arg)
             local f = assert(io.open(OUTPUT, 'w'))
-            local head = APP.chains['||0|'].head_hash
-            local cur = head
+            main.chain.prv_head_hash = main.chain.prv_head_hash or main.chain.head_hash
+            local cur_hash = main.chain.head_hash
             while true do
-                if HEAD == cur then
-                    break
+                if cur_hash == main.chain.prv_head_hash then
+                    break   -- handled previously
                 end
-                local block = APP.blocks[cur]
+                local block = APP.blocks[cur_hash]
                 for _,tx in pairs(block.txs) do
                     tx = APP.txs[tx]
                     --for k,v in pairs(tx) do
@@ -71,10 +95,10 @@ par do
                     f:write(string.len(tx.payload)..'\n')
                     f:write(tx.payload)
                 end
-                cur = block.tail_hash
+                cur_hash = block.tail_hash
             end
+            main.chain.prv_head_hash = main.chain.head_hash
             f:close()
-            HEAD = head
         ]]
     end
 with
@@ -83,7 +107,7 @@ with
     par do
         lua[] do
             [[
-                INPUT, _ = table.unpack(arg)
+                _, INPUT, _ = table.unpack(arg)
             ]]
             loop do
                 await async/thread (msgs) do
