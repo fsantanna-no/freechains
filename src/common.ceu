@@ -225,20 +225,14 @@ _ceu_dbg_assert(0);
 
             // calculate nonce for the leading zeros
             vector[HASH_BYTES] byte tx_hash;
+
+            var usize len = $pln;
+            vector[] byte plain2 = []..pln;
+
 #if 1
-            await async/thread (pln,tx_hash,zeros_wanted)
+            await async/thread (pln,plain2,len,tx_hash,zeros_wanted)
 #endif
             do
-                var usize len;
-                atomic do
-                    len = $pln;
-                end
-// TODO: 65536 arbitrario
-                _ceu_dbg_assert(len <= 65536);
-
-                vector[65536] _byte plain2 = _;
-                _memcpy(&&plain2[0], &&pln[0], len*sizeof(byte));;
-
                 vector[HASH_BYTES] _byte tx_hash2 = _;
 
                 var int zeros_found = 0;
@@ -523,6 +517,9 @@ do
                 [[
                     if THIS.previous then
                         THIS.previous.up_hash = THIS.block.hash
+                    else
+                        --assert(not THIS.genesis_hash)
+                        --THIS.genesis_hash = THIS.block.hash
                     end
                 ]];
             end
@@ -531,6 +528,7 @@ do
                 ARGS = {
                     chain_id  = THIS.chain_id,
                     head_hash = THIS.block.hash,
+                    --genesis_hash = THIS.genesis_hash,
                 }
             ]];
             escape _ERR_NONE;
@@ -731,7 +729,10 @@ do
         ]];
 
         var int ret = await BlockHash(SourceBlockHash.File());
-        [[ APP.chains[@i+1].head_hash = ARGS.block.hash ]]
+        [[
+            --APP.chains[@i+1].genesis_hash = ARGS.block.hash
+            APP.chains[@i+1].head_hash    = ARGS.block.hash
+        ]]
     end
 end
 
