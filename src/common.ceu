@@ -720,7 +720,7 @@ do
                 chain.head_hash = ARGS.head_hash
             ]];
         else
-            _dbg(0, "main: file not found: %s\n", &&path[0]);
+            //_dbg(0, "main: file not found: %s", &&path[0]);
             [[
                 ARGS = {
                     block = {

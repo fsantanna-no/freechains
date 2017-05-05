@@ -75,101 +75,106 @@ input (_SMFICTX_ptr, _char&&, _char&&)  HEADER;
 input (_SMFICTX_ptr, byte&&, usize)     BODY;
 input (_SMFICTX_ptr, _sfsistat&&)       EOM;
 
+var Lock l = _;
+
 code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> void do
-    [[
-        print'=== MILTER'
-        from = @from[0]
-    ]]
-    do
-        var _SMFICTX_ptr ctx2;
-        var _char&&&& rcpt;
-        (ctx2,rcpt) = await ENVRCPT until (ctx2 == ctx);
+    lua[] do
         [[
-            rcpt = @rcpt[0]
+            print'=== MILTER'
+            USER, OUTPUT = table.unpack(arg)
+            from = @from[0]
         ]]
-    end
-
-    // FC2MAIL | USER -> USER | accept and don't forward to FC
-    do/_
-        var bool ok = [[ (string.find(rcpt, USER..'@@localhost')) and
-                         (string.find(from, USER..'@@localhost')) ]];
-        if ok then
-            [[print'=== MILTER ACCEPT']]
-            escape;
-        end
-    end
-
-    // FETCHMAIL | * -> USER        | discard and forward to FC
-    // FC        | * -> @freechains | discard and forward to FC
-    // NORMAL    | * -> *           | accept  and forward to FC
-    var bool accept = do
-        var bool fecthmail = [[ (string.find(rcpt, USER..'@@localhost')) ]];
-        var bool fc        = [[ (string.find(rcpt, '@@freechains.org'))  ]];
-        if fecthmail or fc then
-            [[print'=== MILTER DISCARD']]
-            escape false;
-        else
-            [[print'=== MILTER ACCEPT']]
-            escape true;
-        end
-    end;
-
-    vector[] byte body;
-    spawn do
-        loop do
+        do
             var _SMFICTX_ptr ctx2;
-            var _char&& headerf;
-            var _char&& headerv;
-            (ctx2,headerf,headerv) = await HEADER until (ctx2 == ctx);
-            vector[] byte headerf_ = [] .. (headerf as _char&&);
-            vector[] byte headerv_ = [] .. (headerv as _char&&);
-            var bool to = [[ @headerf_ == 'To' ]];
-            if to then
-                headerv_ = [] .. [[USER]];
+            var _char&&&& rcpt;
+            (ctx2,rcpt) = await ENVRCPT until (ctx2 == ctx);
+            [[
+                rcpt = @rcpt[0]
+            ]]
+        end
+
+        // FC2MAIL | USER -> USER | accept and don't forward to FC
+        do/_
+            var bool ok = [[ (string.find(rcpt, USER..'@@localhost')) and
+                             (string.find(from, USER..'@@localhost')) ]];
+            if ok then
+                [[print'=== MILTER ACCEPT']]
+                escape;
             end
-            body = body .. headerf_;
-            body = body .. ": ";
-            body = body .. headerv_;
-            body = body .. "\n";
         end
-    end
-    spawn do
-        var bool first = true;
-        loop do
-            var _SMFICTX_ptr ctx2;
-            var byte&& bodyp;
-            var usize len;
-            (ctx2,bodyp,len) = await BODY until (ctx2 == ctx);
-            if first then
-                first = false;
+
+        // FETCHMAIL | * -> USER        | discard and forward to FC
+        // FC        | * -> @freechains | discard and forward to FC
+        // NORMAL    | * -> *           | accept  and forward to FC
+        var bool accept = do
+            var bool fecthmail = [[ (string.find(rcpt, USER..'@@localhost')) ]];
+            var bool fc        = [[ (string.find(rcpt, '@@freechains.org'))  ]];
+            if fecthmail or fc then
+                [[print'=== MILTER DISCARD']]
+                escape false;
+            else
+                [[print'=== MILTER ACCEPT']]
+                escape true;
+            end
+        end;
+
+        vector[] byte body;
+        spawn do
+            loop do
+                var _SMFICTX_ptr ctx2;
+                var _char&& headerf;
+                var _char&& headerv;
+                (ctx2,headerf,headerv) = await HEADER until (ctx2 == ctx);
+                vector[] byte headerf_ = [] .. (headerf as _char&&);
+                vector[] byte headerv_ = [] .. (headerv as _char&&);
+                var bool to = [[ @headerf_ == 'To' ]];
+                if to then
+                    headerv_ = [] .. [[USER]];
+                end
+                body = body .. headerf_;
+                body = body .. ": ";
+                body = body .. headerv_;
                 body = body .. "\n";
             end
-            var usize old = $body;
-            _ceu_vector_setlen(&&body, $body+len, 1);
-            _ceu_vector_buf_set(&&body, old, bodyp, len);
         end
-    end
+        spawn do
+            var bool first = true;
+            loop do
+                var _SMFICTX_ptr ctx2;
+                var byte&& bodyp;
+                var usize len;
+                (ctx2,bodyp,len) = await BODY until (ctx2 == ctx);
+                if first then
+                    first = false;
+                    body = body .. "\n";
+                end
+                var usize old = $body;
+                _ceu_vector_setlen(&&body, $body+len, 1);
+                _ceu_vector_buf_set(&&body, old, bodyp, len);
+            end
+        end
 
-    do
-        var _SMFICTX_ptr ctx2;
-        var _sfsistat&& ret;
-        (ctx2,ret) = await EOM until (ctx2 == ctx);
-        if not accept then
-            *ret = {SMFIS_DISCARD};
+        do
+            var _SMFICTX_ptr ctx2;
+            var _sfsistat&& ret;
+            (ctx2,ret) = await EOM until (ctx2 == ctx);
+            if not accept then
+                *ret = {SMFIS_DISCARD};
+            end
         end
-    end
 
-    [=[
-        print'=== MILTER2FC'
-        local body = @(body)
-        local key, zeros = USER, 0
-        if (string.find(rcpt, '@@freechains.org')) then
-            key, zeros = string.match(rcpt, '|([^|]*)|([^|]*)|@@freechains.org')
-            print('>>>', rcpt, key, zeros)
-            assert(key, 'invalid freechains key')
-            assert(tonumber(zeros), 'invalid freechains zeros')
-        end
-        local str = [[
+        lock outer.l do
+            [=[
+                print'=== MILTER2FC'
+                local body = @(body)
+                local key, zeros = USER, 0
+                if (string.find(rcpt, '@@freechains.org')) then
+                    key, zeros = string.match(rcpt, '|([^|]*)|([^|]*)|@@freechains.org')
+                    --print('>>>', rcpt, key, zeros)
+                    assert(key, 'invalid freechains key')
+                    assert(tonumber(zeros), 'invalid freechains zeros')
+                end
+                local str = [[
 MESSAGE {
     id = '1.0',
     chain = {
@@ -179,16 +184,15 @@ MESSAGE {
     payload = ]]..string.format('%q',body)..[[,
 }
 ]]
-        local f = assert(io.open(OUTPUT, 'w'))
-        f:write(string.len(str)..'\n')
-        f:write(str)
-        f:close()
-    ]=]
+                local f = assert(io.open(OUTPUT, 'w'))
+                f:write(string.len(str)..'\n')
+                f:write(str)
+                --print('>>> OUT >>>', string.len(str), str)
+                f:close()
+            ]=]
+        end
+    end
 end
-
-[[
-    USER, OUTPUT = table.unpack(arg)
-]]
 
 pool[] Handler hs;
 
