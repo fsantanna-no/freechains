@@ -9,33 +9,13 @@ var UV_TCP_Server_Data shared = _;
 
 await Init();
 
-[[ main = {} ]]
-
 var int n = [[ #APP.chains ]];
 var int i;
 loop i in [1 -> n] do
-    [[ chain = APP.chains[@i] ]];
-    var bool is_zero = [[ chain.zeros==0 ]];
-    if is_zero then
-        [[
-            path = APP.chains.files..'/'..chain.id..'.chain'
-            --print(chain.id, path)
-        ]]
-        vector[] byte path = [] .. [[path]];
-        var int ret = await FS_read_10(&path);
-        if ret == _ERR_NONE then
-            [[
-                -- TODO: assert chain.id==file header
-                --chain.genesis_hash  = ARGS.genesis_hash
-                chain.head_hash     = ARGS.head_hash
-            ]];
-        else
-            _dbg(0, "main: file not found: %s\n", &&path[0]);
-        end
-        [[
-            chain.prv_head_hash = chain.head_hash
-        ]]
-    end
+    [[
+        chain = APP.chains[@i]
+        chain.prv_head_hash = chain.head_hash
+    ]]
 end
 
 vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
@@ -46,7 +26,9 @@ spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
 
 par do
     [[
-        main.pending = {}
+        main = {
+            pending = {}
+        }
     ]]
     spawn do
         var int msg;

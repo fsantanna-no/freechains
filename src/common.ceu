@@ -708,31 +708,41 @@ do
         [[
             chain = APP.chains[@i+1]
             assert(not chain.head_hash)
-        ]];
 
-    // TODO: first try to load from file
-
-        [[
-            ARGS = {
-                block = {
-                    chain_id = chain.id,
-                    txs = {
-                        {
-                            nonce     = string.rep('\0',NONCE_BYTES),
-                            back_hash = string.rep('\0',HASH_BYTES),
-                            payload   = '',
-                        }
-                    },
-                    tail_hash = nil,
-                }
-            }
-        ]];
-
-        var int ret = await BlockHash(SourceBlockHash.File());
-        [[
-            --APP.chains[@i+1].genesis_hash = ARGS.block.hash
-            APP.chains[@i+1].head_hash    = ARGS.block.hash
+            path = APP.chains.files..'/'..chain.id..'.chain'
         ]]
+        vector[] byte path = [] .. [[path]];
+        var int ret = await FS_read_10(&path);
+        if ret == _ERR_NONE then
+            [[
+                -- TODO: assert chain.id==file header
+                --chain.genesis_hash = ARGS.genesis_hash
+                chain.head_hash = ARGS.head_hash
+            ]];
+        else
+            _dbg(0, "main: file not found: %s\n", &&path[0]);
+            [[
+                ARGS = {
+                    block = {
+                        chain_id = chain.id,
+                        txs = {
+                            {
+                                nonce     = string.rep('\0',NONCE_BYTES),
+                                back_hash = string.rep('\0',HASH_BYTES),
+                                payload   = '',
+                            }
+                        },
+                        tail_hash = nil,
+                    }
+                }
+            ]];
+            var int ret = await BlockHash(SourceBlockHash.File());
+            _ceu_dbg_assert(ret == _ERR_NONE);
+            [[
+                --chain.genesis_hash = ARGS.block.genesis_hash
+                chain.head_hash = ARGS.block.hash
+            ]];
+        end
     end
 end
 

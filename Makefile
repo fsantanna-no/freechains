@@ -33,13 +33,13 @@ c:
 	ceu --cc --cc-input=/tmp/x.c --cc-args="-lm -llua5.3 -luv -lsodium -g"							   \
 	         --cc-output=freechains
 
-tests:
+tests: fifo
 	for i in tst/tst-*.ceu; do                           \
 		echo;                                            \
 		echo "#####################################";    \
 		echo File: "$$i";                                \
 		echo "#####################################";    \
-		make CEU_SRC=$$i all && ./freechains || exit 1;  \
+		make CEU_SRC=$$i all && ./freechains cfg/config.lua /tmp/fifo.in /tmp/fifo.out || exit 1;  \
 		if [ "$$i" = "tst/tst-32.ceu" ]; then break; fi; \
 	done
 
@@ -49,10 +49,7 @@ milter:
 	#sudo chown postfix milter
 	#sudo chmod 4755 milter
 
-run:
-	rm -f /tmp/fifo.*
-	mkfifo /tmp/fifo.in
-	mkfifo /tmp/fifo.out
+run: fifo
 	./freechains cfg/config-01.lua /tmp/fifo.in /tmp/fifo.out &
 	sudo rm -f /var/spool/postfix/milters/freechains.milter
 	./milter chico /tmp/fifo.in &
@@ -62,6 +59,11 @@ run:
 	echo "--- ENTER TO KILL ALL ---"
 	read v
 	make kill
+
+fifo:
+	rm -f /tmp/fifo.*
+	mkfifo /tmp/fifo.in
+	mkfifo /tmp/fifo.out
 
 kill:
 	- killall milter
