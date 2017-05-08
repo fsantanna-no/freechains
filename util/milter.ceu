@@ -37,7 +37,7 @@ native/pos do
 
     sfsistat mlfi_body (SMFICTX* ctx, unsigned char* bodyp, size_t len) {
         tceu_input_BODY args = { ctx, bodyp, len };
-        bodyp[len-1] = '\0';
+        //bodyp[len-1] = '\0';
         //printf("BODY: %ld\n", len);
         ceu_input(CEU_INPUT_BODY, &args);
         return SMFIS_CONTINUE;
@@ -98,7 +98,7 @@ code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> void do
             var bool ok = [[ (string.find(rcpt, USER..'@@localhost')) and
                              (string.find(from, USER..'@@localhost')) ]];
             if ok then
-                [[print'=== MILTER ACCEPT']]
+                [[print'=== MILTER ACCEPT: USER->USER']]
                 escape;
             end
         end
@@ -110,10 +110,10 @@ code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> void do
             var bool fecthmail = [[ (string.find(rcpt, USER..'@@localhost')) ]];
             var bool fc        = [[ (string.find(rcpt, '@@freechains.org'))  ]];
             if fecthmail or fc then
-                [[print'=== MILTER DISCARD']]
+                [[print'=== MILTER DISCARD: FETCHMAIL/FC']]
                 escape false;
             else
-                [[print'=== MILTER ACCEPT']]
+                [[print'=== MILTER ACCEPT: NORMAL']]
                 escape true;
             end
         end;

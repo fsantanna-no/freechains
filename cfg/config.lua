@@ -3,7 +3,7 @@ BACK_HASH_JUMP_LIMIT = 10,
 
 -- subscribed chains
 CHAINS {
-    files = 'files/',
+    files = 'tst/files/',
     {
         key   = '',     -- global chain (cannot be signed)
         zeros = 0,      -- receive messages with 0 leading zeros in the hash
