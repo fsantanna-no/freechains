@@ -7,14 +7,17 @@ CHAINS {
     {
         key   = 'chico',
         zeros = 0,
+        sink  = 'mail',
     },
     {
         key   = 'others',
         zeros = 0,
+        sink  = 'mail',
     },
     {
         key   = 'fs',
         zeros = 0,
+        sink  = 'fs',
     },
 }
 
