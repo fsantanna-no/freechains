@@ -55,7 +55,7 @@ run: fifo
 	./milter chico /tmp/fifo.in &
 	sleep 1
 	sudo chmod 777 /var/spool/postfix/milters/freechains.milter
-	lua5.3 util/fc2mail.lua /tmp/fifo.out &
+	lua5.3 util/fc2all.lua /tmp/fifo.out &
 	echo "--- ENTER TO KILL ALL ---"
 	read v
 	make kill
