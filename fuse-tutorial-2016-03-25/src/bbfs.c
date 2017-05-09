@@ -890,7 +890,7 @@ int bb_main(int argc, char *argv[])
     // start with a hyphen (this will break if you actually have a
     // rootpoint or mountpoint whose name starts with a hyphen, but so
     // will a zillion other programs)
-    if ((argc < 3) || (argv[argc-2][0] == '-') || (argv[argc-1][0] == '-'))
+    if ((argc < 4) || (argv[argc-3][0] == '-') || (argv[argc-2][0] == '-'))
 	bb_usage();
 
     bb_data = malloc(sizeof(struct bb_state));
@@ -901,9 +901,10 @@ int bb_main(int argc, char *argv[])
 
     // Pull the rootdir out of the argument list and save it in my
     // internal data
-    bb_data->rootdir = realpath(argv[argc-2], NULL);
-    argv[argc-2] = argv[argc-1];
-    argv[argc-1] = NULL;
+    bb_data->rootdir = realpath(argv[argc-3], NULL);
+    argv[argc-3] = argv[argc-2];
+    argv[argc-2] = NULL;
+    argc--;
     argc--;
     
     bb_data->logfile = log_open();

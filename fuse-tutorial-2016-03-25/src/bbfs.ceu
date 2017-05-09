@@ -36,8 +36,8 @@ input (_char&&, _fuse_file_info_t&&) BB_FLUSH;
 
 [[
     DIR_SRC,DIR_DST,OUTPUT = table.unpack(arg)
-    DIR_SRC = '/data/ceu/ceu-libuv/ceu-libuv-freechains/fuse-tutorial-2016-03-25/example/'..DIR_SRC
-    OUTPUT = '/tmp/fifo.in'
+    --DIR_SRC = '/data/ceu/ceu-libuv/ceu-libuv-freechains/fuse-tutorial-2016-03-25/example/'..DIR_SRC
+    --OUTPUT = '/tmp/fifo.in'
     FIS = {}
 ]]
 
