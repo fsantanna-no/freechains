@@ -39,7 +39,7 @@ tests: fifo
 		echo "#####################################";    \
 		echo File: "$$i";                                \
 		echo "#####################################";    \
-		make CEU_SRC=$$i all && ./freechains cfg/config.lua /tmp/fifo.in /tmp/fifo.out || exit 1;  \
+		make CEU_SRC=$$i all && ./freechains || exit 1;  \
 		if [ "$$i" = "tst/tst-32.ceu" ]; then break; fi; \
 	done
 

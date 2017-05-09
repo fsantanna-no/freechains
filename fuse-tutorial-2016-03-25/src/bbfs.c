@@ -355,12 +355,15 @@ int bb_write(const char *path, const char *buf, size_t size, off_t offset,
 {
     int retstat = 0;
     
-    log_msg("\nbb_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
-	    path, buf, size, offset, fi
+    _log_msg("\nbb_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x, fh=0x%08x)\n",
+	    path, buf, size, offset, fi, fi->fh
 	    );
+
+    tceu_input_BB_WRITE args = { path, fi };
+    ceu_input(CEU_INPUT_BB_WRITE, &args);
+
     // no need to get fpath on this one, since I work from fi->fh not the path
     log_fi(fi);
-
     return log_syscall("pwrite", pwrite(fi->fh, buf, size, offset), 0);
 }
 
@@ -414,10 +417,13 @@ int bb_statfs(const char *path, struct statvfs *statv)
 // this is a no-op in BBFS.  It just logs the call and returns success
 int bb_flush(const char *path, struct fuse_file_info *fi)
 {
-    log_msg("\nbb_flush(path=\"%s\", fi=0x%08x)\n", path, fi);
+    _log_msg("\nbb_flush(path=\"%s\", fi=0x%08x, fh=0x%08x)\n", path, fi, fi->fh);
     // no need to get fpath on this one, since I work from fi->fh not the path
     log_fi(fi);
 	
+    tceu_input_BB_FLUSH args = { path, fi };
+    ceu_input(CEU_INPUT_BB_FLUSH, &args);
+
     return 0;
 }
 
@@ -437,8 +443,8 @@ int bb_flush(const char *path, struct fuse_file_info *fi)
  */
 int bb_release(const char *path, struct fuse_file_info *fi)
 {
-    log_msg("\nbb_release(path=\"%s\", fi=0x%08x)\n",
-	  path, fi);
+    _log_msg("\nbb_release(path=\"%s\", fi=0x%08x, fh=0x%08x)\n",
+	  path, fi, fi->fh);
     log_fi(fi);
 
     // We need to close the file.  Had we allocated any resources
@@ -857,7 +863,7 @@ void bb_usage()
     abort();
 }
 
-int main(int argc, char *argv[])
+int bb_main(int argc, char *argv[])
 {
     int fuse_stat;
     struct bb_state *bb_data;

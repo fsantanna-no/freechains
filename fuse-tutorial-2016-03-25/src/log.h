@@ -15,6 +15,7 @@
 
 FILE *log_open(void);
 void log_msg(const char *format, ...);
+void _log_msg(const char *format, ...);
 void log_conn(struct fuse_conn_info *conn);
 int log_error(char *func);
 void log_fi(struct fuse_file_info *fi);

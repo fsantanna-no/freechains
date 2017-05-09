@@ -43,12 +43,22 @@ FILE *log_open()
     return logfile;
 }
 
-void log_msg(const char *format, ...)
+void _log_msg(const char *format, ...)
 {
     va_list ap;
     va_start(ap, format);
 
     vfprintf(BB_DATA->logfile, format, ap);
+}
+
+void log_msg(const char *format, ...)
+{
+#if 0
+    va_list ap;
+    va_start(ap, format);
+
+    vfprintf(BB_DATA->logfile, format, ap);
+#endif
 }
 
 // Report errors to logfile and give -errno to caller
@@ -301,4 +311,3 @@ void log_utime(struct utimbuf *buf)
     //    time_t modtime;
     log_struct(buf, modtime, 0x%08lx, );
 }
-

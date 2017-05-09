@@ -76,6 +76,7 @@ par do
                     --for k,v in pairs(tx) do
                         --print(k,v)
                     --end
+                    f:write(main.chain.id..'\n')
                     f:write(string.len(tx.payload)..'\n')
                     f:write(tx.payload)
                 end

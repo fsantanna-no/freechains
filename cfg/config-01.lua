@@ -12,6 +12,10 @@ CHAINS {
         key   = 'others',
         zeros = 0,
     },
+    {
+        key   = 'fs',
+        zeros = 0,
+    },
 }
 
 SERVER {
