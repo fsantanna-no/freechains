@@ -7,17 +7,20 @@ CHAINS {
     {
         key   = 'chico',
         zeros = 0,
-        sink  = 'mail',
+        sink  = { id='mail' },
     },
     {
         key   = 'others',
         zeros = 0,
-        sink  = 'mail',
+        sink  = { id='mail' },
     },
     {
         key   = 'fs',
         zeros = 0,
-        sink  = 'fs',
+        sink  = {
+            id = 'fs',
+            dir = '/tmp/rootdir',
+        },
     },
 }
 

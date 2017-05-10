@@ -16,21 +16,21 @@ while true do
 
     local chain = assert(APP.chains[id], 'invalid chain '..id)
 
-    if chain.sink == 'fs' then
+    if chain.sink.id == 'fs' then
         print'=== FC2FS'
         local i = string.find(buf, '\n', 1, true)
         local name = string.sub(buf, 1,i-1)
         local contents = string.sub(buf,i+1)
         local dir = string.match(name, '(.-)[^/]*$')
-        os.execute('rm -Rf /tmp/rootdir/'..name)
-        os.execute('mkdir -p /tmp/rootdir/'..dir)
-        local fout = assert(io.open('/data/ceu/ceu-libuv/ceu-libuv-freechains/fuse-tutorial-2016-03-25/example/rootdir/'..name, 'w'))
+        os.execute('rm -Rf '..chain.sink.dir..'/'..name)
+        os.execute('mkdir -p '..chain.sink.dir..'/'..dir)
+        --local fout = assert(io.open('/data/ceu/ceu-libuv/ceu-libuv-freechains/fuse-tutorial-2016-03-25/example/rootdir/'..name, 'w'))
+        --fout:write(contents)
+        --fout:close()
+        local fout = assert(io.open(chain.sink.dir..'/'..name, 'w'))
         fout:write(contents)
         fout:close()
-        local fout = assert(io.open('/tmp/rootdir/'..name, 'w'))
-        fout:write(contents)
-        fout:close()
-    elseif chain.sink == 'mail' then
+    elseif chain.sink.id == 'mail' then
         print'=== FC2MAIL'
         --local fout = assert(io.popen('mail --subject="Freechains" user', 'w'))
         local fout = assert(io.popen('sendmail -t', 'w'))
