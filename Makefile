@@ -77,6 +77,7 @@ kill:
 	- pkill -f freechains
 	- pkill -f fc2all
 	- fusermount -u /data/tmp/mount1
+	- pkill -f fcfs
 
 .PHONY: milter fcfs
 
