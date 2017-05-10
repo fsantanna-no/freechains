@@ -36,7 +36,7 @@ c:
 	         --cc-output=freechains
 
 tests: fifo
-	for i in tst/tst-*.ceu; do                           \
+	for i in tst/tst-05.ceu; do                           \
 		echo;                                            \
 		echo "#####################################";    \
 		echo File: "$$i";                                \
@@ -56,27 +56,35 @@ fcfs:
 	mv -f /tmp/bbfs fcfs
 
 run: fifo
-	./freechains cfg/config-01.lua /tmp/fifo.in /tmp/fifo.out &
+	./freechains cfg/config-01.lua /tmp/fifo-01.in /tmp/fifo-01.out &
 	sudo rm -f /var/spool/postfix/milters/freechains.milter
-	./milter chico /tmp/fifo.in &
+	./milter chico /tmp/fifo-01.in &
 	sleep 1
 	sudo chmod 777 /var/spool/postfix/milters/freechains.milter
-	lua5.3 util/fc2all.lua cfg/config-01.lua /tmp/fifo.out &
-	./fcfs $(CEU_FCFS_DIR)/root1 $(CEU_FCFS_DIR)/mount1 /tmp/fifo.in
+	lua5.3 util/fc2all.lua cfg/config-01.lua /tmp/fifo-01.out &
+	./fcfs $(CEU_FCFS_DIR)/root-01 $(CEU_FCFS_DIR)/mount-01 /tmp/fifo-01.in
+	#
+	./freechains cfg/config-02.lua /tmp/fifo-02.in /tmp/fifo-02.out &
+	lua5.3 util/fc2all.lua cfg/config-02.lua /tmp/fifo-02.out &
+	./fcfs $(CEU_FCFS_DIR)/root-02 $(CEU_FCFS_DIR)/mount-02 /tmp/fifo-02.in
+	#
 	echo "--- ENTER TO KILL ALL ---"
 	read v
 	make kill
 
 fifo:
-	rm -f /tmp/fifo.*
-	mkfifo /tmp/fifo.in
-	mkfifo /tmp/fifo.out
+	rm -f /tmp/fifo-*.*
+	mkfifo /tmp/fifo-01.in
+	mkfifo /tmp/fifo-01.out
+	mkfifo /tmp/fifo-02.in
+	mkfifo /tmp/fifo-02.out
 
 kill:
 	- killall milter
 	- pkill -f freechains
 	- pkill -f fc2all
-	- fusermount -u /data/tmp/mount1
+	- fusermount -u /data/tmp/mount-01
+	- fusermount -u /data/tmp/mount-02
 	- pkill -f fcfs
 
 .PHONY: milter fcfs

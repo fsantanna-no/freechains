@@ -34,9 +34,12 @@ par do
         var int msg;
         var int err;
         every (msg, err) in shared.ok do
-            _ceu_dbg_assert(msg == 0x100);
-            [[ print('>>> PENDING >>>', ARGS.chain.id) ]];
-            [[ main.pending[#main.pending+1] = ARGS.chain ]];
+_printf(">>> SHARED.OK %d\n", err);
+            if err == _ERR_NONE then
+                _ceu_dbg_assert(msg == 0x100);
+                [[ print('>>> PENDING >>>', ARGS.chain.id) ]];
+                [[ main.pending[#main.pending+1] = ARGS.chain ]];
+            end
         end
     end
 

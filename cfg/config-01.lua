@@ -1,5 +1,5 @@
 CHAINS {
-    files = 'files/',
+    files = 'files-02/',
     {
         key   = '',
         zeros = 0,
@@ -19,7 +19,7 @@ CHAINS {
         zeros = 0,
         sink  = {
             id = 'fs',
-            dir = '/data/ceu/ceu-libuv/ceu-libuv-freechains/util/fcfs/root2',
+            dir = 'util/fcfs/root-02',
         },
     },
 }
@@ -30,10 +30,8 @@ SERVER {
 
 CLIENT {
     peers = {
---[[
         {
             host =  { '127.0.0.1', '8332' },
         },
-]]
     },
 }
