@@ -1,27 +1,36 @@
-local INPUT = table.unpack(arg)
+local CONFIG, INPUT = table.unpack(arg)
+
+dofile 'src/common.lua'
+dofile(CONFIG)
+
 local fin = assert(io.open(INPUT, 'r+'))
 
 while true do
-    local buf, sink do
-        sink = assert(fin:read('l'))
+    local buf, id do
+        id = assert(fin:read('l'))
         local n = assert(tonumber(assert(fin:read('l'))))
         buf = fin:read(n)
         --print(n)
         --print(buf)
     end
 
-    if sink == 'fs' then
+    local chain = assert(APP.chains[id], 'invalid chain '..id)
+
+    if chain.sink == 'fs' then
         print'=== FC2FS'
         local i = string.find(buf, '\n', 1, true)
         local name = string.sub(buf, 1,i-1)
         local contents = string.sub(buf,i+1)
         local dir = string.match(name, '(.-)[^/]*$')
-        os.execute('rm -Rf '..name)
-        os.execute('mkdir -p /tmp/'..dir)
-        local fout = assert(io.open('/tmp/'..name, 'w'))
+        os.execute('rm -Rf /tmp/rootdir/'..name)
+        os.execute('mkdir -p /tmp/rootdir/'..dir)
+        local fout = assert(io.open('/data/ceu/ceu-libuv/ceu-libuv-freechains/fuse-tutorial-2016-03-25/example/rootdir/'..name, 'w'))
         fout:write(contents)
         fout:close()
-    elseif sink == 'mail' then
+        local fout = assert(io.open('/tmp/rootdir/'..name, 'w'))
+        fout:write(contents)
+        fout:close()
+    elseif chain.sink == 'mail' then
         print'=== FC2MAIL'
         --local fout = assert(io.popen('mail --subject="Freechains" user', 'w'))
         local fout = assert(io.popen('sendmail -t', 'w'))
