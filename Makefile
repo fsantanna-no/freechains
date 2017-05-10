@@ -1,7 +1,9 @@
 #CEU_DIR    = $(error set absolute path to "<ceu>" repository)
 #CEU_UV_DIR = $(error set absolute path to "<ceu-libuv>" repository)
-CEU_DIR    = /data/ceu/ceu
-CEU_UV_DIR = /data/ceu/ceu-libuv
+CEU_DIR      = /data/ceu/ceu
+CEU_UV_DIR   = /data/ceu/ceu-libuv
+CEU_FC_DIR   = $(CEU_UV_DIR)/ceu-libuv-freechains
+CEU_FCFS_DIR = $(CEU_FC_DIR)/util/fcfs
 
 main:
 	make CEU_SRC=src/main.ceu all
@@ -44,10 +46,14 @@ tests: fifo
 	done
 
 milter:
-	cd $(CEU_DIR) && make CEU_SRC=$(CEU_UV_DIR)/ceu-libuv-freechains/util/milter.ceu CC_ARGS="-lmilter" one
+	cd $(CEU_DIR) && make CEU_SRC=$(CEU_FC_DIR)/util/milter.ceu CC_ARGS="-lmilter" one
 	mv -f /tmp/milter milter
 	#sudo chown postfix milter
 	#sudo chmod 4755 milter
+
+fcfs:
+	cd $(CEU_DIR) && make CEU_SRC=$(CEU_FCFS_DIR)/bbfs.ceu CC_ARGS="-I$(CEU_FCFS_DIR)/ -D_FILE_OFFSET_BITS=64 -lfuse" one
+	mv -f /tmp/bbfs fcfs
 
 run: fifo
 	./freechains cfg/config-01.lua /tmp/fifo.in /tmp/fifo.out &
@@ -56,6 +62,7 @@ run: fifo
 	sleep 1
 	sudo chmod 777 /var/spool/postfix/milters/freechains.milter
 	lua5.3 util/fc2all.lua cfg/config-01.lua /tmp/fifo.out &
+	./fcfs $(CEU_FCFS_DIR)/root1 $(CEU_FCFS_DIR)/mount1 /tmp/fifo.in
 	echo "--- ENTER TO KILL ALL ---"
 	read v
 	make kill
@@ -68,8 +75,10 @@ fifo:
 kill:
 	- killall milter
 	- pkill -f freechains
+	- pkill -f fc2all
+	- fusermount -u /data/tmp/mount1
 
-.PHONY: milter
+.PHONY: milter fcfs
 
 # 01->32
 #real	8m57.250s

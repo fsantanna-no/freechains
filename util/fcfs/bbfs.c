@@ -359,7 +359,7 @@ int bb_write(const char *path, const char *buf, size_t size, off_t offset,
 	    path, buf, size, offset, fi, fi->fh
 	    );
 
-    tceu_input_BB_WRITE args = { path, fi };
+    tceu_input_BB_WRITE args = { (char*)path, fi };
     ceu_input(CEU_INPUT_BB_WRITE, &args);
 
     // no need to get fpath on this one, since I work from fi->fh not the path
@@ -421,7 +421,7 @@ int bb_flush(const char *path, struct fuse_file_info *fi)
     // no need to get fpath on this one, since I work from fi->fh not the path
     log_fi(fi);
 	
-    tceu_input_BB_FLUSH args = { path, fi };
+    tceu_input_BB_FLUSH args = { (char*)path, fi };
     ceu_input(CEU_INPUT_BB_FLUSH, &args);
 
     return 0;

@@ -19,7 +19,7 @@ CHAINS {
         zeros = 0,
         sink  = {
             id = 'fs',
-            dir = '/tmp/rootdir',
+            dir = '/data/ceu/ceu-libuv/ceu-libuv-freechains/util/fcfs/root1',
         },
     },
 }
