@@ -37,6 +37,7 @@ par/and do
         ]=];
 
         await Init();
+        await 100ms;
         await ClientMessages(&shared);
 
         [[
@@ -119,6 +120,7 @@ with
         ]=];
 
         await Init();
+        await 100ms;
         await ClientMessages(&shared);
 
         [[

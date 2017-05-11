@@ -37,6 +37,7 @@ par/and do
         ]=];
 
         await Init();
+        await 100ms;
         await ClientMessages(&shared);
     end
 with
@@ -109,6 +110,7 @@ with
         ]=];
 
         await Init();
+        await 100ms;
         await ClientMessages(&shared);
         [[
             CHAIN2 = GG.chain_flatten('||0|')

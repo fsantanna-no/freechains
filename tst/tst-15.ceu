@@ -28,6 +28,7 @@ par/and do
         ]=];
 
         await Init();
+        await 100ms;
 
         var int i;
         loop i in [1 -> 3] do

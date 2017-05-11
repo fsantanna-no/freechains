@@ -48,6 +48,7 @@ Ola Mundo!
         ]=];
 
         await Init();
+        await 100ms;
         await ClientMessages(&shared);
 
         [[

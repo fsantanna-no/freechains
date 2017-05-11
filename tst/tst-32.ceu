@@ -36,6 +36,7 @@ code/await Node (var int i) -> void do
         ]=]
 
         await Init();
+        await 100ms;
 
         do
             vector[] byte ip      = [] .. [[ APP.server.host[1] ]];

@@ -39,6 +39,7 @@ Ola Mundo!
 
         var UV_TCP_Server_Data shared = _;
         await Init();
+        await 100ms;
         await ClientMessages(&shared);
 
         [[
@@ -50,6 +51,7 @@ Ola Mundo!
         ]];
         chain1 = []..[[tostring2(chain1)]];
     end
+
 with
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -84,6 +86,7 @@ with
         ]];
         chain2 = []..[[tostring2(chain2)]];
     end
+
 end
 
 [[

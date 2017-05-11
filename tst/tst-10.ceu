@@ -43,6 +43,7 @@ par/and do
         ]=];
 
         await Init();
+        await 100ms;
         await ClientMessages(&shared);
         emit e(1);
 
@@ -144,6 +145,7 @@ with
         ]=];
 
         await Init();
+        await 100ms;
         var int v = await e until v==1;
         await ClientMessages(&shared);
         emit e(2);

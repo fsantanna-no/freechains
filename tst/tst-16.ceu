@@ -6,12 +6,6 @@
 //      - 0.3 is not received by "1"
 ///////////////////////////////////////////////////////////////////////////////
 
-input void ANY;
-
-native/pre do
-    uv_handle_t* XXX;
-end
-
 par/and do
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -37,6 +31,7 @@ par/and do
         ]=];
 
         await Init();
+        await 100ms;
 
         native/plain _uv_stream_t_ptr;
         native/pre do

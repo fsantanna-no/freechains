@@ -36,7 +36,7 @@ c:
 	         --cc-output=freechains
 
 tests: fifo
-	for i in tst/tst-05.ceu; do                           \
+	for i in tst/tst-*.ceu; do                           \
 		echo;                                            \
 		echo "#####################################";    \
 		echo File: "$$i";                                \
@@ -64,9 +64,9 @@ run: fifo
 	lua5.3 util/fc2all.lua cfg/config-01.lua /tmp/fifo-01.out &
 	./fcfs $(CEU_FCFS_DIR)/root-01 $(CEU_FCFS_DIR)/mount-01 /tmp/fifo-01.in
 	#
-	./freechains cfg/config-02.lua /tmp/fifo-02.in /tmp/fifo-02.out &
-	lua5.3 util/fc2all.lua cfg/config-02.lua /tmp/fifo-02.out &
-	./fcfs $(CEU_FCFS_DIR)/root-02 $(CEU_FCFS_DIR)/mount-02 /tmp/fifo-02.in
+	#./freechains cfg/config-02.lua /tmp/fifo-02.in /tmp/fifo-02.out &
+	#lua5.3 util/fc2all.lua cfg/config-02.lua /tmp/fifo-02.out &
+	#./fcfs $(CEU_FCFS_DIR)/root-02 $(CEU_FCFS_DIR)/mount-02 /tmp/fifo-02.in
 	#
 	echo "--- ENTER TO KILL ALL ---"
 	read v

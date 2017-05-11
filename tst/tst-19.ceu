@@ -53,6 +53,7 @@ Ola Mundo!
         ]=];
 
         await Init();
+        await 100ms;
         await ClientMessages(&shared);
         [[
             CHAIN0 = GG.chain_flatten('||0|')

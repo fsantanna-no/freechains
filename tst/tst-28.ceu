@@ -45,6 +45,7 @@ par/and do
         ]=];
 
         await Init();
+        await 100ms;
 
         vector[] byte src = [].."x.chain";
         var int ret = await FS_read_10(&src);

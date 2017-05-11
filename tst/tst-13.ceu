@@ -36,6 +36,7 @@ par/or do
         ]];
 
         await Init();
+        await 100ms;
 
         var int i;
         loop i in [1 -> 8] do

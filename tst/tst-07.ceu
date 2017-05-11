@@ -37,6 +37,7 @@ par/and do
         ]=];
 
         await Init();
+        await 100ms;
         await ClientMessages(&shared);
 
         var int i;

@@ -33,16 +33,17 @@ APP = {
 }
 
 function CHAINS (t)
-    APP.chains = {
-        files = t.files,
-    }
     assert(type(t) == 'table')
+    APP.chains = {                     -- substitutes old
+        files = t.files or APP.chains.files,
+    }
     for _,chain in ipairs(t) do
         for i=chain.zeros,255 do
             local new = {}
             for k,v in pairs(chain) do new[k]=v end
             new.zeros = i
             local c = GG.chain_parse_get(new)
+            assert(not APP.chains[new.id], new.id)
             APP.chains[new.id] = (c or new)
             APP.chains[#APP.chains+1] = APP.chains[new.id]
         end
