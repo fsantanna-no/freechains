@@ -1,25 +1,12 @@
 #ifndef _SERVER_CEU
 #define _SERVER_CEU
 
-code/await Connection (var& _uv_tcp_t tcp)
-                        -> (vector[] byte bytes, var usize off, var&? UV_Stream_Read reader)
-                            -> FOREVER
-do
-    off = 0;
-    reader = spawn UV_TCP_Read(&tcp, &bytes);
-    code/tight Reset (void) -> void do
-        outer.off = 0;
-        call outer.reader!.Reset();
-    end
-    await FOREVER;
-end
-
-code/await UV_TCP_Server_Handler (var& UV_TCP_Server_Data shared, var& _uv_tcp_t tcp) -> int
+code/await UV_TCP_Server_Handler (var& UV_Stream tcp, var& UV_TCP_Server_Data shared) -> int
 do
     spawn do
         var _uv_stream_t&& s;
         var int err;
-        (s,err) = await UV_STREAM_ERROR until (s==(&&tcp as _uv_stream_t&&));
+        (s,err) = await UV_STREAM_ERROR until (s==&&tcp.handle);
         //_dbg(2, "server | disconnected from %s:%d", (_char&&)&&ip, port);
         _ceu_dbg_assert(err != _ERR_NONE);
         _dbg(0, "server | %s\n", _uv_strerror(err));
@@ -28,19 +15,19 @@ do
 
     var int err = _ERR_NONE;
 
-    var& Connection conn = spawn Connection(&tcp);
-
     // => MESSAGE
-    await UV_Stream_ReadUntil(&conn.reader, conn.off + MESSAGE_BYTES);
-    conn.off = conn.off + MESSAGE_BYTES;
+    var ssize n = await UV_Stream_Read_N(&tcp, MESSAGE_BYTES);
+    _ceu_dbg_assert(n>=0 and $tcp.buffer>=MESSAGE_BYTES);
 
     //_printf("[server] => MESSAGE = [%d %d %d %d]\n",
                 //bytes[0], bytes[1], bytes[2], bytes[3]);
 
-    var bool ok = ( conn.bytes[0]==MESSAGE_MAGIC_0 and
-                    conn.bytes[1]==MESSAGE_MAGIC_1 );
+    var bool ok = ( tcp.buffer[0]==MESSAGE_MAGIC_0 and
+                    tcp.buffer[1]==MESSAGE_MAGIC_1 );
 
-    var int msg = (conn.bytes[2]<<8) + (conn.bytes[3]<<0);
+    var int msg = (tcp.buffer[2]<<8) + (tcp.buffer[3]<<0);
+
+    $tcp.buffer = $tcp.buffer - MESSAGE_BYTES;
 
     if ok and msg==0x100 then
         err = do ()

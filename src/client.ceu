@@ -1,7 +1,7 @@
 #ifndef _CLIENT_CEU
 #define _CLIENT_CEU
 
-code/await Message10_tx_send (var& _uv_tcp_t tcp, var u32 i) -> int
+code/await Message10_tx_send (var& UV_Stream tcp, var u32 i) -> int
 do
     // <= TX_HASH
     // <= TX_LEN
@@ -12,18 +12,18 @@ do
             --print('[client] <= txs['..(@i+1)..']', string.len(G(tcp).tx.payload))
             --print(tostring2(G(tcp).tx.hash))
         ]];
-        var      u32  payload_bytes = [[ string.len(G(tcp).tx.payload) ]];
-        vector[] byte bytes         = [] .. [[ G(tcp).tx.hash ]];
-        _ceu_vector_setlen(&&bytes, $bytes+sizeof(u32), 1);
-        PUT_NETWORK_U32(bytes, HASH_BYTES, payload_bytes);
-        await UV_TCP_Write(&tcp, &bytes);
+        var u32 payload_bytes = [[ string.len(G(tcp).tx.payload) ]];
+        tcp.buffer = [] .. [[ G(tcp).tx.hash ]];
+        _ceu_vector_setlen(&&tcp.buffer, $tcp.buffer+sizeof(u32), 1);
+        PUT_NETWORK_U32(tcp.buffer, HASH_BYTES, payload_bytes);
+        await UV_Stream_Write_N(&tcp,_);
 
         // => ACK-tx
         do/_
-            vector[1] byte recv;
-            var&? UV_Stream_Read reader = spawn UV_TCP_Read(&tcp,&recv);
-            await UV_Stream_ReadUntil(&reader!, 1);
-            var int err = recv[0];
+            var ssize n = await UV_Stream_Read_N(&tcp, 1);
+            _ceu_dbg_assert(n>=0 and $tcp.buffer>=1);
+            var byte err = tcp.buffer[0];
+            $tcp.buffer = $tcp.buffer - 1;
 
             //_printf("[client] => ACK-tx = %d\n", err);
             if err == _MESSAGE10_HAVE then
@@ -35,39 +35,34 @@ do
     // OK: complete TX
     //_printf("[client] <= complete...\n");
     do
-        vector[] byte bytes;
-
         // <= NONCE
         do
-            vector[] byte nonce = [] .. [[ G(tcp).tx.nonce ]];
-            bytes = bytes..nonce;
+            tcp.buffer = [] .. [[ G(tcp).tx.nonce ]];
             //_printf("[client] <= TIMESTAMP = %X\n", timestamp);
         end
 
         // <= TX_BACK_HASH
-        vector[HASH_BYTES] byte tx_back_hash = [] .. [[ G(tcp).tx.back_hash ]];
-        bytes = bytes..tx_back_hash;
+        tcp.buffer = tcp.buffer .. [[ G(tcp).tx.back_hash ]];
         [[
             --print('[client] <= TX_BACK_HASH')
             --print(tostring2(G(tcp).tx.back_hash))
         ]]
 
         // <= TX_PAYLOAD
-        vector[] byte tx_payload = [] .. [[ G(tcp).tx.payload ]];
-        bytes = bytes..tx_payload;
+        tcp.buffer = tcp.buffer .. [[ G(tcp).tx.payload ]];
 
         // <= PoS: TODO
         var byte pos_ = 0xEE;
-        bytes = bytes..[pos_];
+        tcp.buffer = tcp.buffer .. [pos_];
         //_printf("TODO: POS generate!\n");
 
-        await UV_TCP_Write(&tcp, &bytes);
+        await UV_Stream_Write_N(&tcp,_);
     end
 
     escape _ERR_NONE;
 end
 
-code/await Message10_send (var& _uv_tcp_t tcp) -> int
+code/await Message10_send (var& UV_Stream tcp) -> int
 do
     ///////////////////////////////////////////////////////////////////////////
     // HEADER
@@ -80,30 +75,30 @@ do
     // TODO: <= CHAIN_LIMITS
     do/_
         // <= MESSAGE
-        vector[] byte bytes = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 1, 0];
+        tcp.buffer = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 1, 0];
 
         // <= CHAIN_LEN
         // <= CHAIN_KEY
         // <= CHAIN_ZEROS
         do
             [[ chain = APP.chains[G(tcp).block.chain_id] ]];
-            vector[] byte chain_key   = [] .. [[ chain.key ]];
+            var[] byte chain_key   = [] .. [[ chain.key ]];
             var int    chain_zeros = [[ chain.zeros ]];
             var u32    chain_len   = [[ string.len(chain.key) ]];
             _ceu_dbg_assert(chain_len<CHAIN_KEY_BYTES);
-            bytes = bytes..[chain_zeros,chain_len as byte]..chain_key;
+            tcp.buffer = tcp.buffer .. [chain_zeros, chain_len as byte] .. chain_key;
         end
 
-        await UV_TCP_Write(&tcp, &bytes);
+        await UV_Stream_Write_N(&tcp,_);
 
         // => ACK-header
         do/_
-            vector[1] byte recv;
-            var&? UV_Stream_Read reader = spawn UV_TCP_Read(&tcp,&recv);
-            await UV_Stream_ReadUntil(&reader!, 1);
-            var int ret = recv[0];
+            var ssize n = await UV_Stream_Read_N(&tcp, 1);
+            _ceu_dbg_assert(n>=0 and $tcp.buffer>=1);
+            var byte ret = tcp.buffer[0];
+            $tcp.buffer = $tcp.buffer - 1;
 
-            _dbg_tcp(0, &&tcp, "client", "=> ACK-header = %d", ret);
+            _dbg_tcp(0, &&tcp.handle, "client", "=> ACK-header = %d", ret);
 
             if ret == _MESSAGE10_NOTSUB then
                 escape ret;
@@ -121,30 +116,29 @@ do
         // <= BLOCK_HASH
         // <= BLOCK_TXS_N
         do
-            vector[] byte bytes;
-
             // <= BLOCK_HASH
-            vector[HASH_BYTES] byte block_hash = [] .. [[ G(tcp).block.hash ]];
-            bytes = bytes..block_hash;
-            vector[] byte str = [] .. [[ tostring2(G(tcp).block.hash) ]];
-            _dbg_tcp(0, &&tcp, "client", "<= BLOCKS[%d] : %s", i, &&str[0]);
+            tcp.buffer = [] .. [[ G(tcp).block.hash ]];
+            do
+                var[] byte str = [] .. [[ tostring2(G(tcp).block.hash) ]];
+                _dbg_tcp(0, &&tcp.handle, "client", "<= BLOCKS[%d] : %s", i, &&str[0]);
+            end
 
             // <= BLOCK_TXS_N
             var u32 txs_n = [[ #G(tcp).block.txs ]];
-            _ceu_vector_setlen(&&bytes, $bytes+sizeof(u32), 1);
-            PUT_NETWORK_U32(bytes, HASH_BYTES, txs_n);
+            _ceu_vector_setlen(&&tcp.buffer, $tcp.buffer+sizeof(u32), 1);
+            PUT_NETWORK_U32(tcp.buffer, HASH_BYTES, txs_n);
 
-            await UV_TCP_Write(&tcp, &bytes);
+            await UV_Stream_Write_N(&tcp, _);
         end
 
         // => ACK-block
         do
-            vector[1] byte recv;
-            var&? UV_Stream_Read reader = spawn UV_TCP_Read(&tcp,&recv);
-            await UV_Stream_ReadUntil(&reader!, 1);
-            var int ret = recv[0];
+            var ssize n = await UV_Stream_Read_N(&tcp, 1);
+            _ceu_dbg_assert(n>=0 and $tcp.buffer>=1);
+            var byte ret = tcp.buffer[0];
+            $tcp.buffer = $tcp.buffer - 1;
 
-            _dbg_tcp(0, &&tcp, "client", "=> ACK-block = %d", ret);
+            _dbg_tcp(0, &&tcp.handle, "client", "=> ACK-block = %d", ret);
 
             if ret == _MESSAGE10_HAVE then
                 break;  // found common block
@@ -155,7 +149,7 @@ do
         // TXS
         ///////////////////////////////////////////////////////////////////////
         var u32 txs_n = [[ #G(tcp).block.txs ]];
-        _dbg_tcp(0, &&tcp, "client", "<= %d txs", txs_n);
+        _dbg_tcp(0, &&tcp.handle, "client", "<= %d txs", txs_n);
         var u32 j;
         loop j in [0 -> txs_n[ do
             var int err = await Message10_tx_send(&tcp,j);
@@ -175,7 +169,7 @@ do
     escape _ERR_NONE;
 end
 
-code/await PeerSend (void) -> int
+code/await PeerSend (none) -> int
     // [[ ARGS = { peer=?, block=? } ]]
 do
 
@@ -184,19 +178,19 @@ do finalize with
     {CLIENTS_ALIVE--;}
 end
 
-    vector[] byte ip   = [] .. [[ ARGS.peer.host[1] ]];
+    var[] byte ip   = [] .. [[ ARGS.peer.host[1] ]];
     var      int  port = [[ ARGS.peer.host[2] ]];
     _dbg(2, "client:%p | connecting to %s:%d", {&_ceu_mem}, &&ip[0], port);
 
-    var&? UV_TCP_Connect c = spawn UV_TCP_Connect(&&ip[0], port);
+    var&? UV_TCP_Connect c = spawn UV_TCP_Connect(&&ip[0], port, _);
 
     [[
-        G(c!.tcp) = {
+        G(c!.stream) = {
             block = ARGS.block,
         }
     ]];
 
-    var bool is_10 = [[ G(c!.tcp).block~=nil and G(c!.tcp).block.id=='1.0' ]];
+    var bool is_10 = [[ G(c!.stream).block~=nil and G(c!.stream).block.id=='1.0' ]];
     // ...
 
     do finalize with
@@ -204,11 +198,11 @@ end
     end
     var int? err =
         watching c do
-            await c!.ok;
+            await c.ok;
             _dbg(2, "client:%p | connected to %s:%d", {&_ceu_mem}, &&ip[0], port);
             var int err_ = _ERR_NONE;
             if is_10 then
-                err_ = await Message10_send(&c!.tcp);
+                err_ = await Message10_send(&c.stream);
             else
                 // ...
                 err_ = _ERR_MESSAGE;

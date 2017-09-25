@@ -62,11 +62,11 @@ native/pre do
 #endif
     }
 
-    void dbg_tcp (int level, uv_tcp_t* tcp, char* client_server, const char* fmt, ...) {
+    void dbg_tcp (int level, uv_stream_t* tcp, char* client_server, const char* fmt, ...) {
 #ifdef DBG
         if (level < DBG) return;
-        int p1 = ceu_uv_tcp_getsockport(tcp);
-        int p2 = ceu_uv_tcp_getpeerport(tcp);
+        int p1 = ceu_uv_tcp_getsockport((uv_tcp_t*) tcp);
+        int p2 = ceu_uv_tcp_getpeerport((uv_tcp_t*) tcp);
         char str[255];
         char* arrow;
         if (strcmp(client_server,"server") == 0) {
@@ -107,8 +107,8 @@ end
 
 data UV_TCP_Server_Data with
     event (int,int) ok;
-    event void unlock;
-    event void retransmit;
+    event none unlock;
+    event none retransmit;
 end
 
 data SourceBlockHash;
@@ -159,7 +159,7 @@ do
         var u8 zeros_wanted = [[ THIS.chain.zeros ]];
 
         if source is SourceBlockHash.Network then
-            vector[HASH_BYTES] byte tx_hash;
+            var[HASH_BYTES] byte tx_hash;
             tx_hash = [] .. [[ THIS.tx.hash ]];
             if zeros_wanted > _leading_zeros(&&tx_hash[0],HASH_BYTES) then
 // TODO: test-case to fail here
@@ -169,9 +169,9 @@ _ceu_dbg_assert(0);
             end
         end
 
-        vector[] byte pln;
-        vector[HASH_BYTES] byte back_hash = [] .. [[ THIS.tx.back_hash ]];
-        vector[] byte           payload   = [] .. [[ THIS.tx.payload   ]];
+        var[] byte pln;
+        var[HASH_BYTES] byte back_hash = [] .. [[ THIS.tx.back_hash ]];
+        var[] byte           payload   = [] .. [[ THIS.tx.payload   ]];
 
         is_genesis = [[ THIS.tx.back_hash == string.rep('\0',HASH_BYTES) ]];
         if is_genesis then
@@ -184,10 +184,10 @@ _ceu_dbg_assert(0);
             break;
 
         else/if (source is SourceBlockHash.Network) or (source is SourceBlockHash.File) then
-            vector[HASH_BYTES] byte nonce = [] .. [[ THIS.tx.nonce ]];
+            var[HASH_BYTES] byte nonce = [] .. [[ THIS.tx.nonce ]];
             pln = []..nonce..back_hash..payload;
 
-            vector[HASH_BYTES] byte tx_hash;
+            var[HASH_BYTES] byte tx_hash;
             _ceu_vector_setlen(&&tx_hash,HASH_BYTES,1);
             _crypto_generichash(&&tx_hash[0], HASH_BYTES,
                                 &&pln[0], $pln,
@@ -224,16 +224,16 @@ _ceu_dbg_assert(0);
 #endif
 
             // calculate nonce for the leading zeros
-            vector[HASH_BYTES] byte tx_hash;
+            var[HASH_BYTES] byte tx_hash;
 
             var usize len = $pln;
-            vector[] byte plain2 = []..pln;
+            var[] byte plain2 = []..pln;
 
 #if 1
             await async/thread (pln,plain2,len,tx_hash,zeros_wanted)
 #endif
             do
-                vector[HASH_BYTES] _byte tx_hash2 = _;
+                var[HASH_BYTES] _byte tx_hash2 = _;
 
                 var int zeros_found = 0;
                 var u32 n = do
@@ -310,17 +310,17 @@ _ceu_dbg_assert(0);
 
     // => BLOCK_HASH
     do/_
-        vector[HASH_BYTES] byte block_hash;
+        var[HASH_BYTES] byte block_hash;
         _ceu_vector_setlen(&&block_hash,HASH_BYTES,1);
 
         if is_genesis then
             [[ assert( THIS.block.tail_hash == nil ) ]];
 
-            vector[] byte pln = [] .. [[ THIS.chain.id ]];
+            var[] byte pln = [] .. [[ THIS.chain.id ]];
             _crypto_generichash(&&block_hash[0], HASH_BYTES,
                                 &&pln[0], $pln,
                                 null, 0);
-            vector[HASH_BYTES] byte tx_hash;
+            var[HASH_BYTES] byte tx_hash;
             _ceu_vector_setlen(&&tx_hash,HASH_BYTES,1);
             _crypto_generichash(&&tx_hash[0], HASH_BYTES,
                                 &&block_hash[0], $block_hash,
@@ -341,14 +341,14 @@ _ceu_dbg_assert(0);
 
             [[
                 if not THIS.block.tail_hash then
-                    -- relink only after the yielding parts, avoid "head_hash" race
+                    -- relink only after the yielding parts, anone "head_hash" race
                     THIS.block.tail_hash = APP.chains[THIS.block.chain_id].head_hash
                 end
             ]];
-            vector[] byte pln = [] .. [[ THIS.block.tail_hash ]];
+            var[] byte pln = [] .. [[ THIS.block.tail_hash ]];
             var int i;
             loop i in [0 -> txs_n[ do
-                vector[HASH_BYTES] byte tx_hash = [] .. [[ THIS.block.txs[@i+1] ]];
+                var[HASH_BYTES] byte tx_hash = [] .. [[ THIS.block.txs[@i+1] ]];
                 pln = pln..tx_hash;
             end
 
@@ -369,7 +369,7 @@ _ceu_dbg_assert(0);
     escape _ERR_NONE;
 end
 
-code/await FS_read_10 (vector&[] byte path) -> int
+code/await FS_read_10 (var&[] byte path) -> int
     // output [[ ARGS = { chain_id, head_hash } ]]
 do
     [[
@@ -380,59 +380,65 @@ do
         }
     ]];
 
-    var&? UV_FS_Open f = spawn UV_FS_Open(&&path[0], _O_RDONLY, 0);
+    var&? UV_FS_Open o = spawn UV_FS_Open(&&path[0],_,_,_);
     var int? err =
-        watching f do
-            await f!.file.ok;
-            if f!.file.fd < 0 then
-                escape f!.file.fd;
+        watching o do
+            await o.file.ok;
+            if o.file.handle < 0 then
+                escape o.file.handle;
             end
 
             var _uv_stat_t stat = _;
-            await UV_FS_Fstat(&f!.file, &stat);
+            await UV_FS_Fstat(&o.file, &stat);
             var u64 size = stat.st_size;
-
-            var usize off = 0;
 
             // => HEADER
             do
-                vector[4] byte buf;
-                var ssize n = await UV_FS_Read(&f!.file,&buf,$$buf,off);
-                _ceu_dbg_assert(buf[0] == MESSAGE_MAGIC_0);
-                _ceu_dbg_assert(buf[1] == MESSAGE_MAGIC_1);
-                _ceu_dbg_assert(buf[2] == 1);
-                _ceu_dbg_assert(buf[3] == 0);
-                _ceu_dbg_assert(n == 4);
-                off = off + 4;
+                var ssize n = await UV_FS_Read_N(&o.file, MESSAGE_BYTES);
+                _ceu_dbg_assert(o.file.buffer[0] == MESSAGE_MAGIC_0);
+                _ceu_dbg_assert(o.file.buffer[1] == MESSAGE_MAGIC_1);
+                _ceu_dbg_assert(o.file.buffer[2] == 1);
+                _ceu_dbg_assert(o.file.buffer[3] == 0);
+                _ceu_dbg_assert(n == MESSAGE_BYTES);
+                $o.file.buffer = 0;
             end
 
             // => CHAIN_ID
             do
-                vector[1] byte len_;
+                var usize len;
                 do
-                    var ssize n = await UV_FS_Read(&f!.file,&len_,$$len_,off);
+                    var ssize n = await UV_FS_Read_N(&o.file, 1);
                     _ceu_dbg_assert(n == 1);
-                    off = off + 1;
+                    len = o.file.buffer[0] as usize;
+                    $o.file.buffer = 0;
                 end
-                var usize len = len_[0] as usize;
 
-                vector[len] byte buf;
                 do
-                    var ssize n = await UV_FS_Read(&f!.file,&buf,$$buf,off);
+                    var ssize n = await UV_FS_Read_N(&o.file, len);
                     _ceu_dbg_assert(n == len);
-                    off = off + len;
+                    [[ THIS.chain_id = @o.file.buffer ]];
+                    $o.file.buffer = 0;
                 end
-                [[ THIS.chain_id = @buf ]];
                 //[[ print('>>> chain_id',@buf) ]];
             end
 
             // => BLOCKS
             loop do
-                if off >= size then
-                    _ceu_dbg_assert(off == (size as usize));
-                    break;  // EOF
+                // => TXS
+                var u32 txs_n = _;
+                do
+                    // => TXS_N
+                    var[sizeof(u32)] byte buf;
+                    var ssize n = await UV_FS_Read_N(&o.file, sizeof(u32));
+                    if n <= 0 then
+                        break;          // EOF
+                    end
+                    _ceu_dbg_assert(n == sizeof(u32));
+                    txs_n = *(&&o.file.buffer[0] as u32&&);
+                    $o.file.buffer = 0;
                 end
 
+                // OK, non-emtpy block
                 [[
                     THIS.previous = THIS.block
                     THIS.block = {
@@ -441,19 +447,6 @@ do
                     }
                 ]];
 
-                // => TXS
-                var u32 txs_n = 0;
-                do
-                    // => TXS_N
-                    vector[sizeof(u32)] byte buf;
-                    var ssize n = await UV_FS_Read(&f!.file,&buf,$$buf,off);
-                    if n <= 0 then
-                        break;
-                    end
-                    _ceu_dbg_assert(n == sizeof(u32));
-                    txs_n = *(&&buf[0] as u32&&);
-                    off = off + sizeof(u32);
-                end
                 var u32 i;
                 loop i in [0 -> txs_n[ do
                     // => TXS[i]
@@ -463,44 +456,39 @@ do
                     ]];
 
                     // => NONCE
-                    vector[NONCE_BYTES] byte nonce;
                     do
-                        var ssize n = await UV_FS_Read(&f!.file,&nonce,$$nonce,off);
+                        var ssize n = await UV_FS_Read_N(&o.file, NONCE_BYTES);
                         _ceu_dbg_assert(n == NONCE_BYTES);
-                        [[ THIS.tx.nonce = @nonce ]];
+                        [[ THIS.tx.nonce = @o.file.buffer ]];
                         //[[ print('nonce','\n'..tostring2(THIS.tx.nonce)) ]];
-                        off = off + NONCE_BYTES;
+                        $o.file.buffer = 0;
                     end
 
                     // => TX_BACH_HASH
-                    vector[HASH_BYTES] byte tx_back_hash;
                     do
-                        var ssize n = await UV_FS_Read(&f!.file,&tx_back_hash,$$tx_back_hash,off);
+                        var ssize n = await UV_FS_Read_N(&o.file, HASH_BYTES);
                         _ceu_dbg_assert(n == HASH_BYTES);
-                        [[ THIS.tx.back_hash = @tx_back_hash ]];
+                        [[ THIS.tx.back_hash = @o.file.buffer ]];
                         //[[ print('back_hash','\n'..tostring2(THIS.tx.back_hash)) ]];
-                        off = off + HASH_BYTES;
+                        $o.file.buffer = 0;
                     end
 
                     // => TX_PAYLOAD
-                    vector[] byte payload;
                     do
-                        var u32 payload_len = 0;
+                        var u32 payload_len;
                         do
-                            vector[sizeof(u32)] byte buf;
-                            var ssize n = await UV_FS_Read(&f!.file,&buf,$$buf,off);
+                            var ssize n = await UV_FS_Read_N(&o.file, sizeof(u32));
                             _ceu_dbg_assert(n == sizeof(u32));
-                            payload_len = *(&&buf[0] as u32&&);
+                            payload_len = *(&&o.file.buffer[0] as u32&&);
                             //[[ print('payload_len', @payload_len) ]];
-                            off = off + sizeof(u32);
+                            $o.file.buffer = 0;
                         end
                         do
-                            _ceu_vector_setlen(&&payload,payload_len,1);
-                            var ssize n = await UV_FS_Read(&f!.file,&payload,payload_len as usize,off);
+                            var ssize n = await UV_FS_Read_N(&o.file, payload_len as usize);
                             _ceu_dbg_assert(n == (payload_len as ssize));
-                            [[ THIS.tx.payload = @payload ]];
+                            [[ THIS.tx.payload = @o.file.buffer ]];
                             //[[ print('payload', THIS.tx.payload) ]];
-                            off = off + (payload_len as usize);
+                            $o.file.buffer = 0;
                         end
                     end
                 end
@@ -536,7 +524,7 @@ do
     escape err!;
 end
 
-code/await FS_write_10 (vector&[] byte path) -> int
+code/await FS_write_10 (var&[] byte path) -> int
     // input [[ ARGS = { chain_id } ]]
 do
 #if 0
@@ -563,10 +551,10 @@ do
     do/_
         var int flags = _O_CREAT|_O_WRONLY|_O_TRUNC;
         var _mode_t mode = _S_IRUSR|_S_IWUSR|_S_IRGRP|_S_IWGRP|_S_IROTH;
-        var&? UV_FS_Open f = spawn UV_FS_Open(&&path[0], flags, mode);
+        var&? UV_FS_Open o = spawn UV_FS_Open(&&path[0], _, flags, mode);
         var int? err =
-            watching f do
-                await f!.file.ok;
+            watching o do
+                await o.file.ok;
             end;
         if err? then
             escape err!;
@@ -574,30 +562,29 @@ do
     end
 
     // <= (append)
-    var&? UV_FS_Open f = spawn UV_FS_Open(&&path[0], _O_APPEND|_O_WRONLY, 0);
-    watching f do
-        await f!.file.ok;
-        _ceu_dbg_assert(f!.file.fd >= 0);
+    var&? UV_FS_Open o = spawn UV_FS_Open(&&path[0], _, _O_APPEND|_O_WRONLY, 0);
+    watching o do
+        await o.file.ok;
+        _ceu_dbg_assert(o.file.handle >= 0);
 
         // <= HEADER
         do
-            vector[4] byte buf = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 1, 0];
-            var ssize n = await UV_FS_Write(&f!.file,&buf,$buf,0);
+            o.file.buffer = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 1, 0];
+            var ssize n = await UV_FS_Write_N(&o.file, MESSAGE_BYTES);
             _ceu_dbg_assert(n == 4);
         end
 
         // <= CHAIN_ID
         do
             var byte len = [[ string.len(THIS.chain.id) ]];
-            vector[1] byte len_ = [len];
             do
-                var ssize n = await UV_FS_Write(&f!.file,&len_,1,0);
+                o.file.buffer = [len];
+                var ssize n = await UV_FS_Write_N(&o.file, 1);
                 _ceu_dbg_assert(n == 1);
             end
-
-            vector[len] byte buf = [] .. [[ THIS.chain.id ]];
             do
-                var ssize n = await UV_FS_Write(&f!.file,&buf,$buf,0);
+                o.file.buffer = [] .. [[ THIS.chain.id ]];
+                var ssize n = await UV_FS_Write_N(&o.file, len as usize);
                 _ceu_dbg_assert(n == (len as ssize));
             end
         end
@@ -608,10 +595,9 @@ do
             var u32 txs_n = [[ #THIS.base.txs ]];
             do
                 // <= TXS_N
-                vector[sizeof(u32)] byte buf;
-                _ceu_vector_setlen(&&buf, sizeof(u32), 1);
-                _ceu_vector_buf_set(&&buf, 0, &&txs_n, sizeof(u32));
-                var ssize n = await UV_FS_Write(&f!.file,&buf,$buf,0);
+                _ceu_vector_setlen(&&o.file.buffer, sizeof(u32), 1);
+                _ceu_vector_buf_set(&&o.file.buffer, 0, (&&txs_n as byte&&), sizeof(u32));
+                var ssize n = await UV_FS_Write_N(&o.file, sizeof(u32));
                 _ceu_dbg_assert(n == sizeof(u32));
             end
             var u32 i;
@@ -626,15 +612,15 @@ do
 
                 // <= NONCE
                 do
-                    vector[NONCE_BYTES] byte buf = [] .. [[ THIS.tx.nonce ]];
-                    var ssize n = await UV_FS_Write(&f!.file,&buf,$buf,0);
+                    o.file.buffer = [] .. [[ THIS.tx.nonce ]];
+                    var ssize n = await UV_FS_Write_N(&o.file, NONCE_BYTES);
                     _ceu_dbg_assert(n == NONCE_BYTES);
                 end
 
                 // <= TX_BACK_HASH
                 do
-                    vector[HASH_BYTES] byte buf = [] .. [[ THIS.tx.back_hash ]];
-                    var ssize n = await UV_FS_Write(&f!.file,&buf,$buf,0);
+                    o.file.buffer = [] .. [[ THIS.tx.back_hash ]];
+                    var ssize n = await UV_FS_Write_N(&o.file, HASH_BYTES);
                     _ceu_dbg_assert(n == HASH_BYTES);
                 end
 
@@ -644,17 +630,17 @@ do
                     var u32 len = [[ string.len(THIS.tx.payload) ]];
                     // <= TX_PAYLOAD_LEN
                     do
-                        vector[sizeof(u32)] byte buf;
-                        _ceu_vector_setlen(&&buf, sizeof(u32), 1);
-                        _ceu_vector_buf_set(&&buf, 0, &&len, sizeof(u32));
-                        var ssize n = await UV_FS_Write(&f!.file,&buf,$buf,0);
+                        _ceu_vector_setlen(&&o.file.buffer, sizeof(u32), 1);
+                        _ceu_vector_buf_set(&&o.file.buffer, 0, (&&len as byte&&), sizeof(u32));
+                        var ssize n = await UV_FS_Write_N(&o.file, sizeof(u32));
                         _ceu_dbg_assert(n == sizeof(u32));
                     end
                     // <= TX_PAYLOAD
                     do
-                        vector[] byte buf = [] .. [[ THIS.tx.payload ]];
-                        var ssize n = await UV_FS_Write(&f!.file,&buf,$buf,0);
-                        _ceu_dbg_assert(n == (len as ssize));
+// TODO: may not fit default buffer length (1024)
+                        o.file.buffer = [] .. [[ THIS.tx.payload ]];
+                        var ssize n = await UV_FS_Write_N(&o.file, len as usize);
+                        _ceu_dbg_assert(n == (len as usize));
                     end
                 end
             end
@@ -695,7 +681,7 @@ end
 #include "server.ceu"
 #include "uv/tcp-server.ceu"
 
-code/await Init (void) -> void
+code/await Init (none) -> none
 do
     [[
         GG.ERR_REMOTE_BUG_OR_MALICIOUS = @(_ERR_REMOTE_BUG_OR_MALICIOUS as int)
@@ -711,7 +697,7 @@ do
 
             path = APP.chains.files..'/'..chain.id..'.chain'
         ]]
-        vector[] byte path = [] .. [[path]];
+        var[] byte path = [] .. [[path]];
         var int ret = await FS_read_10(&path);
         if ret == _ERR_NONE then
             [[

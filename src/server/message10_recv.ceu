@@ -1,43 +1,46 @@
 #ifndef _MESSAGE10_RECV_CEU
 #define _MESSAGE10_RECV_CEU
 
-code/await Message10_header_recv (var& Connection conn) -> int
+code/await Message10_header_recv (var& UV_Stream tcp) -> int
 do
     // => CHAIN_LEN
     // => CHAIN_KEY
     // => CHAIN_ZEROS
     do/_
         // zeros
-        await UV_Stream_ReadUntil(&conn.reader!, conn.off+1);
-        var byte chain_zeros = conn.bytes[conn.off];
-        _dbg_tcp(2, &&conn.tcp, "server", "CHAIN_ZEROS = %d",  chain_zeros);
-        conn.off = conn.off + 1;
+        var ssize n = await UV_Stream_Read_N(&tcp, 1);
+        _ceu_dbg_assert(n>=0 and $tcp.buffer>=1);
+        var byte chain_zeros = tcp.buffer[0];
+        _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_ZEROS = %d",  chain_zeros);
+        $tcp.buffer = $tcp.buffer - 1;
 
         // len
-        await UV_Stream_ReadUntil(&conn.reader!, conn.off+1);
-        var byte chain_len = conn.bytes[conn.off];
-        conn.off = conn.off + 1;
-        _dbg_tcp(2, &&conn.tcp, "server", "CHAIN_LEN   = %d", chain_len);
+        n = await UV_Stream_Read_N(&tcp, 1);
+        _ceu_dbg_assert(n>=0 and $tcp.buffer>=1);
+        var byte chain_len = tcp.buffer[0];
+        $tcp.buffer = $tcp.buffer - 1;
+        _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_LEN   = %d", chain_len);
 
         // key
-        vector[] byte chain_key;
-        await UV_Stream_ReadUntil(&conn.reader!, conn.off+(chain_len as usize));
+        var[] byte chain_key;
+        n = await UV_Stream_Read_N(&tcp, (chain_len as usize));
+        _ceu_dbg_assert(n>=0 and $tcp.buffer>=(chain_len as usize));
         _ceu_vector_setlen(&&chain_key,chain_len,1);
         if chain_len > 0 then
-            _memcpy(&&chain_key[0], &&conn.bytes[conn.off], chain_len);
+            _memcpy(&&chain_key[0], &&tcp.buffer[0], chain_len);
         end
-        _dbg_tcp(2, &&conn.tcp, "server", "CHAIN_KEY   = %s", &&chain_key[0]);
-        conn.off = conn.off + (chain_len as usize);
+        _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_KEY   = %s", &&chain_key[0]);
+        $tcp.buffer = $tcp.buffer - (chain_len as usize);
 
         [[
-            G(conn.tcp).chain = GG.chain_parse_get( {
+            G(tcp).chain = GG.chain_parse_get( {
                 key   = @chain_key,
                 zeros = @chain_zeros,
             } )
         ]];
 
-        var bool is_sub = [[ G(conn.tcp).chain ~= nil ]];
-        _dbg_tcp(2, &&conn.tcp, "server", "is_sub      = %d", is_sub);
+        var bool is_sub = [[ G(tcp).chain ~= nil ]];
+        _dbg_tcp(2, &&tcp.handle, "server", "is_sub      = %d", is_sub);
         if not is_sub then
             escape _MESSAGE10_NOTSUB;    // OK ACK
         end
@@ -48,41 +51,49 @@ do
     escape _ERR_NONE;
 end
 
-code/await Message10_block_recv (var& Connection conn) -> int
+code/await Message10_block_recv (var& UV_Stream tcp) -> int
 do
     // => BLOCK_HASH
     // => BLOCK_TXS_N
     do
         // hash
-        await UV_Stream_ReadUntil(&conn.reader, conn.off+HASH_BYTES);
-        vector[HASH_BYTES] byte hash;
+[[print('>>>', @$tcp.buffer)]]
+        var ssize n = await UV_Stream_Read_N(&tcp, HASH_BYTES);
+[[print'<<<']]
+        _ceu_dbg_assert(n>=0 and $tcp.buffer>=HASH_BYTES);
+
+        var[HASH_BYTES] byte hash;
         _ceu_vector_setlen(&&hash, HASH_BYTES, 1);
-        _ceu_vector_buf_set(&&hash, 0, &&conn.bytes[conn.off], HASH_BYTES);
-        conn.off = conn.off + HASH_BYTES;
-        vector[] byte str = [] .. [[ tostring2(@hash) ]];
-_dbg_tcp(3, &&conn.tcp, "server", "=> BLOCK_HASH : %s", &&str[0]);
+        _ceu_vector_buf_set(&&hash, 0, &&tcp.buffer[0], HASH_BYTES);
+        $tcp.buffer = $tcp.buffer - HASH_BYTES;
+
+        do
+            var[] byte str = [] .. [[ tostring2(@hash) ]];
+            _dbg_tcp(3, &&tcp.handle, "server", "=> BLOCK_HASH : %s", &&str[0]);
+        end
 
         // txs_n
-        await UV_Stream_ReadUntil(&conn.reader, conn.off+sizeof(u32));
-        var u32 txs_n = GET_HOST_U32(conn.bytes, conn.off);
-        conn.off = conn.off + sizeof(u32);
-        _dbg_tcp(0, &&conn.tcp, "server", "=> BLOCK_TXS_N : %d", txs_n);
+        n = await UV_Stream_Read_N(&tcp, sizeof(u32));
+        _ceu_dbg_assert(n>=0 and $tcp.buffer>=sizeof(u32));
+        var u32 txs_n = GET_HOST_U32(tcp.buffer, 0);
+        $tcp.buffer = $tcp.buffer - sizeof(u32);
+        _dbg_tcp(0, &&tcp.handle, "server", "=> BLOCK_TXS_N : %d", txs_n);
 
         [[
-            G(conn.tcp).block.hash = @hash;
-            --print('[server] => BLOCK_HASH', string.len(G(conn.tcp).block.hash))
-            --print(tostring2(G(conn.tcp).block.hash))
+            G(tcp).block.hash = @hash;
+            --print('[server] => BLOCK_HASH', string.len(G(tcp).block.hash))
+            --print(tostring2(G(tcp).block.hash))
             --print('[server] => BLOCK_TXS_N', @txs_n)
-            G(conn.tcp).block.txs_n = @txs_n
+            G(tcp).block.txs_n = @txs_n
         ]];
     end
 
     // check if block is already on chain
     [[
         have = false
-        cur = assert( APP.blocks[ G(conn.tcp).chain.head_hash ] )
+        cur = assert( APP.blocks[ G(tcp).chain.head_hash ] )
         while true do
-            if cur.hash == G(conn.tcp).block.hash then
+            if cur.hash == G(tcp).block.hash then
                 have = true
                 break
             end
@@ -101,19 +112,22 @@ _dbg_tcp(3, &&conn.tcp, "server", "=> BLOCK_HASH : %s", &&str[0]);
     end
 end
 
-code/await Message10_tx_recv (var& Connection conn) -> int
+code/await Message10_tx_recv (var& UV_Stream tcp) -> int
 do
     // => TX_PAYLOAD_BYTES
     // => TX_HASH
     do/_
         // hash
-        await UV_Stream_ReadUntil(&conn.reader, conn.off+HASH_BYTES);
-        vector[HASH_BYTES] byte hash;
-        _ceu_vector_setlen(&&hash, HASH_BYTES, 1);
-        _ceu_vector_buf_set(&&hash, 0, &&conn.bytes[conn.off], HASH_BYTES);
-        conn.off = conn.off + HASH_BYTES;
+        var ssize n = await UV_Stream_Read_N(&tcp, HASH_BYTES);
+        _ceu_dbg_assert(n>=0 and $tcp.buffer>=HASH_BYTES);
 
-        var int zeros_wanted = [[ G(conn.tcp).chain.zeros ]];
+        var[HASH_BYTES] byte hash;
+        _ceu_vector_setlen(&&hash,HASH_BYTES,1);
+        _ceu_vector_buf_set(&&hash, 0, &&tcp.buffer[0], HASH_BYTES);
+
+        $tcp.buffer = $tcp.buffer - HASH_BYTES;
+
+        var int zeros_wanted = [[ G(tcp).chain.zeros ]];
         if zeros_wanted > _leading_zeros(&&hash[0],HASH_BYTES) then
 // TODO: test-case to fail here
 // TODO: also change from ">" to "!="
@@ -122,9 +136,10 @@ _ceu_dbg_assert(0);
         end
 
         // payload_bytes
-        await UV_Stream_ReadUntil(&conn.reader, conn.off+sizeof(u32));
-        var u32 payload_bytes = GET_HOST_U32(conn.bytes, conn.off);
-        conn.off = conn.off + sizeof(u32);
+        n = await UV_Stream_Read_N(&tcp, sizeof(u32));
+        _ceu_dbg_assert(n>=0 and $tcp.buffer>=sizeof(u32));
+        var u32 payload_bytes = GET_HOST_U32(tcp.buffer, 0);
+        $tcp.buffer = $tcp.buffer - sizeof(u32);
 
         // TODO: check payload_bytes vs chain.limits
 
@@ -136,26 +151,25 @@ _ceu_dbg_assert(0);
 
             tx = APP.txs[tx_hash]
             if tx == nil then
-                G(conn.tcp).tx = {
+                G(tcp).tx = {
                     hash  = tx_hash,
                     bytes = payload_bytes,
                 }
             else
-                G(conn.tcp).tx = tx
+                G(tcp).tx = tx
             end
         ]];
         var bool have = [[ tx ~= nil ]];
 
         // <= ACK-tx
         do
-            vector[1] byte send;
             if have then
-                send = [ _MESSAGE10_HAVE ];
+                tcp.buffer = [ _MESSAGE10_HAVE ];
             else
-                send = [ _ERR_NONE  ];
+                tcp.buffer = [ _ERR_NONE  ];
             end
-            _dbg_tcp(0, &&conn.tcp, "server", "<= ACK-tx = %d", send[0]);
-            await UV_TCP_Write(&conn.tcp, &send);
+            _dbg_tcp(0, &&tcp.handle, "server", "<= ACK-tx = %d", tcp.buffer[0]);
+            await UV_Stream_Write_N(&tcp, 1);
         end
 
         // HAVE_YES: next TX
@@ -168,33 +182,35 @@ _ceu_dbg_assert(0);
     // => TX_COMPLETE
     do
         // => NONCE/TIMESTAMP: 128 bits
-        vector[NONCE_BYTES] byte nonce;
         do
-            await UV_Stream_ReadUntil(&conn.reader, conn.off + NONCE_BYTES);
+            var ssize n = await UV_Stream_Read_N(&tcp, NONCE_BYTES);
+            _ceu_dbg_assert(n>=0 and $tcp.buffer>=NONCE_BYTES);
+
+            var[NONCE_BYTES] byte nonce;
             _ceu_vector_setlen(&&nonce,NONCE_BYTES,1);
-            var int i;
-            loop i in [0 -> NONCE_BYTES[ do
-                nonce[i] = conn.bytes[conn.off+i];
-            end
-            [[ G(conn.tcp).tx.nonce = @nonce ]];
-            //[[ print('NONCE', tostring2(G(conn.tcp).tx.nonce)) ]];
+            _ceu_vector_buf_set(&&nonce, 0, &&tcp.buffer[0], NONCE_BYTES);
+    
+            [[ G(tcp).tx.nonce = @nonce ]];
+            //[[ print('NONCE', tostring2(G(tcp).tx.nonce)) ]];
             //_printf("[server] => TIMESTAMP = %X\n", timestamp);
-            conn.off = conn.off + NONCE_BYTES;
+            $tcp.buffer = $tcp.buffer - NONCE_BYTES;
         end
 
         // => TX_BACK_HASH
 // TODO: check back_hash
-        vector[HASH_BYTES] byte back_hash;
         do
-            await UV_Stream_ReadUntil(&conn.reader, conn.off + HASH_BYTES);
+            var ssize n = await UV_Stream_Read_N(&tcp, HASH_BYTES);
+            _ceu_dbg_assert(n>=0 and $tcp.buffer>=HASH_BYTES);
+
+            var[HASH_BYTES] byte back_hash;
             _ceu_vector_setlen(&&back_hash, HASH_BYTES, 1);
-            _ceu_vector_buf_set(&&back_hash, 0, &&conn.bytes[conn.off], HASH_BYTES);
-            conn.off = conn.off + HASH_BYTES;
-            _ceu_dbg_assert($back_hash == HASH_BYTES);
+            _ceu_vector_buf_set(&&back_hash, 0, &&tcp.buffer[0], HASH_BYTES);
+
+            $tcp.buffer = $tcp.buffer - HASH_BYTES;
             [[
-                G(conn.tcp).tx.back_hash = @back_hash;
+                G(tcp).tx.back_hash = @back_hash;
                 --print('[server] => TX_BACK_HASH')
-                --print(tostring2(G(conn.tcp).tx.back_hash))
+                --print(tostring2(G(tcp).tx.back_hash))
             ]];
 
             // [check] BACK_HASH is young enough? [ok ACK]
@@ -216,29 +232,31 @@ _ceu_dbg_assert(0);
         end
 
         // => TX_PAYLOAD
-        vector[] byte tx_payload;
         do
-            var usize len = [[ G(conn.tcp).tx.bytes ]];
-            await UV_Stream_ReadUntil(&conn.reader, conn.off + len);
+            var usize len = [[ G(tcp).tx.bytes ]];
+            var ssize n = await UV_Stream_Read_N(&tcp, len);
+            _ceu_dbg_assert(n>=0 and $tcp.buffer>=len);
+
+            var[] byte tx_payload;
             _ceu_vector_setlen(&&tx_payload, len, 1);
-            _ceu_vector_buf_set(&&tx_payload, 0,
-                                &&((_ID(&&conn.bytes[0]))[conn.off]), len);
+            _ceu_vector_buf_set(&&tx_payload, 0, &&tcp.buffer[0], len);
             [[
-                G(conn.tcp).tx.payload = @tx_payload;
+                G(tcp).tx.payload = @tx_payload;
                 --print('[server] => PAYLOAD')
-                --print(tostring2(G(conn.tcp).tx.payload))
+                --print(tostring2(G(tcp).tx.payload))
             ]];
-            conn.off = conn.off + len;
+            $tcp.buffer = $tcp.buffer - len;
         end
 
         // => POS: TODO
         do
-            await UV_Stream_ReadUntil(&conn.reader, conn.off + 1);
-            var int pos_ = conn.bytes[conn.off];
+            var ssize n = await UV_Stream_Read_N(&tcp, 1);
+            _ceu_dbg_assert(n>=0 and $tcp.buffer>=1);
+            var int pos_ = tcp.buffer[0];
             //_printf("[server] POS = %X\n", pos_);
-            [[ G(conn.tcp).tx.pos = @pos_ ]];
+            [[ G(tcp).tx.pos = @pos_ ]];
             //_printf("TODO: POS matches?\n");
-            conn.off = conn.off + 1;
+            $tcp.buffer = $tcp.buffer - 1;
         end
     end
 
@@ -246,7 +264,7 @@ _ceu_dbg_assert(0);
 end
 
 [[
-    G(outer.conn.tcp) = {
+    G(outer.tcp) = {
         chain = nil,
     }
 ]];
@@ -257,17 +275,18 @@ end
 
 // <= ACK-header
 // bytes/reader received from message partially parsed
-var int err = await Message10_header_recv(&outer.conn);
-call outer.conn.Reset();
+var int err = await Message10_header_recv(&outer.tcp);
+_ceu_dbg_assert($outer.tcp.buffer == 0);
+
 if err == _MESSAGE10_NOTSUB then
-    vector[1] byte send = [err];
-    await UV_TCP_Write(&outer.conn.tcp, &send);
+    outer.tcp.buffer = [err];
+    await UV_Stream_Write_N(&outer.tcp,_);
     escape err;     // terminate if not subcribed
 end
 
 // LOCK: only one "receive" per chain
 do
-    var bool is_locked = [[ G(outer.conn.tcp).chain.recv_is_locked ]];
+    var bool is_locked = [[ G(outer.tcp).chain.recv_is_locked ]];
     if is_locked then
         loop do
             par/or do
@@ -275,15 +294,15 @@ do
             with
                 await 1s;
             end
-            is_locked = [[ G(outer.conn.tcp).chain.recv_is_locked ]];
+            is_locked = [[ G(outer.tcp).chain.recv_is_locked ]];
             if not is_locked then
                 break;
             end
         end
     end
-    [[ G(outer.conn.tcp).chain.recv_is_locked = true ]];
+    [[ G(outer.tcp).chain.recv_is_locked = true ]];
     do finalize with
-        [[ G(outer.conn.tcp).chain.recv_is_locked = false ]];
+        [[ G(outer.tcp).chain.recv_is_locked = false ]];
         emit outer.shared.unlock;
     end
 
@@ -293,13 +312,13 @@ do finalize with
 end
 
     do
-        vector[1] byte send = [err];
-        await UV_TCP_Write(&outer.conn.tcp, &send);
+        outer.tcp.buffer = [err];
+        await UV_Stream_Write_N(&outer.tcp,_);
     end
 
     [[
-        G(outer.conn.tcp).remote_head = nil
-        G(outer.conn.tcp).remote_base = nil
+        G(outer.tcp).remote_head = nil
+        G(outer.tcp).remote_base = nil
     ]];
 
     ///////////////////////////////////////////////////////////////////////////
@@ -312,10 +331,10 @@ end
         loop i do
 {BLOCKS_RECEIVED++;}
             [[
-                G(outer.conn.tcp).previous = G(outer.conn.tcp).block
-                G(outer.conn.tcp).block = {
+                G(outer.tcp).previous = G(outer.tcp).block
+                G(outer.tcp).block = {
                     id        = '1.0',
-                    chain_id  = G(outer.conn.tcp).chain.id,
+                    chain_id  = G(outer.tcp).chain.id,
                     txs       = {},
                     hash      = nil,
                     up_hash   = nil,
@@ -325,14 +344,14 @@ end
 
             // <= ACK-block
             do/_
-                var int err2 = await Message10_block_recv(&outer.conn);
+                var int err2 = await Message10_block_recv(&outer.tcp);
 
                 // consolidate previous block
-                var bool ok = [[ G(outer.conn.tcp).previous ~= nil ]];
+                var bool ok = [[ G(outer.tcp).previous ~= nil ]];
                 if ok then
                     [[
-                        G(outer.conn.tcp).previous.tail_hash = assert(G(outer.conn.tcp).block.hash)
-                        ARGS = { block=G(outer.conn.tcp).previous }
+                        G(outer.tcp).previous.tail_hash = assert(G(outer.tcp).block.hash)
+                        ARGS = { block=G(outer.tcp).previous }
                     ]];
                     var int ret = await BlockHash(SourceBlockHash.Network());
                     if ret != _ERR_NONE then
@@ -343,18 +362,18 @@ end
                     end
                 end
 
-                call outer.conn.Reset();
+                _ceu_dbg_assert($outer.tcp.buffer == 0);
 
                 //[[ print('[server] => BLOCKS['..(@i)..'] : 
-                //'..tostring2(G(outer.conn.tcp).block.hash)) ]];
+                //'..tostring2(G(outer.tcp).block.hash)) ]];
 
                 do
-                    _dbg_tcp(0, &&outer.conn.tcp, "server", "<= ACK-block[%d] = %d",
-                            _ceu_uv_tcp_getsockport(&&outer.conn.tcp),
-                            _ceu_uv_tcp_getpeerport(&&outer.conn.tcp),
+                    _dbg_tcp(0, &&outer.tcp.handle, "server", "<= ACK-block[%d] = %d",
+                            _ceu_uv_tcp_getsockport(&&outer.tcp.handle as _uv_tcp_t&&),
+                            _ceu_uv_tcp_getpeerport(&&outer.tcp.handle as _uv_tcp_t&&),
                             i, err2);
-                    vector[1] byte send = [err2];
-                    await UV_TCP_Write(&outer.conn.tcp, &send);
+                    outer.tcp.buffer = [err2];
+                    await UV_Stream_Write_N(&outer.tcp,_);
                 end
 
                 // FOUND COMMON BLOCK?
@@ -369,13 +388,13 @@ end
                 // received at least one new block
                 [[
                     if (@i) == 0 then
-                        G(outer.conn.tcp).remote_head = G(outer.conn.tcp).block
+                        G(outer.tcp).remote_head = G(outer.tcp).block
                     else
-                        G(outer.conn.tcp).remote_base.tail_hash = G(outer.conn.tcp).block.hash
-                        G(outer.conn.tcp).block.up_hash = G(outer.conn.tcp).remote_base.hash
+                        G(outer.tcp).remote_base.tail_hash = G(outer.tcp).block.hash
+                        G(outer.tcp).block.up_hash = G(outer.tcp).remote_base.hash
                     end
 
-                    G(outer.conn.tcp).remote_base = G(outer.conn.tcp).block
+                    G(outer.tcp).remote_base = G(outer.tcp).block
                 ]];
             end
 
@@ -384,28 +403,26 @@ end
             ///////////////////////////////////////////////////////////////////////////
 
             do/_
-                var int txs_n = [[ G(outer.conn.tcp).block.txs_n ]];
-                _dbg_tcp(0, &&outer.conn.tcp, "server", "=> %d txs (ini)", txs_n);
+                var int txs_n = [[ G(outer.tcp).block.txs_n ]];
+                _dbg_tcp(0, &&outer.tcp.handle, "server", "=> %d txs (ini)", txs_n);
                 var int j;
                 loop j in [0 -> txs_n[ do
-                    _dbg_tcp(0, &&outer.conn.tcp, "server", "=> %d txs[%d]", txs_n, j);
-                    var int err2 = await Message10_tx_recv(&outer.conn);
+                    _dbg_tcp(0, &&outer.tcp.handle, "server", "=> %d txs[%d]", txs_n, j);
+                    var int err2 = await Message10_tx_recv(&outer.tcp);
                     if err2 != _ERR_NONE then
                         escape err2;
                     end
                     [[
-                        G(outer.conn.tcp).block.txs[@j+1] = G(outer.conn.tcp).tx.hash
-                        G(outer.conn.tcp).block.txs[G(outer.conn.tcp).tx.hash] = G(outer.conn.tcp).tx
+                        G(outer.tcp).block.txs[@j+1] = G(outer.tcp).tx.hash
+                        G(outer.tcp).block.txs[G(outer.tcp).tx.hash] = G(outer.tcp).tx
                     ]];
                 end
-                _dbg_tcp(0, &&outer.conn.tcp, "server", "=> %d txs (end)", txs_n);
+                _dbg_tcp(0, &&outer.tcp.handle, "server", "=> %d txs (end)", txs_n);
             end
         end
         //_ceu_dbg_assert(0);
         escape _ERR_NONE;
     end;
-
-    kill outer.conn.reader;
 end
 
 if err == _MESSAGE10_HAVE then
@@ -416,9 +433,9 @@ end
 
 // BLOCK holds the COMMON node
 [[
-    common_hash = G(outer.conn.tcp).block.hash
-    assert(G(outer.conn.tcp).remote_head and G(outer.conn.tcp).remote_base, '1')
-    G(outer.conn.tcp).remote_base.tail_hash = common_hash
+    common_hash = G(outer.tcp).block.hash
+    assert(G(outer.tcp).remote_head and G(outer.tcp).remote_base, '1')
+    G(outer.tcp).remote_base.tail_hash = common_hash
 ]];
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -438,8 +455,8 @@ end
 // compare chains, set longest, apply shortest
 [[
     -- { base=?, head=?, size=? }
-    local_ = GG.chain_head_base_size(G(outer.conn.tcp).chain.head_hash)
-    remote = GG.chain_head_base_size(G(outer.conn.tcp).remote_head.hash)
+    local_ = GG.chain_head_base_size(G(outer.tcp).chain.head_hash)
+    remote = GG.chain_head_base_size(G(outer.tcp).remote_head.hash)
     --print('[server] LOC='..local_.size..' vs REM='..remote.size)
 
     -- dst is the longest
@@ -462,8 +479,8 @@ end
 
     -- relink current chain's head/common if longest is remote
     if dst == remote then
-        APP.blocks[common_hash].up_hash = G(outer.conn.tcp).remote_base.hash
-        G(outer.conn.tcp).chain.head_hash = dst.head.hash
+        APP.blocks[common_hash].up_hash = G(outer.tcp).remote_base.hash
+        G(outer.tcp).chain.head_hash = dst.head.hash
     else
         --print('[server] local wins')
         -- already ok
@@ -474,7 +491,7 @@ end
         id        = '1.0',  -- TODO
         txs       = {},
         up_hash   = nil,
-        chain_id  = G(outer.conn.tcp).chain.id,
+        chain_id  = G(outer.tcp).chain.id,
         -- set by Message10_block_parse_head
         --tail_hash = dst.head.hash,
         --hash      = error'TODO',
@@ -515,8 +532,8 @@ if txs>0 then
     var int ret = await BlockHash(SourceBlockHash.Network());
     _ceu_dbg_assert(ret == _ERR_NONE);
     [[
-        APP.blocks[G(outer.conn.tcp).chain.head_hash].up_hash = ARGS.block.hash
-        G(outer.conn.tcp).chain.head_hash = ARGS.block.hash
+        APP.blocks[G(outer.tcp).chain.head_hash].up_hash = ARGS.block.hash
+        G(outer.tcp).chain.head_hash = ARGS.block.hash
     ]]
 end
 
@@ -524,7 +541,7 @@ var int fork = [[fork]];
 var bool is_remote = [[ dst == remote ]];
 if fork>1 and is_remote and txs>0 then
     //_ceu_dbg_assert(has_txs);
-    _dbg_tcp(3, &&outer.conn.tcp, "server", "recreated: %d", fork);
+    _dbg_tcp(3, &&outer.tcp.handle, "server", "recreated: %d", fork);
     {BLOCKS_RECREATED+=@fork;}
     {TXS_RECREATED+=@txs;}
 end
@@ -548,7 +565,7 @@ with
         _ceu_dbg_assert(has);
         //if has then
             [[
-                chain = assert(APP.chains[G(outer.conn.tcp).chain.id])
+                chain = assert(APP.chains[G(outer.tcp).chain.id])
                 ARGS = {
                     block = assert(APP.blocks[chain.head_hash]),
                     chain = chain,
