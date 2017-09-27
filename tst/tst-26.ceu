@@ -23,7 +23,7 @@ var UV_TCP_Server_Data shared = _;
 
 await Init();
 
-vector[] byte path = [].."x.chain";
+var[] byte path = [].."x.chain";
 var int ret = await FS_read_10(&path);
 _ceu_dbg_assert(ret == _ERR_NONE);
 [[

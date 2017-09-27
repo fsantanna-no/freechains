@@ -13,8 +13,8 @@
 
 await Init();
 
-vector[] byte src = [].."x.chain";
-vector[] byte dst = [].."y.chain";
+var[] byte src = [].."x.chain";
+var[] byte dst = [].."y.chain";
 
 do
     var int ret = await FS_read_10(&src);
@@ -34,7 +34,7 @@ assert(src == dst)
 
 // error r/w
 do
-    vector[] byte err = [].."/no.chain";
+    var[] byte err = [].."/no.chain";
 
     var int ret = await FS_read_10(&err);
     _fprintf(_stderr, "[%d] uv-error: %s\n", ret, _uv_strerror(ret));

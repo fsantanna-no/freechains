@@ -62,11 +62,11 @@ with
 
         await Init();
 
-        vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
-        var      int  port    = [[ APP.server.host[2] ]];
-        var      int  backlog = [[ APP.server.backlog ]];
+        var[] byte ip      = [] .. [[ APP.server.host[1] ]];
+        var   int  port    = [[ APP.server.host[2] ]];
+        var   int  backlog = [[ APP.server.backlog ]];
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-        spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
+        spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
 
         await shared.ok;
         await shared.ok;

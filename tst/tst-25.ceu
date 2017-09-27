@@ -72,7 +72,7 @@ await ClientMessages(&shared);
     print('<'..string.rep('=',78))
 ]];
 
-vector[] byte path = [].."x.chain";
+var[] byte path = [].."x.chain";
 [[ ARGS={ chain_id='||0|' } ]];
 var int ret = await FS_write_10(&path);
 _ceu_dbg_assert(ret == _ERR_NONE);
