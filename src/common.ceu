@@ -1,7 +1,7 @@
 #ifndef _COMMON_CEU
 #define _COMMON_CEU
 
-#define DBG 0
+//#define DBG 0
 //#define FREECHAINS_NO_MALICIOUS
 
 #include "c.ceu"
@@ -369,7 +369,8 @@ _ceu_dbg_assert(0);
     escape _ERR_NONE;
 end
 
-code/await FS_read_10 (var&[] byte path) -> int
+code/await FS_read_10 (var&[] byte path) -> none
+    throws Exception.Uv
     // output [[ ARGS = { chain_id, head_hash } ]]
 do
     [[
@@ -380,151 +381,144 @@ do
         }
     ]];
 
-    var&? UV_FS_Open o = spawn UV_FS_Open(&&path[0],_,_,_);
-    var int? err =
-        watching o do
-            await o.file.ok;
-            if o.file.handle < 0 then
-                escape o.file.handle;
+    var& UV_FS_Open o = spawn UV_FS_Open(&&path[0],_,_,_);
+    await o.file.ok;
+
+    var _uv_stat_t stat = _;
+    await UV_FS_Fstat(&o.file, &stat);
+    var u64 size = stat.st_size;
+
+    // => HEADER
+    do
+        var ssize n = await UV_FS_Read_N(&o.file, MESSAGE_BYTES);
+        _ceu_dbg_assert(o.file.buffer[0] == MESSAGE_MAGIC_0);
+        _ceu_dbg_assert(o.file.buffer[1] == MESSAGE_MAGIC_1);
+        _ceu_dbg_assert(o.file.buffer[2] == 1);
+        _ceu_dbg_assert(o.file.buffer[3] == 0);
+        _ceu_dbg_assert(n == MESSAGE_BYTES);
+        $o.file.buffer = 0;
+    end
+
+    // => CHAIN_ID
+    do
+        var usize len;
+        do
+            var ssize n = await UV_FS_Read_N(&o.file, 1);
+            _ceu_dbg_assert(n == 1);
+            len = o.file.buffer[0] as usize;
+            $o.file.buffer = 0;
+        end
+
+        do
+            var ssize n = await UV_FS_Read_N(&o.file, len);
+            _ceu_dbg_assert(n == len);
+            [[ THIS.chain_id = @o.file.buffer ]];
+            $o.file.buffer = 0;
+        end
+        //[[ print('>>> chain_id',@buf) ]];
+    end
+
+    // => BLOCKS
+    loop do
+        // => TXS
+        var u32 txs_n = _;
+        do
+            // => TXS_N
+            var[sizeof(u32)] byte buf;
+            var ssize n = await UV_FS_Read_N(&o.file, sizeof(u32));
+            if n <= 0 then
+                break;          // EOF
             end
+            _ceu_dbg_assert(n == sizeof(u32));
+            txs_n = *(&&o.file.buffer[0] as u32&&);
+            $o.file.buffer = 0;
+        end
 
-            var _uv_stat_t stat = _;
-            await UV_FS_Fstat(&o.file, &stat);
-            var u64 size = stat.st_size;
+        // OK, non-emtpy block
+        [[
+            THIS.previous = THIS.block
+            THIS.block = {
+                txs = {},
+                tail_hash = (THIS.previous and THIS.previous.hash) or nil,
+            }
+        ]];
 
-            // => HEADER
+        var u32 i;
+        loop i in [0 -> txs_n[ do
+            // => TXS[i]
+            [[
+                THIS.tx = {}
+                THIS.block.txs[@(i+1)] = THIS.tx
+            ]];
+
+            // => NONCE
             do
-                var ssize n = await UV_FS_Read_N(&o.file, MESSAGE_BYTES);
-                _ceu_dbg_assert(o.file.buffer[0] == MESSAGE_MAGIC_0);
-                _ceu_dbg_assert(o.file.buffer[1] == MESSAGE_MAGIC_1);
-                _ceu_dbg_assert(o.file.buffer[2] == 1);
-                _ceu_dbg_assert(o.file.buffer[3] == 0);
-                _ceu_dbg_assert(n == MESSAGE_BYTES);
+                var ssize n = await UV_FS_Read_N(&o.file, NONCE_BYTES);
+                _ceu_dbg_assert(n == NONCE_BYTES);
+                [[ THIS.tx.nonce = @o.file.buffer ]];
+                //[[ print('nonce','\n'..tostring2(THIS.tx.nonce)) ]];
                 $o.file.buffer = 0;
             end
 
-            // => CHAIN_ID
+            // => TX_BACH_HASH
             do
-                var usize len;
-                do
-                    var ssize n = await UV_FS_Read_N(&o.file, 1);
-                    _ceu_dbg_assert(n == 1);
-                    len = o.file.buffer[0] as usize;
-                    $o.file.buffer = 0;
-                end
-
-                do
-                    var ssize n = await UV_FS_Read_N(&o.file, len);
-                    _ceu_dbg_assert(n == len);
-                    [[ THIS.chain_id = @o.file.buffer ]];
-                    $o.file.buffer = 0;
-                end
-                //[[ print('>>> chain_id',@buf) ]];
+                var ssize n = await UV_FS_Read_N(&o.file, HASH_BYTES);
+                _ceu_dbg_assert(n == HASH_BYTES);
+                [[ THIS.tx.back_hash = @o.file.buffer ]];
+                //[[ print('back_hash','\n'..tostring2(THIS.tx.back_hash)) ]];
+                $o.file.buffer = 0;
             end
 
-            // => BLOCKS
-            loop do
-                // => TXS
-                var u32 txs_n = _;
+            // => TX_PAYLOAD
+            do
+                var u32 payload_len;
                 do
-                    // => TXS_N
-                    var[sizeof(u32)] byte buf;
                     var ssize n = await UV_FS_Read_N(&o.file, sizeof(u32));
-                    if n <= 0 then
-                        break;          // EOF
-                    end
                     _ceu_dbg_assert(n == sizeof(u32));
-                    txs_n = *(&&o.file.buffer[0] as u32&&);
+                    payload_len = *(&&o.file.buffer[0] as u32&&);
+                    //[[ print('payload_len', @payload_len) ]];
                     $o.file.buffer = 0;
                 end
-
-                // OK, non-emtpy block
-                [[
-                    THIS.previous = THIS.block
-                    THIS.block = {
-                        txs = {},
-                        tail_hash = (THIS.previous and THIS.previous.hash) or nil,
-                    }
-                ]];
-
-                var u32 i;
-                loop i in [0 -> txs_n[ do
-                    // => TXS[i]
-                    [[
-                        THIS.tx = {}
-                        THIS.block.txs[@(i+1)] = THIS.tx
-                    ]];
-
-                    // => NONCE
-                    do
-                        var ssize n = await UV_FS_Read_N(&o.file, NONCE_BYTES);
-                        _ceu_dbg_assert(n == NONCE_BYTES);
-                        [[ THIS.tx.nonce = @o.file.buffer ]];
-                        //[[ print('nonce','\n'..tostring2(THIS.tx.nonce)) ]];
-                        $o.file.buffer = 0;
-                    end
-
-                    // => TX_BACH_HASH
-                    do
-                        var ssize n = await UV_FS_Read_N(&o.file, HASH_BYTES);
-                        _ceu_dbg_assert(n == HASH_BYTES);
-                        [[ THIS.tx.back_hash = @o.file.buffer ]];
-                        //[[ print('back_hash','\n'..tostring2(THIS.tx.back_hash)) ]];
-                        $o.file.buffer = 0;
-                    end
-
-                    // => TX_PAYLOAD
-                    do
-                        var u32 payload_len;
-                        do
-                            var ssize n = await UV_FS_Read_N(&o.file, sizeof(u32));
-                            _ceu_dbg_assert(n == sizeof(u32));
-                            payload_len = *(&&o.file.buffer[0] as u32&&);
-                            //[[ print('payload_len', @payload_len) ]];
-                            $o.file.buffer = 0;
-                        end
-                        do
-                            var ssize n = await UV_FS_Read_N(&o.file, payload_len as usize);
-                            _ceu_dbg_assert(n == (payload_len as ssize));
-                            [[ THIS.tx.payload = @o.file.buffer ]];
-                            //[[ print('payload', THIS.tx.payload) ]];
-                            $o.file.buffer = 0;
-                        end
-                    end
+                do
+                    var ssize n = await UV_FS_Read_N(&o.file, payload_len as usize);
+                    _ceu_dbg_assert(n == (payload_len as ssize));
+                    [[ THIS.tx.payload = @o.file.buffer ]];
+                    //[[ print('payload', THIS.tx.payload) ]];
+                    $o.file.buffer = 0;
                 end
-
-                [[
-                    THIS.block.chain_id = THIS.chain_id
-                    ARGS = {
-                        block = THIS.block,
-                    }
-                ]];
-                var int ret = await BlockHash(SourceBlockHash.File());
-                _ceu_dbg_assert(ret == _ERR_NONE);
-
-                [[
-                    if THIS.previous then
-                        THIS.previous.up_hash = THIS.block.hash
-                    else
-                        --assert(not THIS.genesis_hash)
-                        --THIS.genesis_hash = THIS.block.hash
-                    end
-                ]];
             end
+        end
 
-            [[
-                ARGS = {
-                    chain_id  = THIS.chain_id,
-                    head_hash = THIS.block.hash,
-                    --genesis_hash = THIS.genesis_hash,
-                }
-            ]];
-            escape _ERR_NONE;
-        end;
-    escape err!;
+        [[
+            THIS.block.chain_id = THIS.chain_id
+            ARGS = {
+                block = THIS.block,
+            }
+        ]];
+        var int ret = await BlockHash(SourceBlockHash.File());
+        _ceu_dbg_assert(ret == _ERR_NONE);
+
+        [[
+            if THIS.previous then
+                THIS.previous.up_hash = THIS.block.hash
+            else
+                --assert(not THIS.genesis_hash)
+                --THIS.genesis_hash = THIS.block.hash
+            end
+        ]];
+    end
+
+    [[
+        ARGS = {
+            chain_id  = THIS.chain_id,
+            head_hash = THIS.block.hash,
+            --genesis_hash = THIS.genesis_hash,
+        }
+    ]];
 end
 
-code/await FS_write_10 (var&[] byte path) -> int
+code/await FS_write_10 (var&[] byte path) -> none
+    throws Exception.Uv
     // input [[ ARGS = { chain_id } ]]
 do
 #if 0
@@ -551,114 +545,103 @@ do
     do/_
         var int flags = _O_CREAT|_O_WRONLY|_O_TRUNC;
         var _mode_t mode = _S_IRUSR|_S_IWUSR|_S_IRGRP|_S_IWGRP|_S_IROTH;
-        var&? UV_FS_Open o = spawn UV_FS_Open(&&path[0], _, flags, mode);
-        var int? err =
-            watching o do
-                await o.file.ok;
-            end;
-        if err? then
-            escape err!;
-        end
+        var& UV_FS_Open o = spawn UV_FS_Open(&&path[0], _, flags, mode);
+        await o.file.ok;
     end
 
     // <= (append)
-    var&? UV_FS_Open o = spawn UV_FS_Open(&&path[0], _, _O_APPEND|_O_WRONLY, 0);
-    watching o do
-        await o.file.ok;
-        _ceu_dbg_assert(o.file.handle >= 0);
+    var& UV_FS_Open o = spawn UV_FS_Open(&&path[0], _, _O_APPEND|_O_WRONLY, 0);
+    await o.file.ok;
+    _ceu_dbg_assert(o.file.handle >= 0);
 
-        // <= HEADER
+    // <= HEADER
+    do
+        o.file.buffer = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 1, 0];
+        var ssize n = await UV_FS_Write_N(&o.file, MESSAGE_BYTES);
+        _ceu_dbg_assert(n == 4);
+    end
+
+    // <= CHAIN_ID
+    do
+        var byte len = [[ string.len(THIS.chain.id) ]];
         do
-            o.file.buffer = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 1, 0];
-            var ssize n = await UV_FS_Write_N(&o.file, MESSAGE_BYTES);
-            _ceu_dbg_assert(n == 4);
+            o.file.buffer = [len];
+            var ssize n = await UV_FS_Write_N(&o.file, 1);
+            _ceu_dbg_assert(n == 1);
         end
-
-        // <= CHAIN_ID
         do
-            var byte len = [[ string.len(THIS.chain.id) ]];
-            do
-                o.file.buffer = [len];
-                var ssize n = await UV_FS_Write_N(&o.file, 1);
-                _ceu_dbg_assert(n == 1);
-            end
-            do
-                o.file.buffer = [] .. [[ THIS.chain.id ]];
-                var ssize n = await UV_FS_Write_N(&o.file, len as usize);
-                _ceu_dbg_assert(n == (len as ssize));
-            end
+            o.file.buffer = [] .. [[ THIS.chain.id ]];
+            var ssize n = await UV_FS_Write_N(&o.file, len as usize);
+            _ceu_dbg_assert(n == (len as ssize));
         end
+    end
 
-        // <= BLOCKS
-        loop do
-            // <= TXS
-            var u32 txs_n = [[ #THIS.base.txs ]];
+    // <= BLOCKS
+    loop do
+        // <= TXS
+        var u32 txs_n = [[ #THIS.base.txs ]];
+        do
+            // <= TXS_N
+            _ceu_vector_setlen(&&o.file.buffer, sizeof(u32), 1);
+            _ceu_vector_buf_set(&&o.file.buffer, 0, (&&txs_n as byte&&), sizeof(u32));
+            var ssize n = await UV_FS_Write_N(&o.file, sizeof(u32));
+            _ceu_dbg_assert(n == sizeof(u32));
+        end
+        var u32 i;
+        loop i in [0 -> txs_n[ do
+            // <= TXS[i]
+            // TX_HASH NONCE TX_BACK_HASH TX_PAYLOAD_LEN TX_PAYLOAD
+
+            [[
+                tx_hash = THIS.base.txs[@i+1]
+                THIS.tx = assert(APP.txs[tx_hash])
+            ]];
+
+            // <= NONCE
             do
-                // <= TXS_N
-                _ceu_vector_setlen(&&o.file.buffer, sizeof(u32), 1);
-                _ceu_vector_buf_set(&&o.file.buffer, 0, (&&txs_n as byte&&), sizeof(u32));
-                var ssize n = await UV_FS_Write_N(&o.file, sizeof(u32));
-                _ceu_dbg_assert(n == sizeof(u32));
+                o.file.buffer = [] .. [[ THIS.tx.nonce ]];
+                var ssize n = await UV_FS_Write_N(&o.file, NONCE_BYTES);
+                _ceu_dbg_assert(n == NONCE_BYTES);
             end
-            var u32 i;
-            loop i in [0 -> txs_n[ do
-                // <= TXS[i]
-                // TX_HASH NONCE TX_BACK_HASH TX_PAYLOAD_LEN TX_PAYLOAD
 
-                [[
-                    tx_hash = THIS.base.txs[@i+1]
-                    THIS.tx = assert(APP.txs[tx_hash])
-                ]];
+            // <= TX_BACK_HASH
+            do
+                o.file.buffer = [] .. [[ THIS.tx.back_hash ]];
+                var ssize n = await UV_FS_Write_N(&o.file, HASH_BYTES);
+                _ceu_dbg_assert(n == HASH_BYTES);
+            end
 
-                // <= NONCE
-                do
-                    o.file.buffer = [] .. [[ THIS.tx.nonce ]];
-                    var ssize n = await UV_FS_Write_N(&o.file, NONCE_BYTES);
-                    _ceu_dbg_assert(n == NONCE_BYTES);
-                end
-
-                // <= TX_BACK_HASH
-                do
-                    o.file.buffer = [] .. [[ THIS.tx.back_hash ]];
-                    var ssize n = await UV_FS_Write_N(&o.file, HASH_BYTES);
-                    _ceu_dbg_assert(n == HASH_BYTES);
-                end
-
+            // <= TX_PAYLOAD_LEN
+            // <= TX_PAYLOAD
+            do
+                var u32 len = [[ string.len(THIS.tx.payload) ]];
                 // <= TX_PAYLOAD_LEN
+                do
+                    _ceu_vector_setlen(&&o.file.buffer, sizeof(u32), 1);
+                    _ceu_vector_buf_set(&&o.file.buffer, 0, (&&len as byte&&), sizeof(u32));
+                    var ssize n = await UV_FS_Write_N(&o.file, sizeof(u32));
+                    _ceu_dbg_assert(n == sizeof(u32));
+                end
                 // <= TX_PAYLOAD
                 do
-                    var u32 len = [[ string.len(THIS.tx.payload) ]];
-                    // <= TX_PAYLOAD_LEN
-                    do
-                        _ceu_vector_setlen(&&o.file.buffer, sizeof(u32), 1);
-                        _ceu_vector_buf_set(&&o.file.buffer, 0, (&&len as byte&&), sizeof(u32));
-                        var ssize n = await UV_FS_Write_N(&o.file, sizeof(u32));
-                        _ceu_dbg_assert(n == sizeof(u32));
-                    end
-                    // <= TX_PAYLOAD
-                    do
 // TODO: may not fit default buffer length (1024)
-                        o.file.buffer = [] .. [[ THIS.tx.payload ]];
-                        var ssize n = await UV_FS_Write_N(&o.file, len as usize);
-                        _ceu_dbg_assert(n == (len as usize));
-                    end
+                    o.file.buffer = [] .. [[ THIS.tx.payload ]];
+                    var ssize n = await UV_FS_Write_N(&o.file, len as usize);
+                    _ceu_dbg_assert(n == (len as usize));
                 end
             end
-
-            // NEXT BLOCK
-            var bool has = [[ THIS.base.up_hash ~= nil ]];
-            if not has then
-                break;
-            end
-            [[
-                --print('<<<', '|'..tostring2(THIS.base.hash)..'|')
-                THIS.base = assert(APP.blocks[THIS.base.up_hash])
-            ]];
         end
 
-        escape _ERR_NONE;
+        // NEXT BLOCK
+        var bool has = [[ THIS.base.up_hash ~= nil ]];
+        if not has then
+            break;
+        end
+        [[
+            --print('<<<', '|'..tostring2(THIS.base.hash)..'|')
+            THIS.base = assert(APP.blocks[THIS.base.up_hash])
+        ]];
     end
-    _ceu_dbg_assert(0);
 end
 
 native/pre do
@@ -698,8 +681,11 @@ do
             path = APP.chains.files..'/'..chain.id..'.chain'
         ]]
         var[] byte path = [] .. [[path]];
-        var int ret = await FS_read_10(&path);
-        if ret == _ERR_NONE then
+        var Exception? e;
+        catch e do
+            await FS_read_10(&path);
+        end
+        if not e? then
             [[
                 -- TODO: assert chain.id==file header
                 --chain.genesis_hash = ARGS.genesis_hash

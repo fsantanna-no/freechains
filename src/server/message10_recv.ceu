@@ -2,29 +2,30 @@
 #define _MESSAGE10_RECV_CEU
 
 code/await Message10_header_recv (var& UV_Stream tcp) -> int
+    throws Exception.Uv
 do
     // => CHAIN_LEN
     // => CHAIN_KEY
     // => CHAIN_ZEROS
     do/_
         // zeros
-        var ssize n = await UV_Stream_Read_N(&tcp, 1);
-        _ceu_dbg_assert(n>=0 and $tcp.buffer>=1);
+        await UV_Stream_Read_N(&tcp, 1);
+        _ceu_dbg_assert($tcp.buffer>=1);
         var byte chain_zeros = tcp.buffer[0];
         _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_ZEROS = %d",  chain_zeros);
         $tcp.buffer = $tcp.buffer - 1;
 
         // len
-        n = await UV_Stream_Read_N(&tcp, 1);
-        _ceu_dbg_assert(n>=0 and $tcp.buffer>=1);
+        await UV_Stream_Read_N(&tcp, 1);
+        _ceu_dbg_assert($tcp.buffer>=1);
         var byte chain_len = tcp.buffer[0];
         $tcp.buffer = $tcp.buffer - 1;
         _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_LEN   = %d", chain_len);
 
         // key
         var[] byte chain_key;
-        n = await UV_Stream_Read_N(&tcp, (chain_len as usize));
-        _ceu_dbg_assert(n>=0 and $tcp.buffer>=(chain_len as usize));
+        await UV_Stream_Read_N(&tcp, (chain_len as usize));
+        _ceu_dbg_assert($tcp.buffer>=(chain_len as usize));
         _ceu_vector_setlen(&&chain_key,chain_len,1);
         if chain_len > 0 then
             _memcpy(&&chain_key[0], &&tcp.buffer[0], chain_len);
@@ -52,15 +53,14 @@ do
 end
 
 code/await Message10_block_recv (var& UV_Stream tcp) -> int
+    throws Exception.Uv
 do
     // => BLOCK_HASH
     // => BLOCK_TXS_N
     do
         // hash
-[[print('>>>', @$tcp.buffer)]]
-        var ssize n = await UV_Stream_Read_N(&tcp, HASH_BYTES);
-[[print'<<<']]
-        _ceu_dbg_assert(n>=0 and $tcp.buffer>=HASH_BYTES);
+        await UV_Stream_Read_N(&tcp, HASH_BYTES);
+        _ceu_dbg_assert($tcp.buffer>=HASH_BYTES);
 
         var[HASH_BYTES] byte hash;
         _ceu_vector_setlen(&&hash, HASH_BYTES, 1);
@@ -73,8 +73,8 @@ do
         end
 
         // txs_n
-        n = await UV_Stream_Read_N(&tcp, sizeof(u32));
-        _ceu_dbg_assert(n>=0 and $tcp.buffer>=sizeof(u32));
+        await UV_Stream_Read_N(&tcp, sizeof(u32));
+        _ceu_dbg_assert($tcp.buffer>=sizeof(u32));
         var u32 txs_n = GET_HOST_U32(tcp.buffer, 0);
         $tcp.buffer = $tcp.buffer - sizeof(u32);
         _dbg_tcp(0, &&tcp.handle, "server", "=> BLOCK_TXS_N : %d", txs_n);
@@ -113,13 +113,14 @@ do
 end
 
 code/await Message10_tx_recv (var& UV_Stream tcp) -> int
+    throws Exception.Uv
 do
     // => TX_PAYLOAD_BYTES
     // => TX_HASH
     do/_
         // hash
-        var ssize n = await UV_Stream_Read_N(&tcp, HASH_BYTES);
-        _ceu_dbg_assert(n>=0 and $tcp.buffer>=HASH_BYTES);
+        await UV_Stream_Read_N(&tcp, HASH_BYTES);
+        _ceu_dbg_assert($tcp.buffer>=HASH_BYTES);
 
         var[HASH_BYTES] byte hash;
         _ceu_vector_setlen(&&hash,HASH_BYTES,1);
@@ -136,8 +137,8 @@ _ceu_dbg_assert(0);
         end
 
         // payload_bytes
-        n = await UV_Stream_Read_N(&tcp, sizeof(u32));
-        _ceu_dbg_assert(n>=0 and $tcp.buffer>=sizeof(u32));
+        await UV_Stream_Read_N(&tcp, sizeof(u32));
+        _ceu_dbg_assert($tcp.buffer>=sizeof(u32));
         var u32 payload_bytes = GET_HOST_U32(tcp.buffer, 0);
         $tcp.buffer = $tcp.buffer - sizeof(u32);
 
@@ -183,8 +184,8 @@ _ceu_dbg_assert(0);
     do
         // => NONCE/TIMESTAMP: 128 bits
         do
-            var ssize n = await UV_Stream_Read_N(&tcp, NONCE_BYTES);
-            _ceu_dbg_assert(n>=0 and $tcp.buffer>=NONCE_BYTES);
+            await UV_Stream_Read_N(&tcp, NONCE_BYTES);
+            _ceu_dbg_assert($tcp.buffer>=NONCE_BYTES);
 
             var[NONCE_BYTES] byte nonce;
             _ceu_vector_setlen(&&nonce,NONCE_BYTES,1);
@@ -199,8 +200,8 @@ _ceu_dbg_assert(0);
         // => TX_BACK_HASH
 // TODO: check back_hash
         do
-            var ssize n = await UV_Stream_Read_N(&tcp, HASH_BYTES);
-            _ceu_dbg_assert(n>=0 and $tcp.buffer>=HASH_BYTES);
+            await UV_Stream_Read_N(&tcp, HASH_BYTES);
+            _ceu_dbg_assert($tcp.buffer>=HASH_BYTES);
 
             var[HASH_BYTES] byte back_hash;
             _ceu_vector_setlen(&&back_hash, HASH_BYTES, 1);
@@ -234,8 +235,8 @@ _ceu_dbg_assert(0);
         // => TX_PAYLOAD
         do
             var usize len = [[ G(tcp).tx.bytes ]];
-            var ssize n = await UV_Stream_Read_N(&tcp, len);
-            _ceu_dbg_assert(n>=0 and $tcp.buffer>=len);
+            await UV_Stream_Read_N(&tcp, len);
+            _ceu_dbg_assert($tcp.buffer>=len);
 
             var[] byte tx_payload;
             _ceu_vector_setlen(&&tx_payload, len, 1);
@@ -250,8 +251,8 @@ _ceu_dbg_assert(0);
 
         // => POS: TODO
         do
-            var ssize n = await UV_Stream_Read_N(&tcp, 1);
-            _ceu_dbg_assert(n>=0 and $tcp.buffer>=1);
+            await UV_Stream_Read_N(&tcp, 1);
+            _ceu_dbg_assert($tcp.buffer>=1);
             var int pos_ = tcp.buffer[0];
             //_printf("[server] POS = %X\n", pos_);
             [[ G(tcp).tx.pos = @pos_ ]];

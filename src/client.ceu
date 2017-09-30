@@ -2,6 +2,7 @@
 #define _CLIENT_CEU
 
 code/await Message10_tx_send (var& UV_Stream tcp, var u32 i) -> int
+    throws Exception.Uv
 do
     // <= TX_HASH
     // <= TX_LEN
@@ -63,6 +64,7 @@ do
 end
 
 code/await Message10_send (var& UV_Stream tcp) -> int
+    throws Exception.Uv
 do
     ///////////////////////////////////////////////////////////////////////////
     // HEADER
@@ -169,7 +171,7 @@ do
     escape _ERR_NONE;
 end
 
-code/await PeerSend (none) -> int
+code/await PeerSend (none) -> none
     // [[ ARGS = { peer=?, block=? } ]]
 do
 
@@ -182,40 +184,42 @@ end
     var      int  port = [[ ARGS.peer.host[2] ]];
     _dbg(2, "client:%p | connecting to %s:%d", {&_ceu_mem}, &&ip[0], port);
 
-    var&? UV_TCP_Connect c = spawn UV_TCP_Connect(&&ip[0], port, _);
+    var Exception.Uv? e;
+    catch e do
+        var& UV_TCP_Connect c = spawn UV_TCP_Connect(&&ip[0], port, _);
 
-    [[
-        G(c!.stream) = {
-            block = ARGS.block,
-        }
-    ]];
+        [[
+            G(c.stream) = {
+                block = ARGS.block,
+            }
+        ]];
 
-    var bool is_10 = [[ G(c!.stream).block~=nil and G(c!.stream).block.id=='1.0' ]];
-    // ...
+        var bool is_10 = [[ G(c.stream).block~=nil and G(c.stream).block.id=='1.0' ]];
+        // ...
 
-    do finalize with
-        _dbg(2, "client:%p | disconnected from %s:%d", {&_ceu_mem}, &&ip[0], port);
-    end
-    var int? err =
-        watching c do
-            await c.ok;
-            _dbg(2, "client:%p | connected to %s:%d", {&_ceu_mem}, &&ip[0], port);
-            var int err_ = _ERR_NONE;
-            if is_10 then
-                err_ = await Message10_send(&c.stream);
-            else
-                // ...
-                err_ = _ERR_MESSAGE;
-            end
-            if err_ != _ERR_NONE then
-                _dbg(3, "client:%p | %s", {&_ceu_mem}, _uv_strerror(err_));
+        do finalize with
+            _dbg(2, "client:%p | disconnected from %s:%d", {&_ceu_mem}, &&ip[0], port);
+        end
+
+        await c.ok;
+        _dbg(2, "client:%p | connected to %s:%d", {&_ceu_mem}, &&ip[0], port);
+        var int err = _ERR_NONE;
+        if is_10 then
+            err = await Message10_send(&c.stream);
+        else
+            // ...
+            err = _ERR_MESSAGE;
+        end
+        if err != _ERR_NONE then
+            _dbg(3, "client:%p | %s", {&_ceu_mem}, _uv_strerror(err));
 #ifdef FREECHAINS_NO_MALICIOUS
-                _ceu_dbg_assert(0);
+            _ceu_dbg_assert(0);
 #endif
-            end
-            escape err_;
-        end;
-    escape err!;
+        end
+        //escape err;
+        escape;
+    end
+    _dbg(3, "client:%p | %s", {&_ceu_mem}, e!.message);
 end
 
 code/await Client (var& UV_TCP_Server_Data shared) -> int
