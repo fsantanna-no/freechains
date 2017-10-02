@@ -8,7 +8,7 @@ _srand(_time(null));
 
 #define N 20
 
-code/await Node (var int i) -> void do
+code/await Node (var int i) -> none do
     lua[] do
         var UV_TCP_Server_Data shared = _;
 
@@ -39,11 +39,11 @@ code/await Node (var int i) -> void do
         await 100ms;
 
         do
-            vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
-            var      int  port    = [[ APP.server.host[2] ]];
-            var      int  backlog = [[ APP.server.backlog ]];
+            var[] byte ip      = [] .. [[ APP.server.host[1] ]];
+            var   int  port    = [[ APP.server.host[2] ]];
+            var   int  backlog = [[ APP.server.backlog ]];
             _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-            spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
+            spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
 
             var int j;
             loop j in [0 -> N[ do
@@ -86,7 +86,7 @@ code/await Node (var int i) -> void do
     print(@i, '<'..string.rep('=',70))
     ]];
     #endif
-        vector[] byte path = [] .. [[ '/tmp/'..string.format('%03d',@i)..'.chain' ]];
+        var[] byte path = [] .. [[ '/tmp/'..string.format('%03d',@i)..'.chain' ]];
         [[ ARGS = { chain_id='||0|' } ]];
         var int ret = await FS_write_10(&path);
         _ceu_dbg_assert(ret == _ERR_NONE);

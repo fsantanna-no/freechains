@@ -1,8 +1,8 @@
 #ifndef _CLIENT_CEU
 #define _CLIENT_CEU
 
-code/await Message10_tx_send (var& UV_Stream tcp, var u32 i) -> int
-    throws Exception.Uv
+code/await Message10_tx_send (var& UV_Stream tcp, var u32 i) -> none
+    throws Exception.Lua, Exception.Uv
 do
     // <= TX_HASH
     // <= TX_LEN
@@ -21,14 +21,13 @@ do
 
         // => ACK-tx
         do/_
-            var ssize n = await UV_Stream_Read_N(&tcp, 1);
-            _ceu_dbg_assert(n>=0 and $tcp.buffer>=1);
+            await UV_Stream_Read_N(&tcp, 1);
             var byte err = tcp.buffer[0];
             $tcp.buffer = $tcp.buffer - 1;
 
             //_printf("[client] => ACK-tx = %d\n", err);
-            if err == _MESSAGE10_HAVE then
-                escape _ERR_NONE;   // next TX (not an error)
+            if err == {MESSAGE10_HAVE} then
+                escape;
             end
         end
     end
@@ -59,12 +58,10 @@ do
 
         await UV_Stream_Write_N(&tcp,_);
     end
-
-    escape _ERR_NONE;
 end
 
-code/await Message10_send (var& UV_Stream tcp) -> int
-    throws Exception.Uv
+code/await Message10_send (var& UV_Stream tcp) -> none
+    throws Exception.Lua, Exception.Uv, Exception.Freechains.Malformed
 do
     ///////////////////////////////////////////////////////////////////////////
     // HEADER
@@ -87,7 +84,7 @@ do
             var[] byte chain_key   = [] .. [[ chain.key ]];
             var int    chain_zeros = [[ chain.zeros ]];
             var u32    chain_len   = [[ string.len(chain.key) ]];
-            _ceu_dbg_assert(chain_len<CHAIN_KEY_BYTES);
+            _ceu_sys_assert(chain_len<CHAIN_KEY_BYTES, "bug found");
             tcp.buffer = tcp.buffer .. [chain_zeros, chain_len as byte] .. chain_key;
         end
 
@@ -95,15 +92,14 @@ do
 
         // => ACK-header
         do/_
-            var ssize n = await UV_Stream_Read_N(&tcp, 1);
-            _ceu_dbg_assert(n>=0 and $tcp.buffer>=1);
+            await UV_Stream_Read_N(&tcp, 1);
             var byte ret = tcp.buffer[0];
             $tcp.buffer = $tcp.buffer - 1;
 
             _dbg_tcp(0, &&tcp.handle, "client", "=> ACK-header = %d", ret);
 
-            if ret == _MESSAGE10_NOTSUB then
-                escape ret;
+            if ret == {MESSAGE10_NOTSUB} then
+                escape;
             else
                 // OK: proceed to BLOCKS
             end
@@ -135,14 +131,13 @@ do
 
         // => ACK-block
         do
-            var ssize n = await UV_Stream_Read_N(&tcp, 1);
-            _ceu_dbg_assert(n>=0 and $tcp.buffer>=1);
+            await UV_Stream_Read_N(&tcp, 1);
             var byte ret = tcp.buffer[0];
             $tcp.buffer = $tcp.buffer - 1;
 
             _dbg_tcp(0, &&tcp.handle, "client", "=> ACK-block = %d", ret);
 
-            if ret == _MESSAGE10_HAVE then
+            if ret == {MESSAGE10_HAVE} then
                 break;  // found common block
             end
         end
@@ -154,24 +149,21 @@ do
         _dbg_tcp(0, &&tcp.handle, "client", "<= %d txs", txs_n);
         var u32 j;
         loop j in [0 -> txs_n[ do
-            var int err = await Message10_tx_send(&tcp,j);
-            if err != _ERR_NONE then
-                escape err;
-            end
+            await Message10_tx_send(&tcp,j);
         end
 
         // next block
         var bool has = [[ G(tcp).block.tail_hash ~= nil ]];
         if not has then
-            escape _ERR_REMOTE_BUG_OR_MALICIOUS; // "genesis" always HAVE
+            var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+            throw e;
         end
         [[ G(tcp).block = assert(APP.blocks[G(tcp).block.tail_hash]) ]];
     end
-
-    escape _ERR_NONE;
 end
 
 code/await PeerSend (none) -> none
+    throws Exception.Lua
     // [[ ARGS = { peer=?, block=? } ]]
 do
 
@@ -181,10 +173,10 @@ do finalize with
 end
 
     var[] byte ip   = [] .. [[ ARGS.peer.host[1] ]];
-    var      int  port = [[ ARGS.peer.host[2] ]];
+    var   int  port = [[ ARGS.peer.host[2] ]];
     _dbg(2, "client:%p | connecting to %s:%d", {&_ceu_mem}, &&ip[0], port);
 
-    var Exception.Uv? e;
+    var Exception? e;
     catch e do
         var& UV_TCP_Connect c = spawn UV_TCP_Connect(&&ip[0], port, _);
 
@@ -203,26 +195,19 @@ end
 
         await c.ok;
         _dbg(2, "client:%p | connected to %s:%d", {&_ceu_mem}, &&ip[0], port);
-        var int err = _ERR_NONE;
         if is_10 then
-            err = await Message10_send(&c.stream);
+            await Message10_send(&c.stream);
         else
-            // ...
-            err = _ERR_MESSAGE;
+            var Exception.Freechains.Unsupported e = val Exception.Freechains.Unsupported(_);
+            throw e;
         end
-        if err != _ERR_NONE then
-            _dbg(3, "client:%p | %s", {&_ceu_mem}, _uv_strerror(err));
-#ifdef FREECHAINS_NO_MALICIOUS
-            _ceu_dbg_assert(0);
-#endif
-        end
-        //escape err;
         escape;
     end
     _dbg(3, "client:%p | %s", {&_ceu_mem}, e!.message);
 end
 
-code/await Client (var& UV_TCP_Server_Data shared) -> int
+code/await Client (var& UV_TCP_Server_Data shared) -> none
+    throws Exception.Lua
     // [[ ARGS = { chain=?, block=? } ]]
 do
     [[ THIS = ARGS ]];
@@ -278,7 +263,7 @@ do
                 }
             ]];
             var&? PeerSend p = spawn PeerSend() in peers;
-            _ceu_dbg_assert(p?);
+            _ceu_sys_assert(p?, "bug found");
         end
     end
     _dbg(0, "client:%p | broadcasting messages to %d peer(s)", {&_ceu_mem}, ps_ok);
@@ -288,11 +273,10 @@ do
         //_dbg(0, "client:%p | peer %d", {&_ceu_mem}, err);
     end
     _dbg(0, "client:%p | broadcasts OK", {&_ceu_mem});
-
-    escape _ERR_NONE;   // trasmitted messages
 end
 
-code/await ClientMessages (var& UV_TCP_Server_Data shared) -> int
+code/await ClientMessages (var& UV_TCP_Server_Data shared) -> none
+    throws Exception.Lua, Exception.Freechains.Malformed
 do
     var int ms = [[ #APP.messages ]];
     if ms == 0 then
@@ -353,9 +337,8 @@ do
 
     if is_10 then
         [[ ARGS = { block=block } ]];
-        var int ret = await BlockHash(SourceBlockHash.New());
-                        // returns [[ ARGS = { block=block } ]];
-        _ceu_dbg_assert(ret == _ERR_NONE);
+        await BlockHash(SourceBlockHash.New());
+              // returns [[ ARGS = { block=block } ]];
         [[
             block = ARGS.block
             chain = APP.chains[block.chain_id]
@@ -374,10 +357,8 @@ do
         ]];
         await Client(&shared);
     else
-        _ceu_dbg_assert(0);  // message not supported
+        _ceu_sys_assert(0, "message not supported");  // message not supported
     end
-
-    escape _ERR_NONE;
 end
 
 #endif

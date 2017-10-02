@@ -18,11 +18,11 @@ loop i in [1 -> n] do
     ]]
 end
 
-vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
-var      int  port    = [[ APP.server.host[2] ]];
-var      int  backlog = [[ APP.server.backlog ]];
+var[] byte ip      = [] .. [[ APP.server.host[1] ]];
+var   int  port    = [[ APP.server.host[2] ]];
+var   int  backlog = [[ APP.server.backlog ]];
 _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
+spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
 
 par do
     [[
@@ -31,12 +31,13 @@ par do
         }
     ]]
     spawn do
-        var int msg;
-        var int err;
-        every (msg, err) in shared.ok do
+        var bool err;
+        var int  msg;
+        var int  ret;
+        every (err, msg, ret) in shared.ok do
 _printf(">>> SHARED.OK %d\n", err);
-            if err == _ERR_NONE then
-                _ceu_dbg_assert(msg == 0x100);
+            if not err then
+                _ceu_sys_assert(msg == 0x100, "bug found");
                 [[ print('>>> PENDING >>>', ARGS.chain.id) ]];
                 [[ main.pending[#main.pending+1] = ARGS.chain ]];
             end
@@ -58,12 +59,11 @@ _printf(">>> SHARED.OK %d\n", err);
             path = APP.chains.files..'/'..main.chain.id..'.chain'
             print('>>> WRITE >>>', main.chain.id, path)
         ]]
-        vector[] byte path = [] .. [[path]];
+        var[] byte path = [] .. [[path]];
 
         _dbg(0, "server | received");
         [[ ARGS={ chain_id=main.chain.id } ]];
-        var int? ret = await FS_write_10(&path);
-        _ceu_dbg_assert(ret! == _ERR_NONE);
+        await FS_write_10(&path);
 
         [[
             _, _, OUTPUT = table.unpack(arg)
@@ -90,7 +90,7 @@ _printf(">>> SHARED.OK %d\n", err);
         ]]
     end
 with
-    vector[] byte msgs;
+    var[] byte msgs;
     event void ok;
     par do
         lua[] do
@@ -129,7 +129,7 @@ with
             _dbg(0, "client...");
             await ClientMessages(&shared);
             _dbg(0, "client | ok");
-            emit shared.ok(0x100, _ERR_NONE);
+            emit shared.ok(false, 0x100, {MESSAGE10_OK});
             par/and do
                 emit ok;
             with

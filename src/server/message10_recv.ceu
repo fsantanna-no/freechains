@@ -10,14 +10,12 @@ do
     do/_
         // zeros
         await UV_Stream_Read_N(&tcp, 1);
-        _ceu_dbg_assert($tcp.buffer>=1);
         var byte chain_zeros = tcp.buffer[0];
         _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_ZEROS = %d",  chain_zeros);
         $tcp.buffer = $tcp.buffer - 1;
 
         // len
         await UV_Stream_Read_N(&tcp, 1);
-        _ceu_dbg_assert($tcp.buffer>=1);
         var byte chain_len = tcp.buffer[0];
         $tcp.buffer = $tcp.buffer - 1;
         _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_LEN   = %d", chain_len);
@@ -25,7 +23,6 @@ do
         // key
         var[] byte chain_key;
         await UV_Stream_Read_N(&tcp, (chain_len as usize));
-        _ceu_dbg_assert($tcp.buffer>=(chain_len as usize));
         _ceu_vector_setlen(&&chain_key,chain_len,1);
         if chain_len > 0 then
             _memcpy(&&chain_key[0], &&tcp.buffer[0], chain_len);
@@ -43,13 +40,13 @@ do
         var bool is_sub = [[ G(tcp).chain ~= nil ]];
         _dbg_tcp(2, &&tcp.handle, "server", "is_sub      = %d", is_sub);
         if not is_sub then
-            escape _MESSAGE10_NOTSUB;    // OK ACK
+            escape {MESSAGE10_NOTSUB};    // OK ACK
         end
 
         // TODO: check CHAIN_LIMITS
     end
 
-    escape _ERR_NONE;
+    escape {MESSAGE10_OK};
 end
 
 code/await Message10_block_recv (var& UV_Stream tcp) -> int
@@ -60,7 +57,6 @@ do
     do
         // hash
         await UV_Stream_Read_N(&tcp, HASH_BYTES);
-        _ceu_dbg_assert($tcp.buffer>=HASH_BYTES);
 
         var[HASH_BYTES] byte hash;
         _ceu_vector_setlen(&&hash, HASH_BYTES, 1);
@@ -74,7 +70,6 @@ do
 
         // txs_n
         await UV_Stream_Read_N(&tcp, sizeof(u32));
-        _ceu_dbg_assert($tcp.buffer>=sizeof(u32));
         var u32 txs_n = GET_HOST_U32(tcp.buffer, 0);
         $tcp.buffer = $tcp.buffer - sizeof(u32);
         _dbg_tcp(0, &&tcp.handle, "server", "=> BLOCK_TXS_N : %d", txs_n);
@@ -106,13 +101,13 @@ do
 
     var bool have = [[ have ]];
     if have then
-        escape _MESSAGE10_HAVE;    // OK ACK
+        escape {MESSAGE10_HAVE};    // OK ACK
     else
-        escape _ERR_NONE;
+        escape {MESSAGE10_OK};
     end
 end
 
-code/await Message10_tx_recv (var& UV_Stream tcp) -> int
+code/await Message10_tx_recv (var& UV_Stream tcp) -> none
     throws Exception.Uv
 do
     // => TX_PAYLOAD_BYTES
@@ -120,7 +115,6 @@ do
     do/_
         // hash
         await UV_Stream_Read_N(&tcp, HASH_BYTES);
-        _ceu_dbg_assert($tcp.buffer>=HASH_BYTES);
 
         var[HASH_BYTES] byte hash;
         _ceu_vector_setlen(&&hash,HASH_BYTES,1);
@@ -132,13 +126,12 @@ do
         if zeros_wanted > _leading_zeros(&&hash[0],HASH_BYTES) then
 // TODO: test-case to fail here
 // TODO: also change from ">" to "!="
-_ceu_dbg_assert(0);
-            escape _ERR_REMOTE_BUG_OR_MALICIOUS;
+_ceu_sys_assert(0, "bug found");
+            //escape _ERR_REMOTE_BUG_OR_MALICIOUS;
         end
 
         // payload_bytes
         await UV_Stream_Read_N(&tcp, sizeof(u32));
-        _ceu_dbg_assert($tcp.buffer>=sizeof(u32));
         var u32 payload_bytes = GET_HOST_U32(tcp.buffer, 0);
         $tcp.buffer = $tcp.buffer - sizeof(u32);
 
@@ -165,9 +158,9 @@ _ceu_dbg_assert(0);
         // <= ACK-tx
         do
             if have then
-                tcp.buffer = [ _MESSAGE10_HAVE ];
+                tcp.buffer = [ {MESSAGE10_HAVE} ];
             else
-                tcp.buffer = [ _ERR_NONE  ];
+                tcp.buffer = [ {MESSAGE10_OK}  ];
             end
             _dbg_tcp(0, &&tcp.handle, "server", "<= ACK-tx = %d", tcp.buffer[0]);
             await UV_Stream_Write_N(&tcp, 1);
@@ -175,7 +168,7 @@ _ceu_dbg_assert(0);
 
         // HAVE_YES: next TX
         if have then
-            escape _ERR_NONE;
+            escape; // {MESSAGE10_HAVE};
         end
     end
     // HAVE_NO: complete TX
@@ -185,7 +178,6 @@ _ceu_dbg_assert(0);
         // => NONCE/TIMESTAMP: 128 bits
         do
             await UV_Stream_Read_N(&tcp, NONCE_BYTES);
-            _ceu_dbg_assert($tcp.buffer>=NONCE_BYTES);
 
             var[NONCE_BYTES] byte nonce;
             _ceu_vector_setlen(&&nonce,NONCE_BYTES,1);
@@ -201,7 +193,6 @@ _ceu_dbg_assert(0);
 // TODO: check back_hash
         do
             await UV_Stream_Read_N(&tcp, HASH_BYTES);
-            _ceu_dbg_assert($tcp.buffer>=HASH_BYTES);
 
             var[HASH_BYTES] byte back_hash;
             _ceu_vector_setlen(&&back_hash, HASH_BYTES, 1);
@@ -236,7 +227,6 @@ _ceu_dbg_assert(0);
         do
             var usize len = [[ G(tcp).tx.bytes ]];
             await UV_Stream_Read_N(&tcp, len);
-            _ceu_dbg_assert($tcp.buffer>=len);
 
             var[] byte tx_payload;
             _ceu_vector_setlen(&&tx_payload, len, 1);
@@ -252,7 +242,6 @@ _ceu_dbg_assert(0);
         // => POS: TODO
         do
             await UV_Stream_Read_N(&tcp, 1);
-            _ceu_dbg_assert($tcp.buffer>=1);
             var int pos_ = tcp.buffer[0];
             //_printf("[server] POS = %X\n", pos_);
             [[ G(tcp).tx.pos = @pos_ ]];
@@ -260,8 +249,6 @@ _ceu_dbg_assert(0);
             $tcp.buffer = $tcp.buffer - 1;
         end
     end
-
-    escape _ERR_NONE;
 end
 
 [[
@@ -277,16 +264,16 @@ end
 // <= ACK-header
 // bytes/reader received from message partially parsed
 var int err = await Message10_header_recv(&outer.tcp);
-_ceu_dbg_assert($outer.tcp.buffer == 0);
+_ceu_sys_assert($outer.tcp.buffer == 0, "bug found");
 
-if err == _MESSAGE10_NOTSUB then
+if err == {MESSAGE10_NOTSUB} then
     outer.tcp.buffer = [err];
     await UV_Stream_Write_N(&outer.tcp,_);
     escape err;     // terminate if not subcribed
 end
 
 // LOCK: only one "receive" per chain
-do
+do/_
     var bool is_locked = [[ G(outer.tcp).chain.recv_is_locked ]];
     if is_locked then
         loop do
@@ -326,8 +313,7 @@ end
     // BLOCKS:
     ///////////////////////////////////////////////////////////////////////////
 
-    err = _ERR_NONE;
-    err = do
+    do/_
         var int i;
         loop i do
 {BLOCKS_RECEIVED++;}
@@ -354,16 +340,10 @@ end
                         G(outer.tcp).previous.tail_hash = assert(G(outer.tcp).block.hash)
                         ARGS = { block=G(outer.tcp).previous }
                     ]];
-                    var int ret = await BlockHash(SourceBlockHash.Network());
-                    if ret != _ERR_NONE then
-#ifdef FREECHAINS_NO_MALICIOUS
-                        _ceu_dbg_assert(0);
-#endif
-                        escape ret;
-                    end
+                    await BlockHash(SourceBlockHash.Network());
                 end
 
-                _ceu_dbg_assert($outer.tcp.buffer == 0);
+                _ceu_sys_assert($outer.tcp.buffer == 0, "bug found");
 
                 //[[ print('[server] => BLOCKS['..(@i)..'] : 
                 //'..tostring2(G(outer.tcp).block.hash)) ]];
@@ -378,12 +358,8 @@ end
                 end
 
                 // FOUND COMMON BLOCK?
-                if err2 == _MESSAGE10_HAVE then
-                    if i == 0 then
-                        escape _MESSAGE10_HAVE;   // nothing new
-                    else
-                        escape _ERR_NONE;         // check/set new head
-                    end
+                if err2 == {MESSAGE10_HAVE} then
+                    escape err2;
                 end
 
                 // received at least one new block
@@ -409,10 +385,7 @@ end
                 var int j;
                 loop j in [0 -> txs_n[ do
                     _dbg_tcp(0, &&outer.tcp.handle, "server", "=> %d txs[%d]", txs_n, j);
-                    var int err2 = await Message10_tx_recv(&outer.tcp);
-                    if err2 != _ERR_NONE then
-                        escape err2;
-                    end
+                    await Message10_tx_recv(&outer.tcp);
                     [[
                         G(outer.tcp).block.txs[@j+1] = G(outer.tcp).tx.hash
                         G(outer.tcp).block.txs[G(outer.tcp).tx.hash] = G(outer.tcp).tx
@@ -421,15 +394,7 @@ end
                 _dbg_tcp(0, &&outer.tcp.handle, "server", "=> %d txs (end)", txs_n);
             end
         end
-        //_ceu_dbg_assert(0);
-        escape _ERR_NONE;
     end;
-end
-
-if err == _MESSAGE10_HAVE then
-    escape _ERR_NONE;   // nothing new, but no error
-else/if err != _ERR_NONE then
-    escape err;         // some error
 end
 
 // BLOCK holds the COMMON node
@@ -530,8 +495,7 @@ if txs>0 then
     [[
         ARGS = { block=block_new }
     ]];
-    var int ret = await BlockHash(SourceBlockHash.Network());
-    _ceu_dbg_assert(ret == _ERR_NONE);
+    await BlockHash(SourceBlockHash.Network());
     [[
         APP.blocks[G(outer.tcp).chain.head_hash].up_hash = ARGS.block.hash
         G(outer.tcp).chain.head_hash = ARGS.block.hash
@@ -556,14 +520,14 @@ emit outer.shared.retransmit;
 #endif
 par do
     await outer.shared.retransmit;
-    escape _ERR_ABORTED;
-    //_ceu_dbg_assert(0);
+    //escape _ERR_ABORTED;
+    _ceu_sys_assert(0, "bug found");
 with
     //watching outer.shared.retransmit do
     do/_
         // TODO: conditions to not propagate changes
         var bool has = [[ block_new ~= dst.head ]];
-        _ceu_dbg_assert(has);
+        _ceu_sys_assert(has, "bug found");
         //if has then
             [[
                 chain = assert(APP.chains[G(outer.tcp).chain.id])
@@ -574,7 +538,7 @@ with
             ]];
             await Client(&outer.shared);
             [[ ARGS = chain ]]
-            escape _ERR_NONE;
+            escape {MESSAGE10_OK};
         //end
     end
 end
