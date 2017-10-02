@@ -313,7 +313,7 @@ end
     // BLOCKS:
     ///////////////////////////////////////////////////////////////////////////
 
-    do/_
+    do
         var int i;
         loop i do
 {BLOCKS_RECEIVED++;}
@@ -359,7 +359,7 @@ end
 
                 // FOUND COMMON BLOCK?
                 if err2 == {MESSAGE10_HAVE} then
-                    escape err2;
+                    escape; // err2;
                 end
 
                 // received at least one new block

@@ -107,7 +107,7 @@ with
             print('>'..string.rep('=',78))
             print(GG.chain_tostring('||22|'))
             print('<'..string.rep('=',78))
-            assert(#APP.errs==1 and APP.errs[1]==GG.ERR_REMOTE_BUG_OR_MALICIOUS)
+            assert(#APP.errs==1 and APP.errs[1]==GG['Exception.Freechains.Malformed'])
         ]];
         [[
             assert(#CHAIN1==1)
