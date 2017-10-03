@@ -675,7 +675,7 @@ do
 
             path = APP.chains.files..'/'..chain.id..'.chain'
         ]]
-        var[] byte path = [] .. [[path]];
+        var[] byte path = [] .. [[path]] .. [0];
         var Exception? e;
         catch e do
             await FS_read_10(&path);

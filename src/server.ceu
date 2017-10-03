@@ -22,9 +22,13 @@ do
         $tcp.buffer = $tcp.buffer - MESSAGE_BYTES;
 
         if ok and msg==0x100 then
-            ret = do ()
-                #include "server/message10_recv.ceu"
-            end;
+            do ()
+                var int out;
+                out = do/out
+                    #include "server/message10_recv.ceu"
+                end;
+                outer.ret = out;
+            end
         else
             var Exception.Freechains.Unsupported e = val Exception.Freechains.Unsupported(_);
             throw e;

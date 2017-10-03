@@ -39,7 +39,7 @@ code/await Node (var int i) -> void do
         await 100ms;
 
         do
-            vector[] byte ip      = [] .. [[ APP.server.host[1] ]];
+            vector[] byte ip      = [] .. [[ APP.server.host[1] ]] .. [0];
             var      int  port    = [[ APP.server.host[2] ]];
             var      int  backlog = [[ APP.server.backlog ]];
             _dbg(0, "server | listening in %s:%d", &&ip[0], port);

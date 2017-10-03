@@ -117,7 +117,7 @@ do
             // <= BLOCK_HASH
             tcp.buffer = [] .. [[ G(tcp).block.hash ]];
             do
-                var[] byte str = [] .. [[ tostring2(G(tcp).block.hash) ]];
+                var[] byte str = [] .. [[ tostring2(G(tcp).block.hash) ]] .. [0];
                 _dbg_tcp(0, &&tcp.handle, "client", "<= BLOCKS[%d] : %s", i, &&str[0]);
             end
 
@@ -172,7 +172,7 @@ do finalize with
     {CLIENTS_ALIVE--;}
 end
 
-    var[] byte ip   = [] .. [[ ARGS.peer.host[1] ]];
+    var[] byte ip   = [] .. [[ ARGS.peer.host[1] ]] .. [0];
     var   int  port = [[ ARGS.peer.host[2] ]];
     _dbg(2, "client:%p | connecting to %s:%d", {&_ceu_mem}, &&ip[0], port);
 

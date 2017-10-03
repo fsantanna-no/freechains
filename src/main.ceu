@@ -18,7 +18,7 @@ loop i in [1 -> n] do
     ]]
 end
 
-var[] byte ip      = [] .. [[ APP.server.host[1] ]];
+var[] byte ip      = [] .. [[ APP.server.host[1] ]] .. [0];
 var   int  port    = [[ APP.server.host[2] ]];
 var   int  backlog = [[ APP.server.backlog ]];
 _dbg(0, "server | listening in %s:%d", &&ip[0], port);
@@ -59,7 +59,7 @@ _printf(">>> SHARED.OK %d\n", err);
             path = APP.chains.files..'/'..main.chain.id..'.chain'
             print('>>> WRITE >>>', main.chain.id, path)
         ]]
-        var[] byte path = [] .. [[path]];
+        var[] byte path = [] .. [[path]] .. [0];
 
         _dbg(0, "server | received");
         [[ ARGS={ chain_id=main.chain.id } ]];

@@ -27,7 +27,7 @@ do
         if chain_len > 0 then
             _memcpy(&&chain_key[0], &&tcp.buffer[0], chain_len);
         end
-        _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_KEY   = %s", &&chain_key[0]);
+        //_dbg_tcp(2, &&tcp.handle, "server", "CHAIN_KEY   = %s", &&chain_key[0]);
         $tcp.buffer = $tcp.buffer - (chain_len as usize);
 
         [[
@@ -64,7 +64,7 @@ do
         $tcp.buffer = $tcp.buffer - HASH_BYTES;
 
         do
-            var[] byte str = [] .. [[ tostring2(@hash) ]];
+            var[] byte str = [] .. [[ tostring2(@hash) ]] .. [0];
             _dbg_tcp(3, &&tcp.handle, "server", "=> BLOCK_HASH : %s", &&str[0]);
         end
 
@@ -269,7 +269,7 @@ _ceu_sys_assert($outer.tcp.buffer == 0, "bug found");
 if err == {MESSAGE10_NOTSUB} then
     outer.tcp.buffer = [err];
     await UV_Stream_Write_N(&outer.tcp,_);
-    escape err;     // terminate if not subcribed
+    escape/out err;     // terminate if not subcribed
 end
 
 // LOCK: only one "receive" per chain
@@ -359,7 +359,11 @@ end
 
                 // FOUND COMMON BLOCK?
                 if err2 == {MESSAGE10_HAVE} then
-                    escape; // err2;
+                    if i == 0 then
+                        escape/out {MESSAGE10_HAVE};    // nothing new
+                    else
+                        escape;                         // something new, but not more
+                    end
                 end
 
                 // received at least one new block
@@ -400,7 +404,7 @@ end
 // BLOCK holds the COMMON node
 [[
     common_hash = G(outer.tcp).block.hash
-    assert(G(outer.tcp).remote_head and G(outer.tcp).remote_base, '1')
+    assert(G(outer.tcp).remote_head and G(outer.tcp).remote_base, 'ERROR-1')
     G(outer.tcp).remote_base.tail_hash = common_hash
 ]];
 
@@ -538,7 +542,7 @@ with
             ]];
             await Client(&outer.shared);
             [[ ARGS = chain ]]
-            escape {MESSAGE10_OK};
+            escape/out {MESSAGE10_OK};
         //end
     end
 end

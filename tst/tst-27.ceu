@@ -16,15 +16,8 @@ await Init();
 var[] byte src = [].."x.chain";
 var[] byte dst = [].."y.chain";
 
-do
-    var int ret = await FS_read_10(&src);
-    _ceu_dbg_assert(ret == _ERR_NONE);
-end
-
-do
-    var int ret = await FS_write_10(&dst);
-    _ceu_dbg_assert(ret == _ERR_NONE);
-end
+await FS_read_10(&src);
+await FS_write_10(&dst);
 
 [[
 local src = io.open(@src):read'*a'
@@ -38,11 +31,11 @@ do
 
     var int ret = await FS_read_10(&err);
     _fprintf(_stderr, "[%d] uv-error: %s\n", ret, _uv_strerror(ret));
-    _ceu_dbg_assert(ret == -_ENOENT);
+    _ceu_sys_assert(ret == -_ENOENT, "bug");
 
     ret = await FS_write_10(&err);
     _fprintf(_stderr, "[%d] uv-error: %s\n", ret, _uv_strerror(ret));
-    _ceu_dbg_assert(ret == -_EACCES);
+    _ceu_sys_assert(ret == -_EACCES, "bug");
 end
 
 [[ print'OK!' ]];

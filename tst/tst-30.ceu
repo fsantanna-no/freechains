@@ -39,7 +39,7 @@ code/await Node (var int i) -> none do
         await 100ms;
 
         do
-            var[] byte ip      = [] .. [[ APP.server.host[1] ]];
+            var[] byte ip      = [] .. [[ APP.server.host[1] ]] .. [0];
             var   int  port    = [[ APP.server.host[2] ]];
             var   int  backlog = [[ APP.server.backlog ]];
             _dbg(0, "server | listening in %s:%d", &&ip[0], port);
@@ -83,7 +83,7 @@ code/await Node (var int i) -> none do
     print(@i, '<'..string.rep('=',70))
     ]];
     #endif
-        var[] byte path = [] .. [[ '/tmp/'..string.format('%03d',@i)..'.chain' ]];
+        var[] byte path = [] .. [[ '/tmp/'..string.format('%03d',@i)..'.chain' ]] .. [0];
 _printf(">>> %s\n", &&path[0]);
         [[ ARGS = { chain_id='||0|' } ]];
         var int ret = await FS_write_10(&path);

@@ -70,7 +70,7 @@ with
         var UV_TCP_Server_Data shared = _;
         await Init();
 
-        var[] byte ip      = [] .. [[ APP.server.host[1] ]];
+        var[] byte ip      = [] .. [[ APP.server.host[1] ]] .. [0];
         var   int  port    = [[ APP.server.host[2] ]];
         var   int  backlog = [[ APP.server.backlog ]];
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
