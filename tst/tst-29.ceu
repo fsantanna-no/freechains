@@ -8,7 +8,9 @@ _srand(_time(null));
 
 #define N 2
 
-code/await Node (var int i) -> none do
+code/await Node (var int i) -> none
+    throws Exception.Lua
+do
     lua[] do
         var UV_TCP_Server_Data shared = _;
 
@@ -63,6 +65,7 @@ code/await Node (var int i) -> none do
                 await ClientMessages(&shared);
             end
 
+#if 1
             // wait all messages to be received
             loop do
                 await 100ms;   // periodic check (any number is ok)
@@ -74,7 +77,16 @@ code/await Node (var int i) -> none do
                     break;
                 end
             end
+#else
+            loop do
+                watching shared.ok do
+                    await 10s;
+                    break;
+                end
+            end
+#endif
         end
+            
 
 #if 1
 [[
@@ -85,8 +97,7 @@ print(@i, '<'..string.rep('=',70))
 #endif
         var[] byte path = [] .. [[ '/tmp/'..string.format('%03d',@i)..'.chain' ]];
         [[ ARGS = { chain_id='||0|' } ]];
-        var int ret = await FS_write_10(&path);
-        _ceu_dbg_assert(ret == _ERR_NONE);
+        await FS_write_10(&path);
     end
 end
 
@@ -111,7 +122,7 @@ _printf("BLOCKS_RECEIVED  = %d\n", {BLOCKS_RECEIVED});
 var int i;
 loop i in [0 -> N[ do
     [[
-        file2 = io.open('/tmp/'..string.format('%03d',@i)..'.chain'):read'*a'
+        file2 = assert(io.open('/tmp/'..string.format('%03d',@i)..'.chain')):read'*a'
         assert(file1 == file2)
     ]]
 end

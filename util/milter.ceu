@@ -77,7 +77,7 @@ input (_SMFICTX_ptr, _sfsistat&&)       EOM;
 
 var Lock l = _;
 
-code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> void do
+code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> none do
     lua[] do
         [[
             print'=== MILTER'
@@ -118,15 +118,15 @@ code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> void do
             end
         end;
 
-        vector[] byte body;
+        var[] byte body;
         spawn do
             loop do
                 var _SMFICTX_ptr ctx2;
                 var _char&& headerf;
                 var _char&& headerv;
                 (ctx2,headerf,headerv) = await HEADER until (ctx2 == ctx);
-                vector[] byte headerf_ = [] .. (headerf as _char&&);
-                vector[] byte headerv_ = [] .. (headerv as _char&&);
+                var[] byte headerf_ = [] .. (headerf as _char&&);
+                var[] byte headerv_ = [] .. (headerv as _char&&);
                 var bool to = [[ @headerf_ == 'To' ]];
                 if to then
                     headerv_ = [] .. [[USER]];
@@ -184,7 +184,8 @@ MESSAGE {
     payload = ]]..string.format('%q',body)..[[,
 }
 ]]
-                local f = assert(io.open(OUTPUT, 'w'))
+                --local f = assert(io.open(OUTPUT, 'w'))
+                local f = io.stdout
                 f:write(string.len(str)..'\n')
                 f:write(str)
                 --print('>>> OUT >>>', string.len(str), str)

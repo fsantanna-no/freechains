@@ -91,7 +91,7 @@ _printf(">>> SHARED.OK %d\n", err);
     end
 with
     var[] byte msgs;
-    event void ok;
+    event none ok;
     par do
         lua[] do
             [[

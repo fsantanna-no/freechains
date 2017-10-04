@@ -29,13 +29,22 @@ assert(src == dst)
 do
     var[] byte err = [].."/no.chain";
 
-    var int ret = await FS_read_10(&err);
-    _fprintf(_stderr, "[%d] uv-error: %s\n", ret, _uv_strerror(ret));
-    _ceu_sys_assert(ret == -_ENOENT, "bug");
-
-    ret = await FS_write_10(&err);
-    _fprintf(_stderr, "[%d] uv-error: %s\n", ret, _uv_strerror(ret));
-    _ceu_sys_assert(ret == -_EACCES, "bug");
+    do
+        var Exception.Uv? e;
+        catch e do
+            await FS_read_10(&err);
+        end
+        _fprintf(_stderr, "[%d] uv-error: %s\n", e!.number, e!.message);
+        _ceu_sys_assert(e!.number == -_ENOENT, "bug");
+    end
+    do
+        var Exception.Uv? e;
+        catch e do
+            await FS_write_10(&err);
+        end
+        _fprintf(_stderr, "[%d] uv-error: %s\n", e!.number, e!.message);
+        _ceu_sys_assert(e!.number == -_EACCES, "bug");
+    end
 end
 
 [[ print'OK!' ]];

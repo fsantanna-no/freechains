@@ -89,8 +89,7 @@ code/await Node (var int i) -> void do
     #endif
         vector[] byte path = [] .. [[ '/tmp/'..string.format('%03d',@i)..'.chain' ]];
         [[ ARGS = { chain_id='||0|' } ]];
-        var int ret = await FS_write_10(&path);
-        _ceu_dbg_assert(ret == _ERR_NONE);
+        await FS_write_10(&path);
     end
 end
 

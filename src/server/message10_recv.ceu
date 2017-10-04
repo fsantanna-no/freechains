@@ -524,8 +524,7 @@ emit outer.shared.retransmit;
 #endif
 par do
     await outer.shared.retransmit;
-    //escape _ERR_ABORTED;
-    _ceu_sys_assert(0, "bug found");
+    escape/out {MESSAGE10_ABORTED};
 with
     //watching outer.shared.retransmit do
     do/_

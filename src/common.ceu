@@ -44,6 +44,7 @@ native/pre do
         MESSAGE10_NOTSUB,   // [ok ACK] not subscribed to this chain
         MESSAGE10_HAVE,     // [ok ACK] already has it
         MESSAGE10_LIMIT,    // [ok ACK] too big for untrusted client
+        MESSAGE10_ABORTED,  // [?? ???] aborted from external retransmit
     };
 
     void dbg (int level, const char* fmt, ...) {

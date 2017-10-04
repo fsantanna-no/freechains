@@ -8,7 +8,9 @@ _srand(_time(null));
 
 #define N 10
 
-code/await Node (var int i) -> none do
+code/await Node (var int i) -> none
+    throws Exception.Lua
+do
     lua[] do
         var UV_TCP_Server_Data shared = _;
 
@@ -85,8 +87,7 @@ print(@i, '<'..string.rep('=',70))
 #endif
         var[] byte path = [] .. [[ '/tmp/'..string.format('%03d',@i)..'.chain' ]];
         [[ ARGS = { chain_id='||0|' } ]];
-        var int ret = await FS_write_10(&path);
-        _ceu_dbg_assert(ret == _ERR_NONE);
+        await FS_write_10(&path);
     end
 end
 

@@ -48,8 +48,7 @@ par/and do
         await 100ms;
 
         var[] byte src = [].."x.chain";
-        var int ret = await FS_read_10(&src);
-        _ceu_dbg_assert(ret == _ERR_NONE);
+        await FS_read_10(&src);
         [[
             APP.chains['||0|'].head_hash = ARGS.head_hash
         ]];
