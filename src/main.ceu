@@ -93,34 +93,6 @@ with
     var[] byte msgs;
     event none ok;
     par do
-        lua[] do
-            [[
-                _, INPUT, _ = table.unpack(arg)
-                f = assert(io.open(INPUT, 'r+'))
-            ]]
-            do finalize with
-                [[ f:close() ]]
-            end
-            loop do
-                await async/thread (msgs) do
-                    [[
-                        local xxx = f:read('l')
-                        --print('>>> xxx >>>', f, xxx)
-                        local n = assert(tonumber(xxx))--assert(f:read('l'))))
-                        --print(n)
-                        buf = f:read(n)
-                        --print(buf)
-                    ]]
-                end
-                msgs = [] .. [[ buf ]];
-                par/and do
-                    emit ok;
-                with
-                    await ok;
-                end
-            end
-        end
-    with
         await ok;
         loop do
             [[
@@ -134,6 +106,40 @@ with
                 emit ok;
             with
                 await ok;
+            end
+        end
+    with
+        lua[] do
+            [[
+                _, INPUT, _ = table.unpack(arg)
+                f = assert(io.open(INPUT, 'r+'))
+            ]]
+            do finalize with
+                [[ f:close() ]]
+            end
+            loop do
+                await async/thread (msgs) do
+                    [[
+                        n = f:read('l')
+                        print('>>> n >>>', f, n)
+                    ]]
+                    var bool eof = [[ n == nil ]];
+                    if eof then
+                        escape 0;
+                    end
+                    [[
+                        n = assert(tonumber(n))
+                        --print(n)
+                        buf = f:read(n)
+                        --print(buf)
+                    ]]
+                end
+                msgs = [] .. [[ buf ]];
+                par/and do
+                    emit ok;
+                with
+                    await ok;
+                end
             end
         end
     end
