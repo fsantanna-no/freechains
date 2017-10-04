@@ -1,5 +1,31 @@
 /*
- * make CEU_SRC=<.>/util/milter.ceu CC_ARGS="-lmilter" one
+ * INSTALL
+ *
+ *  $ make CEU_SRC=<.>/util/milter.ceu CC_ARGS="-lmilter" one
+ *  $ vi /etc/postfix/main.cf
+ *      - smtpd_milters = unix:/milters/freechains.milter
+ *      - non_smtpd_milters = unix:/milters/freechains.milter
+ *
+ * TESTING:
+ *
+ *  $ sudo rm -f /var/spool/postfix/milters/freechains.milter
+ *  $ ./milter chico /tmp/xxx &
+ *  $ sleep 1
+ *  $ sudo chmod 777 /var/spool/postfix/milters/freechains.milter
+ *  $ ls -l /var/spool/postfix/milters/freechains.milter
+ *
+ *  $ touch /tmp/xxx
+ *  $ tail -f /tmp/xxx
+ *
+ *  # FC2MAIL   | USER -> USER     | accept and don't forward to FC
+ *  $ echo teste-1 | mail chico -s TESTE-1
+ *
+ *  # FETCHMAIL | * -> USER        | discard and forward to FC
+ *  # FC        | * -> @freechains | discard and forward to FC
+ *  # NORMAL    | * -> *           | accept  and forward to FC
+ *  $ echo teste-2 | mail chico -s TESTE-2 -a "From: other@other.com"
+ *  $ echo teste-3 | mail " |chico|0|@freechains.org" -s TESTE-3
+ *  $ echo teste-4 | mail francisco.santanna@gmail.com -s TESTE-4
  */
 
 #include "c.ceu"
@@ -126,15 +152,17 @@ code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> none do
                 var _char&& headerv;
                 (ctx2,headerf,headerv) = await HEADER until (ctx2 == ctx);
                 var[] byte headerf_ = [] .. (headerf as _char&&);
+                $headerf_ = $headerf_ - 1;
                 var[] byte headerv_ = [] .. (headerv as _char&&);
+                $headerv_ = $headerv_ - 1;
                 var bool to = [[ @headerf_ == 'To' ]];
                 if to then
                     headerv_ = [] .. [[USER]];
                 end
                 body = body .. headerf_;
-                body = body .. ": ";
+                body = body .. [{':'},{' '}];
                 body = body .. headerv_;
-                body = body .. "\n";
+                body = body .. [{'\n'}];
             end
         end
         spawn do
@@ -146,7 +174,7 @@ code/await Handler (var _SMFICTX_ptr ctx, var _char&&&& from) -> none do
                 (ctx2,bodyp,len) = await BODY until (ctx2 == ctx);
                 if first then
                     first = false;
-                    body = body .. "\n";
+                    body = body .. [{'\n'}];
                 end
                 var usize old = $body;
                 _ceu_vector_setlen(&&body, $body+len, 1);
@@ -184,8 +212,8 @@ MESSAGE {
     payload = ]]..string.format('%q',body)..[[,
 }
 ]]
-                --local f = assert(io.open(OUTPUT, 'w'))
-                local f = io.stdout
+                local f = assert(io.open(OUTPUT, 'w'))
+                --local f = io.stdout
                 f:write(string.len(str)..'\n')
                 f:write(str)
                 --print('>>> OUT >>>', string.len(str), str)
