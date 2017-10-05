@@ -349,9 +349,11 @@ do
                 block = assert(APP.blocks[chain.head_hash]),
                 chain = chain,
             }
+            THIS = ARGS
         ]];
         await Client(&shared);
-        emit shared.ok(0x100, false, {MESSAGE10_OK});
+        [[ ARGS = THIS ]]
+        emit shared.ok({MESSAGE10}, false, {MESSAGE10_OK});
     else
         var Exception.Freechains.Unsupported e = val Exception.Freechains.Unsupported(_);
         throw e;

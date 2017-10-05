@@ -21,7 +21,7 @@ do
 
         $tcp.buffer = $tcp.buffer - MESSAGE_BYTES;
 
-        if ok and msg==0x100 then
+        if ok and msg=={MESSAGE10} then
             do ()
                 var int out;
                 out = do/out

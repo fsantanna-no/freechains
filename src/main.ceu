@@ -37,9 +37,9 @@ par do
         var bool err;
         var int  ret;
         every (msg,err,ret) in shared.ok do
-_printf(">>> SHARED.OK %d\n", err);
+_printf(">>> SHARED.OK %d %d %d\n", msg, err, ret);
             if not err then
-                _ceu_assert(msg == 0x100, "bug found");
+                _ceu_assert(msg == {MESSAGE10}, "bug found");
                 [[ print('>>> PENDING >>>', ARGS.chain.id) ]];
                 [[ main.pending[#main.pending+1] = ARGS.chain ]];
             end

@@ -44,7 +44,7 @@ tests:
 	diff /tmp/\|\|0\|.chain tst/\|\|0\|.chain
 	diff /tmp/\|chico\|0\|.chain tst/\|chico\|0\|.chain
 	diff /tmp/tst-01.out tst/tst-01.out
-	exit 1
+	#exit 1
 	for i in tst/tst-*.ceu; do                           \
 		echo;                                            \
 		echo "#####################################";    \
