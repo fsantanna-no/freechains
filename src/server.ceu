@@ -46,7 +46,7 @@ do
             [[ APP.errs[#APP.errs+1] = @ret ]];
         end
     end
-    _ceu_sys_assert(not e2?, "bug found");
+    _ceu_assert(not e2?, "bug found");
 
     // [[ ARGS = { chain=? } ]]
     emit shared.ok(e1?,msg,ret);

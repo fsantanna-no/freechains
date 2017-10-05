@@ -18,7 +18,7 @@ test:
 	
 	echo teste-1 | mail chico -s TESTE-1
 	echo teste-2 | mail chico -s TESTE-2 -a "From: other@other.com"
-	echo teste-3 | mail " |chico|0|@freechains.org" -s TESTE-3
+	echo teste-3 | mail " ||0|@freechains.org" -s TESTE-3
 	echo teste-4 | mail francisco.santanna@gmail.com -s TESTE-4
 	echo CHECK YOUR GMAIL FOR TESTE-4!!!
 	sleep 1

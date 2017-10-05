@@ -151,7 +151,7 @@ do
                 assert( THIS.tx.nonce == nil )
             ]];
         else
-            _ceu_sys_assert(0, "bug found");
+            _ceu_assert(0, "bug found");
         end
 
         var u8 zeros_wanted = [[ THIS.chain.zeros ]];
@@ -162,7 +162,7 @@ do
             if zeros_wanted > _leading_zeros(&&tx_hash[0],HASH_BYTES) then
 // TODO: test-case to fail here
 // TODO: also change from ">" to "!="
-_ceu_sys_assert(0, "bug found");
+_ceu_assert(0, "bug found");
                 var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
                 throw e;
             end
@@ -174,8 +174,8 @@ _ceu_sys_assert(0, "bug found");
 
         is_genesis = [[ THIS.tx.back_hash == string.rep('\0',HASH_BYTES) ]];
         if is_genesis then
-            _ceu_sys_assert(not (source is SourceBlockHash.Network), "bug found");
-            _ceu_sys_assert(txs_n == 1, "bug found");
+            _ceu_assert(not (source is SourceBlockHash.Network), "bug found");
+            _ceu_assert(txs_n == 1, "bug found");
             [[
                 assert( THIS.tx.payload == '' )
                 assert( THIS.tx.nonce   == string.rep('\0',NONCE_BYTES) )
@@ -201,7 +201,7 @@ _ceu_sys_assert(0, "bug found");
                     throw e;
                 end
             else
-                _ceu_sys_assert(zeros_wanted <= _leading_zeros(&&tx_hash[0],HASH_BYTES), "bug found");
+                _ceu_assert(zeros_wanted <= _leading_zeros(&&tx_hash[0],HASH_BYTES), "bug found");
 // TODO: change from "<=" to "=="
             end
         else
@@ -332,7 +332,7 @@ _ceu_sys_assert(0, "bug found");
             //var int txs_n = [[ #THIS.block.txs ]]; // TODO: assert THIS.block.chain.limits.block
             if txs_n == 0 then
 // TODO: test-case
-_ceu_sys_assert(0, "bug found");
+_ceu_assert(0, "bug found");
                 var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
                 throw e;
             end
@@ -387,11 +387,15 @@ do
     // => HEADER
     do
         var ssize n = await UV_FS_Read_N(&o.file, MESSAGE_BYTES);
-        _ceu_sys_assert(o.file.buffer[0] == MESSAGE_MAGIC_0, "bug found");
-        _ceu_sys_assert(o.file.buffer[1] == MESSAGE_MAGIC_1, "bug found");
-        _ceu_sys_assert(o.file.buffer[2] == 1, "bug found");
-        _ceu_sys_assert(o.file.buffer[3] == 0, "bug found");
-        _ceu_sys_assert(n == MESSAGE_BYTES, "bug found");
+        if n == 0 or
+           o.file.buffer[0] != MESSAGE_MAGIC_0 or
+           o.file.buffer[1] != MESSAGE_MAGIC_1 or
+           o.file.buffer[2] != 1 or
+           o.file.buffer[3] != 0
+        then
+            var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+            throw e;
+        end
         $o.file.buffer = 0;
     end
 
@@ -400,14 +404,14 @@ do
         var usize len;
         do
             var ssize n = await UV_FS_Read_N(&o.file, 1);
-            _ceu_sys_assert(n == 1, "bug found");
+            _ceu_assert(n == 1, &&path[0]);
             len = o.file.buffer[0] as usize;
             $o.file.buffer = 0;
         end
 
         do
             var ssize n = await UV_FS_Read_N(&o.file, len);
-            _ceu_sys_assert(n == len, "bug found");
+            _ceu_assert(n == len, "bug found");
             [[ THIS.chain_id = @o.file.buffer ]];
             $o.file.buffer = 0;
         end
@@ -425,7 +429,7 @@ do
             if n <= 0 then
                 break;          // EOF
             end
-            _ceu_sys_assert(n == sizeof(u32), "bug found");
+            _ceu_assert(n == sizeof(u32), "bug found");
             txs_n = *(&&o.file.buffer[0] as u32&&);
             $o.file.buffer = 0;
         end
@@ -450,7 +454,7 @@ do
             // => NONCE
             do
                 var ssize n = await UV_FS_Read_N(&o.file, NONCE_BYTES);
-                _ceu_sys_assert(n == NONCE_BYTES, "bug found");
+                _ceu_assert(n == NONCE_BYTES, "bug found");
                 [[ THIS.tx.nonce = @o.file.buffer ]];
                 //[[ print('nonce','\n'..tostring2(THIS.tx.nonce)) ]];
                 $o.file.buffer = 0;
@@ -459,7 +463,7 @@ do
             // => TX_BACH_HASH
             do
                 var ssize n = await UV_FS_Read_N(&o.file, HASH_BYTES);
-                _ceu_sys_assert(n == HASH_BYTES, "bug found");
+                _ceu_assert(n == HASH_BYTES, "bug found");
                 [[ THIS.tx.back_hash = @o.file.buffer ]];
                 //[[ print('back_hash','\n'..tostring2(THIS.tx.back_hash)) ]];
                 $o.file.buffer = 0;
@@ -470,14 +474,14 @@ do
                 var u32 payload_len;
                 do
                     var ssize n = await UV_FS_Read_N(&o.file, sizeof(u32));
-                    _ceu_sys_assert(n == sizeof(u32), "bug found");
+                    _ceu_assert(n == sizeof(u32), "bug found");
                     payload_len = *(&&o.file.buffer[0] as u32&&);
                     //[[ print('payload_len', @payload_len) ]];
                     $o.file.buffer = 0;
                 end
                 do
                     var ssize n = await UV_FS_Read_N(&o.file, payload_len as usize);
-                    _ceu_sys_assert(n == (payload_len as ssize), "bug found");
+                    _ceu_assert(n == (payload_len as ssize), "bug found");
                     [[ THIS.tx.payload = @o.file.buffer ]];
                     //[[ print('payload', THIS.tx.payload) ]];
                     $o.file.buffer = 0;
@@ -547,13 +551,13 @@ do
     // <= (append)
     var& UV_FS_Open o = spawn UV_FS_Open(&&path[0], _, _O_APPEND|_O_WRONLY, 0);
     await o.file.ok;
-    _ceu_sys_assert(o.file.handle >= 0, "bug found");
+    _ceu_assert(o.file.handle >= 0, "bug found");
 
     // <= HEADER
     do
         o.file.buffer = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 1, 0];
         var ssize n = await UV_FS_Write_N(&o.file, MESSAGE_BYTES);
-        _ceu_sys_assert(n == 4, "bug found");
+        _ceu_assert(n == 4, "bug found");
     end
 
     // <= CHAIN_ID
@@ -562,12 +566,12 @@ do
         do
             o.file.buffer = [len];
             var ssize n = await UV_FS_Write_N(&o.file, 1);
-            _ceu_sys_assert(n == 1, "bug found");
+            _ceu_assert(n == 1, "bug found");
         end
         do
             o.file.buffer = [] .. [[ THIS.chain.id ]];
             var ssize n = await UV_FS_Write_N(&o.file, len as usize);
-            _ceu_sys_assert(n == (len as ssize), "bug found");
+            _ceu_assert(n == (len as ssize), "bug found");
         end
     end
 
@@ -580,7 +584,7 @@ do
             _ceu_vector_setlen(&&o.file.buffer, sizeof(u32), 1);
             _ceu_vector_buf_set(&&o.file.buffer, 0, (&&txs_n as byte&&), sizeof(u32));
             var ssize n = await UV_FS_Write_N(&o.file, sizeof(u32));
-            _ceu_sys_assert(n == sizeof(u32), "bug found");
+            _ceu_assert(n == sizeof(u32), "bug found");
         end
         var u32 i;
         loop i in [0 -> txs_n[ do
@@ -596,14 +600,14 @@ do
             do
                 o.file.buffer = [] .. [[ THIS.tx.nonce ]];
                 var ssize n = await UV_FS_Write_N(&o.file, NONCE_BYTES);
-                _ceu_sys_assert(n == NONCE_BYTES, "bug found");
+                _ceu_assert(n == NONCE_BYTES, "bug found");
             end
 
             // <= TX_BACK_HASH
             do
                 o.file.buffer = [] .. [[ THIS.tx.back_hash ]];
                 var ssize n = await UV_FS_Write_N(&o.file, HASH_BYTES);
-                _ceu_sys_assert(n == HASH_BYTES, "bug found");
+                _ceu_assert(n == HASH_BYTES, "bug found");
             end
 
             // <= TX_PAYLOAD_LEN
@@ -615,14 +619,14 @@ do
                     _ceu_vector_setlen(&&o.file.buffer, sizeof(u32), 1);
                     _ceu_vector_buf_set(&&o.file.buffer, 0, (&&len as byte&&), sizeof(u32));
                     var ssize n = await UV_FS_Write_N(&o.file, sizeof(u32));
-                    _ceu_sys_assert(n == sizeof(u32), "bug found");
+                    _ceu_assert(n == sizeof(u32), "bug found");
                 end
                 // <= TX_PAYLOAD
                 do
 // TODO: may not fit default buffer length (1024)
                     o.file.buffer = [] .. [[ THIS.tx.payload ]];
                     var ssize n = await UV_FS_Write_N(&o.file, len as usize);
-                    _ceu_sys_assert(n == (len as usize), "bug found");
+                    _ceu_assert(n == (len as usize), "bug found");
                 end
             end
         end

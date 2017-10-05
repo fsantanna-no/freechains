@@ -84,7 +84,7 @@ do
             var[] byte chain_key   = [] .. [[ chain.key ]];
             var int    chain_zeros = [[ chain.zeros ]];
             var u32    chain_len   = [[ string.len(chain.key) ]];
-            _ceu_sys_assert(chain_len<CHAIN_KEY_BYTES, "bug found");
+            _ceu_assert(chain_len<CHAIN_KEY_BYTES, "bug found");
             tcp.buffer = tcp.buffer .. [chain_zeros, chain_len as byte] .. chain_key;
         end
 
@@ -263,7 +263,7 @@ do
                 }
             ]];
             var&? PeerSend p = spawn PeerSend() in peers;
-            _ceu_sys_assert(p?, "bug found");
+            _ceu_assert(p?, "bug found");
         end
     end
     _dbg(0, "client:%p | broadcasting messages to %d peer(s)", {&_ceu_mem}, ps_ok);
@@ -276,12 +276,10 @@ do
 end
 
 code/await ClientMessages (var& UV_TCP_Server_Data shared) -> none
-    throws Exception.Lua, Exception.Freechains.Malformed
+    throws Exception.Lua, Exception.Freechains.Unsupported
 do
     var int ms = [[ #APP.messages ]];
-    if ms == 0 then
-        await FOREVER;  // server mode: don't let application terminate
-    end
+    _ceu_assert(ms > 0, "no messages to client");
 
     // client mode: terminates
 
@@ -357,7 +355,8 @@ do
         ]];
         await Client(&shared);
     else
-        _ceu_sys_assert(0, "message not supported");  // message not supported
+        var Exception.Freechains.Unsupported e = val Exception.Freechains.Unsupported(_);
+        throw e;
     end
 end
 

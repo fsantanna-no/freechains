@@ -126,7 +126,7 @@ do
         if zeros_wanted > _leading_zeros(&&hash[0],HASH_BYTES) then
 // TODO: test-case to fail here
 // TODO: also change from ">" to "!="
-_ceu_sys_assert(0, "bug found");
+_ceu_assert(0, "bug found");
             //escape _ERR_REMOTE_BUG_OR_MALICIOUS;
         end
 
@@ -264,7 +264,7 @@ end
 // <= ACK-header
 // bytes/reader received from message partially parsed
 var int err = await Message10_header_recv(&outer.tcp);
-_ceu_sys_assert($outer.tcp.buffer == 0, "bug found");
+_ceu_assert($outer.tcp.buffer == 0, "bug found");
 
 if err == {MESSAGE10_NOTSUB} then
     outer.tcp.buffer = [err];
@@ -343,7 +343,7 @@ end
                     await BlockHash(SourceBlockHash.Network());
                 end
 
-                _ceu_sys_assert($outer.tcp.buffer == 0, "bug found");
+                _ceu_assert($outer.tcp.buffer == 0, "bug found");
 
                 //[[ print('[server] => BLOCKS['..(@i)..'] : 
                 //'..tostring2(G(outer.tcp).block.hash)) ]];
@@ -530,7 +530,7 @@ with
     do/_
         // TODO: conditions to not propagate changes
         var bool has = [[ block_new ~= dst.head ]];
-        _ceu_sys_assert(has, "bug found");
+        _ceu_assert(has, "bug found");
         //if has then
             [[
                 chain = assert(APP.chains[G(outer.tcp).chain.id])
