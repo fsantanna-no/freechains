@@ -228,9 +228,6 @@ do
         end
     end
 
-#ifdef OLD
-    [[ THIS.chain.send_is_locked = true ]];
-#endif
     do finalize with
         [[ THIS.chain.send_is_locked = false ]];
         emit shared.unlock;
@@ -354,6 +351,7 @@ do
             }
         ]];
         await Client(&shared);
+        emit shared.ok(0x100, false, {MESSAGE10_OK});
     else
         var Exception.Freechains.Unsupported e = val Exception.Freechains.Unsupported(_);
         throw e;

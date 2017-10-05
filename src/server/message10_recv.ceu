@@ -519,9 +519,7 @@ end
 // RETRANSMIT NEW HEAD
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef OLD
 emit outer.shared.retransmit;
-#endif
 par do
     await outer.shared.retransmit;
     escape/out {MESSAGE10_ABORTED};

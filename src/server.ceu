@@ -49,7 +49,7 @@ do
     _ceu_assert(not e2?, "bug found");
 
     // [[ ARGS = { chain=? } ]]
-    emit shared.ok(e1?,msg,ret);
+    emit shared.ok(msg,e1?,ret);
 end
 
 #endif

@@ -103,7 +103,7 @@ end
 #define THIS GG[@(&&{*_ceu_mem})]
 
 data UV_TCP_Server_Data with
-    event (bool,int,int) ok;
+    event (int,bool,int) ok;
     event none unlock;
     event none retransmit;
 end
