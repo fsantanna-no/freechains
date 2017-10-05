@@ -72,7 +72,7 @@ _printf(">>> SHARED.OK %d\n", err);
 
         [[
             _, _, OUTPUT = table.unpack(arg)
-            local f = assert(io.open(OUTPUT, 'w'))
+            local f = assert(io.open(OUTPUT, 'a'))
             local cur_hash = main.chain.head_hash
             while true do
                 if cur_hash == main.chain.prv_head_hash then

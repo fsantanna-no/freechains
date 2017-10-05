@@ -39,11 +39,12 @@ c:
 	         --cc-output=freechains
 
 tests:
-	rm /tmp/*.chain
-	./freechains tst/tst-01.lua util/milter/milter.test.out.orig /tmp/x.out
+	rm -f /tmp/*.chain /tmp/tst-01.out
+	./freechains tst/tst-01.lua util/milter/milter.test.out.orig /tmp/tst-01.out
 	diff /tmp/\|\|0\|.chain tst/\|\|0\|.chain
 	diff /tmp/\|chico\|0\|.chain tst/\|chico\|0\|.chain
-	#exit 1
+	diff /tmp/tst-01.out tst/tst-01.out
+	exit 1
 	for i in tst/tst-*.ceu; do                           \
 		echo;                                            \
 		echo "#####################################";    \
