@@ -24,20 +24,22 @@ var   int  backlog = [[ APP.server.backlog ]];
 _dbg(0, "server | listening in %s:%d", &&ip[0], port);
 spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
 
+event none write_ok;
+[[
+    main = {
+        pending = {}
+    }
+]]
+
 par do
-    [[
-        main = {
-            pending = {}
-        }
-    ]]
     spawn do
-        var bool err;
         var int  msg;
+        var bool err;
         var int  ret;
-        every (err, msg, ret) in shared.ok do
+        every (msg,err,ret) in shared.ok do
 _printf(">>> SHARED.OK %d\n", err);
             if not err then
-                _ceu_sys_assert(msg == 0x100, "bug found");
+                _ceu_assert(msg == 0x100, "bug found");
                 [[ print('>>> PENDING >>>', ARGS.chain.id) ]];
                 [[ main.pending[#main.pending+1] = ARGS.chain ]];
             end
@@ -52,6 +54,9 @@ _printf(">>> SHARED.OK %d\n", err);
             else
                 await shared.ok;
             end
+        end
+        do finalize with
+            emit write_ok;
         end
 
         [[
@@ -90,57 +95,38 @@ _printf(">>> SHARED.OK %d\n", err);
         ]]
     end
 with
-    var[] byte msgs;
-    event none ok;
-    par do
-        await ok;
-        loop do
-            [[
-                assert(load(@msgs))()
-            ]]
-            _dbg(0, "client...");
-            await ClientMessages(&shared);
-            _dbg(0, "client | ok");
-            emit shared.ok(false, 0x100, {MESSAGE10_OK});
-            par/and do
-                emit ok;
-            with
-                await ok;
-            end
-        end
-    with
-        lua[] do
-            [[
-                _, INPUT, _ = table.unpack(arg)
-                f = assert(io.open(INPUT, 'r+'))
-            ]]
-            do finalize with
-                [[ f:close() ]]
-            end
+    [[
+        _, INPUT, _ = table.unpack(arg)
+        f = assert(io.open(INPUT, 'r+'))
+    ]]
+    do finalize with
+        [[ f:close() ]]
+    end
+    loop do
+        [[
+            n = f:read('l')
+            print('>>> n >>>', f, n)
+        ]]
+        var bool eof = [[ n == nil ]];
+        if eof then
             loop do
-                await async/thread (msgs) do
-                    [[
-                        n = f:read('l')
-                        print('>>> n >>>', f, n)
-                    ]]
-                    var bool eof = [[ n == nil ]];
-                    if eof then
-                        escape 0;
-                    end
-                    [[
-                        n = assert(tonumber(n))
-                        --print(n)
-                        buf = f:read(n)
-                        --print(buf)
-                    ]]
-                end
-                msgs = [] .. [[ buf ]];
-                par/and do
-                    emit ok;
-                with
-                    await ok;
+                await write_ok;
+                var bool has_pending = [[ #main.pending>0 ]];
+                if not has_pending then
+                    break;
                 end
             end
+            escape 0;
         end
+        [[
+            n = assert(tonumber(n))
+            --print(n)
+            msg = f:read(n)
+            --print(buf)
+            assert(load(msg))()
+        ]]
+        _dbg(0, "client...");
+        await ClientMessages(&shared);
+        _dbg(0, "client | ok");
     end
 end
