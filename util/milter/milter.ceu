@@ -182,7 +182,7 @@ MESSAGE {
     payload = ]]..string.format('%q',body)..[[,
 }
 ]]
-                local f = assert(io.open(OUTPUT, 'w'))
+                local f = assert(io.open(OUTPUT, 'a'))
                 --local f = io.stdout
                 f:write(string.len(str)..'\n')
                 f:write(str)

@@ -1,33 +1,25 @@
 Intercepts e-mails and redirects to *freechains*:
 
 ```
-$ ./milter chico /tmp/xxx
+$ ./milter <user> <fc-output-file>
 ```
 
-- `chico`: user to intercept e-mails from.
-- `/tmp/xxx`: file to communicate with FC.
+- `<user>`: user to intercept e-mails from
+- `<fc-output-file>`: file to communicate with *freechains*
 
-# INSTALL
+# Install
 
 ```
-$ make CEU_SRC=<.>/util/milter.ceu CC_ARGS="-lmilter" one
 $ vi /etc/postfix/main.cf
     - smtpd_milters = unix:/milters/freechains.milter
     - non_smtpd_milters = unix:/milters/freechains.milter
+$ make
+$ make test
 ```
 
-# TESTING
+# Rules
 
 ```
-$ sudo rm -f /var/spool/postfix/milters/freechains.milter
-$ ./milter chico /tmp/xxx &
-$ sleep 1
-$ sudo chmod 777 /var/spool/postfix/milters/freechains.milter
-$ ls -l /var/spool/postfix/milters/freechains.milter
-
-$ touch /tmp/xxx
-$ tail -f /tmp/xxx
-
 # FC2MAIL   | USER -> USER     | accept and don't forward to FC
 $ echo teste-1 | mail chico -s TESTE-1
 
