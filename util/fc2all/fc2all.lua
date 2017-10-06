@@ -7,7 +7,10 @@ local fin = assert(io.open(INPUT, 'r+'))
 
 while true do
     local buf, id do
-        id = assert(fin:read('l'))
+        id = fin:read('l')
+        if not id then
+            break
+        end
         local n = assert(tonumber(assert(fin:read('l'))))
         buf = fin:read(n)
         --print(n)
@@ -15,8 +18,9 @@ while true do
     end
 
     local chain = assert(APP.chains[id], 'invalid chain '..id)
+    local sink_id = chain.sink and chain.sink.id
 
-    if chain.sink.id == 'fs' then
+    if sink_id == 'fs' then
         print'=== FC2FS'
         local i = string.find(buf, '\n', 1, true)
         local name = string.sub(buf, 1,i-1)
@@ -30,7 +34,7 @@ while true do
         local fout = assert(io.open(chain.sink.dir..'/'..name, 'w'))
         fout:write(contents)
         fout:close()
-    elseif chain.sink.id == 'mail' then
+    elseif sink_id == 'mail' then
         print'=== FC2MAIL'
         --local fout = assert(io.popen('mail --subject="Freechains" user', 'w'))
         local fout = assert(io.popen('sendmail -t', 'w'))

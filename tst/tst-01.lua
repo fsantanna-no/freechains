@@ -7,7 +7,7 @@ CHAINS {
     {
         key   = 'chico',
         zeros = 0,
-        sink  = { id='mail' },
+        --sink  = { id='mail' },
     },
     {
         key   = 'fs',
