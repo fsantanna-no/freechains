@@ -1,5 +1,5 @@
 CHAINS {
-    files = '/tmp/fc-01',
+    files = '/tmp/fc-02',
     {
         key   = '',
         zeros = 0,
@@ -20,13 +20,13 @@ CHAINS {
 }
 
 SERVER {
-    host = { '127.0.0.1', '8331' },
+    host = { '127.0.0.1', '8332' },
 }
 
 CLIENT {
     peers = {
         {
-            host =  { '127.0.0.1', '8332' },
+            host =  { '127.0.0.1', '8331' },
         },
     },
 }

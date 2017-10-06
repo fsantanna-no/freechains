@@ -56,7 +56,10 @@ _printf(">>> SHARED.OK %d %d %d\n", msg, err, ret);
             end
         end
         do finalize with
-            emit write_ok;
+            var bool has_pending = [[ #main.pending>0 ]];
+            if not has_pending then
+                emit write_ok;
+            end
         end
 
         [[
@@ -95,38 +98,59 @@ _printf(">>> SHARED.OK %d %d %d\n", msg, err, ret);
         ]]
     end
 with
-    [[
-        _, INPUT, _ = table.unpack(arg)
-        f = assert(io.open(INPUT, 'r+'))
-    ]]
-    do finalize with
-        [[ f:close() ]]
-    end
-    loop do
-        [[
-            n = f:read('l')
-            print('>>> n >>>', f, n)
-        ]]
-        var bool eof = [[ n == nil ]];
-        if eof then
+    // the "par" is required because of the separated "lua[]"
+    // because of the "async/thread" because of the blocking "f:read()"
+    var[] byte msg;
+    event none ok;
+    par do
+        await ok;
+        loop do
+            [[
+                assert(load(@msg))()
+            ]]
+            _dbg(0, "client...");
+            await ClientMessages(&shared);
+            _dbg(0, "client | ok");
+            par/and do
+                emit ok;
+            with
+                await ok;
+            end
+        end
+    with
+        lua[] do
+            [[
+                _, INPUT, _ = table.unpack(arg)
+                f = assert(io.open(INPUT, 'r+'))
+            ]]
+            do finalize with
+                [[ f:close() ]]
+            end
             loop do
-                await write_ok;
-                var bool has_pending = [[ #main.pending>0 ]];
-                if not has_pending then
-                    break;
+                await async/thread (msg) do
+                    [[
+                        n = f:read('l')
+                        print('>>> n >>>', f, n)
+                    ]]
+                end
+                var bool eof = [[ n == nil ]];
+                if eof then
+                    await write_ok;
+                    escape 0;
+                end
+                [[
+                    n = assert(tonumber(n))
+                    --print(n)
+                    msg = f:read(n)
+                    --print(msg)
+                ]]
+                msg = [] .. [[ msg ]];
+                par/and do
+                    emit ok;
+                with
+                    await ok;
                 end
             end
-            escape 0;
         end
-        [[
-            n = assert(tonumber(n))
-            --print(n)
-            msg = f:read(n)
-            --print(buf)
-            assert(load(msg))()
-        ]]
-        _dbg(0, "client...");
-        await ClientMessages(&shared);
-        _dbg(0, "client | ok");
     end
 end
