@@ -42,6 +42,7 @@ tests:
 	rm -Rf /tmp/fc-*/
 	mkdir /tmp/fc-01/ /tmp/fc-02/
 	mkfifo /tmp/fc-02/fifo.in
+	make milter
 	./freechains tst/tst-02.lua /tmp/fc-02/fifo.in /tmp/fc-02/tst-01.out &
 	sleep 1
 	./freechains tst/tst-01.lua util/milter/milter.test.out.orig /tmp/fc-01/tst-01.out
@@ -55,6 +56,7 @@ tests:
 	diff /tmp/fc-0*/tst-01.out
 	#
 	killall freechains
+	make -f util/fc2all/Makefile
 	#exit 1
 	#
 	for i in tst/tst-*.ceu; do                           \
@@ -65,6 +67,12 @@ tests:
 		make CEU_SRC=$$i OUT=/tmp/freechains-tst all && /tmp/freechains-tst || exit 1; \
 		if [ "$$i" = "tst/tst-30.ceu" ]; then break; fi; \
 	done
+
+milter:
+	sudo rm -f /var/spool/postfix/milters/freechains.milter
+	./milter chico /tmp/fc-02/fifo.in &
+	sleep 1
+	sudo chmod 777 /var/spool/postfix/milters/freechains.milter
 
 fcfs:
 	cd $(CEU_DIR) && make CEU_SRC=$(CEU_FCFS_DIR)/bbfs.ceu CC_ARGS="-I$(CEU_FCFS_DIR)/ -D_FILE_OFFSET_BITS=64 -lfuse" one
