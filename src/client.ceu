@@ -263,7 +263,9 @@ do
             _ceu_assert(p?, "bug found");
         end
     end
-    _dbg(0, "client:%p | broadcasting messages to %d peer(s)", {&_ceu_mem}, ps_ok);
+    var[] byte id = [] .. [[ THIS.chain.id ]];
+    id = id .. [0];
+    _dbg(0, "client:%p | broadcasting %s messages to %d peer(s)", {&_ceu_mem}, &&id[0], ps_ok);
     var&? PeerSend p;
     loop p in peers do
         await p;

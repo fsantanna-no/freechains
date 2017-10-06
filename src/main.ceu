@@ -40,8 +40,10 @@ par do
 _printf(">>> SHARED.OK %d %d %d\n", msg, err, ret);
             if not err then
                 _ceu_assert(msg == {MESSAGE10}, "bug found");
-                [[ print('>>> PENDING >>>', ARGS.chain.id) ]];
-                [[ main.pending[#main.pending+1] = ARGS.chain ]];
+                if ret == {MESSAGE10_OK} then
+                    [[ print('>>> PENDING >>>', ARGS.chain.id) ]];
+                    [[ main.pending[#main.pending+1] = ARGS.chain ]];
+                end
             end
         end
     end
@@ -71,13 +73,13 @@ _printf(">>> SHARED.OK %d %d %d\n", msg, err, ret);
         [[
             _, _, OUTPUT = table.unpack(arg)
             local f = assert(io.open(OUTPUT, 'a'))
-            local cur_hash = main.chain.head_hash
-            while true do
-                if cur_hash == main.chain.prv_head_hash then
-                    break   -- handled previously
+            local function out (hash)
+                if hash == main.chain.prv_head_hash then
+                    return   -- handled previously
                 end
-                local block = APP.blocks[cur_hash]
-                for _,tx in pairs(block.txs) do
+                local block = APP.blocks[hash]
+                out(block.tail_hash)
+                for _,tx in ipairs(block.txs) do
                     tx = APP.txs[tx]
                     --for k,v in pairs(tx) do
                         --print(k,v)
@@ -86,8 +88,8 @@ _printf(">>> SHARED.OK %d %d %d\n", msg, err, ret);
                     f:write(string.len(tx.payload)..'\n')
                     f:write(tx.payload)
                 end
-                cur_hash = block.tail_hash
             end
+            out(main.chain.head_hash)
             main.chain.prv_head_hash = main.chain.head_hash
             f:close()
         ]]

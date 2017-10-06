@@ -45,11 +45,18 @@ tests:
 	./freechains tst/tst-02.lua /tmp/fc-02/fifo.in /tmp/fc-02/tst-01.out &
 	sleep 1
 	./freechains tst/tst-01.lua util/milter/milter.test.out.orig /tmp/fc-01/tst-01.out
+	#
 	diff /tmp/fc-01/\|\|0\|.chain tst/\|\|0\|.chain
 	diff /tmp/fc-01/\|chico\|0\|.chain tst/\|chico\|0\|.chain
 	diff /tmp/fc-01/tst-01.out tst/tst-01.out
-	killall frechains
-	exit 1
+	#
+	diff /tmp/fc-0*/\|\|0\|.chain
+	diff /tmp/fc-0*/\|chico\|0\|.chain
+	diff /tmp/fc-0*/tst-01.out
+	#
+	killall freechains
+	#exit 1
+	#
 	for i in tst/tst-*.ceu; do                           \
 		echo;                                            \
 		echo "#####################################";    \

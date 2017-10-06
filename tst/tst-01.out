@@ -1,14 +1,4 @@
 |chico|0|
-201
-Subject: TESTE-4
-To: chico
-X-Mailer: mail (GNU Mailutils 2.99.99)
-Message-Id: <20171005121525.15B711A48AE@localhost>
-Date: Thu,  5 Oct 2017 09:15:25 -0300 (BRT)
-From: chico@localhost (chico)
-
-teste-4
-|chico|0|
 193
 Subject: TESTE-2
 From: other@other.com
@@ -28,3 +18,13 @@ Date: Thu,  5 Oct 2017 09:15:25 -0300 (BRT)
 From: chico@localhost (chico)
 
 teste-3
+|chico|0|
+201
+Subject: TESTE-4
+To: chico
+X-Mailer: mail (GNU Mailutils 2.99.99)
+Message-Id: <20171005121525.15B711A48AE@localhost>
+Date: Thu,  5 Oct 2017 09:15:25 -0300 (BRT)
+From: chico@localhost (chico)
+
+teste-4
