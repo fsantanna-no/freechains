@@ -52,13 +52,8 @@ _printf(">>> SHARED.OK %d %d %d\n", msg, err, ret);
             if has_pending then
                 break;
             else
-                await shared.ok;
-            end
-        end
-        do finalize with
-            var bool has_pending = [[ #main.pending>0 ]];
-            if not has_pending then
                 emit write_ok;
+                await shared.ok;
             end
         end
 

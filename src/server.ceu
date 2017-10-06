@@ -19,7 +19,7 @@ do
         var bool ok = ( tcp.buffer[0]==MESSAGE_MAGIC_0 and
                         tcp.buffer[1]==MESSAGE_MAGIC_1 );
 
-        var int msg = (tcp.buffer[2]<<8) + (tcp.buffer[3]<<0);
+        msg = (tcp.buffer[2]<<8) + (tcp.buffer[3]<<0);
 
         $tcp.buffer = $tcp.buffer - MESSAGE_BYTES;
 

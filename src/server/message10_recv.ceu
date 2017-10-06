@@ -536,9 +536,10 @@ with
                     block = assert(APP.blocks[chain.head_hash]),
                     chain = chain,
                 }
+                THIS = ARGS
             ]];
             await Client(&outer.shared);
-            [[ ARGS = chain ]]
+            [[ ARGS = THIS ]]
             escape/out {MESSAGE10_OK};
         //end
     end
