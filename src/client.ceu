@@ -313,7 +313,7 @@ do
 
                 assert(type(msg.chain)=='table')
 
-                chain = assert( GG.chain_parse_get(msg.chain) )
+                chain = assert(GG.chain_parse_get(msg.chain), msg.chain.id)
                 if (@i) == 0 then
                     block.chain_id = chain.id
                 else

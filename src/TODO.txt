@@ -1,3 +1,17 @@
+- em vez de mandar ACCEPT,
+    server deve mandar ultimo hash que possui e
+    client deve comecar dele e ir subindo
+    server pode fazer as verificacoes em tempo real
+    - necessita ping-pong para achar common root
+
+- na bitcoin, as TXs têm custo zero, os criadores não propoem blocos
+    - os miners tem todo o custo e incluem multiplas TXs em um unico bloco
+- acho que em FC faz sentido ter uma TX por bloco já que o custo é de quem
+    cria a TX
+- que cria a TX vai querer incuir outras TXs em sequencia para ter mais chances
+    da sua propria TX ficar numa squencia maior
+
+
 - remove await async do end do bug do Write/Read duplo
 - lock, criar abstracao
 

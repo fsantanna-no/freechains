@@ -43,6 +43,8 @@ tests:
 	mkdir /tmp/fc-01/ /tmp/fc-02/
 	mkfifo /tmp/fc-02/fifo.in
 	make milter
+	- killall freechains
+	sleep 1
 	./freechains tst/tst-02.lua /tmp/fc-02/fifo.in /tmp/fc-02/tst-01.out &
 	sleep 1
 	./freechains tst/tst-01.lua util/milter/milter.test.out.orig /tmp/fc-01/tst-01.out
@@ -55,7 +57,7 @@ tests:
 	diff /tmp/fc-0*/\|chico\|0\|.chain
 	diff /tmp/fc-0*/tst-01.out
 	#
-	killall freechains
+	- killall freechains
 	make -f util/fc2all/Makefile
 	#exit 1
 	#
@@ -69,10 +71,13 @@ tests:
 	done
 
 milter:
+	- killall milter
+	sleep 5
 	sudo rm -f /var/spool/postfix/milters/freechains.milter
-	./milter chico /tmp/fc-02/fifo.in &
-	sleep 1
+	./milter chico util/milter/FIFO &
+	sleep 2
 	sudo chmod 777 /var/spool/postfix/milters/freechains.milter
+	ls -l /var/spool/postfix/milters/freechains.milter
 
 fcfs:
 	cd $(CEU_DIR) && make CEU_SRC=$(CEU_FCFS_DIR)/bbfs.ceu CC_ARGS="-I$(CEU_FCFS_DIR)/ -D_FILE_OFFSET_BITS=64 -lfuse" one
@@ -97,10 +102,17 @@ run: fifo
 	make kill
 
 r2e:
-	cp ~/.local/share/rss2email.json /data/ceu/ceu-libuv/ceu-libuv-freechains/etc/
-	cp ~/.config/rss2email.cfg /data/ceu/ceu-libuv/ceu-libuv-freechains/etc/
-	#cp /data/ceu/ceu-libuv/ceu-libuv-freechains/etc/rss2email.json ~/.local/share/
-	cd /data/ceu/ceu-libuv/ceu-libuv-freechains/files-02 && cp \|others\|0\|.chain \|others\|0\|.chain.bak
+	make milter
+	- killall freechains
+	- pkill -9 -f fc2all
+	sleep 2
+	./freechains util/r2e/r2e.lua util/milter/FIFO util/r2e/FIFO &
+	lua5.3 util/fc2all/fc2all.lua util/r2e/r2e.lua util/r2e/FIFO &
+	sleep 2
+	cp ~/.local/share/rss2email.json util/r2e/bak/rss2email.json.`date +%Y%m%d.%s`
+	cp ~/.config/rss2email.cfg util/r2e/bak/rss2email.cfg.`date +%Y%m%d.%s`
+	- cp util/r2e/\|chico\|0\|.chain util/r2e/bak/\|chico\|0\|.chain.`date +%Y%m%d.%s`
+	- cp util/r2e/\|others\|0\|.chain util/r2e/bak/\|others\|0\|.chain.`date +%Y%m%d.%s`
 	r2e run
 
 fifo:
@@ -114,12 +126,12 @@ kill:
 	- pkill -9 -f milter
 	- pkill -9 -f freechains
 	- pkill -9 -f fc2all
-	- fusermount -u /data/tmp/mount-01
-	- fusermount -u /data/tmp/mount-02
-	- pkill -9 -f fcfs
-	- sudo umount /data/ceu/ceu-libuv/ceu-libuv-freechains/util/fcfs/mount*
+	#- fusermount -u /data/tmp/mount-01
+	#- fusermount -u /data/tmp/mount-02
+	#- pkill -9 -f fcfs
+	#- sudo umount /data/ceu/ceu-libuv/ceu-libuv-freechains/util/fcfs/mount*
 
-.PHONY: milter fcfs
+.PHONY: milter fcfs r2e
 
 # 01->32
 #real	8m57.250s
