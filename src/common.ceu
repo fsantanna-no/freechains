@@ -39,7 +39,6 @@ native/pre do
         MESSAGE10_OK = 0,
         MESSAGE10_NOTSUB,   // [ok ACK] not subscribed to this chain
         MESSAGE10_HAVE,     // [ok ACK] already has it
-        MESSAGE10_LIMIT,    // [ok ACK] too big for untrusted client
         MESSAGE10_ABORTED,  // [?? ???] aborted from external retransmit
     };
 
@@ -109,17 +108,180 @@ data SourceBlockHash.Network;
 data SourceBlockHash.File;
 data SourceBlockHash.New;
 
+code/await Publication_New (none) -> none
+    // input:  [[ ARGS={publication={TODO}} ]]
+    // output: [[ ARGS={publication={DONE}} ]]
+    throws Exception.Lua
+do
+    [[ THIS = ARGS ]];
+
+    var[HASH_BYTES] byte hash;
+    var u8 zeros = [[ THIS.chain.zeros ]];
+
+    var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
+                     [[ THIS.publication.chain.id ]]   ..
+                     [[ THIS.publication.payload ]];
+
+    // show async/thread progress
+    var int ms = 0;
+#if 1
+    spawn do
+        every 100ms do
+            ms = ms + 100;
+            _printf(".");
+            _fflush(_stdout);
+        end
+    end
+#endif
+
+#if 1
+    await async/thread (zeros,pln,hash)
+#endif
+    do
+        var u64 timestamp = [[ THIS.publication.timestamp ]];
+        var u64 nonce     = [[ THIS.publication.nonce     ]];
+
+        var u64 n = do
+            var u64 n_ = 0;
+            var u64 i;
+            loop i in [timestamp -> 0xFFffFFffFFffFFff] do
+                PUT_HTOBE64(pln, 0, timestamp);
+
+                var u64 j;
+                loop j in [nonce -> 0xFFffFFffFFffFFff] do
+                    PUT_HTOBE64(pln, sizeof(u64), nonce);
+
+                    _ceu_assert(n_ < 0xFFffFFffFFffFFff);
+                    n_ = n_ + 1;
+
+                    _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
+                    if zeros <= _leading_zeros(&&hash[0],HASH_BYTES) then
+                        [[
+                            THIS.publication.timestamp = @i
+                            THIS.publication.nonce     = @j
+                            THIS.publication.hash      = @hash
+                        ]];
+                        escape n_;
+                    end
+                end
+            end
+            _ceu_assert(0, "bug found");
+        end;
+        _dbg(0, "client: POW rounds: %d\n", n);
+    end
+
+    [[ ARGS = THIS ]];
+end
+
+code/await Publication_Check (var SourceBlockHash source) -> none
+    // input:  [[ ARGS={publication={DONE}} ]]
+    // output: [[ ARGS={publication={DONE}} ]]
+    throws Exception.Lua, Exception.Freechains.Malformed
+do
+    [[ THIS = ARGS ]];
+
+    var[HASH_BYTES] byte hash  = [] .. [[ THIS.publication.hash ]];
+
+    var u8 zeros = [[ THIS.chain.zeros ]];
+    if zeros > _leading_zeros(&&hash[0],HASH_BYTES) then
+        var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+        throw e;
+    end
+
+    var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
+                     [[ THIS.publication.chain.id ]]   ..
+                     [[ THIS.publication.payload ]];
+    var u64 timestamp = [[ THIS.publication.timestamp ]];
+    var u64 nonce     = [[ THIS.publication.nonce     ]];
+    PUT_HTOBE64(pln, 0, timestamp);
+    PUT_HTOBE64(pln, sizeof(u64), nonce);
+
+    _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
+    var bool ok = [[ THIS.publication.hash == @hash ]];
+    if not ok then
+        var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+        throw e;
+    end
+
+    [[ ARGS = THIS ]];
+end
+
+code/await Block_New (none) -> none
+    // input:  [[ ARGS={block={TODO}} ]]
+    // output: [[ ARGS={block={DONE}} ]]
+    throws Exception.Lua
+do
+    [[ THIS = ARGS ]];
+
+    var[HASH_BYTES] byte hash;
+    var u8 zeros = [[ THIS.block.chain.zeros ]];
+
+    var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
+                     [[ THIS.block.publication.hash ]]   ..
+                     [[ THIS.block.prv.hash ]];
+
+    // show async/thread progress
+    var int ms = 0;
+#if 1
+    spawn do
+        every 100ms do
+            ms = ms + 100;
+            _printf(".");
+            _fflush(_stdout);
+        end
+    end
+#endif
+
+#if 1
+    await async/thread (zeros,pln,hash)
+#endif
+    do
+        var u64 timestamp = [[ THIS.block.timestamp ]];
+        var u64 nonce     = [[ THIS.block.nonce     ]];
+
+        var u64 n = do
+            var u64 n_ = 0;
+            var u64 i;
+            loop i in [timestamp -> 0xFFffFFffFFffFFff] do
+                PUT_HTOBE64(pln, 0, timestamp);
+
+                var u64 j;
+                loop j in [nonce -> 0xFFffFFffFFffFFff] do
+                    PUT_HTOBE64(pln, sizeof(u64), nonce);
+
+                    _ceu_assert(n_ < 0xFFffFFffFFffFFff);
+                    n_ = n_ + 1;
+
+                    _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
+                    if zeros <= _leading_zeros(&&hash[0],HASH_BYTES) then
+                        [[
+                            THIS.block.timestamp = @i
+                            THIS.block.nonce     = @j
+                            THIS.block.hash      = @hash
+                        ]];
+                        escape n_;
+                    end
+                end
+            end
+            _ceu_assert(0, "bug found");
+        end;
+        _dbg(0, "client: POW rounds: %d\n", n);
+    end
+
+    [[
+        THIS.block.chain.head.nxt = THIS.block
+        THIS.block.chain.head = THIS.block
+        ARGS = THIS
+    ]];
+end
+
 code/await BlockHash (var SourceBlockHash source) -> none
-    // input  [[ ARGS = { block={ txs={ tx1, tx2, ... } } }
-    // output [[ ARGS = { block={ txs={ tx1_hash, tx2_hash, ... } } }
-    // output [[ APP.block[hash]=blk APP.txs[hash]=txs ]]
+    // input:  [[ ARGS={block={TODO}} ]]
+    // output: [[ ARGS={block={DONE}} ]]
     throws Exception.Lua, Exception.Freechains.Malformed
 do
     [[
-        THIS = {
-            block = ARGS.block,
-            chain = APP.chains[ARGS.block.chain_id],
-        }
+        THIS = ARGS
     ]];
 
     var bool is_genesis = false;
@@ -220,10 +382,10 @@ _ceu_assert(0, "bug found");
             var[HASH_BYTES] byte tx_hash;
 
             var usize len = $pln;
-            var[] byte plain2 = []..pln;
+            var[] byte pln = []..pln;
 
 #if 1
-            await async/thread (pln,plain2,len,tx_hash,zeros_wanted)
+            await async/thread (pln,pln,len,tx_hash,zeros_wanted)
 #endif
             do
                 var[HASH_BYTES] _byte tx_hash2 = _;
@@ -248,18 +410,18 @@ _ceu_assert(0, "bug found");
                     loop b12 in [0->256[ do loop b13 in [0->256[ do
                     loop b14 in [0->256[ do loop b15 in [0->256[ do
                         n_ = n_ + 1;
-                        plain2[ 0]=b00; plain2[ 1]=b01; plain2[ 2]=b02; plain2[ 3]=b03;
-                        plain2[ 4]=b04; plain2[ 5]=b05; plain2[ 6]=b06; plain2[ 7]=b07;
-                        plain2[ 8]=b08; plain2[ 9]=b09; plain2[10]=b10; plain2[11]=b11;
-                        plain2[12]=b12; plain2[13]=b13; plain2[14]=b14; plain2[15]=b15;
+                        pln[ 0]=b00; pln[ 1]=b01; pln[ 2]=b02; pln[ 3]=b03;
+                        pln[ 4]=b04; pln[ 5]=b05; pln[ 6]=b06; pln[ 7]=b07;
+                        pln[ 8]=b08; pln[ 9]=b09; pln[10]=b10; pln[11]=b11;
+                        pln[12]=b12; pln[13]=b13; pln[14]=b14; pln[15]=b15;
                         _crypto_generichash(&&tx_hash2[0], HASH_BYTES,
-                                            &&plain2[0], len,
+                                            &&pln[0], len,
                                             null, 0);
                         zeros_found = _leading_zeros(&&tx_hash2[0], HASH_BYTES);
                         if zeros_found >= zeros_wanted then
                             atomic do
                                 _ceu_vector_buf_set(&&pln, 0,
-                                                    &&plain2[0], len*sizeof(byte));
+                                                    &&pln[0], len*sizeof(byte));
                                 _ceu_vector_setlen(&&tx_hash,HASH_BYTES,1);
                                 _ceu_vector_buf_set(&&tx_hash, 0,
                                                     &&tx_hash2[0], HASH_BYTES*sizeof(byte));
@@ -545,7 +707,7 @@ do
     end
 
     // <= (append)
-    var& UV_FS_Open o = spawn UV_FS_Open(&&path[0], _, _O_APPEND|_O_WRONLY, 0);
+    var& UV_FS_Open o = spawn UV_FS_Open(&&path[0], 128000, _O_APPEND|_O_WRONLY, 0);
     await o.file.ok;
     _ceu_assert(o.file.handle >= 0, "bug found");
 
