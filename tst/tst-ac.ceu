@@ -129,10 +129,10 @@ end
 
 var int ms = [[ #APP.messages ]];
 var int i;
-loop i in [0 -> ms[ do
+loop i in [1 -> ms] do
     [[
         THIS = {}
-        msg = APP.messages[@i+1]
+        msg = APP.messages[@i]
         THIS.publication = {
             chain     = assert(GG.chain_parse_get(msg.chain), msg.chain.id),
             timestamp = 0,    -- TODO: 64-bit timestamp

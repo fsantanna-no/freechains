@@ -194,9 +194,9 @@ do
     var int ps_ok = 0;
     var int i;
     pool[] Peer_10 peers;
-    loop i in [0 -> ps[ do
+    loop i in [1 -> ps] do
         [[
-            peer = APP.client.peers[@(i+1)]
+            peer = APP.client.peers[@i]
             ok = false
             for _, chain in pairs(peer.chains) do
                 if chain.key==THIS.chain.key and
@@ -244,14 +244,14 @@ do
     end
 
     var int i;
-    loop i in [0 -> ms[ do
+    loop i in [1 -> ms] do
         [[
-            msg = APP.messages[@i+1]
+            msg = APP.messages[@i]
             assert(type(msg)=='table')
             assert(type(msg.chain)=='table')
         ]];
 
-        var bool is_10 = [[ APP.messages[@i+1].version=='1.0' ]];
+        var bool is_10 = [[ APP.messages[@i].version=='1.0' ]];
 
         if is_10 then
             [[
