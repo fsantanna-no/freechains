@@ -8,8 +8,9 @@ do
     var int msg = 0;
     var int ret = 0;
 
-    var Exception? e1;
-    catch e1 do
+    var Exception.Uv? e1;
+    var Exception.Freechains? e2;
+    catch e1,e2 do
         // => MESSAGE
         await UV_Stream_Read_N(&tcp, MESSAGE_BYTES);
 
@@ -36,19 +37,14 @@ do
             throw e;
         end
     end
-    if e1? and (e1! is Exception.Lua) then
-        _ceu_assert(0, e1!.message);
-    end
 
-    var Exception? e2;
-    catch e2 do
-        if e1? then
-            [[ APP.errs[#APP.errs+1] = @(e1! as int) ]];
-        else/if ret != {MESSAGE10_OK} then
-            [[ APP.errs[#APP.errs+1] = @ret ]];
-        end
+    if e1? then
+        [[ APP.errs[#APP.errs+1] = @(e1! as int) ]];
+    else/if e2? then
+        [[ APP.errs[#APP.errs+1] = @(e2! as int) ]];
+    else/if ret != {MESSAGE10_OK} then
+        [[ APP.errs[#APP.errs+1] = @ret ]];
     end
-    _ceu_assert(not e2?, "bug found");
 
     // [[ ARGS = { chain=? } ]]
     emit shared.ok(msg,e1?,ret);

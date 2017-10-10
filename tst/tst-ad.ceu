@@ -74,6 +74,7 @@ end
         hash        = nil,
         prv         = nil,
         nxt         = nil,
+        length      = nil,
     }
     FIRST = THIS.block
 ]]
@@ -154,6 +155,7 @@ loop i in [1 -> ms] do
             hash        = nil,
             prv         = nil,
             nxt         = nil,
+            length      = nil,
         }
         ARGS = THIS
     ]]
@@ -228,7 +230,7 @@ loop i in [1 -> ms] do
     await Publication_New();
     [[
         THIS.block = {
-            version = '1.0',
+            version     = '1.0',
             timestamp   = 0,    -- TODO: 64-bit timestamp
             nonce       = 0,
             chain       = THIS.publication.chain,
@@ -236,6 +238,7 @@ loop i in [1 -> ms] do
             hash        = nil,
             prv         = THIS.cur,
             nxt         = nil,
+            length      = @i,
         }
         if THIS.cur then
             THIS.cur.nxt = THIS.block
@@ -308,7 +311,7 @@ await Chain_Fork();
 [[
     THIS = {
         fst = nil,
-        cur = nil,
+        cur = FIRST.nxt.nxt.nxt,
     }
 ]]
 
@@ -337,11 +340,12 @@ loop i in [1 -> ms] do
             hash        = nil,
             prv         = THIS.cur,
             nxt         = nil,
+            length      = THIS.cur.length + 1,
         }
-        if THIS.cur then
-            THIS.cur.nxt = THIS.block
-        else
+        if @i == 1 then
             THIS.fst = THIS.block
+        else
+            THIS.cur.nxt = THIS.block
         end
         THIS.cur = THIS.block
         ARGS = THIS

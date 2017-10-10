@@ -111,7 +111,6 @@ data SourceBlockHash.New;
 code/await Publication_New (none) -> none
     // input:  [[ ARGS={publication={TODO}} ]]
     // output: [[ ARGS={publication={DONE}} ]]
-    throws Exception.Lua
 do
     [[ THIS = ARGS ]];
 
@@ -181,7 +180,7 @@ end
  */
 code/await Publication_Check (none) -> none
     // input: [[ ARGS={publication={DONE}} ]]
-    throws Exception.Lua, Exception.Freechains.Malformed
+    throws Exception.Freechains.Malformed
 do
     [[ THIS = ARGS ]];
 
@@ -214,9 +213,14 @@ end
 code/await Block_Hash (none) -> none
     // input:  [[ ARGS={block={TODO}} ]]
     // effect: [[ ARGS={block={DONE}} ]]
-    throws Exception.Lua
 do
     [[ THIS = ARGS ]];
+
+    [[
+        --print('>>>', THIS.block.length, THIS.block.prv and THIS.block.prv.length)
+        assert(THIS.block.length==1 or
+               THIS.block.prv and (THIS.block.prv.length==THIS.block.length-1))
+    ]]
 
     var[HASH_BYTES] byte hash;
     _ceu_vector_setlen(&&hash, HASH_BYTES, 1);
@@ -286,14 +290,15 @@ end
 code/await Block_Hash_Link (none) -> none
     // input:  [[ ARGS={block={TODO}} ]]
     // effect: [[ ARGS={block={DONE}} ]]
-    throws Exception.Lua
 do
     [[ THIS = ARGS ]]
 
     [[
         assert(not THIS.block.prv)
         assert(not THIS.block.nxt)
+        assert(not THIS.block.length)
         THIS.block.prv = THIS.block.chain.head
+        THIS.block.length = (THIS.block.prv and THIS.block.prv.length+1) or 1
     ]]
 
     [[ ARGS = THIS ]]
@@ -313,7 +318,7 @@ end
  */
 code/await Block_Check (none) -> none
     // input: [[ ARGS={block={DONE}} ]]
-    throws Exception.Lua, Exception.Freechains.Malformed
+    throws Exception.Freechains.Malformed
 do
     [[ THIS = ARGS ]];
 
@@ -351,7 +356,6 @@ end
 
 code/await Chain_Fork (none) -> none
     // input:  [[ ARGS={from=., to={first=.,last=.} ]]
-    throws Exception.Lua
 do
     [[
         THIS = ARGS
@@ -369,7 +373,7 @@ do
 
         [[
             THIS.block = {
-                version = '1.0',
+                version     = '1.0',
                 timestamp   = 0,    -- TODO: 64-bit timestamp
                 nonce       = 0,
                 chain       = THIS.from.chain,
@@ -377,6 +381,7 @@ do
                 hash        = nil,
                 prv         = nil,
                 nxt         = nil,
+                length      = nil,
             }
             ARGS = THIS
         ]]
@@ -389,7 +394,7 @@ end
 code/await BlockHash (var SourceBlockHash source) -> none
     // input:  [[ ARGS={block={TODO}} ]]
     // output: [[ ARGS={block={DONE}} ]]
-    throws Exception.Lua, Exception.Freechains.Malformed
+    throws Exception.Freechains.Malformed
 do
     [[
         THIS = ARGS
@@ -632,7 +637,7 @@ _ceu_assert(0, "bug found");
 end
 
 code/await FS_read_10 (var&[] byte path) -> none
-    throws Exception.Lua, Exception.Uv, Exception.Freechains.Malformed
+    throws Exception.Uv, Exception.Freechains.Malformed
     // output [[ ARGS = { chain_id, head_hash } ]]
 do
     [[
@@ -783,7 +788,6 @@ do
 end
 
 code/await Chain_Lock (var& UV_TCP_Server_Data shared) -> NEVER
-    throws Exception.Lua
 do
     [[ THIS = ARGS ]]
     var bool is_locked = [[ THIS.chain.is_locked ]];
@@ -805,7 +809,7 @@ do
 end
 
 code/await FS_write_10 (var&[] byte path) -> none
-    throws Exception.Lua, Exception.Uv
+    throws Exception.Uv
     // input [[ ARGS = { chain_id } ]]
 do
 #if 0
@@ -951,8 +955,8 @@ end
 #include "server.ceu"
 #include "uv/tcp-server.ceu"
 
-code/await Init (var& UV_TCP_Server_Data shared) -> none
-    throws Exception.Lua, Exception.Freechains.Malformed
+code/await Init (none) -> none
+    throws Exception.Freechains.Malformed
 do
     [[
         THIS = {}
@@ -969,6 +973,19 @@ do
 
             path = APP.chains.files..'/'..THIS.chain.id..'.chain'
         ]]
+
+        do
+            var[HASH_BYTES] byte chain_hash;
+            _ceu_vector_setlen(&&chain_hash, HASH_BYTES, 1);
+            var[] byte chain_id = [] .. [[ THIS.chain.id ]];
+            _crypto_generichash(&&chain_hash[0],HASH_BYTES, &&chain_id[0],$chain_id, null,0);
+            [[
+                THIS.chain.hash = @chain_hash
+            ]]
+        end
+
+// TODO: FS_*
+#if 0
         var[] byte path = [] .. [[path]] .. [0];
         var Exception? e;
         catch e do
@@ -982,44 +999,8 @@ do
             ]];
         else
             //_dbg(0, "main: file not found: %s", &&path[0]);
-            [[
-                THIS.publication = {
-                    chain     = THIS.chain,
-                    timestamp = 0,
-                    nonce     = 0,
-                    payload   = '',
-                    hash      = nil,
-                }
-                ARGS = THIS
-            ]]
-            await Publication_New();
-            do
-                [[ ARGS = THIS ]];
-                spawn Chain_Lock(&shared);
-                [[
-                    THIS.block = {
-                        version = '1.0',
-                        timestamp   = 0,
-                        nonce       = 0,
-                        chain       = THIS.publication.chain,
-                        publication = THIS.publication,
-                        hash        = nil,
-                        prv         = nil,
-                        nxt         = nil,
-                    }
-                    ARGS = THIS
-                ]]
-                await Block_Hash_Link();
-                [[
-                    ARGS = THIS
-                ]];
-                await Client_10(&shared);
-            end
-            [[
-                ARGS = THIS
-            ]]
-            emit shared.ok({MESSAGE10}, false, {MESSAGE10_OK});
         end
+#endif
     end
 end
 

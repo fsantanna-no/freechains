@@ -26,7 +26,7 @@ par/and do
             }
 
             MESSAGE {
-                id = '1.0',
+                version = '1.0',
                 chain = {
                     key   = '',
                     zeros = 0,
@@ -37,9 +37,9 @@ Ola Mundo!
             }
         ]=];
 
-        var UV_TCP_Server_Data shared = _;
-        await Init(&shared);
+        await Init();
         await 100ms;
+        var UV_TCP_Server_Data shared = _;
         await ClientMessages(&shared);
 
         [[
@@ -67,13 +67,13 @@ with
             }
         ]];
 
-        var UV_TCP_Server_Data shared = _;
-        await Init(&shared);
+        await Init();
 
         var[] byte ip      = [] .. [[ APP.server.host[1] ]] .. [0];
         var   int  port    = [[ APP.server.host[2] ]];
         var   int  backlog = [[ APP.server.backlog ]];
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
+        var UV_TCP_Server_Data shared = _;
         spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
 
         await shared.ok;

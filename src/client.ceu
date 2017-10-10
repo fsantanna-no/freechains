@@ -3,7 +3,7 @@
 
 code/await Send_10 (var& UV_Stream tcp) -> none
     // [[ ARGS = { chain={...} } ]]
-    throws Exception.Lua, Exception.Uv, Exception.Freechains.Malformed
+    throws Exception.Uv, Exception.Freechains.Malformed
 do
     [[ THIS = ARGS ]]
 
@@ -23,7 +23,7 @@ do
             var u8     zeros   = [[ THIS.chain.zeros ]];
             var[] byte key_str = [] .. [[ THIS.chain.key ]];
             var u8     key_len = [[ string.len(THIS.chain.key) ]];
-            var u64    length  = [[ THIS.chain.length ]];
+            var u64    length  = [[ THIS.chain.head.length ]];
             _ceu_assert(key_len<CHAIN_KEY_BYTES, "bug found");
             tcp.buffer = tcp.buffer .. [key_len as byte] .. key_str .. [zeros as byte] .. [0,0,0,0,0,0,0,0];
             PUT_HTOBE64(tcp.buffer, $tcp.buffer-sizeof(u64), length);
@@ -35,6 +35,7 @@ do
         do/_
             await UV_Stream_Read_N(&tcp, 1);
             var byte ret = tcp.buffer[0];
+            $tcp.buffer = $tcp.buffer - 1;
 
             _dbg_tcp(0, &&tcp.handle, "client", "=> ACK-header = %d", ret);
 
@@ -51,34 +52,40 @@ do
 
     ///////////////////////////////////////////////////////////////////////////
     // BLOCKS
-    // - first, sends hashes from head -> genesis until finds common block
-    // - then, sends from common.nxt -> head
+    // - first, reads hashes from head -> genesis until finds common block
+    // - then, writes from common.nxt -> head
     ///////////////////////////////////////////////////////////////////////////
 
     // TODO: PoS: before/after each block? once per block?
 
-    [[ THIS.block = THIS.chain.head ]];
-
     loop do
-        // <= HASH
-        tcp.buffer = [] .. [[ THIS.block.hash ]];
-        await UV_Stream_Write_N(&tcp, _);
-
-        // => ACK-HASH
-        await UV_Stream_Read_N(&tcp, 1);
-        var byte ret = tcp.buffer[0];
-        if ret == {MESSAGE10_HAVE} then
+        // => HASH
+_printf("aaa\n");
+        await UV_Stream_Read_N(&tcp, HASH_BYTES);
+_printf("bbb\n");
+        [[
+            block = GG.chain_block(THIS.chain,@tcp.buffer)
+        ]]
+        var bool has = [[ block~=nil ]];
+        var int ret = do
+            if has then
+                escape {MESSAGE10_HAVE};
+            else
+                escape {MESSAGE10_OK};
+            end
+        end;
+        tcp.buffer = [ret];
+        // <= ACK-HASH
+        await UV_Stream_Write_N(&tcp,_);
+        if has then
+            [[
+                THIS.common = block
+            ]]
             break;
-        else/if ret == {MESSAGE10_OK} then
-            // continue
-        else
-            var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
-            throw e;
         end
-        [[ THIS.block = THIS.block.prv ]];
     end
 
-    [[ THIS.block = THIS.block.nxt ]];
+    [[ THIS.cur = THIS.common.nxt ]];
 
     var int i;
     loop i do
@@ -87,13 +94,13 @@ do
         // <= PUBLICATION_HASH
         // <= PRV_HASH
         do
-            tcp.buffer = [] .. [[ THIS.block.hash ]] .. 
+            tcp.buffer = [] .. [[ THIS.cur.hash ]] .. 
                                [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                               [[ THIS.block.publication.hash ]] ..
-                               [[ THIS.block.prv.hash ]];
+                               [[ THIS.cur.publication.hash ]] ..
+                               [[ THIS.cur.prv.hash ]];
 
-            var u64 timestamp = [[ THIS.block.timestamp ]];
-            var u64 nonce     = [[ THIS.block.nonce     ]];
+            var u64 timestamp = [[ THIS.cur.timestamp ]];
+            var u64 nonce     = [[ THIS.cur.nonce     ]];
             PUT_HTOBE64(tcp.buffer, 0, timestamp);
             PUT_HTOBE64(tcp.buffer, sizeof(u64), nonce);
 
@@ -142,8 +149,8 @@ do
         end
 */
 
-        [[ THIS.block = THIS.block.nxt ]];
-        var bool should_stop = [[ THIS.block==nil ]];
+        [[ THIS.cur = THIS.cur.nxt ]];
+        var bool should_stop = [[ THIS.cur==nil ]];
         if should_stop then
             break;
         end
@@ -151,7 +158,6 @@ do
 end
 
 code/await Peer_10 (none) -> none
-    throws Exception.Lua
     // [[ ARGS = { peer={...}, chain={...} } ]]
 do
     [[ THIS = ARGS ]];
@@ -165,8 +171,9 @@ end
     var   int  port = [[ THIS.peer.host[2] ]];
     _dbg(2, "client:%p | connecting to %s:%d", {&_ceu_mem}, &&ip[0], port);
 
-    var Exception? e;
-    catch e do
+    var Exception.Uv? e1;
+    var Exception.Freechains? e2;
+    catch e1,e2 do
         var& UV_TCP_Connect c = spawn UV_TCP_Connect(&&ip[0], port, _);
 
         do finalize with
@@ -179,13 +186,14 @@ end
         [[ ARGS = THIS ]]
         await Send_10(&c.stream);
     end
-    if e? then
-        _dbg(3, "client:%p | %s", {&_ceu_mem}, e!.message);
+    if e1? then
+        _dbg(3, "client:%p | %s", {&_ceu_mem}, e1!.message);
+    else/if e2? then
+        _dbg(3, "client:%p | %s", {&_ceu_mem}, e2!.message);
     end
 end
 
 code/await Client_10 (var& UV_TCP_Server_Data shared) -> none
-    throws Exception.Lua
     // [[ ARGS = { chain={...} } ]]
 do
     [[ THIS = ARGS ]];
@@ -232,7 +240,7 @@ do
 end
 
 code/await ClientMessages (var& UV_TCP_Server_Data shared) -> none
-    throws Exception.Lua, Exception.Freechains.Unsupported
+    throws Exception.Freechains.Unsupported
 do
     var int ms = [[ #APP.messages ]];
     _ceu_assert(ms > 0, "no messages to client");
@@ -271,7 +279,7 @@ do
                 spawn Chain_Lock(&shared);
                 [[
                     THIS.block = {
-                        version = '1.0',
+                        version     = '1.0',
                         timestamp   = 0,    -- TODO: 64-bit timestamp
                         nonce       = 0,
                         chain       = THIS.publication.chain,
@@ -279,6 +287,7 @@ do
                         hash        = nil,
                         prv         = nil,
                         nxt         = nil,
+                        length      = nil,
                     }
                     ARGS = THIS
                 ]]

@@ -6,7 +6,7 @@
         files = 'tst/files/',
         {
             key   = '',     -- global chain (cannot be signed)
-            zeros = 39,      -- receive messages with 0 leading zeros in the hash
+            zeros = 36,      -- receive messages with 0 leading zeros in the hash
             id    = nil,    -- concat of key..zeros
             head  = nil,    -- hash of newest block
             -- TODO: mode 'pub,sub,pub/sub'
@@ -113,7 +113,7 @@ end
         id = '1.0',
         chain = {
             key   = '',
-            zeros = 39,
+            zeros = 36,
         },
         payload = '222',
     }
@@ -121,7 +121,7 @@ end
         id = '1.0',
         chain = {
             key   = '',
-            zeros = 39,
+            zeros = 36,
         },
         payload = '333',
     }

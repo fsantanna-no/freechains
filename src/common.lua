@@ -39,9 +39,7 @@ function CHAINS (t)
     }
     for _,chain in ipairs(t) do
         for i=chain.zeros,255 do
-            local new = {
-                publications_pending = {},
-            }
+            local new = {}
             for k,v in pairs(chain) do new[k]=v end
             new.zeros = i
             local c = GG.chain_parse_get(new)

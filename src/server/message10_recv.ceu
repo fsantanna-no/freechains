@@ -3,7 +3,7 @@
 
 code/await Message10_header_recv (var& UV_Stream tcp) -> int
     throws Exception.Uv
-    // output: THIS = { chain=... }
+    // output: THIS = { chain=.,length=. }
 do
     // => CHAIN_KEY_LEN
     // => CHAIN_KEY_STR
@@ -55,8 +55,9 @@ do
             escape {MESSAGE10_NOTSUB};
         end
 
-        var bool is_lengthier = [[ THIS.chain.length >= @length ]];
-        if is_lengthier then
+// TODO: should be >, untie requires reading hashes
+        var bool me_lengthier = [[ (THIS.chain.head and THIS.chain.head.length or 0) >= THIS.length ]];
+        if me_lengthier then
             escape {MESSAGE10_HAVE};
         end
     end
@@ -169,7 +170,9 @@ if ret=={MESSAGE10_NOTSUB} or ret=={MESSAGE10_HAVE} then
 end
 
 [[ ARGS = THIS ]];
-await Chain_Lock(&outer.shared);
+_printf("AAA\n");
+spawn Chain_Lock(&outer.shared);
+_printf("BBB\n");
 
 {SERVERS_ALIVE++;}
 do finalize with
@@ -180,50 +183,50 @@ end
     THIS.fork = nil
 ]];
 
-// FINDS COMMON BLOCK DOWNWARDS
+///////////////////////////////////////////////////////////////////////////
+// BLOCKS
+// - first, sends hashes from head -> genesis until finds common block
+// - then, receives from common.nxt -> head
+///////////////////////////////////////////////////////////////////////////
 
-var u64 len;
-loop len do
-    await UV_Stream_Read_N(&outer.tcp, HASH_BYTES);
-    [[
-        block = GG.chain_block(THIS.chain,@outer.tcp.buffer)
-    ]]
-    var bool has = [[ block~=nil ]];
-    var int ret = do
-        if has then
-            escape {MESSAGE10_HAVE};
-        else
-            escape {MESSAGE10_OK};
-        end
-    end;
-    outer.tcp.buffer = [ret];
-    await UV_Stream_Write_N(&outer.tcp,_);
-    if has then
-        [[
-            THIS.fork  = block.nxt
-            THIS.block = block
-        ]]
+[[ THIS.common = THIS.chain.head ]];
+loop do
+    // <= HASH
+    outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.common.hash ]];
+    await UV_Stream_Write_N(&outer.tcp, _);
+
+    // => ACK-HASH
+    await UV_Stream_Read_N(&outer.tcp, 1);
+    var byte ret = outer.tcp.buffer[0];
+    if ret == {MESSAGE10_HAVE} then
         break;
+    else/if ret == {MESSAGE10_OK} then
+        // continue
+    else
+        var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+        throw e;
     end
+    [[ THIS.common = THIS.common.prv ]];
 end
-
-// TODO verify len
 
 // RECEIVE ALL BLOCKS
 
+[[ THIS.cur = nil ]]
+var u64 length = [[ THIS.length-THIS.common.length ]];
 var u64 i;
-loop i in [0 -> len[ do
+loop i in [1 -> length] do
 {BLOCKS_RECEIVED++;}
     [[
-        THIS.block = {
+        THIS.cur = {
             version = '1.0',
             timestamp   = nil,
             nonce       = nil,
             chain       = THIS.chain,
             publication = nil,
             hash        = nil,
-            prv         = THIS.block,
+            prv         = THIS.cur or THIS.common,
             nxt         = nil,
+            length      = THIS.common.length+@i,
         }
     ]];
 
@@ -232,8 +235,10 @@ loop i in [0 -> len[ do
 // TODO
     //await Block_Check();
     [[
-        THIS.chain.head = THIS.block
-        THIS.block.prv.nxt = THIS.block
+        if THIS.chain.head.length < THIS.cur.length then
+            THIS.chain.head = THIS.cur
+        end
+        THIS.cur.prv.nxt = THIS.cur
     ]];
 end
 
@@ -259,6 +264,7 @@ loop do
             hash        = nil,
             prv         = nil,
             nxt         = nil,
+                length      = error'oi',
         }
         ARGS = THIS
     ]]
