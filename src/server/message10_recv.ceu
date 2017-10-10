@@ -3,9 +3,8 @@
 
 code/await Message10_header_recv (var& UV_Stream tcp) -> int
     throws Exception.Uv
+    // output: THIS = { chain=... }
 do
-    [[ THIS = ARGS ]]
-
     // => CHAIN_KEY_LEN
     // => CHAIN_KEY_STR
     // => CHAIN_ZEROS
@@ -30,229 +29,118 @@ do
         // zeros
         await UV_Stream_Read_N(&tcp, 1);
         var byte zeros = tcp.buffer[0];
-        _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_ZEROS   = %d",  zeros);
+        _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_ZEROS   = %d", zeros);
         $tcp.buffer = $tcp.buffer - 1;
 
+        // length
+        await UV_Stream_Read_N(&tcp, sizeof(u64));
+        var u64 length = GET_BE64TOH(tcp.buffer,0);
+        _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_LENGTH  = %ld", length);
+        $tcp.buffer = $tcp.buffer - sizeof(u64);
+
         [[
-            THIS.chain = GG.chain_parse_get( {
-                key   = @key_str,
-                zeros = @zeros,
-            } )
+            THIS = {
+                length = @length,
+                chain = GG.chain_parse_get( {
+                    key   = @key_str,
+                    zeros = @zeros,
+                } )
+            }
+            ARGS = THIS
         ]];
 
         var bool is_sub = [[ THIS.chain ~= nil ]];
         _dbg_tcp(2, &&tcp.handle, "server", "is_sub      = %d", is_sub);
         if not is_sub then
-            escape {MESSAGE10_NOTSUB};    // OK ACK
+            escape {MESSAGE10_NOTSUB};
+        end
+
+        var bool is_lengthier = [[ THIS.chain.length >= @length ]];
+        if is_lengthier then
+            escape {MESSAGE10_HAVE};
         end
     end
 
     escape {MESSAGE10_OK};
 end
 
-code/await Message10_block_recv (var& UV_Stream tcp) -> int
+code/await Message10_block_recv (var& UV_Stream tcp) -> none
+    // input: { chain={...}, block={TODO} }
     throws Exception.Uv
 do
     [[ THIS = ARGS ]];
 
-    // => BLOCK_HASH
-    // => BLOCK_TXS_N
-    do
-        // hash
-        await UV_Stream_Read_N(&tcp, HASH_BYTES);
+    // => HASH
+    await UV_Stream_Read_N(&tcp, HASH_BYTES);
 
-        var[HASH_BYTES] byte hash;
-        _ceu_vector_setlen(&&hash, HASH_BYTES, 1);
-        _ceu_vector_buf_set(&&hash, 0, &&tcp.buffer[0], HASH_BYTES);
-        $tcp.buffer = $tcp.buffer - HASH_BYTES;
-
-        do
-            var[] byte str = [] .. [[ tostring2(@hash) ]] .. [0];
-            _dbg_tcp(3, &&tcp.handle, "server", "=> BLOCK_HASH : %s", &&str[0]);
-        end
-
-        // txs_n
-        await UV_Stream_Read_N(&tcp, sizeof(u32));
-        var u32 txs_n = GET_HOST_U32(tcp.buffer, 0);
-        $tcp.buffer = $tcp.buffer - sizeof(u32);
-        _dbg_tcp(0, &&tcp.handle, "server", "=> BLOCK_TXS_N : %d", txs_n);
-
-        [[
-            THIS.block.hash = @hash;
-            --print('[server] => BLOCK_HASH', string.len(THIS.block.hash))
-            --print(tostring2(THIS.block.hash))
-            --print('[server] => BLOCK_TXS_N', @txs_n)
-            THIS.block.txs_n = @txs_n
-        ]];
-    end
-
-    // check if block is already on chain
+    var[HASH_BYTES] byte hash;
+    _ceu_vector_setlen(&&hash, HASH_BYTES, 1);
+    _ceu_vector_buf_set(&&hash, 0, &&tcp.buffer[0], HASH_BYTES);
     [[
-        have = false
-        cur = assert( APP.blocks[ THIS.chain.head_hash ] )
-        while true do
-            if cur.hash == THIS.block.hash then
-                have = true
-                break
-            end
-            if not cur.tail_hash then
-                break
-            end
-            cur = assert(APP.blocks[cur.tail_hash])
-        end
+        THIS.block.hash = @hash;
     ]];
+    $tcp.buffer = $tcp.buffer - HASH_BYTES;
 
-    var bool have = [[ have ]];
-    if have then
-        escape {MESSAGE10_HAVE};    // OK ACK
-    else
-        escape {MESSAGE10_OK};
+    do
+        var[] byte str = [] .. [[ tostring2(THIS.block.hash) ]] .. [0];
+        _dbg_tcp(3, &&tcp.handle, "server", "=> BLOCK_HASH : %s", &&str[0]);
     end
-end
 
-code/await Message10_tx_recv (var& UV_Stream tcp) -> none
-    throws Exception.Uv
-do
-    [[ THIS = ARGS ]];
+    // => TIMESTAMP + NONCE
+    await UV_Stream_Read_N(&tcp, 2*sizeof(u64));
+    var u64 timestamp = GET_BE64TOH(tcp.buffer,0);
+    $tcp.buffer = $tcp.buffer - sizeof(u64);
+    var u64 nonce     = GET_BE64TOH(tcp.buffer,0);
+    $tcp.buffer = $tcp.buffer - sizeof(u64);
 
-    // => TX_PAYLOAD_BYTES
-    // => TX_HASH
-    do/_
-        // hash
-        await UV_Stream_Read_N(&tcp, HASH_BYTES);
+    // => PUBLICATION_HASH
+    await UV_Stream_Read_N(&tcp, HASH_BYTES);
+    var[HASH_BYTES] byte hash_publication;
+    _ceu_vector_setlen(&&hash_publication, HASH_BYTES, 1);
+    _ceu_vector_buf_set(&&hash_publication, 0, &&tcp.buffer[0], HASH_BYTES);
+    [[
+        hash_publication = @hash_publication
+    ]]
+    $tcp.buffer = $tcp.buffer - HASH_BYTES;
 
-        var[HASH_BYTES] byte hash;
-        _ceu_vector_setlen(&&hash,HASH_BYTES,1);
-        _ceu_vector_buf_set(&&hash, 0, &&tcp.buffer[0], HASH_BYTES);
+    // => PRV_HASH
+    await UV_Stream_Read_N(&tcp, HASH_BYTES);
+    var[HASH_BYTES] byte hash_prv = [] .. tcp.buffer;
+    [[
+        hash_prv = @hash_prv
+        assert(THIS.chain.head.hash == hash_prv)
+        publication = APP.publications[hash_publication]
+    ]]
 
-        $tcp.buffer = $tcp.buffer - HASH_BYTES;
-
-        var int zeros_wanted = [[ THIS.chain.zeros ]];
-        if zeros_wanted > _leading_zeros(&&hash[0],HASH_BYTES) then
-// TODO: test-case to fail here
-// TODO: also change from ">" to "!="
-_ceu_assert(0, "bug found");
-            //escape _ERR_REMOTE_BUG_OR_MALICIOUS;
+    // <= ACK-publication
+    var bool has_publication = [[ publication~=nil ]];
+    var int ret = do
+        if has_publication then
+            escape {MESSAGE10_HAVE};
+        else
+            escape {MESSAGE10_OK};
         end
+    end;
+    outer.tcp.buffer = [ret];
+    await UV_Stream_Write_N(&outer.tcp,_);
 
-        // payload_bytes
-        await UV_Stream_Read_N(&tcp, sizeof(u32));
-        var u32 payload_bytes = GET_HOST_U32(tcp.buffer, 0);
+    if has_publication then
+        [[ THIS.block.publication = publication ]]
+    else
+        // => TIMESTAMP + NONCE + LEN
+        await UV_Stream_Read_N(&tcp, 2*sizeof(u64) + sizeof(u32));
+        var u64 timestamp = GET_BE64TOH(tcp.buffer,0);
+        $tcp.buffer = $tcp.buffer - sizeof(u64);
+        var u64 nonce     = GET_BE64TOH(tcp.buffer,0);
+        $tcp.buffer = $tcp.buffer - sizeof(u64);
+        var u32 len       = GET_BE32TOH(tcp.buffer,0);
         $tcp.buffer = $tcp.buffer - sizeof(u32);
 
-        // TODO: check payload_bytes vs chain.limits
-
-        [[
-            payload_bytes = @payload_bytes
-            tx_hash = @hash;
-            --print('[server] => TX_HASH', payload_bytes)
-            --print(tostring2(tx_hash))
-
-            tx = APP.txs[tx_hash]
-            if tx == nil then
-                THIS.tx = {
-                    hash  = tx_hash,
-                    bytes = payload_bytes,
-                }
-            else
-                THIS.tx = tx
-            end
-        ]];
-        var bool have = [[ tx ~= nil ]];
-
-        // <= ACK-tx
-        do
-            if have then
-                tcp.buffer = [ {MESSAGE10_HAVE} ];
-            else
-                tcp.buffer = [ {MESSAGE10_OK}  ];
-            end
-            _dbg_tcp(0, &&tcp.handle, "server", "<= ACK-tx = %d", tcp.buffer[0]);
-            await UV_Stream_Write_N(&tcp, 1);
-        end
-
-        // HAVE_YES: next TX
-        if have then
-            escape; // {MESSAGE10_HAVE};
-        end
-    end
-    // HAVE_NO: complete TX
-
-    // => TX_COMPLETE
-    do
-        // => NONCE/TIMESTAMP: 128 bits
-        do
-            await UV_Stream_Read_N(&tcp, NONCE_BYTES);
-
-            var[NONCE_BYTES] byte nonce;
-            _ceu_vector_setlen(&&nonce,NONCE_BYTES,1);
-            _ceu_vector_buf_set(&&nonce, 0, &&tcp.buffer[0], NONCE_BYTES);
-    
-            [[ THIS.tx.nonce = @nonce ]];
-            //[[ print('NONCE', tostring2(THIS.tx.nonce)) ]];
-            //_printf("[server] => TIMESTAMP = %X\n", timestamp);
-            $tcp.buffer = $tcp.buffer - NONCE_BYTES;
-        end
-
-        // => TX_BACK_HASH
-// TODO: check back_hash
-        do
-            await UV_Stream_Read_N(&tcp, HASH_BYTES);
-
-            var[HASH_BYTES] byte back_hash;
-            _ceu_vector_setlen(&&back_hash, HASH_BYTES, 1);
-            _ceu_vector_buf_set(&&back_hash, 0, &&tcp.buffer[0], HASH_BYTES);
-
-            $tcp.buffer = $tcp.buffer - HASH_BYTES;
-            [[
-                THIS.tx.back_hash = @back_hash;
-                --print('[server] => TX_BACK_HASH')
-                --print(tostring2(THIS.tx.back_hash))
-            ]];
-
-            // [check] BACK_HASH is young enough? [ok ACK]
-            do
-#if 1
-                //_printf("TODO: BLOCK_HASH young enough?\n");
-#else
-                var int n = [[ APP.server.chains.BACK_HASH_JUMP_LIMIT ]];
-                [[ head_hash = APP.server.chains[MSG.chain.key].heads[MSG.chain.zeros] ]];
-                loop i in n do
-                    var bool is_eq = [[ head_hash == MSG.back_hash ]];
-                    if is_eq then
-                        xxx
-                    end
-                   [[ head_hash = APP ]]
-                end
-#endif
-            end
-        end
-
-        // => TX_PAYLOAD
-        do
-            var usize len = [[ THIS.tx.bytes ]];
-            await UV_Stream_Read_N(&tcp, len);
-
-            var[] byte tx_payload;
-            _ceu_vector_setlen(&&tx_payload, len, 1);
-            _ceu_vector_buf_set(&&tx_payload, 0, &&tcp.buffer[0], len);
-            [[
-                THIS.tx.payload = @tx_payload;
-                --print('[server] => PAYLOAD')
-                --print(tostring2(THIS.tx.payload))
-            ]];
-            $tcp.buffer = $tcp.buffer - len;
-        end
-
-        // => POS: TODO
-        do
-            await UV_Stream_Read_N(&tcp, 1);
-            var int pos_ = tcp.buffer[0];
-            //_printf("[server] POS = %X\n", pos_);
-            [[ THIS.tx.pos = @pos_ ]];
-            //_printf("TODO: POS matches?\n");
-            $tcp.buffer = $tcp.buffer - 1;
-        end
+        await UV_Stream_Read_N(&tcp, len as usize);
+        var[len] byte payload;
+        _ceu_vector_setlen(&&payload, len, 1);
+        _ceu_vector_buf_set(&&payload, 0, &&tcp.buffer[0], len);
+        $tcp.buffer = $tcp.buffer - (len as usize);
     end
 end
 
@@ -268,290 +156,120 @@ end
 
 // <= ACK-header
 // bytes/reader received from message partially parsed
-[[ ARGS = THIS ]]
 var int ret = await Message10_header_recv(&outer.tcp);
+[[
+    THIS = ARGS
+    assert(THIS.chain)
+]]
+outer.tcp.buffer = [ret];
+await UV_Stream_Write_N(&outer.tcp,_);
 
-if ret == {MESSAGE10_NOTSUB} then
-    outer.tcp.buffer = [ret];
-    await UV_Stream_Write_N(&outer.tcp,_);
-    escape/out ret;     // terminate if not subcribed
+if ret=={MESSAGE10_NOTSUB} or ret=={MESSAGE10_HAVE} then
+    escape/out ret;     // terminate if not subcribed or local is lengthier
 end
 
-// LOCK: only one "receive" per chain
-do/_
-    var bool is_locked = [[ THIS.chain.recv_is_locked ]];
-    if is_locked then
-        loop do
-            par/or do
-                await outer.shared.unlock;
-            with
-                await 1s;
-            end
-            is_locked = [[ THIS.chain.recv_is_locked ]];
-            if not is_locked then
-                break;
-            end
-        end
-    end
-    [[ THIS.chain.recv_is_locked = true ]];
-    do finalize with
-        [[ THIS.chain.recv_is_locked = false ]];
-        emit outer.shared.unlock;
-    end
+[[ ARGS = THIS ]];
+await Chain_Lock(&outer.shared);
 
 {SERVERS_ALIVE++;}
 do finalize with
 {SERVERS_ALIVE--;}
 end
 
-    do
-        outer.tcp.buffer = [ret];
-        await UV_Stream_Write_N(&outer.tcp,_);
-    end
+[[
+    THIS.fork = nil
+]];
 
--=-=-=-=-
+// FINDS COMMON BLOCK DOWNWARDS
 
+var u64 len;
+loop len do
+    await UV_Stream_Read_N(&outer.tcp, HASH_BYTES);
     [[
-        THIS.remote_head = nil
-        THIS.remote_base = nil
-    ]];
-
-    ///////////////////////////////////////////////////////////////////////////
-    // BLOCKS:
-    ///////////////////////////////////////////////////////////////////////////
-
-    do
-        var int i;
-        loop i do
-{BLOCKS_RECEIVED++;}
-            [[
-                THIS.previous = THIS.block
-                THIS.block = {
-                    id        = '1.0',
-                    chain_id  = THIS.chain.id,
-                    txs       = {},
-                    hash      = nil,
-                    up_hash   = nil,
-                    tail_hash = nil,
-                }
-            ]];
-
-            // <= ACK-block
-            do/_
-                [[ ARGS = THIS ]]
-                var int err2 = await Message10_block_recv(&outer.tcp);
-
-                // consolidate previous block
-                var bool ok = [[ THIS.previous ~= nil ]];
-                if ok then
-                    [[
-                        THIS.previous.tail_hash = assert(THIS.block.hash)
-                        ARGS = { block=THIS.previous }
-                    ]];
-                    await BlockHash(SourceBlockHash.Network());
-                end
-
-                _ceu_assert($outer.tcp.buffer == 0, "bug found");
-
-                //[[ print('[server] => BLOCKS['..(@i)..'] : 
-                //'..tostring2(THIS.block.hash)) ]];
-
-                do
-                    _dbg_tcp(0, &&outer.tcp.handle, "server", "<= ACK-block[%d] = %d",
-                            _ceu_uv_tcp_getsockport(&&outer.tcp.handle as _uv_tcp_t&&),
-                            _ceu_uv_tcp_getpeerport(&&outer.tcp.handle as _uv_tcp_t&&),
-                            i, err2);
-                    outer.tcp.buffer = [err2];
-                    await UV_Stream_Write_N(&outer.tcp,_);
-                end
-
-                // FOUND COMMON BLOCK?
-                if err2 == {MESSAGE10_HAVE} then
-                    if i == 0 then
-                        escape/out {MESSAGE10_HAVE};    // nothing new
-                    else
-                        escape;                         // something new, but not more
-                    end
-                end
-
-                // received at least one new block
-                [[
-                    if (@i) == 0 then
-                        THIS.remote_head = THIS.block
-                    else
-                        THIS.remote_base.tail_hash = THIS.block.hash
-                        THIS.block.up_hash = THIS.remote_base.hash
-                    end
-
-                    THIS.remote_base = THIS.block
-                ]];
-            end
-
-            ///////////////////////////////////////////////////////////////////////////
-            // TXS
-            ///////////////////////////////////////////////////////////////////////////
-
-            do/_
-                var int txs_n = [[ THIS.block.txs_n ]];
-                _dbg_tcp(0, &&outer.tcp.handle, "server", "=> %d txs (ini)", txs_n);
-                var int j;
-                loop j in [0 -> txs_n[ do
-                    _dbg_tcp(0, &&outer.tcp.handle, "server", "=> %d txs[%d]", txs_n, j);
-                    [[ ARGS = THIS ]]
-                    await Message10_tx_recv(&outer.tcp);
-                    [[
-                        THIS.block.txs[@j+1] = THIS.tx.hash
-                        THIS.block.txs[THIS.tx.hash] = THIS.tx
-                    ]];
-                end
-                _dbg_tcp(0, &&outer.tcp.handle, "server", "=> %d txs (end)", txs_n);
-            end
+        block = GG.chain_block(THIS.chain,@outer.tcp.buffer)
+    ]]
+    var bool has = [[ block~=nil ]];
+    var int ret = do
+        if has then
+            escape {MESSAGE10_HAVE};
+        else
+            escape {MESSAGE10_OK};
         end
     end;
+    outer.tcp.buffer = [ret];
+    await UV_Stream_Write_N(&outer.tcp,_);
+    if has then
+        [[
+            THIS.fork  = block.nxt
+            THIS.block = block
+        ]]
+        break;
+    end
 end
 
-// BLOCK holds the COMMON node
-[[
-    common_hash = THIS.block.hash
-    assert(THIS.remote_head and THIS.remote_base, 'ERROR-1')
-    THIS.remote_base.tail_hash = common_hash
-]];
+// TODO verify len
 
-///////////////////////////////////////////////////////////////////////////////
-// CHECK/SET NEW HEAD
-///////////////////////////////////////////////////////////////////////////////
+// RECEIVE ALL BLOCKS
 
-/*
- * LOCAL:  gen <-> 1 <-> 2 <-> 3
- *                       | LOCAL
- *                       \BASE \HEAD
- * REMOTE:         | <-  4 <-> 5 <-> 6
- *                       \BASE       \HEAD
- * common_hash:   "1"
- * (COMMON "1" still ups to LOCAL, but REMOTE tails to "1")
- */
-
-// compare chains, set longest, apply shortest
-[[
-    -- { base=?, head=?, size=? }
-    local_ = GG.chain_head_base_size(THIS.chain.head_hash)
-    remote = GG.chain_head_base_size(THIS.remote_head.hash)
-    --print('[server] LOC='..local_.size..' vs REM='..remote.size)
-
-    -- dst is the longest
-    -- src is the shortest
-    -- TODO-LEN:
-    dst, src = nil, nil
-    if remote.size > local_.size then
-        dst, src = remote, local_
-    elseif local_.size > remote.size then
-        dst, src = local_, remote
-    else
-        -- break tie on hash value of head
-        assert(remote.size == local_.size)
-        if remote.head.hash > local_.head.hash then
-            dst, src = remote, local_
-        else
-            dst, src = local_, remote
-        end
-    end
-
-    -- relink current chain's head/common if longest is remote
-    if dst == remote then
-        APP.blocks[common_hash].up_hash = THIS.remote_base.hash
-        THIS.chain.head_hash = dst.head.hash
-    else
-        --print('[server] local wins')
-        -- already ok
-    end
-
-    -- apply shortest to new block with all missing txs
-    block_new = {
-        id        = '1.0',  -- TODO
-        txs       = {},
-        up_hash   = nil,
-        chain_id  = THIS.chain.id,
-        -- set by Message10_block_parse_head
-        --tail_hash = dst.head.hash,
-        --hash      = error'TODO',
-    }
-
-    -- insert all src* txs into block_new.txs if non existent
-    cur = src.head
-    T = {}  -- txs in base->head order
-fork = 0
-    while cur.hash ~= common_hash do
-fork = fork+1
-        t = {}
-        for _, tx in ipairs(cur.txs) do
-            assert(type(tx) == 'string')
-            if not GG.chain_tx_contains(dst.head.hash,tx) then
-                t[#t+1] = tx
-            end
-        end
-        cur = assert(APP.blocks[cur.tail_hash])
-        table.insert(T, 1, t) -- inverse order
-    end
-    for _, t in ipairs(T) do
-        for _, tx in ipairs(t) do
-            block_new.txs[#block_new.txs+1] = tx
-        end
-    end
-
-    ARGS = {
-        block = block_new
-    }
-]];
-
-var int txs = [[ #block_new.txs ]];
-if txs>0 then
+var u64 i;
+loop i in [0 -> len[ do
+{BLOCKS_RECEIVED++;}
     [[
-        ARGS = { block=block_new }
+        THIS.block = {
+            version = '1.0',
+            timestamp   = nil,
+            nonce       = nil,
+            chain       = THIS.chain,
+            publication = nil,
+            hash        = nil,
+            prv         = THIS.block,
+            nxt         = nil,
+        }
     ]];
-    await BlockHash(SourceBlockHash.Network());
+
+    [[ ARGS = THIS ]]
+    await Message10_block_recv(&outer.tcp);
+// TODO
+    //await Block_Check();
     [[
-        APP.blocks[THIS.chain.head_hash].up_hash = ARGS.block.hash
-        THIS.chain.head_hash = ARGS.block.hash
-    ]]
+        THIS.chain.head = THIS.block
+        THIS.block.prv.nxt = THIS.block
+    ]];
 end
 
-var int fork = [[fork]];
-var bool is_remote = [[ dst == remote ]];
-if fork>1 and is_remote and txs>0 then
-    //_ceu_dbg_assert(has_txs);
-    _dbg_tcp(3, &&outer.tcp.handle, "server", "recreated: %d", fork);
-    {BLOCKS_RECREATED+=@fork;}
-    {TXS_RECREATED+=@txs;}
-end
-
-///////////////////////////////////////////////////////////////////////////
 // RETRANSMIT NEW HEAD
-///////////////////////////////////////////////////////////////////////////
 
-emit outer.shared.retransmit;
-par do
-    await outer.shared.retransmit;
-    escape/out {MESSAGE10_ABORTED};
-with
-    //watching outer.shared.retransmit do
-    do/_
-        // TODO: conditions to not propagate changes
-        var bool has = [[ block_new ~= dst.head ]];
-        _ceu_assert(has, "bug found");
-        //if has then
-            [[
-                chain = assert(APP.chains[THIS.chain.id])
-                ARGS = {
-                    block = assert(APP.blocks[chain.head_hash]),
-                    chain = chain,
-                }
-                THIS = ARGS
-            ]];
-            await Client(&outer.shared);
-            [[ ARGS = THIS ]]
-            escape/out {MESSAGE10_OK};
-        //end
+await Client_10(&outer.shared);
+
+// RECHAIN FORK
+
+loop do
+    var bool has = [[ THIS.fork~=nil ]];
+    if not has then
+        break;
     end
+
+    [[
+        THIS.block = {
+            version = '1.0',
+            timestamp   = 0,    -- TODO: 64-bit timestamp
+            nonce       = 0,
+            chain       = THIS.fork.chain,
+            publication = THIS.fork.publication,
+            hash        = nil,
+            prv         = nil,
+            nxt         = nil,
+        }
+        ARGS = THIS
+    ]]
+    await Block_Hash_Link();
+    [[
+        THIS = { chain=THIS.block.chain }
+        ARGS = THIS
+    ]];
+    await Client_10(&outer.shared);
 end
+
+escape/out {MESSAGE10_OK};
 
 #endif

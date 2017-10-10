@@ -39,7 +39,7 @@ native/pre do
         MESSAGE10_OK = 0,
         MESSAGE10_NOTSUB,   // [ok ACK] not subscribed to this chain
         MESSAGE10_HAVE,     // [ok ACK] already has it
-        MESSAGE10_ABORTED,  // [?? ???] aborted from external retransmit
+        //MESSAGE10_ABORTED,  // [?? ???] aborted from external retransmit
     };
 
     void dbg (int level, const char* fmt, ...) {
@@ -116,10 +116,12 @@ do
     [[ THIS = ARGS ]];
 
     var[HASH_BYTES] byte hash;
-    var u8 zeros = [[ THIS.chain.zeros ]];
+    _ceu_vector_setlen(&&hash,HASH_BYTES,1);
+
+    var u8 zeros = [[ THIS.publication.chain.zeros ]];
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                     [[ THIS.publication.chain.id ]]   ..
+                     [[ THIS.publication.chain.key ]]   ..
                      [[ THIS.publication.payload ]];
 
     // show async/thread progress
@@ -145,13 +147,13 @@ do
             var u64 n_ = 0;
             var u64 i;
             loop i in [timestamp -> 0xFFffFFffFFffFFff] do
-                PUT_HTOBE64(pln, 0, timestamp);
+                PUT_HTOBE64(pln, 0, i);
 
                 var u64 j;
                 loop j in [nonce -> 0xFFffFFffFFffFFff] do
-                    PUT_HTOBE64(pln, sizeof(u64), nonce);
+                    PUT_HTOBE64(pln, sizeof(u64), j);
 
-                    _ceu_assert(n_ < 0xFFffFFffFFffFFff);
+                    _ceu_assert(n_ < 0xFFffFFffFFffFFff, "bug found");
                     n_ = n_ + 1;
 
                     _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
@@ -173,28 +175,33 @@ do
     [[ ARGS = THIS ]];
 end
 
-code/await Publication_Check (var SourceBlockHash source) -> none
-    // input:  [[ ARGS={publication={DONE}} ]]
-    // output: [[ ARGS={publication={DONE}} ]]
+/*
+ * Verifies if the hash has the expected leading zeros and if the chain key and
+ * payload match the hash.
+ */
+code/await Publication_Check (none) -> none
+    // input: [[ ARGS={publication={DONE}} ]]
     throws Exception.Lua, Exception.Freechains.Malformed
 do
     [[ THIS = ARGS ]];
 
-    var[HASH_BYTES] byte hash  = [] .. [[ THIS.publication.hash ]];
+    var[HASH_BYTES] byte hash = [] .. [[ THIS.publication.hash ]];
 
-    var u8 zeros = [[ THIS.chain.zeros ]];
+    var u8 zeros = [[ THIS.publication.chain.zeros ]];
     if zeros > _leading_zeros(&&hash[0],HASH_BYTES) then
         var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
         throw e;
     end
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                     [[ THIS.publication.chain.id ]]   ..
+                     [[ THIS.publication.chain.key ]]   ..
                      [[ THIS.publication.payload ]];
-    var u64 timestamp = [[ THIS.publication.timestamp ]];
-    var u64 nonce     = [[ THIS.publication.nonce     ]];
-    PUT_HTOBE64(pln, 0, timestamp);
-    PUT_HTOBE64(pln, sizeof(u64), nonce);
+    do
+        var u64 timestamp = [[ THIS.publication.timestamp ]];
+        var u64 nonce     = [[ THIS.publication.nonce     ]];
+        PUT_HTOBE64(pln, 0, timestamp);
+        PUT_HTOBE64(pln, sizeof(u64), nonce);
+    end
 
     _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
     var bool ok = [[ THIS.publication.hash == @hash ]];
@@ -202,23 +209,30 @@ do
         var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
         throw e;
     end
-
-    [[ ARGS = THIS ]];
 end
 
-code/await Block_New (none) -> none
+code/await Block_Hash (none) -> none
     // input:  [[ ARGS={block={TODO}} ]]
-    // output: [[ ARGS={block={DONE}} ]]
+    // effect: [[ ARGS={block={DONE}} ]]
     throws Exception.Lua
 do
     [[ THIS = ARGS ]];
 
     var[HASH_BYTES] byte hash;
+    _ceu_vector_setlen(&&hash, HASH_BYTES, 1);
+
     var u8 zeros = [[ THIS.block.chain.zeros ]];
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                     [[ THIS.block.publication.hash ]]   ..
-                     [[ THIS.block.prv.hash ]];
+                     [[ THIS.block.publication.hash ]];
+    do
+        var bool is_genesis = [[ THIS.block.prv==nil ]];
+        if is_genesis then
+            pln = pln .. [[ THIS.block.chain.hash ]];
+        else
+            pln = pln .. [[ THIS.block.prv.hash ]];
+        end
+    end
 
     // show async/thread progress
     var int ms = 0;
@@ -243,13 +257,13 @@ do
             var u64 n_ = 0;
             var u64 i;
             loop i in [timestamp -> 0xFFffFFffFFffFFff] do
-                PUT_HTOBE64(pln, 0, timestamp);
+                PUT_HTOBE64(pln, 0, i);
 
                 var u64 j;
                 loop j in [nonce -> 0xFFffFFffFFffFFff] do
-                    PUT_HTOBE64(pln, sizeof(u64), nonce);
+                    PUT_HTOBE64(pln, sizeof(u64), j);
 
-                    _ceu_assert(n_ < 0xFFffFFffFFffFFff);
+                    _ceu_assert(n_ < 0xFFffFFffFFffFFff, "bug found");
                     n_ = n_ + 1;
 
                     _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
@@ -267,12 +281,72 @@ do
         end;
         _dbg(0, "client: POW rounds: %d\n", n);
     end
+end
+
+code/await Block_Hash_Link (none) -> none
+    // input:  [[ ARGS={block={TODO}} ]]
+    // effect: [[ ARGS={block={DONE}} ]]
+    throws Exception.Lua
+do
+    [[ THIS = ARGS ]]
 
     [[
-        THIS.block.chain.head.nxt = THIS.block
+        assert(not THIS.block.prv)
+        assert(not THIS.block.nxt)
+        THIS.block.prv = THIS.block.chain.head
+    ]]
+
+    [[ ARGS = THIS ]]
+    await Block_Hash();
+
+    [[
+        if THIS.block.chain.head then
+            THIS.block.chain.head.nxt = THIS.block
+        end
         THIS.block.chain.head = THIS.block
-        ARGS = THIS
-    ]];
+    ]]
+end
+
+/*
+ * Verifies if the hash has the expected leading zeros and if the publication
+ * hash and back hash match the hash.
+ */
+code/await Block_Check (none) -> none
+    // input: [[ ARGS={block={DONE}} ]]
+    throws Exception.Lua, Exception.Freechains.Malformed
+do
+    [[ THIS = ARGS ]];
+
+    var[HASH_BYTES] byte hash = [] .. [[ THIS.block.hash ]];
+
+    var u8 zeros = [[ THIS.block.chain.zeros ]];
+    if zeros > _leading_zeros(&&hash[0],HASH_BYTES) then
+        var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+        throw e;
+    end
+
+    var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
+                     [[ THIS.block.publication.hash ]];
+    do
+        var bool is_genesis = [[ THIS.block.prv==nil ]];
+        if is_genesis then
+            pln = pln .. [[ THIS.block.chain.hash ]];
+        else
+            pln = pln .. [[ THIS.block.prv.hash ]];
+        end
+
+        var u64 timestamp = [[ THIS.block.timestamp ]];
+        var u64 nonce     = [[ THIS.block.nonce     ]];
+        PUT_HTOBE64(pln, 0, timestamp);
+        PUT_HTOBE64(pln, sizeof(u64), nonce);
+    end
+
+    _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
+    var bool ok = [[ THIS.block.hash == @hash ]];
+    if not ok then
+        var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+        throw e;
+    end
 end
 
 code/await BlockHash (var SourceBlockHash source) -> none
@@ -381,11 +455,8 @@ _ceu_assert(0, "bug found");
             // calculate nonce for the leading zeros
             var[HASH_BYTES] byte tx_hash;
 
-            var usize len = $pln;
-            var[] byte pln = []..pln;
-
 #if 1
-            await async/thread (pln,pln,len,tx_hash,zeros_wanted)
+            await async/thread (pln,tx_hash,zeros_wanted)
 #endif
             do
                 var[HASH_BYTES] _byte tx_hash2 = _;
@@ -415,13 +486,13 @@ _ceu_assert(0, "bug found");
                         pln[ 8]=b08; pln[ 9]=b09; pln[10]=b10; pln[11]=b11;
                         pln[12]=b12; pln[13]=b13; pln[14]=b14; pln[15]=b15;
                         _crypto_generichash(&&tx_hash2[0], HASH_BYTES,
-                                            &&pln[0], len,
+                                            &&pln[0], $pln,
                                             null, 0);
                         zeros_found = _leading_zeros(&&tx_hash2[0], HASH_BYTES);
                         if zeros_found >= zeros_wanted then
                             atomic do
                                 _ceu_vector_buf_set(&&pln, 0,
-                                                    &&pln[0], len*sizeof(byte));
+                                                    &&pln[0], $pln*sizeof(byte));
                                 _ceu_vector_setlen(&&tx_hash,HASH_BYTES,1);
                                 _ceu_vector_buf_set(&&tx_hash, 0,
                                                     &&tx_hash2[0], HASH_BYTES*sizeof(byte));
@@ -674,6 +745,28 @@ do
     ]];
 end
 
+code/await Chain_Lock (var& UV_TCP_Server_Data shared) -> NEVER
+    throws Exception.Lua
+do
+    [[ THIS = ARGS ]]
+    var bool is_locked = [[ THIS.chain.is_locked ]];
+    if is_locked then
+        loop do
+            await shared.unlock;
+            is_locked = [[ THIS.chain.is_locked ]];
+            if not is_locked then
+                break;
+            end
+        end
+    end
+    [[ THIS.chain.is_locked = true ]];
+    do finalize with
+        [[ THIS.chain.is_locked = false ]];
+        emit shared.unlock;
+    end
+    await FOREVER;
+end
+
 code/await FS_write_10 (var&[] byte path) -> none
     throws Exception.Lua, Exception.Uv
     // input [[ ARGS = { chain_id } ]]
@@ -821,22 +914,23 @@ end
 #include "server.ceu"
 #include "uv/tcp-server.ceu"
 
-code/await Init (none) -> none
+code/await Init (var& UV_TCP_Server_Data shared) -> none
     throws Exception.Lua, Exception.Freechains.Malformed
 do
     [[
+        THIS = {}
         GG['Exception.Freechains.Malformed'] = @({CEU_DATA_Exception__dot__Freechains__dot__Malformed} as int)
         GG.MESSAGE10_NOTSUB = @({MESSAGE10_NOTSUB} as int)
     ]]
 
     var int n_chains = [[ #APP.chains ]];
     var int i;
-    loop i in [0 -> n_chains[ do
+    loop i in [1 -> n_chains] do
         [[
-            chain = APP.chains[@i+1]
-            assert(not chain.head_hash)
+            THIS.chain = APP.chains[@i]
+            assert(not THIS.chain.head_hash)
 
-            path = APP.chains.files..'/'..chain.id..'.chain'
+            path = APP.chains.files..'/'..THIS.chain.id..'.chain'
         ]]
         var[] byte path = [] .. [[path]] .. [0];
         var Exception? e;
@@ -847,30 +941,47 @@ do
             [[
                 -- TODO: assert chain.id==file header
                 --chain.genesis_hash = ARGS.genesis_hash
-                chain.head_hash = ARGS.head_hash
+                THIS.chain.head_hash = ARGS.head_hash
             ]];
         else
             //_dbg(0, "main: file not found: %s", &&path[0]);
             [[
-                ARGS = {
-                    block = {
-                        chain_id = chain.id,
-                        txs = {
-                            {
-                                nonce     = string.rep('\0',NONCE_BYTES),
-                                back_hash = string.rep('\0',HASH_BYTES),
-                                payload   = '',
-                            }
-                        },
-                        tail_hash = nil,
-                    }
+                THIS.publication = {
+                    chain     = THIS.chain,
+                    timestamp = 0,
+                    nonce     = 0,
+                    payload   = '',
+                    hash      = nil,
                 }
-            ]];
-            await BlockHash(SourceBlockHash.File());
+                ARGS = THIS
+            ]]
+            await Publication_New();
+            do
+                [[ ARGS = THIS ]];
+                spawn Chain_Lock(&shared);
+                [[
+                    THIS.block = {
+                        version = '1.0',
+                        timestamp   = 0,
+                        nonce       = 0,
+                        chain       = THIS.publication.chain,
+                        publication = THIS.publication,
+                        hash        = nil,
+                        prv         = nil,
+                        nxt         = nil,
+                    }
+                    ARGS = THIS
+                ]]
+                await Block_Hash_Link();
+                [[
+                    ARGS = THIS
+                ]];
+                await Client_10(&shared);
+            end
             [[
-                --chain.genesis_hash = ARGS.block.genesis_hash
-                chain.head_hash = ARGS.block.hash
-            ]];
+                ARGS = THIS
+            ]]
+            emit shared.ok({MESSAGE10}, false, {MESSAGE10_OK});
         end
     end
 end

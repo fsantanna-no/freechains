@@ -39,7 +39,9 @@ function CHAINS (t)
     }
     for _,chain in ipairs(t) do
         for i=chain.zeros,255 do
-            local new = {}
+            local new = {
+                publications_pending = {},
+            }
             for k,v in pairs(chain) do new[k]=v end
             new.zeros = i
             local c = GG.chain_parse_get(new)
@@ -115,6 +117,17 @@ function GG.chain_head_base_size (head_hash)
         head = head,
         size = size,     -- TODO: #payload
     }
+end
+
+function GG.chain_block (chain, hash)
+    local cur = chain.head
+    while cur do
+        if cur.hash == hash then
+            return cur
+        end
+        cur = cur.prv
+    end
+    return false
 end
 
 -- TODO: go back only TODO jumps

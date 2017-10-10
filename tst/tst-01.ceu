@@ -38,7 +38,7 @@ Ola Mundo!
         ]=];
 
         var UV_TCP_Server_Data shared = _;
-        await Init();
+        await Init(&shared);
         await 100ms;
         await ClientMessages(&shared);
 
@@ -68,7 +68,7 @@ with
         ]];
 
         var UV_TCP_Server_Data shared = _;
-        await Init();
+        await Init(&shared);
 
         var[] byte ip      = [] .. [[ APP.server.host[1] ]] .. [0];
         var   int  port    = [[ APP.server.host[2] ]];
