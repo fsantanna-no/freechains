@@ -349,6 +349,43 @@ do
     end
 end
 
+code/await Chain_Fork (none) -> none
+    // input:  [[ ARGS={from=., to={first=.,last=.} ]]
+    throws Exception.Lua
+do
+    [[
+        THIS = ARGS
+        assert(THIS.from.chain == THIS.to.first.chain)
+        if THIS.from.prv then
+            THIS.from.prv.nxt = THIS.to.first
+        end
+        THIS.from.chain.head = THIS.to.last
+    ]]
+    loop do
+        var bool has = [[ THIS.from~=nil ]];
+        if not has then
+            break;
+        end
+
+        [[
+            THIS.block = {
+                version = '1.0',
+                timestamp   = 0,    -- TODO: 64-bit timestamp
+                nonce       = 0,
+                chain       = THIS.from.chain,
+                publication = THIS.from.publication,
+                hash        = nil,
+                prv         = nil,
+                nxt         = nil,
+            }
+            ARGS = THIS
+        ]]
+        await Block_Hash_Link();
+
+        [[ THIS.from = THIS.from.nxt ]]
+    end
+end
+
 code/await BlockHash (var SourceBlockHash source) -> none
     // input:  [[ ARGS={block={TODO}} ]]
     // output: [[ ARGS={block={DONE}} ]]

@@ -1,0 +1,374 @@
+#include "common.ceu"
+
+[[
+    dofile 'src/common.lua'
+    CHAINS {
+        files = 'tst/files/',
+        {
+            key   = '',     -- global chain (cannot be signed)
+            zeros = 0,      -- receive messages with 0 leading zeros in the hash
+            id    = nil,    -- concat of key..zeros
+            head  = nil,    -- hash of newest block
+            -- TODO: mode 'pub,sub,pub/sub'
+        },
+    }
+]]
+
+do
+    var[HASH_BYTES] byte chain_hash;
+    _ceu_vector_setlen(&&chain_hash, HASH_BYTES, 1);
+    var[] byte chain_id = [] .. [[ APP.chains[1].id ]];
+    _crypto_generichash(&&chain_hash[0],HASH_BYTES, &&chain_id[0],$chain_id, null,0);
+    [[
+        APP.chains[1].hash = @chain_hash
+    ]]
+end
+
+// PUBLICATION //
+
+[[
+    THIS = {
+        publication = {
+            chain     = APP.chains[1],
+            timestamp = 0,
+            nonce     = 0,
+            payload   = '111',
+            hash      = nil,
+        },
+    }
+    ARGS = THIS
+]]
+await Publication_New();
+[[
+    --print('>>>', THIS.publication.timestamp, THIS.publication.nonce, tostring2(THIS.publication.hash,true))
+    assert(THIS.publication.hash == '\x04\x9A\x59\xFB\x55\x8E\x02\xD4\xA3\xFC\xC5\x6E\xA6\xF7\x90\xA4\xBF\x50\x34\xCB\xC7\xB1\x1B\x70\x2B\xE9\x6B\x5C\x2E\xDD\xEB\xBA')
+    assert(THIS.publication.timestamp == 0)
+    assert(THIS.publication.nonce == 0)
+]]
+
+do
+    [[ THIS.publication.payload = '222' ]]
+    var Exception.Freechains.Malformed? e;
+    catch e do
+        await Publication_Check();
+    end
+    _ceu_assert(e?, "bug found");
+
+    [[ THIS.publication.payload = '111' ]]
+    var Exception.Freechains.Malformed? f;
+    catch f do
+        await Publication_Check();
+    end
+    _ceu_assert(not f?, "bug found");
+end
+
+// BLOCK //
+
+[[
+    THIS.block = {
+        version = '1.0',
+        timestamp   = 0,
+        nonce       = 0,
+        chain       = THIS.publication.chain,
+        publication = THIS.publication,
+        hash        = nil,
+        prv         = nil,
+        nxt         = nil,
+    }
+    FIRST = THIS.block
+]]
+await Block_Hash_Link();
+[[
+    --print('>>>', THIS.block.timestamp, THIS.block.nonce, tostring2(THIS.block.hash,true))
+    assert(THIS.block.hash == '\x5C\xC2\x3B\x48\x4D\xB2\xDA\xC8\xC5\xED\x28\x93\xBA\xFE\xB0\x64\xCC\x63\xA9\x57\xBC\x5A\x63\xB6\xEC\x2A\xE7\x93\xBB\x05\x71\xF7')
+    assert(THIS.block.timestamp == 0)
+    assert(THIS.block.nonce == 0)
+    assert(THIS.block.prv == nil)
+    assert(THIS.block.nxt == nil)
+    assert(THIS.block.chain.head == THIS.block)
+]]
+
+do
+    [[ THIS.block.prv = THIS.block ]]
+    var Exception.Freechains.Malformed? e;
+    catch e do
+        [[ ARGS = THIS ]]
+        await Block_Check();
+    end
+    _ceu_assert(e?, "bug found");
+
+    [[ THIS.block.prv = nil ]]
+    var Exception.Freechains.Malformed? f;
+    catch f do
+        [[ ARGS = THIS ]]
+        await Block_Check();
+    end
+    _ceu_assert(not f?, "bug found");
+end
+
+// MESSAGES //
+
+[[
+    APP.messages = {}
+    MESSAGE {
+        id = '1.0',
+        chain = {
+            key   = '',
+            zeros = 0,
+        },
+        payload = '222',
+    }
+    MESSAGE {
+        id = '1.0',
+        chain = {
+            key   = '',
+            zeros = 0,
+        },
+        payload = '333',
+    }
+]];
+
+var int ms = [[ #APP.messages ]];
+var int i;
+loop i in [0 -> ms[ do
+    [[
+        THIS = {}
+        msg = APP.messages[@i+1]
+        THIS.publication = {
+            chain     = assert(GG.chain_parse_get(msg.chain), msg.chain.id),
+            timestamp = 0,    -- TODO: 64-bit timestamp
+            nonce     = 0,
+            payload   = msg.payload,
+            hash      = nil,
+        }
+        ARGS = THIS
+    ]]
+    await Publication_New();
+    [[
+        THIS.block = {
+            version = '1.0',
+            timestamp   = 0,    -- TODO: 64-bit timestamp
+            nonce       = 0,
+            chain       = THIS.publication.chain,
+            publication = THIS.publication,
+            hash        = nil,
+            prv         = nil,
+            nxt         = nil,
+        }
+        ARGS = THIS
+    ]]
+    await Block_Hash_Link();
+end
+
+[[
+    assert(FIRST.publication.payload == '111')
+    assert(FIRST.nxt.publication.payload == '222')
+    assert(FIRST.nxt.nxt.publication.payload == '333')
+]]
+
+// FORK-1 //
+
+[[
+    APP.messages = {}
+    MESSAGE {
+        id = '1.0',
+        chain = {
+            key   = '',
+            zeros = 0,
+        },
+        payload = 'aaa',
+    }
+    MESSAGE {
+        id = '1.0',
+        chain = {
+            key   = '',
+            zeros = 0,
+        },
+        payload = 'bbb',
+    }
+    MESSAGE {
+        id = '1.0',
+        chain = {
+            key   = '',
+            zeros = 0,
+        },
+        payload = 'ccc',
+    }
+    MESSAGE {
+        id = '1.0',
+        chain = {
+            key   = '',
+            zeros = 0,
+        },
+        payload = 'ddd',
+    }
+]];
+
+[[
+    THIS = {
+        fst = nil,
+        cur = nil,
+    }
+]]
+
+var int ms = [[ #APP.messages ]];
+var int i;
+loop i in [0 -> ms[ do
+    [[
+        msg = APP.messages[@i+1]
+        THIS.publication = {
+            chain     = assert(GG.chain_parse_get(msg.chain), msg.chain.id),
+            timestamp = 0,    -- TODO: 64-bit timestamp
+            nonce     = 0,
+            payload   = msg.payload,
+            hash      = nil,
+        }
+        ARGS = THIS
+    ]]
+    await Publication_New();
+    [[
+        THIS.block = {
+            version = '1.0',
+            timestamp   = 0,    -- TODO: 64-bit timestamp
+            nonce       = 0,
+            chain       = THIS.publication.chain,
+            publication = THIS.publication,
+            hash        = nil,
+            prv         = THIS.cur,
+            nxt         = nil,
+        }
+        if THIS.cur then
+            THIS.cur.nxt = THIS.block
+        else
+            THIS.fst = THIS.block
+        end
+        THIS.cur = THIS.block
+        ARGS = THIS
+    ]]
+    await Block_Hash();
+end
+
+[[
+    ARGS = {
+        from = FIRST,
+        to   = { first=THIS.fst, last=THIS.cur },
+    }
+    FIRST = THIS.fst
+]]
+await Chain_Fork();
+
+[[
+    assert(FIRST.publication.payload == 'aaa', FIRST.publication.payload)
+    assert(FIRST.nxt.publication.payload == 'bbb')
+    assert(FIRST.nxt.nxt.publication.payload == 'ccc')
+    assert(FIRST.nxt.nxt.nxt.publication.payload == 'ddd')
+    assert(FIRST.nxt.nxt.nxt.nxt.publication.payload == '111')
+    assert(FIRST.nxt.nxt.nxt.nxt.nxt.publication.payload == '222')
+    assert(FIRST.nxt.nxt.nxt.nxt.nxt.nxt.publication.payload == '333')
+]]
+
+// FORK-2 //
+
+[[
+    APP.messages = {}
+    MESSAGE {
+        id = '1.0',
+        chain = {
+            key   = '',
+            zeros = 0,
+        },
+        payload = 'eee',
+    }
+    MESSAGE {
+        id = '1.0',
+        chain = {
+            key   = '',
+            zeros = 0,
+        },
+        payload = 'fff',
+    }
+    MESSAGE {
+        id = '1.0',
+        chain = {
+            key   = '',
+            zeros = 0,
+        },
+        payload = 'ggg',
+    }
+    MESSAGE {
+        id = '1.0',
+        chain = {
+            key   = '',
+            zeros = 0,
+        },
+        payload = 'hhh',
+    }
+]];
+
+[[
+    THIS = {
+        fst = nil,
+        cur = nil,
+    }
+]]
+
+var int ms = [[ #APP.messages ]];
+var int i;
+loop i in [0 -> ms[ do
+    [[
+        msg = APP.messages[@i+1]
+        THIS.publication = {
+            chain     = assert(GG.chain_parse_get(msg.chain), msg.chain.id),
+            timestamp = 0,    -- TODO: 64-bit timestamp
+            nonce     = 0,
+            payload   = msg.payload,
+            hash      = nil,
+        }
+        ARGS = THIS
+    ]]
+    await Publication_New();
+    [[
+        THIS.block = {
+            version = '1.0',
+            timestamp   = 0,    -- TODO: 64-bit timestamp
+            nonce       = 0,
+            chain       = THIS.publication.chain,
+            publication = THIS.publication,
+            hash        = nil,
+            prv         = THIS.cur,
+            nxt         = nil,
+        }
+        if THIS.cur then
+            THIS.cur.nxt = THIS.block
+        else
+            THIS.fst = THIS.block
+        end
+        THIS.cur = THIS.block
+        ARGS = THIS
+    ]]
+    await Block_Hash();
+end
+
+[[
+    ARGS = {
+        from = THIS.block.chain.head.prv.prv,
+        to   = { first=THIS.fst, last=THIS.cur },
+    }
+]]
+await Chain_Fork();
+
+[[
+    assert(FIRST.publication.payload == 'aaa', FIRST.publication.payload)
+    assert(FIRST.nxt.publication.payload == 'bbb', 'bbb')
+    assert(FIRST.nxt.nxt.publication.payload == 'ccc', 'ccc')
+    assert(FIRST.nxt.nxt.nxt.publication.payload == 'ddd', 'ddd')
+    assert(FIRST.nxt.nxt.nxt.nxt.publication.payload == 'eee', FIRST.nxt.nxt.nxt.nxt.publication.payload)--'eee')
+    assert(FIRST.nxt.nxt.nxt.nxt.nxt.publication.payload == 'fff', 'fff')
+    assert(FIRST.nxt.nxt.nxt.nxt.nxt.nxt.publication.payload == 'ggg', 'ggg')
+    assert(FIRST.nxt.nxt.nxt.nxt.nxt.nxt.nxt.publication.payload == 'hhh', 'hhh')
+    assert(FIRST.nxt.nxt.nxt.nxt.nxt.nxt.nxt.nxt.publication.payload == '111', '111')
+    assert(FIRST.nxt.nxt.nxt.nxt.nxt.nxt.nxt.nxt.nxt.publication.payload == '222', '222')
+    assert(FIRST.nxt.nxt.nxt.nxt.nxt.nxt.nxt.nxt.nxt.nxt.publication.payload == '333', '333')
+]]
+
+escape 0;
