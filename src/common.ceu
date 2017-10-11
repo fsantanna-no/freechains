@@ -16,6 +16,7 @@
 #define HASH_BYTES      32
 #define NONCE_BYTES     16
 #define CHAIN_KEY_BYTES 256
+#define FORK_LENGTHY    100
 
 native/nohold _dbg, _dbg_tcp;
 native/pure _leading_zeros;
@@ -26,6 +27,9 @@ data Exception.Freechains.Unsupported with
 end
 data Exception.Freechains.Malformed with
     var _char&& message = "malformed message";
+end
+data Exception.Freechains.Fork_Lengthy with
+    var _char&& message = "fork is too lengthy";
 end
 
 native/pre do
@@ -719,6 +723,12 @@ do
             _ceu_vector_setlen(&&chain_hash, HASH_BYTES, 1);
             var[] byte chain_id = [] .. [[ THIS.chain.id ]];
             _crypto_generichash(&&chain_hash[0],HASH_BYTES, &&chain_id[0],$chain_id, null,0);
+#if 0
+            do
+                var[] byte str = [] .. [[ tostring2(@chain_hash) ]] .. [0];
+                _dbg(3, "|| CHAIN_HASH : %s", &&str[0]);
+            end
+#endif
             [[
                 THIS.chain.head = {
                     hash   = @chain_hash,

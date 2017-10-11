@@ -82,25 +82,32 @@ do
     ]];
     $tcp.buffer = $tcp.buffer - HASH_BYTES;
 
-    do
-        var[] byte str = [] .. [[ tostring2(THIS.block.hash) ]] .. [0];
-        _dbg_tcp(3, &&tcp.handle, "server", "=> BLOCK_HASH : %s", &&str[0]);
-    end
-
     // => TIMESTAMP + NONCE
     await UV_Stream_Read_N(&tcp, 2*sizeof(u64));
     var u64 timestamp = GET_BE64TOH(tcp.buffer,0);
     $tcp.buffer = $tcp.buffer - sizeof(u64);
     var u64 nonce     = GET_BE64TOH(tcp.buffer,0);
     $tcp.buffer = $tcp.buffer - sizeof(u64);
+    [[
+        THIS.block.timestamp = @timestamp
+        THIS.block.nonce     = @nonce
+    ]]
+
+    do
+        var[] byte str = [] .. [[ tostring2(THIS.block.hash) ]] .. [0];
+        _dbg_tcp(3, &&tcp.handle, "server", "=> BLOCK_HASH : %s", &&str[0]);
+        _dbg_tcp(3, &&tcp.handle, "server", "=> TIMESTAMP/NONCE : %ld %ld", timestamp,nonce);
+    end
 
     // => PUBLICATION_HASH
     await UV_Stream_Read_N(&tcp, HASH_BYTES);
-    var[HASH_BYTES] byte hash_publication;
-    _ceu_vector_setlen(&&hash_publication, HASH_BYTES, 1);
-    _ceu_vector_buf_set(&&hash_publication, 0, &&tcp.buffer[0], HASH_BYTES);
+    var[HASH_BYTES] byte publication_hash;
+    _ceu_vector_setlen(&&publication_hash, HASH_BYTES, 1);
+    _ceu_vector_buf_set(&&publication_hash, 0, &&tcp.buffer[0], HASH_BYTES);
     [[
-        hash_publication = @hash_publication
+-- TODO: cache of publications
+        THIS.publication_hash = @publication_hash
+        --THIS.block.publication = APP.publications[THIS.publication_hash]
     ]]
     $tcp.buffer = $tcp.buffer - HASH_BYTES;
 
@@ -110,11 +117,11 @@ do
     [[
         hash_prv = @hash_prv
         assert(THIS.chain.head.hash == hash_prv)
-        publication = APP.publications[hash_publication]
     ]]
+    $tcp.buffer = $tcp.buffer - HASH_BYTES;
 
     // <= ACK-publication
-    var bool has_publication = [[ publication~=nil ]];
+    var bool has_publication = [[ THIS.block.publication~=nil ]];
     var int ret = do
         if has_publication then
             escape {MESSAGE10_HAVE};
@@ -125,9 +132,7 @@ do
     outer.tcp.buffer = [ret];
     await UV_Stream_Write_N(&outer.tcp,_);
 
-    if has_publication then
-        [[ THIS.block.publication = publication ]]
-    else
+    if not has_publication then
         // => TIMESTAMP + NONCE + LEN
         await UV_Stream_Read_N(&tcp, 2*sizeof(u64) + sizeof(u32));
         var u64 timestamp = GET_BE64TOH(tcp.buffer,0);
@@ -142,6 +147,18 @@ do
         _ceu_vector_setlen(&&payload, len, 1);
         _ceu_vector_buf_set(&&payload, 0, &&tcp.buffer[0], len);
         $tcp.buffer = $tcp.buffer - (len as usize);
+
+        [[
+            THIS.block.publication = {
+                chain = THIS.chain,
+                timestamp = @timestamp,
+                nonce     = @nonce,
+                payload   = @payload,
+                hash      = THIS.publication_hash,
+            }
+            ARGS = { publication=THIS.block.publication }
+        ]]
+        await Publication_Check();
     end
 end
 
@@ -190,14 +207,25 @@ end
 ///////////////////////////////////////////////////////////////////////////
 
 [[ THIS.common = THIS.chain.head ]];
-loop do
+var int i;
+loop i do
+    if i >= FORK_LENGTHY then
+        var Exception.Freechains.Fork_Lengthy e = val Exception.Freechains.Fork_Lengthy(_);
+        throw e;
+    end
+
     // <= HASH
     outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.common.hash ]];
+    do
+        var[] byte str = [] .. [[ tostring2(@outer.tcp.buffer) ]] .. [0];
+        _dbg_tcp(3, &&outer.tcp.handle, "server", "<= BLOCK_HASH? : %s", &&str[0]);
+    end
     await UV_Stream_Write_N(&outer.tcp, _);
 
     // => ACK-HASH
     await UV_Stream_Read_N(&outer.tcp, 1);
     var byte ret = outer.tcp.buffer[0];
+    $outer.tcp.buffer = $outer.tcp.buffer - 1;
     if ret == {MESSAGE10_HAVE} then
         break;
     else/if ret == {MESSAGE10_OK} then
@@ -218,20 +246,19 @@ end
 
 // RECEIVE ALL BLOCKS
 
-[[ THIS.cur = nil ]]
 var u64 length = [[ THIS.length-THIS.common.length ]];
 var u64 i;
 loop i in [1 -> length] do
 {BLOCKS_RECEIVED++;}
     [[
-        THIS.cur = {
+        THIS.block = {
             version = '1.0',
             timestamp   = nil,
             nonce       = nil,
             chain       = THIS.chain,
             publication = nil,
             hash        = nil,
-            prv         = THIS.cur or THIS.common,
+            prv         = THIS.block or THIS.common,
             nxt         = nil,
             length      = THIS.common.length+@i,
         }
@@ -239,13 +266,13 @@ loop i in [1 -> length] do
 
     [[ ARGS = THIS ]]
     await Message10_block_recv(&outer.tcp);
-// TODO
-    //await Block_Check();
+    [[ ARGS = THIS ]]
+    await Block_Check();
     [[
-        if THIS.chain.head.length < THIS.cur.length then
-            THIS.chain.head = THIS.cur
+        if THIS.chain.head.length < THIS.block.length then
+            THIS.chain.head = THIS.block
         end
-        THIS.cur.prv.nxt = THIS.cur
+        THIS.block.prv.nxt = THIS.block
     ]];
 end
 

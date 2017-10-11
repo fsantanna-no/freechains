@@ -62,7 +62,10 @@ do
         // => HASH
 _printf("aaa\n");
         await UV_Stream_Read_N(&tcp, HASH_BYTES);
-_printf("bbb\n");
+        do
+            var[] byte str = [] .. [[ tostring2(@tcp.buffer) ]] .. [0];
+            _dbg_tcp(3, &&tcp.handle, "client", "=> BLOCK_HASH? : %s", &&str[0]);
+        end
         [[
             block = GG.chain_block(THIS.chain,@tcp.buffer)
         ]]
@@ -78,6 +81,7 @@ _printf("bbb\n");
         // <= ACK-HASH
         await UV_Stream_Write_N(&tcp,_);
         if has then
+_printf("has\n");
             [[
                 THIS.common = block
             ]]
@@ -98,11 +102,16 @@ _printf("bbb\n");
                                [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
                                [[ THIS.cur.publication.hash ]] ..
                                [[ THIS.cur.prv.hash ]];
+            do
+                var u64 timestamp = [[ THIS.cur.timestamp ]];
+                var u64 nonce     = [[ THIS.cur.nonce     ]];
+                PUT_HTOBE64(tcp.buffer, HASH_BYTES, timestamp);
+                PUT_HTOBE64(tcp.buffer, HASH_BYTES+sizeof(u64), nonce);
 
-            var u64 timestamp = [[ THIS.cur.timestamp ]];
-            var u64 nonce     = [[ THIS.cur.nonce     ]];
-            PUT_HTOBE64(tcp.buffer, 0, timestamp);
-            PUT_HTOBE64(tcp.buffer, sizeof(u64), nonce);
+                var[] byte str = [] .. [[ tostring2(THIS.cur.hash) ]] .. [0];
+                _dbg_tcp(3, &&tcp.handle, "client", "<= BLOCK_HASH : %s", &&str[0]);
+                _dbg_tcp(3, &&tcp.handle, "client", "<= TIMESTAMP/NONCE : %ld %ld", timestamp,nonce);
+            end
 
             await UV_Stream_Write_N(&tcp,_);
         end
@@ -123,10 +132,10 @@ _printf("bbb\n");
         if send_publication then
             tcp.buffer = [] .. [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
                                [0,0,0,0] ..
-                               [[ THIS.publication.payload ]];
-            var u64 timestamp   = [[ THIS.publication.timestamp ]];
-            var u64 nonce       = [[ THIS.publication.nonce     ]];
-            var u32 payload_len = [[ string.len(THIS.publication.payload) ]];
+                               [[ THIS.cur.publication.payload ]];
+            var u64 timestamp   = [[ THIS.cur.publication.timestamp ]];
+            var u64 nonce       = [[ THIS.cur.publication.nonce     ]];
+            var u32 payload_len = [[ string.len(THIS.cur.publication.payload) ]];
             PUT_HTOBE64(tcp.buffer, 0, timestamp);
             PUT_HTOBE64(tcp.buffer, sizeof(u64), nonce);
             PUT_HTOBE32(tcp.buffer, 2*sizeof(u64), payload_len);
@@ -290,9 +299,11 @@ do
                         length      = nil,
                     }
                     ARGS = THIS
+print('111', tostring2(THIS.block.chain.head.hash))
                 ]]
                 await Block_Hash_Link();
                 [[
+print('222', tostring2(THIS.block.chain.head.hash))
                     THIS = { chain=THIS.block.chain }
                     ARGS = THIS
                 ]];

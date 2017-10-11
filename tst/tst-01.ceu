@@ -31,9 +31,7 @@ par/and do
                     key   = '',
                     zeros = 0,
                 },
-                payload = [[
-Ola Mundo!
-]],
+                payload = 'Ola Mundo!',
             }
         ]=];
 
@@ -43,13 +41,13 @@ Ola Mundo!
         await ClientMessages(&shared);
 
         [[
-            chain1 = GG.chain_flatten('||0|')
+            chain1 = GG.chain_tostring('||0|')
             print'===> CLIENT'
             print('>'..string.rep('=',78))
-            print(GG.chain_tostring('||0|'))
+            print(chain1)
             print('<'..string.rep('=',78))
         ]];
-        chain1 = []..[[tostring2(chain1)]];
+        chain1 = []..[[chain1]];
     end
 
 with
@@ -78,13 +76,13 @@ with
 
         await shared.ok;
         [[
-            chain2 = GG.chain_flatten('||0|')
+            chain2 = GG.chain_tostring('||0|')
             print'===> SERVER'
             print('>'..string.rep('=',78))
-            print(GG.chain_tostring('||0|'))
+            print(chain2)
             print('<'..string.rep('=',78))
         ]];
-        chain2 = []..[[tostring2(chain2)]];
+        chain2 = []..[[chain2]];
     end
 
 end

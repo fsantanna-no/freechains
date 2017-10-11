@@ -125,7 +125,7 @@ function GG.chain_block (chain, hash)
         end
         cur = cur.prv
     end
-    return false
+    return nil
 end
 
 -- TODO: go back only TODO jumps
@@ -144,20 +144,18 @@ end
 
 function GG.chain_flatten (chain_id)
     local chain = assert(APP.chains[chain_id],chain_id)
-    local head = APP.blocks[chain.head_hash]
+    local cur = chain.head
     local T = {}
-    while head do
+    while cur do
         local t = {
-            hash = tostring2(head.hash),
-            txs  = {},
+            hash = tostring2(cur.hash),
+            publication = cur.publication and {
+                hash    = cur.publication.hash,
+                payload = cur.publication.payload,
+            },
         }
         table.insert(T, 1, t)
-        for i, tx in ipairs(head.txs) do
-            local str = string.sub(APP.txs[tx].payload,1,10)
-                  str = string.gsub(str,'%c','.')
-            t.txs[i] = string.sub(str,1,10)
-        end
-        head = APP.blocks[head.tail_hash]
+        cur = cur.prv
     end
     return T
 end
