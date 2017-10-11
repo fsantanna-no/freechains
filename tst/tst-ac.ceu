@@ -6,9 +6,13 @@
         files = 'tst/files/',
         {
             key   = '',     -- global chain (cannot be signed)
-            zeros = 36,      -- receive messages with 0 leading zeros in the hash
+            zeros = 35,      -- receive messages with 0 leading zeros in the hash
             id    = nil,    -- concat of key..zeros
-            head  = nil,    -- hash of newest block
+            head  = {       -- hash of newest block
+                hash   = nil,
+                prv    = nil,
+                length = 0,
+            },
             -- TODO: mode 'pub,sub,pub/sub'
         },
     }
@@ -20,7 +24,7 @@ do
     var[] byte chain_id = [] .. [[ APP.chains[1].id ]];
     _crypto_generichash(&&chain_hash[0],HASH_BYTES, &&chain_id[0],$chain_id, null,0);
     [[
-        APP.chains[1].hash = @chain_hash
+        APP.chains[1].head.hash = @chain_hash
     ]]
 end
 
@@ -43,7 +47,7 @@ await Publication_New();
     print('>>>', THIS.publication.timestamp, THIS.publication.nonce, tostring2(THIS.publication.hash,true))
     assert(THIS.publication.hash == '\x00\x00\x00\x00\x1F\x4C\x36\xF2\xDE\xE3\x30\xEF\x6E\x81\xDA\x25\x96\xD2\x85\xF7\x52\x95\xF7\xB6\x2B\xDE\xFB\x01\x19\x19\x24\x8A')
     assert(THIS.publication.timestamp == 0)
-    assert(THIS.publication.nonce == 0)
+    assert(THIS.publication.nonce == 217184216)
 ]]
 
 do
@@ -83,13 +87,16 @@ await Block_Hash_Link();
     assert(THIS.block.hash == '\x6F\xD2\xCC\xE9\x82\xAF\x49\xAB\xB5\xDD\x6B\x6A\x06\x76\x83\x57\x1C\x9E\xB0\x83\x37\x98\x87\xC6\xC4\x91\xB0\xA7\x24\x36\x7C\x91')
     assert(THIS.block.timestamp == 0)
     assert(THIS.block.nonce == 2)
-    assert(THIS.block.prv == nil)
+    assert(THIS.block.prv.prv == nil)
     assert(THIS.block.nxt == nil)
     assert(THIS.block.chain.head == THIS.block)
 ]]
 
 do
-    [[ THIS.block.prv = THIS.block ]]
+    [[
+        prv = THIS.block.prv
+        THIS.block.prv = THIS.block
+    ]]
     var Exception.Freechains.Malformed? e;
     catch e do
         [[ ARGS = THIS ]]
@@ -97,7 +104,9 @@ do
     end
     _ceu_assert(e?, "bug found");
 
-    [[ THIS.block.prv = nil ]]
+    [[
+        THIS.block.prv = prv
+    ]]
     var Exception.Freechains.Malformed? f;
     catch f do
         [[ ARGS = THIS ]]
@@ -113,7 +122,7 @@ end
         id = '1.0',
         chain = {
             key   = '',
-            zeros = 36,
+            zeros = 35,
         },
         payload = '222',
     }
@@ -121,7 +130,7 @@ end
         id = '1.0',
         chain = {
             key   = '',
-            zeros = 36,
+            zeros = 35,
         },
         payload = '333',
     }

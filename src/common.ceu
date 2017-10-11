@@ -218,8 +218,8 @@ do
 
     [[
         --print('>>>', THIS.block.length, THIS.block.prv and THIS.block.prv.length)
-        assert(THIS.block.length==1 or
-               THIS.block.prv and (THIS.block.prv.length==THIS.block.length-1))
+        assert(THIS.block.prv)
+        assert(THIS.block.prv.length==THIS.block.length-1)
     ]]
 
     var[HASH_BYTES] byte hash;
@@ -228,15 +228,8 @@ do
     var u8 zeros = [[ THIS.block.chain.zeros ]];
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                     [[ THIS.block.publication.hash ]];
-    do
-        var bool is_genesis = [[ THIS.block.prv==nil ]];
-        if is_genesis then
-            pln = pln .. [[ THIS.block.chain.hash ]];
-        else
-            pln = pln .. [[ THIS.block.prv.hash ]];
-        end
-    end
+                     [[ THIS.block.publication.hash ]] ..
+                     [[ THIS.block.prv.hash ]];
 
     // show async/thread progress
     var int ms = 0;
@@ -305,10 +298,8 @@ do
     await Block_Hash();
 
     [[
-        if THIS.block.chain.head then
-            THIS.block.chain.head.nxt = THIS.block
-        end
-        THIS.block.chain.head = THIS.block
+        THIS.block.chain.head.nxt = THIS.block
+        THIS.block.chain.head     = THIS.block
     ]]
 end
 
@@ -331,15 +322,9 @@ do
     end
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                     [[ THIS.block.publication.hash ]];
+                     [[ THIS.block.publication.hash ]] ..
+                     [[ THIS.block.prv.hash ]];
     do
-        var bool is_genesis = [[ THIS.block.prv==nil ]];
-        if is_genesis then
-            pln = pln .. [[ THIS.block.chain.hash ]];
-        else
-            pln = pln .. [[ THIS.block.prv.hash ]];
-        end
-
         var u64 timestamp = [[ THIS.block.timestamp ]];
         var u64 nonce     = [[ THIS.block.nonce     ]];
         PUT_HTOBE64(pln, 0, timestamp);
@@ -389,251 +374,6 @@ do
 
         [[ THIS.from = THIS.from.nxt ]]
     end
-end
-
-code/await BlockHash (var SourceBlockHash source) -> none
-    // input:  [[ ARGS={block={TODO}} ]]
-    // output: [[ ARGS={block={DONE}} ]]
-    throws Exception.Freechains.Malformed
-do
-    [[
-        THIS = ARGS
-    ]];
-
-    var bool is_genesis = false;
-
-    // => TX_HASH
-    var int txs_n = [[ #THIS.block.txs ]];
-    var int i;
-    loop i in [0 -> txs_n[ do
-        [[ THIS.tx = THIS.block.txs[@txs_n-i] ]];
-
-        if source is SourceBlockHash.Network then
-            [[
-                assert( type(THIS.tx) == 'string' )
-                THIS.tx = THIS.block.txs[THIS.tx] or APP.txs[THIS.tx]
-                assert( THIS.tx.nonce ~= nil )
-            ]];
-        else/if source is SourceBlockHash.File then
-            [[
-                assert( type(THIS.tx) == 'table' )
-                assert( THIS.tx.nonce ~= nil )
-            ]];
-        else/if source is SourceBlockHash.New then
-            [[
-                assert( type(THIS.tx) == 'table' )
-                assert( THIS.tx.nonce == nil )
-            ]];
-        else
-            _ceu_assert(0, "bug found");
-        end
-
-        var u8 zeros_wanted = [[ THIS.chain.zeros ]];
-
-        if source is SourceBlockHash.Network then
-            var[HASH_BYTES] byte tx_hash;
-            tx_hash = [] .. [[ THIS.tx.hash ]];
-            if zeros_wanted > _leading_zeros(&&tx_hash[0],HASH_BYTES) then
-// TODO: test-case to fail here
-// TODO: also change from ">" to "!="
-_ceu_assert(0, "bug found");
-                var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
-                throw e;
-            end
-        end
-
-        var[] byte pln;
-        var[HASH_BYTES] byte back_hash = [] .. [[ THIS.tx.back_hash ]];
-        var[] byte           payload   = [] .. [[ THIS.tx.payload   ]];
-
-        is_genesis = [[ THIS.tx.back_hash == string.rep('\0',HASH_BYTES) ]];
-        if is_genesis then
-            _ceu_assert(not (source is SourceBlockHash.Network), "bug found");
-            _ceu_assert(txs_n == 1, "bug found");
-            [[
-                assert( THIS.tx.payload == '' )
-                assert( THIS.tx.nonce   == string.rep('\0',NONCE_BYTES) )
-            ]];
-            break;
-
-        else/if (source is SourceBlockHash.Network) or (source is SourceBlockHash.File) then
-            var[HASH_BYTES] byte nonce = [] .. [[ THIS.tx.nonce ]];
-            pln = []..nonce..back_hash..payload;
-
-            var[HASH_BYTES] byte tx_hash;
-            _ceu_vector_setlen(&&tx_hash,HASH_BYTES,1);
-            _crypto_generichash(&&tx_hash[0], HASH_BYTES,
-                                &&pln[0], $pln,
-                                null, 0);
-
-            [[ THIS.tx_hash = @tx_hash ]];
-            if source is SourceBlockHash.Network then
-                var bool ok = [[ THIS.tx_hash == THIS.tx.hash ]];
-                if not ok then
-                    // received hash+nonce do not match
-                    var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
-                    throw e;
-                end
-            else
-                _ceu_assert(zeros_wanted <= _leading_zeros(&&tx_hash[0],HASH_BYTES), "bug found");
-// TODO: change from "<=" to "=="
-            end
-        else
-            pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-                    ..back_hash..payload;
-
-            // show async/thread progress
-            var int ms = 0;
-#if 1
-            spawn do
-                every 100ms do
-                    ms = ms + 100;
-                    _printf(".");
-                    _fflush(_stdout);
-                end
-            end
-#endif
-
-            // calculate nonce for the leading zeros
-            var[HASH_BYTES] byte tx_hash;
-
-#if 1
-            await async/thread (pln,tx_hash,zeros_wanted)
-#endif
-            do
-                var[HASH_BYTES] _byte tx_hash2 = _;
-
-                var int zeros_found = 0;
-                var u32 n = do
-                    var u32 n_ = 0;
-                    var int b00; var int b01;
-                    var int b02; var int b03;
-                    var int b04; var int b05;
-                    var int b06; var int b07;
-                    var int b08; var int b09;
-                    var int b10; var int b11;
-                    var int b12; var int b13;
-                    var int b14; var int b15;
-                    loop b00 in [0->256[ do loop b01 in [0->256[ do
-                    loop b02 in [0->256[ do loop b03 in [0->256[ do
-                    loop b04 in [0->256[ do loop b05 in [0->256[ do
-                    loop b06 in [0->256[ do loop b07 in [0->256[ do
-                    loop b08 in [0->256[ do loop b09 in [0->256[ do
-                    loop b10 in [0->256[ do loop b11 in [0->256[ do
-                    loop b12 in [0->256[ do loop b13 in [0->256[ do
-                    loop b14 in [0->256[ do loop b15 in [0->256[ do
-                        n_ = n_ + 1;
-                        pln[ 0]=b00; pln[ 1]=b01; pln[ 2]=b02; pln[ 3]=b03;
-                        pln[ 4]=b04; pln[ 5]=b05; pln[ 6]=b06; pln[ 7]=b07;
-                        pln[ 8]=b08; pln[ 9]=b09; pln[10]=b10; pln[11]=b11;
-                        pln[12]=b12; pln[13]=b13; pln[14]=b14; pln[15]=b15;
-                        _crypto_generichash(&&tx_hash2[0], HASH_BYTES,
-                                            &&pln[0], $pln,
-                                            null, 0);
-                        zeros_found = _leading_zeros(&&tx_hash2[0], HASH_BYTES);
-                        if zeros_found >= zeros_wanted then
-                            atomic do
-                                _ceu_vector_buf_set(&&pln, 0,
-                                                    &&pln[0], $pln*sizeof(byte));
-                                _ceu_vector_setlen(&&tx_hash,HASH_BYTES,1);
-                                _ceu_vector_buf_set(&&tx_hash, 0,
-                                                    &&tx_hash2[0], HASH_BYTES*sizeof(byte));
-                            end
-                            escape n_;
-                        end
-                    end end
-                    end end
-                    end end
-                    end end
-                    end end
-                    end end
-                    end end
-                    end end
-                    escape 0;
-                end;
-                _dbg(0, "client: POW rounds: %d\n", n);
-            end
-
-            [[ nonce = {} ]];
-            var int j;
-            loop j in [0 -> NONCE_BYTES[ do
-                [[ nonce[@(j+1)] = string.char(@pln[j]) ]];
-            end
-            [[
-                THIS.tx.nonce = table.concat(nonce)
-                THIS.tx_hash = @tx_hash
-            ]];
-        end
-
-        if not (source is SourceBlockHash.Network) then
-            [[
-                THIS.tx.hash = THIS.tx_hash
-                THIS.block.txs[@(txs_n-i)] = THIS.tx_hash
-            ]];
-        end
-        [[
-            APP.txs[THIS.tx_hash] = THIS.tx
-        ]];
-    end
-
-    // => BLOCK_HASH
-    do/_
-        var[HASH_BYTES] byte block_hash;
-        _ceu_vector_setlen(&&block_hash,HASH_BYTES,1);
-
-        if is_genesis then
-            [[ assert( THIS.block.tail_hash == nil ) ]];
-
-            var[] byte pln = [] .. [[ THIS.chain.id ]];
-            _crypto_generichash(&&block_hash[0], HASH_BYTES,
-                                &&pln[0], $pln,
-                                null, 0);
-            var[HASH_BYTES] byte tx_hash;
-            _ceu_vector_setlen(&&tx_hash,HASH_BYTES,1);
-            _crypto_generichash(&&tx_hash[0], HASH_BYTES,
-                                &&block_hash[0], $block_hash,
-                                null, 0);
-            [[
-                tx = THIS.block.txs[1]
-                tx.hash = @tx_hash
-                THIS.block.txs[1] = tx.hash
-                APP.txs[tx.hash] = tx
-            ]];
-        else
-            //var int txs_n = [[ #THIS.block.txs ]]; // TODO: assert THIS.block.chain.limits.block
-            if txs_n == 0 then
-// TODO: test-case
-_ceu_assert(0, "bug found");
-                var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
-                throw e;
-            end
-
-            [[
-                if not THIS.block.tail_hash then
-                    -- relink only after the yielding parts, anone "head_hash" race
-                    THIS.block.tail_hash = APP.chains[THIS.block.chain_id].head_hash
-                end
-            ]];
-            var[] byte pln = [] .. [[ THIS.block.tail_hash ]];
-            var int i;
-            loop i in [0 -> txs_n[ do
-                var[HASH_BYTES] byte tx_hash = [] .. [[ THIS.block.txs[@i+1] ]];
-                pln = pln..tx_hash;
-            end
-
-            _crypto_generichash(&&block_hash[0], HASH_BYTES,
-                                &&pln[0], $pln,
-                                null, 0);
-        end
-
-        [[
-            --print('block',string.len(@block_hash),'\n'..tostring2(@block_hash))
-            THIS.block.hash = @block_hash
-            APP.blocks[THIS.block.hash] = THIS.block
-        ]];
-    end
-
-    [[ ARGS = { block=THIS.block } ]];
 end
 
 code/await FS_read_10 (var&[] byte path) -> none
@@ -766,7 +506,7 @@ do
                 block = THIS.block,
             }
         ]];
-        await BlockHash(SourceBlockHash.File());
+        //await BlockHash(SourceBlockHash.File());
 
         [[
             if THIS.previous then
@@ -969,7 +709,7 @@ do
     loop i in [1 -> n_chains] do
         [[
             THIS.chain = APP.chains[@i]
-            assert(not THIS.chain.head_hash)
+            assert(not THIS.chain.head)
 
             path = APP.chains.files..'/'..THIS.chain.id..'.chain'
         ]]
@@ -980,7 +720,11 @@ do
             var[] byte chain_id = [] .. [[ THIS.chain.id ]];
             _crypto_generichash(&&chain_hash[0],HASH_BYTES, &&chain_id[0],$chain_id, null,0);
             [[
-                THIS.chain.hash = @chain_hash
+                THIS.chain.head = {
+                    hash   = @chain_hash,
+                    prv    = nil,
+                    length = 0,
+                }
             ]]
         end
 

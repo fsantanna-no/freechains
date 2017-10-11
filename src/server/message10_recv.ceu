@@ -56,7 +56,7 @@ do
         end
 
 // TODO: should be >, untie requires reading hashes
-        var bool me_lengthier = [[ (THIS.chain.head and THIS.chain.head.length or 0) >= THIS.length ]];
+        var bool me_lengthier = [[ THIS.chain.head.length >= THIS.length ]];
         if me_lengthier then
             escape {MESSAGE10_HAVE};
         end
@@ -206,7 +206,14 @@ loop do
         var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
         throw e;
     end
+
     [[ THIS.common = THIS.common.prv ]];
+    var bool has = [[ THIS.common~=nil ]];
+    if not has then
+        // remote must have genesis at least
+        var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+        throw e;
+    end
 end
 
 // RECEIVE ALL BLOCKS
