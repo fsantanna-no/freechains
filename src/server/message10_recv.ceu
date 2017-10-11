@@ -115,8 +115,9 @@ do
     await UV_Stream_Read_N(&tcp, HASH_BYTES);
     var[HASH_BYTES] byte hash_prv = [] .. tcp.buffer;
     [[
-        hash_prv = @hash_prv
-        assert(THIS.chain.head.hash == hash_prv)
+        hash_prv = @(hash_prv)
+        -- only if not a fork
+        --assert(THIS.chain.head.hash == hash_prv)
     ]]
     $tcp.buffer = $tcp.buffer - HASH_BYTES;
 
@@ -150,7 +151,7 @@ do
 
         [[
             THIS.block.publication = {
-                chain = THIS.chain,
+                chain     = THIS.chain,
                 timestamp = @timestamp,
                 nonce     = @nonce,
                 payload   = @payload,
@@ -187,18 +188,12 @@ if ret=={MESSAGE10_NOTSUB} or ret=={MESSAGE10_HAVE} then
 end
 
 [[ ARGS = THIS ]];
-_printf("AAA\n");
 spawn Chain_Lock(&outer.shared);
-_printf("BBB\n");
 
 {SERVERS_ALIVE++;}
 do finalize with
 {SERVERS_ALIVE--;}
 end
-
-[[
-    THIS.fork = nil
-]];
 
 ///////////////////////////////////////////////////////////////////////////
 // BLOCKS
@@ -243,6 +238,7 @@ loop i do
         throw e;
     end
 end
+[[ THIS.fork = THIS.common.nxt ]];
 
 // RECEIVE ALL BLOCKS
 
@@ -262,6 +258,7 @@ loop i in [1 -> length] do
             nxt         = nil,
             length      = THIS.common.length+@i,
         }
+        THIS.first = THIS.first or THIS.block
     ]];
 
     [[ ARGS = THIS ]]
@@ -276,39 +273,19 @@ loop i in [1 -> length] do
     ]];
 end
 
+// RECHAIN FORK
+
+[[
+    ARGS = {
+        from = THIS.fork,
+        to   = { first=THIS.first, last=THIS.block },
+    }
+]]
+await Chain_Fork();
+
 // RETRANSMIT NEW HEAD
 
 await Client_10(&outer.shared);
-
-// RECHAIN FORK
-
-loop do
-    var bool has = [[ THIS.fork~=nil ]];
-    if not has then
-        break;
-    end
-
-    [[
-        THIS.block = {
-            version = '1.0',
-            timestamp   = 0,    -- TODO: 64-bit timestamp
-            nonce       = 0,
-            chain       = THIS.fork.chain,
-            publication = THIS.fork.publication,
-            hash        = nil,
-            prv         = nil,
-            nxt         = nil,
-                length      = error'oi',
-        }
-        ARGS = THIS
-    ]]
-    await Block_Hash_Link();
-    [[
-        THIS = { chain=THIS.block.chain }
-        ARGS = THIS
-    ]];
-    await Client_10(&outer.shared);
-end
 
 escape/out {MESSAGE10_OK};
 

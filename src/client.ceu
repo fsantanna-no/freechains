@@ -60,7 +60,6 @@ do
 
     loop do
         // => HASH
-_printf("aaa\n");
         await UV_Stream_Read_N(&tcp, HASH_BYTES);
         do
             var[] byte str = [] .. [[ tostring2(@tcp.buffer) ]] .. [0];
@@ -81,7 +80,6 @@ _printf("aaa\n");
         // <= ACK-HASH
         await UV_Stream_Write_N(&tcp,_);
         if has then
-_printf("has\n");
             [[
                 THIS.common = block
             ]]
@@ -299,11 +297,9 @@ do
                         length      = nil,
                     }
                     ARGS = THIS
-print('111', tostring2(THIS.block.chain.head.hash))
                 ]]
                 await Block_Hash_Link();
                 [[
-print('222', tostring2(THIS.block.chain.head.hash))
                     THIS = { chain=THIS.block.chain }
                     ARGS = THIS
                 ]];

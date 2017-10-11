@@ -346,14 +346,7 @@ end
 code/await Chain_Fork (none) -> none
     // input:  [[ ARGS={from=., to={first=.,last=.} ]]
 do
-    [[
-        THIS = ARGS
-        assert(THIS.from.chain == THIS.to.first.chain)
-        if THIS.from.prv then
-            THIS.from.prv.nxt = THIS.to.first
-        end
-        THIS.from.chain.head = THIS.to.last
-    ]]
+    [[ THIS = ARGS ]]
     loop do
         var bool has = [[ THIS.from~=nil ]];
         if not has then
@@ -361,6 +354,7 @@ do
         end
 
         [[
+            assert(THIS.from.chain == THIS.to.first.chain)
             THIS.block = {
                 version     = '1.0',
                 timestamp   = 0,    -- TODO: 64-bit timestamp
@@ -731,6 +725,7 @@ do
 #endif
             [[
                 THIS.chain.head = {
+                    chain  = THIS.chain,
                     hash   = @chain_hash,
                     prv    = nil,
                     length = 0,

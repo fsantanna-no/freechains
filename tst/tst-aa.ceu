@@ -78,6 +78,7 @@ end
         hash        = nil,
         prv         = nil,
         nxt         = nil,
+        length      = nil,
     }
     FIRST = THIS.block
 ]]
