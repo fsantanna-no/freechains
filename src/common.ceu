@@ -143,8 +143,12 @@ do
     await async/thread (zeros,pln,hash)
 #endif
     do
-        var u64 timestamp = [[ THIS.publication.timestamp ]];
-        var u64 nonce     = [[ THIS.publication.nonce     ]];
+        var u64 timestamp;
+        var u64 nonce;
+        atomic do
+            timestamp = [[ THIS.publication.timestamp ]];
+            nonce     = [[ THIS.publication.nonce     ]];
+        end
 
         var u64 n = do
             var u64 n_ = 0;
@@ -161,11 +165,13 @@ do
 
                     _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
                     if zeros <= _leading_zeros(&&hash[0],HASH_BYTES) then
-                        [[
-                            THIS.publication.timestamp = @i
-                            THIS.publication.nonce     = @j
-                            THIS.publication.hash      = @hash
-                        ]];
+                        atomic do
+                            [[
+                                THIS.publication.timestamp = @i
+                                THIS.publication.nonce     = @j
+                                THIS.publication.hash      = @hash
+                            ]];
+                        end
                         escape n_;
                     end
                 end
@@ -251,8 +257,12 @@ do
     await async/thread (zeros,pln,hash)
 #endif
     do
-        var u64 timestamp = [[ THIS.block.timestamp ]];
-        var u64 nonce     = [[ THIS.block.nonce     ]];
+        var u64 timestamp;
+        var u64 nonce;
+        atomic do
+            timestamp = [[ THIS.block.timestamp ]];
+            nonce     = [[ THIS.block.nonce     ]];
+        end
 
         var u64 n = do
             var u64 n_ = 0;
@@ -269,11 +279,13 @@ do
 
                     _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
                     if zeros <= _leading_zeros(&&hash[0],HASH_BYTES) then
-                        [[
-                            THIS.block.timestamp = @i
-                            THIS.block.nonce     = @j
-                            THIS.block.hash      = @hash
-                        ]];
+                        atomic do
+                            [[
+                                THIS.block.timestamp = @i
+                                THIS.block.nonce     = @j
+                                THIS.block.hash      = @hash
+                            ]];
+                        end
                         escape n_;
                     end
                 end
