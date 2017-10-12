@@ -359,7 +359,6 @@ do
             cur = THIS.to.first
             while true do
                 if cur.publication.hash == THIS.from.publication.hash then
-error'OKOKOK'
                     found = true
                     break
                 end
@@ -370,27 +369,25 @@ error'OKOKOK'
             end
         ]]
         var bool found = [[ found ]];
-        if found then
-            continue;
+        if not found then
+            [[
+                --print('>>>', tostring2(THIS.from.hash), THIS.from.publication.payload)
+                assert(THIS.from.chain == THIS.to.first.chain)
+                THIS.block = {
+                    version     = '1.0',
+                    timestamp   = 0,    -- TODO: 64-bit timestamp
+                    nonce       = 0,
+                    chain       = THIS.from.chain,
+                    publication = THIS.from.publication,
+                    hash        = nil,
+                    prv         = nil,
+                    nxt         = nil,
+                    length      = nil,
+                }
+                ARGS = THIS
+            ]]
+            await Block_Hash_Link();
         end
-
-        [[
---print('>>>', tostring2(THIS.from.hash), THIS.from.publication.payload)
-            assert(THIS.from.chain == THIS.to.first.chain)
-            THIS.block = {
-                version     = '1.0',
-                timestamp   = 0,    -- TODO: 64-bit timestamp
-                nonce       = 0,
-                chain       = THIS.from.chain,
-                publication = THIS.from.publication,
-                hash        = nil,
-                prv         = nil,
-                nxt         = nil,
-                length      = nil,
-            }
-            ARGS = THIS
-        ]]
-        await Block_Hash_Link();
 
         [[ THIS.from = THIS.from.nxt ]]
     end
