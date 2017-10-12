@@ -285,6 +285,7 @@ await Chain_Fork();
 
 // RETRANSMIT NEW HEAD
 
+[[ ARGS = { chain=THIS.chain } ]]
 await Client_10(&outer.shared);
 
 escape/out {MESSAGE10_OK};

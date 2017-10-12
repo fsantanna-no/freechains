@@ -78,6 +78,7 @@ do
         end;
         tcp.buffer = [ret];
         // <= ACK-HASH
+        _dbg_tcp(3, &&tcp.handle, "client", "<= ACK-BLOCK_HASH? : %d", ret);
         await UV_Stream_Write_N(&tcp,_);
         if has then
             [[
