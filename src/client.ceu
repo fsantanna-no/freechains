@@ -16,9 +16,9 @@ do
     // <= CHAIN_KEY_STR
     // <= CHAIN_ZEROS
     // <= CHAIN_LENGTH
+    // <= CHAIN_HEAD_HASH
     do/_
         tcp.buffer = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 1, 0];
-
         do
             var u8     zeros   = [[ THIS.chain.zeros ]];
             var[] byte key_str = [] .. [[ THIS.chain.key ]];
@@ -28,7 +28,7 @@ do
             tcp.buffer = tcp.buffer .. [key_len as byte] .. key_str .. [zeros as byte] .. [0,0,0,0,0,0,0,0];
             PUT_HTOBE64(tcp.buffer, $tcp.buffer-sizeof(u64), length);
         end
-
+        tcp.buffer = tcp.buffer .. [[ THIS.chain.head.hash ]];
         await UV_Stream_Write_N(&tcp,_);
 
         // => ACK-header

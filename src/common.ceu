@@ -280,6 +280,7 @@ do
             end
             _ceu_assert(0, "bug found");
         end;
+        //{ceu_trace(((tceu_trace){&_ceu_mem->trace, __FILE__, __LINE__}),"alo");};
         _dbg(0, "client: POW rounds: %d\n", n);
     end
 end
@@ -354,6 +355,27 @@ do
         end
 
         [[
+            found = false
+            cur = THIS.to.first
+            while true do
+                if cur.publication.hash == THIS.from.publication.hash then
+error'OKOKOK'
+                    found = true
+                    break
+                end
+                if cur == THIS.to.last then
+                    break
+                end
+                cur = cur.nxt
+            end
+        ]]
+        var bool found = [[ found ]];
+        if found then
+            continue;
+        end
+
+        [[
+--print('>>>', tostring2(THIS.from.hash), THIS.from.publication.payload)
             assert(THIS.from.chain == THIS.to.first.chain)
             THIS.block = {
                 version     = '1.0',

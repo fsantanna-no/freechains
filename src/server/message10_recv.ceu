@@ -9,6 +9,7 @@ do
     // => CHAIN_KEY_STR
     // => CHAIN_ZEROS
     // => CHAIN_LENGTH
+    // => CHAIN_HEAD_HASH
     do/_
         // key_len
         await UV_Stream_Read_N(&tcp, 1);
@@ -38,10 +39,18 @@ do
         _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_LENGTH  = %ld", length);
         $tcp.buffer = $tcp.buffer - sizeof(u64);
 
+        // head_hash
+        await UV_Stream_Read_N(&tcp, HASH_BYTES);
+        var[HASH_BYTES] byte head_hash;
+        _ceu_vector_setlen(&&head_hash, HASH_BYTES, 1);
+        _ceu_vector_buf_set(&&head_hash, 0, &&tcp.buffer[0], HASH_BYTES);
+        $tcp.buffer = $tcp.buffer - HASH_BYTES;
+
         [[
             THIS = {
-                length = @length,
-                chain = GG.chain_parse_get( {
+                length    = @length,
+                head_hash = @head_hash,
+                chain     = GG.chain_parse_get( {
                     key   = @key_str,
                     zeros = @zeros,
                 } )
@@ -55,10 +64,17 @@ do
             escape {MESSAGE10_NOTSUB};
         end
 
-// TODO: should be >, untie requires reading hashes
-        var bool me_lengthier = [[ THIS.chain.head.length >= THIS.length ]];
+        var bool me_lengthier = [[ THIS.chain.head.length > THIS.length ]];
         if me_lengthier then
             escape {MESSAGE10_HAVE};
+        else
+            var bool me_same = [[ THIS.chain.head.length == THIS.length ]];
+            if me_same then
+                var bool me_greater = [[ THIS.chain.head.hash > THIS.head_hash ]];
+                if me_greater then
+                    escape {MESSAGE10_HAVE};
+                end
+            end
         end
     end
 
@@ -178,7 +194,7 @@ end
 var int ret = await Message10_header_recv(&outer.tcp);
 [[
     THIS = ARGS
-    assert(THIS.chain)
+    assert(THIS.chain and THIS.length)
 ]]
 outer.tcp.buffer = [ret];
 await UV_Stream_Write_N(&outer.tcp,_);
@@ -266,7 +282,7 @@ loop i in [1 -> length] do
     [[ ARGS = THIS ]]
     await Block_Check();
     [[
-        if THIS.chain.head.length < THIS.block.length then
+        if THIS.chain.head.length <= THIS.block.length then
             THIS.chain.head = THIS.block
         end
         THIS.block.prv.nxt = THIS.block
@@ -280,6 +296,10 @@ end
         from = THIS.fork,
         to   = { first=THIS.first, last=THIS.block },
     }
+    print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-')
+    print('FROM: ', ARGS.from and tostring2(ARGS.from.hash))
+    print('HEAD: ', tostring2(ARGS.to.first.chain.head.hash))
+    print('TO: ', tostring2(ARGS.to.first.hash), tostring2(ARGS.to.last.hash))
 ]]
 await Chain_Fork();
 
