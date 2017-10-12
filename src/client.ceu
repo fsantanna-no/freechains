@@ -92,6 +92,11 @@ do
 
     var int i;
     loop i do
+        var bool should_stop = [[ THIS.cur==nil ]];
+        if should_stop then
+            break;
+        end
+
         // <= BLOCK_HASH
         // <= TIMESTAMP + NONCE
         // <= PUBLICATION_HASH
@@ -158,10 +163,6 @@ do
 */
 
         [[ THIS.cur = THIS.cur.nxt ]];
-        var bool should_stop = [[ THIS.cur==nil ]];
-        if should_stop then
-            break;
-        end
     end
 end
 

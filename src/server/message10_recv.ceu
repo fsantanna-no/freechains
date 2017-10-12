@@ -296,10 +296,10 @@ end
         from = THIS.fork,
         to   = { first=THIS.first, last=THIS.block },
     }
-    print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-')
-    print('FROM: ', ARGS.from and tostring2(ARGS.from.hash))
-    print('HEAD: ', tostring2(ARGS.to.first.chain.head.hash))
-    print('TO: ', tostring2(ARGS.to.first.hash), tostring2(ARGS.to.last.hash))
+    --print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-')
+    --print('FROM: ', ARGS.from and tostring2(ARGS.from.hash))
+    --print('HEAD: ', tostring2(ARGS.to.first.chain.head.hash))
+    --print('TO: ', tostring2(ARGS.to.first.hash), tostring2(ARGS.to.last.hash))
 ]]
 await Chain_Fork();
 
