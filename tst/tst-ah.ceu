@@ -1,16 +1,14 @@
 #include "common.ceu"
 
 ///////////////////////////////////////////////////////////////////////////////
-// 0->1->2->0
+// 0->1->0
 ///////////////////////////////////////////////////////////////////////////////
 
 var[] byte chain0;
 var[] byte chain1;
-var[] byte chain2;
 
 var int chain0_len = _;
 var int chain1_len = _;
-var int chain2_len = _;
 
 par/and do
 
@@ -20,7 +18,6 @@ par/and do
 
     lua[] do
         var UV_TCP_Server_Data shared = _;
-        shared.port = 0;
         [=[
             dofile 'src/common.lua'
             dofile 'cfg/config.lua'
@@ -67,6 +64,13 @@ par/and do
         await ClientMessages(&shared);
 
         loop do
+            [[
+                chain0 = GG.chain_flatten('||0|')
+                print'===> 0'
+                print('>'..string.rep('=',78))
+                print(tostring2(chain0))
+                print('<'..string.rep('=',78))
+            ]];
             var bool ok = [[ APP.chains['||0|'].head.length == 4 ]];
             if ok then
                 break;
@@ -74,13 +78,6 @@ par/and do
             await shared.ok;
         end
 
-        [[
-            chain0 = GG.chain_flatten('||0|')
-            print'===> 0'
-            print('>'..string.rep('=',78))
-            print(tostring2(chain0))
-            print('<'..string.rep('=',78))
-        ]];
         chain0 = []..[[tostring2(chain0)]];
         chain0_len = [[#chain0]];
     end
@@ -93,7 +90,6 @@ with
 
     lua[] do
         var UV_TCP_Server_Data shared = _;
-        shared.port = 1;
         [=[
             dofile 'src/common.lua'
             dofile 'cfg/config.lua'
@@ -104,9 +100,6 @@ with
 
             CLIENT {
                 peers = {
-                    {
-                        host = { '127.0.0.1', '8332' },
-                    },
                 },
             }
 
@@ -140,6 +133,13 @@ with
         await ClientMessages(&shared);
 
         loop do
+            [[
+                chain1 = GG.chain_flatten('||0|')
+                print'===> 1'
+                print('>'..string.rep('=',78))
+                print(tostring2(chain1))
+                print('<'..string.rep('=',78))
+            ]];
             var bool ok = [[ APP.chains['||0|'].head.length == 4 ]];
             if ok then
                 break;
@@ -147,77 +147,15 @@ with
             await shared.ok;
         end
 
-        [[
-            chain1 = GG.chain_flatten('||0|')
-            print'===> 1'
-            print('>'..string.rep('=',78))
-            print(tostring2(chain1))
-            print('<'..string.rep('=',78))
-        ]];
         chain1 = []..[[tostring2(chain1)]];
         chain1_len = [[#chain1]];
-    end
-
-with
-
-///////////////////////////////////////////////////////////////////////////////
-// 2
-///////////////////////////////////////////////////////////////////////////////
-
-    lua[] do
-        var UV_TCP_Server_Data shared = _;
-        shared.port = 2;
-        [[
-            dofile 'src/common.lua'
-            dofile 'cfg/config.lua'
-
-            SERVER {
-                host = { '127.0.0.1', '8332' },
-            }
-
-            CLIENT {
-                peers = {
-                    {
-                        host = { '127.0.0.1', '8330' },
-                    },
-                },
-            }
-
-        ]];
-
-        await Init();
-
-        var[] byte ip      = [] .. [[ APP.server.host[1] ]] .. [0];
-        var   int  port    = [[ APP.server.host[2] ]];
-        var   int  backlog = [[ APP.server.backlog ]];
-        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-        spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
-
-        loop do
-            var bool ok = [[ APP.chains['||0|'].head.length == 4 ]];
-            if ok then
-                break;
-            end
-            await shared.ok;
-        end
-
-        [[
-            chain2 = GG.chain_flatten('||0|')
-            print'===> 2'
-            print('>'..string.rep('=',78))
-            print(tostring2(chain2))
-            print('<'..string.rep('=',78))
-        ]];
-        chain2 = []..[[tostring2(chain2)]];
-        chain2_len = [[#chain2]];
     end
 
 end
 
 [[
-    assert(@chain0_len==5 and @chain1_len==5 and @chain2_len==5)
-    assert(@chain0 == @chain1)
-    assert(@chain1 == @chain2)
+    assert(@chain0_len==5 and @chain1_len==5, 'length')
+    assert(@chain0 == @chain1, 'contents')
     print'OK!'
 ]]
 

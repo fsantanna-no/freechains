@@ -207,6 +207,16 @@ code/await Client_10 (var& UV_TCP_Server_Data shared) -> none
 do
     [[ THIS = ARGS ]];
 
+#if 0
+    [[
+        chain = GG.chain_flatten(THIS.chain.id)
+        print('===> '..@shared.port)
+        print(string.rep('>',79))
+        print(tostring2(chain))
+        print(string.rep('<',79))
+    ]];
+#endif
+
     var int ps = [[#APP.client.peers]];
     var int ps_ok = 0;
     var int i;
@@ -285,7 +295,7 @@ do
             await Publication_New();
             do
                 [[ ARGS = { chain=THIS.publication.chain } ]]
-                spawn Chain_Lock(&shared);
+                CHAIN_LOCK(l,shared);
                 [[
                     THIS.block = {
                         version     = '1.0',

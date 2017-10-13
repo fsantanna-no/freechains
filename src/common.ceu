@@ -105,6 +105,9 @@ data UV_TCP_Server_Data with
     event (int,bool,int) ok;
     event none unlock;
     event none retransmit;
+#if 1
+    var int port;   // only for debug
+#endif
 end
 
 data SourceBlockHash;
@@ -556,10 +559,19 @@ do
     ]];
 end
 
-code/await Chain_Lock (var& UV_TCP_Server_Data shared) -> NEVER
+#define CHAIN_LOCK(id,shared)                           \
+    [[ assert(ARGS and ARGS.chain) ]];                  \
+    var& Chain_Lock id = spawn Chain_Lock(&shared);     \
+    if id.is_locked then                                \
+        await id.ok;                                    \
+    end
+
+code/await Chain_Lock (var& UV_TCP_Server_Data shared) ->
+                        (var bool is_locked, event none ok) ->
+                            NEVER
 do
     [[ THIS = ARGS ]]
-    var bool is_locked = [[ THIS.chain.is_locked ]];
+    is_locked = [[ THIS.chain.is_locked ]];
     if is_locked then
         loop do
             await shared.unlock;
@@ -574,6 +586,7 @@ do
         [[ THIS.chain.is_locked = false ]];
         emit shared.unlock;
     end
+    emit ok;
     await FOREVER;
 end
 

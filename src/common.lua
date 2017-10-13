@@ -99,6 +99,7 @@ function GG.chain_parse_get (chain)
         assert(chain.zeros < 256)
     end
     chain.id = '|'..chain.key..'|'..chain.zeros..'|'
+    -- WARNING: do not reset other fields here
     return APP.chains[chain.id]
 end
 
@@ -149,6 +150,7 @@ function GG.chain_flatten (chain_id)
     while cur do
         local t = {
             hash = tostring2(cur.hash),
+            length = cur.length,
             publication = cur.publication and {
                 hash    = cur.publication.hash,
                 payload = cur.publication.payload,
