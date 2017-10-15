@@ -156,9 +156,6 @@ do
     ]];
 end
 
-[[ ARGS = THIS ]];
-CHAIN_LOCK(l,outer.shared);
-
 var int ret = do
     var bool is_sub = [[ THIS.chain ~= nil ]];
     _dbg_tcp(2, &&outer.tcp.handle, "server", "is_sub      = %d", is_sub);
@@ -166,6 +163,8 @@ var int ret = do
         escape {MESSAGE10_NOTSUB};
     end
 
+    //_dbg_tcp(2, &&outer.tcp.handle, "server", "***");
+    //[[ print('***', THIS.chain.head.length, '<-', THIS.length) ]];
     var bool me_lengthier = [[ THIS.chain.head.length > THIS.length ]];
     if me_lengthier then
         escape {MESSAGE10_HAVE};
@@ -189,10 +188,14 @@ if ret=={MESSAGE10_NOTSUB} or ret=={MESSAGE10_HAVE} then
     escape/out ret;     // terminate if not subcribed or local is lengthier
 end
 
+[[ ARGS = THIS ]];
+CHAIN_LOCK(l,outer.shared);
+
 {SERVERS_ALIVE++;}
 do finalize with
     {SERVERS_ALIVE--;}
 end
+//[[ print('!!!', THIS.chain.head.length, '<-', THIS.length) ]];
 
 ///////////////////////////////////////////////////////////////////////////
 // BLOCKS
@@ -241,6 +244,9 @@ end
 
 // RECEIVE ALL BLOCKS
 
+//_dbg_tcp(3, &&outer.tcp.handle, "server", "oioi");
+//[[ print('444', THIS.length, THIS.common.length, THIS.chain.head.length) ]];
+
 var u64 length = [[ THIS.length-THIS.common.length ]];
 var u64 i;
 loop i in [1 -> length] do
@@ -266,6 +272,7 @@ loop i in [1 -> length] do
     await Block_Check();
     [[
         if THIS.chain.head.length <= THIS.block.length then
+--print('???', THIS.chain.head.length, '->', THIS.block.length)
             THIS.chain.head = THIS.block
         end
         THIS.block.prv.nxt = THIS.block
