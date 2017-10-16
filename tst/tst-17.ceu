@@ -37,13 +37,6 @@ par/and do
         native/pre do
             typedef uv_stream_t* uv_stream_t_ptr;
         end
-        code/await Disconnect (var _uv_stream_t_ptr h) -> none do
-            await async (h) do
-                emit UV_STREAM_ERROR(h,-_ECONNRESET);
-            end
-        end
-        pool[1] Disconnect ds;
-
 
         par/and do
             // close 2nd connection for 2nd message
@@ -51,15 +44,11 @@ par/and do
             await UV_STREAM_CONNECT;
             await UV_STREAM_CONNECT;
             do
-                native/plain _uv_connect_t_ptr;
-                native/pre do
-                    typedef uv_connect_t* uv_connect_t_ptr;
-                end
-                var _uv_connect_t_ptr c;
-                var int err;
-                (c,err) = await UV_STREAM_CONNECT;
-                await async (c) do
-                    emit UV_STREAM_ERROR(c:handle, -_ECONNRESET);
+                var _uv_connect_t&& c;
+                (c,_) = await UV_STREAM_CONNECT;
+                var _uv_stream_t_ptr s = c:handle;
+                await async (s) do
+                    emit UV_STREAM_ERROR(s, -_ECONNRESET);
                 end
             end
         with
@@ -69,7 +58,7 @@ par/and do
                 [=[
                     APP.messages = {}
                     MESSAGE {
-                        id = '1.0',
+                        version = '1.0',
                         chain = {
                             key   = '',
                             zeros = 0,
@@ -106,19 +95,24 @@ with
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
         spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
 
-        await shared.ok;
-        await shared.ok;
-        await shared.ok;
+        loop do
+            var bool ok = [[ APP.chains['||0|'].head.length == 3 ]];
+            if ok then
+                break;
+            end
+            await shared.ok;
+        end
+
         [[
             CHAIN1 = GG.chain_flatten('||0|')
-            print'===> SERVER'
+            print'===> SERVER-1'
             print('>'..string.rep('=',78))
             print(GG.chain_tostring('||0|'))
             print('<'..string.rep('=',78))
         ]];
         [=[
             assert( #CHAIN1==4 and
-                    CHAIN1[4].txs[1]==[[0.3]])
+                    CHAIN1[4].publication.payload==[[0.3]])
             print'OK 1/2!'
         ]=];
     end
@@ -147,18 +141,24 @@ with
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
         spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
 
-        await shared.ok;
-        await shared.ok;
+        loop do
+            var bool ok = [[ APP.chains['||0|'].head.length == 2 ]];
+            if ok then
+                break;
+            end
+            await shared.ok;
+        end
+
         [[
             CHAIN2 = GG.chain_flatten('||0|')
-            print'===> SERVER'
+            print'===> SERVER-2'
             print('>'..string.rep('=',78))
             print(GG.chain_tostring('||0|'))
             print('<'..string.rep('=',78))
         ]];
         [=[
-            assert( #CHAIN2==4 and
-                    CHAIN2[4].txs[1]==[[0.3]])
+            assert( #CHAIN2==3 and
+                    CHAIN2[3].publication.payload==[[0.3]])
             print'OK 2/2!'
         ]=];
     end
