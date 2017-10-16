@@ -13,29 +13,29 @@ all:
 	          --pre-input=$(CEU_SRC)                                           \
 	    --ceu --ceu-features-lua=true --ceu-features-thread=true               \
 		      --ceu-features-trace=true \
-		      --ceu-features-exception=true \
+		      --ceu-features-exception=true --ceu-err-uncaught-exception-main=pass --ceu-err-uncaught-exception-lua=pass \
 	          --ceu-err-unused=pass --ceu-err-uninitialized=pass               \
 	          --ceu-line-directives=true \
 	    --env --env-types=$(CEU_DIR)/env/types.h                               \
 	          --env-threads=$(CEU_UV_DIR)/env/threads.h                        \
-	          --env-main=$(CEU_DIR)/env/main.c   --env-output=/tmp/x.c                                \
+	          --env-main=$(CEU_DIR)/env/main.c   --env-output=/tmp/x.c         \
 	    --cc --cc-args="-lm -llua5.3 -luv -lsodium -g"                         \
-	         --cc-output=$(OUT)
+			 --cc-output=/tmp/$$(basename $(CEU_SRC) .ceu);
 
 ceu:
 	ceu --pre --pre-args="-I$(CEU_DIR)/include -I$(CEU_UV_DIR)/include -Isrc/" \
-	          --pre-input=$(CEU_SRC)  --pre-output=/tmp/x.ceu \
-	    --ceu --ceu-input=/tmp/x.ceu --ceu-features-lua=true --ceu-features-thread=true               \
+	          --pre-input=$(CEU_SRC)  --pre-output=/tmp/x.ceu                  \
+	    --ceu --ceu-input=/tmp/x.ceu --ceu-features-lua=true --ceu-features-thread=true \
 	          --ceu-err-unused=pass --ceu-err-uninitialized=pass               \
-	          --ceu-line-directives=false \
+	          --ceu-line-directives=false                                      \
 	    --env --env-types=$(CEU_DIR)/env/types.h                               \
 	          --env-threads=$(CEU_UV_DIR)/env/threads.h                        \
-	          --env-main=$(CEU_DIR)/env/main.c  --env-output=/tmp/x.c                                \
-	    --cc --cc-args="-lm -llua5.3 -luv -lsodium -g"							   \
-	         --cc-output=$(OUT)
+	          --env-main=$(CEU_DIR)/env/main.c  --env-output=/tmp/x.c          \
+	    --cc --cc-args="-lm -llua5.3 -luv -lsodium -g"                         \
+			 --cc-output=/tmp/$$(basename $(CEU_SRC) .ceu);
 
 c:
-	ceu --cc --cc-input=/tmp/x.c --cc-args="-lm -llua5.3 -luv -lsodium -g"							   \
+	ceu --cc --cc-input=/tmp/x.c --cc-args="-lm -llua5.3 -luv -lsodium -g"     \
 	         --cc-output=freechains
 
 tests:
@@ -61,12 +61,25 @@ tests:
 	make -f util/fc2all/Makefile
 	#exit 1
 	#
-	for i in tst/tst-*.ceu; do                           \
+	make tst
+
+tst:
+	for i in tst/tst-0[1-8].ceu tst/tst-a*.ceu; do                           \
 		echo;                                            \
 		echo "#####################################";    \
 		echo File: "$$i";                                \
 		echo "#####################################";    \
 		make CEU_SRC=$$i OUT=/tmp/freechains-tst all && /tmp/freechains-tst || exit 1; \
+		if [ "$$i" = "tst/tst-30.ceu" ]; then break; fi; \
+	done
+
+tst-run:
+	for i in tst/tst-0[1-8].ceu tst/tst-a*.ceu; do                           \
+		echo;                                            \
+		echo "#####################################";    \
+		echo File: "$$i";                                \
+		echo "#####################################";    \
+		/tmp/$$(basename $$i .ceu) || exit 1;             \
 		if [ "$$i" = "tst/tst-30.ceu" ]; then break; fi; \
 	done
 
@@ -131,7 +144,7 @@ kill:
 	#- pkill -9 -f fcfs
 	#- sudo umount /data/ceu/ceu-libuv/ceu-libuv-freechains/util/fcfs/mount*
 
-.PHONY: milter fcfs r2e
+.PHONY: milter fcfs r2e tst
 
 # 01->32
 #real	8m57.250s

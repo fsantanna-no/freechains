@@ -43,7 +43,7 @@ par/or do
             [=[
                 APP.messages = {}
                 MESSAGE {
-                    id = '1.0',
+                    version = '1.0',
                     chain = {
                         key   = '',
                         zeros = 0,
@@ -81,8 +81,11 @@ with
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
         spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
 
-        var int i;
-        loop i in [1 -> 9] do
+        loop do
+            var bool ok = [[ APP.chains['||0|'].head.length == 17 ]];
+            if ok then
+                break;
+            end
             await shared.ok;
         end
 
@@ -94,9 +97,9 @@ with
             print('<'..string.rep('=',78))
         ]];
         [=[
-            assert( #CHAIN1==3 and
-                    CHAIN1[2].txs[9]==[[2.9]] and
-                    CHAIN1[3].txs[8]==[[0.8]])
+            assert( #CHAIN1==18 and
+                    CHAIN1[2].publication.payload==[[2.1]] and
+                    CHAIN1[18].publication.payload==[[0.8]])
             print'OK!'
         ]=];
     end
@@ -128,7 +131,7 @@ with
         loop i in [1 -> 9] do
             [=[
                 MESSAGE {
-                    id = '1.0',
+                    version = '1.0',
                     chain = {
                         key   = '',
                         zeros = 0,
