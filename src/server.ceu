@@ -8,42 +8,47 @@ do
     var int msg = 0;
     var int ret = 0;
 
+    var int timeout = [[ APP.server.timeout ]];     // TODO: (msg,e1?,ret) for timeout?
+
     var Exception.Uv? e1;
-    var Exception.Freechains? e2;
-    catch e1,e2 do
-        // => MESSAGE
-        await UV_Stream_Read_N(&tcp, MESSAGE_BYTES);
 
-        //_printf("[server] => MESSAGE = [%d %d %d %d]\n",
-                    //bytes[0], bytes[1], bytes[2], bytes[3]);
+    watching (timeout)s do
+        var Exception.Freechains? e2;
+        catch e1,e2 do
+            // => MESSAGE
+            await UV_Stream_Read_N(&tcp, MESSAGE_BYTES);
 
-        var bool ok = ( tcp.buffer[0]==MESSAGE_MAGIC_0 and
-                        tcp.buffer[1]==MESSAGE_MAGIC_1 );
+            //_printf("[server] => MESSAGE = [%d %d %d %d]\n",
+                        //bytes[0], bytes[1], bytes[2], bytes[3]);
 
-        msg = (tcp.buffer[2]<<8) + (tcp.buffer[3]<<0);
+            var bool ok = ( tcp.buffer[0]==MESSAGE_MAGIC_0 and
+                            tcp.buffer[1]==MESSAGE_MAGIC_1 );
 
-        $tcp.buffer = $tcp.buffer - MESSAGE_BYTES;
+            msg = (tcp.buffer[2]<<8) + (tcp.buffer[3]<<0);
 
-        if ok and msg=={MESSAGE10} then
-            do ()
-                var int out;
-                out = do/out
-                    #include "server/message10_recv.ceu"
-                end;
-                outer.ret = out;
+            $tcp.buffer = $tcp.buffer - MESSAGE_BYTES;
+
+            if ok and msg=={MESSAGE10} then
+                do ()
+                    var int out;
+                    out = do/out
+                        #include "server/message10_recv.ceu"
+                    end;
+                    outer.ret = out;
+                end
+            else
+                var Exception.Freechains.Unsupported e = val Exception.Freechains.Unsupported(_);
+                throw e;
             end
-        else
-            var Exception.Freechains.Unsupported e = val Exception.Freechains.Unsupported(_);
-            throw e;
         end
-    end
 
-    if e1? then
-        [[ APP.errs[#APP.errs+1] = @(e1! as int) ]];
-    else/if e2? then
-        [[ APP.errs[#APP.errs+1] = @(e2! as int) ]];
-    else/if ret != {MESSAGE10_OK} then
-        [[ APP.errs[#APP.errs+1] = @ret ]];
+        if e1? then
+            [[ APP.errs[#APP.errs+1] = @(e1! as int) ]];
+        else/if e2? then
+            [[ APP.errs[#APP.errs+1] = @(e2! as int) ]];
+        else/if ret != {MESSAGE10_OK} then
+            [[ APP.errs[#APP.errs+1] = @ret ]];
+        end
     end
 
     // [[ ARGS = { chain=? } ]]

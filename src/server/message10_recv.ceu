@@ -180,7 +180,7 @@ do
             escape {MESSAGE10_HAVE};
         end
 
-    [[ print('>>> LENGTH', @outer.shared.port, THIS.chain.head.length, THIS.length) ]];
+    [[ print('>>> LENGTH', @outer.shared.port, THIS.chain.head.length, THIS.length, tostring2(THIS.chain.head.hash)) ]];
         var bool me_same = [[ THIS.chain.head.length == THIS.length ]];
         if me_same then
             var bool me_greater = [[ THIS.chain.head.hash >= THIS.head_hash ]];
@@ -292,7 +292,6 @@ do
         await Block_Check();
         [[
             if THIS.chain.head.length <= THIS.block.length then
-    --print('---', THIS.chain.head.length, '->', THIS.block.length)
                 THIS.chain.head = THIS.block
             end
             THIS.block.prv.nxt = THIS.block

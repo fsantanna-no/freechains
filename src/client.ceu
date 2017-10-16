@@ -70,9 +70,9 @@ do
             _dbg_tcp(3, &&tcp.handle, "client", "=> BLOCK_HASH? : %s", &&str[0]);
         end
         [[
-            block = GG.chain_block(THIS.chain,@tcp.buffer)
+            THIS.cur = GG.chain_block(THIS.chain,@tcp.buffer)
         ]]
-        var bool has = [[ block~=nil ]];
+        var bool has = [[ THIS.cur~=nil ]];
         var int ret = do
             if has then
                 escape {MESSAGE10_HAVE};
@@ -86,7 +86,7 @@ do
         await UV_Stream_Write_N(&tcp,_);
         if has then
             [[
-                THIS.common = block
+                THIS.common = THIS.cur
             ]]
             break;
         end

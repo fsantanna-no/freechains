@@ -55,6 +55,7 @@ function SERVER (t)
     for k,v in pairs(t) do
         APP.server[k] = v
     end
+    APP.server.timeout = APP.server.timeout or 10
     APP.server.backlog = APP.server.backlog or 128
     APP.server.message10_payload_len_limit = APP.server.message10_payload_len_limit or 1024 -- max payload length for untrusted clients
 end
