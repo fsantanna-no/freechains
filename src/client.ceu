@@ -5,7 +5,11 @@ code/await Send_10 (var& UV_Stream tcp) -> none
     // [[ ARGS = { chain={...} } ]]
     throws Exception.Uv, Exception.Freechains.Malformed
 do
-    [[ THIS = ARGS ]]
+    [[
+        THIS = {
+            chain = ARGS.chain,
+        }
+    ]]
 
     ///////////////////////////////////////////////////////////////////////////
     // HEADER
@@ -169,7 +173,12 @@ end
 code/await Peer_10 (none) -> none
     // [[ ARGS = { peer={...}, chain={...} } ]]
 do
-    [[ THIS = ARGS ]];
+    [[
+        THIS = {
+            peer  = ARGS.peer,
+            chain = ARGS.chain,
+        }
+    ]];
 
 {CLIENTS_ALIVE++;}
 do finalize with
@@ -205,7 +214,11 @@ end
 code/await Client_10 (var& UV_TCP_Server_Data shared) -> none
     // [[ ARGS = { chain={...} } ]]
 do
-    [[ THIS = ARGS ]];
+    [[
+        THIS = {
+            chain = ARGS.chain,
+        }
+    ]];
 
     var int ps = [[#APP.client.peers]];
     var int ps_ok = 0;

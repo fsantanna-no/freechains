@@ -119,7 +119,11 @@ code/await Publication_New (none) -> none
     // input:  [[ ARGS={publication={TODO}} ]]
     // output: [[ ARGS={publication={DONE}} ]]
 do
-    [[ THIS = ARGS ]];
+    [[
+        THIS = {
+            publication = ARGS.publication,
+        }
+    ]];
 
     var[HASH_BYTES] byte hash;
     _ceu_vector_setlen(&&hash,HASH_BYTES,1);
@@ -195,7 +199,11 @@ code/await Publication_Check (none) -> none
     // input: [[ ARGS={publication={DONE}} ]]
     throws Exception.Freechains.Malformed
 do
-    [[ THIS = ARGS ]];
+    [[
+        THIS = {
+            publication = ARGS.publication,
+        }
+    ]];
 
     var[HASH_BYTES] byte hash = [] .. [[ THIS.publication.hash ]];
 
@@ -227,7 +235,11 @@ code/await Block_Hash (none) -> none
     // input:  [[ ARGS={block={TODO}} ]]
     // effect: [[ ARGS={block={DONE}} ]]
 do
-    [[ THIS = ARGS ]];
+    [[
+        THIS = {
+            block = ARGS.block,
+        }
+    ]];
 
     [[
         --print('>>>', THIS.block.length, THIS.block.prv and THIS.block.prv.length)
@@ -304,7 +316,11 @@ code/await Block_Hash_Link (none) -> none
     // input:  [[ ARGS={block={TODO}} ]]
     // effect: [[ ARGS={block={DONE}} ]]
 do
-    [[ THIS = ARGS ]]
+    [[
+        THIS = {
+            block = ARGS.block,
+        }
+    ]];
 
     [[
         assert(not THIS.block.prv)
@@ -331,7 +347,11 @@ code/await Block_Check (none) -> none
     // input: [[ ARGS={block={DONE}} ]]
     throws Exception.Freechains.Malformed
 do
-    [[ THIS = ARGS ]];
+    [[
+        THIS = {
+            block = ARGS.block,
+        }
+    ]];
 
     var[HASH_BYTES] byte hash = [] .. [[ THIS.block.hash ]];
 
@@ -362,7 +382,12 @@ end
 code/await Chain_Fork (none) -> none
     // input:  [[ ARGS={from=., to={first=.,last=.} ]]
 do
-    [[ THIS = ARGS ]]
+    [[
+        THIS = {
+            from = ARGS.from,
+            to   = ARGS.to,
+        }
+    ]]
     loop do
         var bool has = [[ THIS.from~=nil ]];
         if not has then

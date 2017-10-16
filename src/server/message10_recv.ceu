@@ -5,7 +5,12 @@ code/await Message10_block_recv (var& UV_Stream tcp) -> none
     // input: { chain={...}, block={TODO} }
     throws Exception.Uv
 do
-    [[ THIS = ARGS ]];
+    [[
+        THIS = {
+            chain = ARGS.chain,
+            block = ARGS.block,
+        }
+    ]];
 
     // => HASH
     await UV_Stream_Read_N(&tcp, HASH_BYTES);
@@ -324,6 +329,7 @@ end
 do
     [[ ARGS = { chain=THIS.chain } ]]
     CHAIN_LOCK(l, outer.shared, "lock_send");
+
     [[ ARGS = { chain=THIS.chain } ]]
     await Client_10(&outer.shared);
 end
