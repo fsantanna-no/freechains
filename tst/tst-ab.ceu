@@ -80,6 +80,7 @@ end
         nxt         = nil,
     }
     FIRST = THIS.block
+    ARGS = THIS
 ]]
 await Block_Hash_Link();
 [[

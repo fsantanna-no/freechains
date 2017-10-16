@@ -82,6 +82,7 @@ end
         length      = nil,
     }
     FIRST = THIS.block
+    ARGS = THIS
 ]]
 await Block_Hash_Link();
 [[
