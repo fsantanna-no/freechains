@@ -27,7 +27,7 @@ par/and do
             }
 
             MESSAGE {
-                id = '1.0',
+                version = '1.0',
                 chain = {
                     key   = '',
                     zeros = 0,
@@ -42,15 +42,13 @@ par/and do
 
         var int i;
         loop i in [0 -> 10[ do
-            [=[
+            [[
                 APP.messages = {}
-                local block = APP.blocks[ APP.chains['||0|'].head_hash ]
                 ARGS = {
-                    block = block,
-                    chain = assert(APP.chains[block.chain_id]),
+                    chain = assert(APP.chains['||0|'].head.chain),
                 }
-            ]=];
-            await Client(&shared);
+            ]];
+            await Client_10(&shared);
         end
     end
 
@@ -86,7 +84,7 @@ with
             print('<'..string.rep('=',78))
         ]];
         [=[
-            assert( #CHAIN1==2 and CHAIN1[2].txs[1]==[[same]] )
+            assert( #CHAIN1==2 and CHAIN1[2].publication.payload==[[same]] )
             print'OK!'
         ]=];
     end

@@ -30,7 +30,7 @@ par/and do
             }
 
             MESSAGE {
-                id = '1.0',
+                version = '1.0',
                 chain = {
                     key   = '',
                     zeros = 0,
@@ -76,13 +76,12 @@ with
             print('>'..string.rep('=',78))
             print(GG.chain_tostring('||0|'))
             print('<'..string.rep('=',78))
-        ]];
-        [=[
+
             assert( #CHAIN1==3 and
-                    CHAIN1[2].txs[1]==[[0.1]] and
-                    CHAIN1[3].txs[1]==[[1.1]] )
+                    CHAIN1[2].publication.payload=='0.1' and
+                    CHAIN1[3].publication.payload=='1.1' )
             print'OK!'
-        ]=];
+        ]];
     end
 
 with
@@ -106,7 +105,7 @@ with
             }
 
             MESSAGE {
-                id = '1.0',
+                version = '1.0',
                 chain = {
                     key   = '',
                     zeros = 0,

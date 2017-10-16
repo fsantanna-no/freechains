@@ -27,7 +27,7 @@ par/and do
             }
 
             MESSAGE {
-                id = '1.0',
+                version = '1.0',
                 chain = {
                     key   = '',
                     zeros = 0,
@@ -74,7 +74,7 @@ with
             print('<'..string.rep('=',78))
         ]];
         [=[
-            assert( #CHAIN1==2 and CHAIN1[2].txs[1]==[[ xxx ]] )
+            assert( #CHAIN1==2 and CHAIN1[2].publication.payload==[[ xxx ]] )
             print'OK!'
         ]=];
     end
@@ -100,7 +100,7 @@ with
             }
 
             MESSAGE {
-                id = '1.0',
+                version = '1.0',
                 chain = {
                     key   = '',
                     zeros = 0,
