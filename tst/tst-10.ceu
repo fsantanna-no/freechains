@@ -33,7 +33,7 @@ par/and do
             }
 
             MESSAGE {
-                id = '1.0',
+                version = '1.0',
                 chain = {
                     key   = '',
                     zeros = 0,
@@ -50,7 +50,7 @@ par/and do
         [=[
             APP.messages = {}
             MESSAGE {
-                id = '1.0',
+                version = '1.0',
                 chain = {
                     key   = '',
                     zeros = 0,
@@ -127,7 +127,7 @@ with
             }
 
             MESSAGE {
-                id = '1.0',
+                version = '1.0',
                 chain = {
                     key   = '',
                     zeros = 0,
@@ -135,7 +135,7 @@ with
                 payload = [[2.1]],
             }
             MESSAGE {
-                id = '1.0',
+                version = '1.0',
                 chain = {
                     key   = '',
                     zeros = 0,

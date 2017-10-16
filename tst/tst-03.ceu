@@ -12,6 +12,8 @@ var int chain0_len = _;
 var int chain1_len = _;
 var int chain2_len = _;
 
+event none ok;
+
 par/and do
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -83,6 +85,8 @@ par/and do
         ]];
         chain0 = []..[[tostring2(chain0)]];
         chain0_len = [[#chain0]];
+
+        emit ok;
     end
 
 with
@@ -156,6 +160,8 @@ with
         ]];
         chain1 = []..[[tostring2(chain1)]];
         chain1_len = [[#chain1]];
+
+        emit ok;
     end
 
 with
@@ -193,23 +199,31 @@ with
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
         spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
 
-        loop do
-            var bool ok = [[ APP.chains['||0|'].head.length == 4 ]];
-            if ok then
-                break;
+        par/and do
+            loop do
+                var bool ok = [[ APP.chains['||0|'].head.length == 4 ]];
+                if ok then
+                    break;
+                end
+                await shared.ok;
             end
-            await shared.ok;
-        end
 
-        [[
-            chain2 = GG.chain_flatten('||0|')
-            print'===> 2'
-            print('>'..string.rep('=',78))
-            print(tostring2(chain2))
-            print('<'..string.rep('=',78))
-        ]];
-        chain2 = []..[[tostring2(chain2)]];
-        chain2_len = [[#chain2]];
+            [[
+                chain2 = GG.chain_flatten('||0|')
+                print'===> 2'
+                print('>'..string.rep('=',78))
+                print(tostring2(chain2))
+                print('<'..string.rep('=',78))
+            ]];
+            chain2 = []..[[tostring2(chain2)]];
+            chain2_len = [[#chain2]];
+            emit ok;
+        with
+            var int i;
+            loop i in [1 -> 3] do
+                await ok;
+            end
+        end
     end
 
 end

@@ -156,147 +156,177 @@ do
     ]];
 end
 
-var int ret = do
-    var bool is_sub = [[ THIS.chain ~= nil ]];
-    _dbg_tcp(2, &&outer.tcp.handle, "server", "is_sub      = %d", is_sub);
-    if not is_sub then
-        escape {MESSAGE10_NOTSUB};
-    end
+do
+    [[ ARGS = THIS ]];
+    CHAIN_LOCK(l, outer.shared, "lock_write");
+    [[ print('<<< LENGTH', @outer.shared.port, THIS.chain.head.length, THIS.length) ]];
 
-    //_dbg_tcp(2, &&outer.tcp.handle, "server", "***");
-    //[[ print('***', THIS.chain.head.length, '<-', THIS.length) ]];
-    var bool me_lengthier = [[ THIS.chain.head.length > THIS.length ]];
-    if me_lengthier then
-        escape {MESSAGE10_HAVE};
-    end
+    var int ret = do
+        var bool is_sub = [[ THIS.chain ~= nil ]];
+        _dbg_tcp(2, &&outer.tcp.handle, "server", "is_sub      = %d", is_sub);
+        if not is_sub then
+            escape {MESSAGE10_NOTSUB};
+        end
 
-    var bool me_same = [[ THIS.chain.head.length == THIS.length ]];
-    if me_same then
-        var bool me_greater = [[ THIS.chain.head.hash >= THIS.head_hash ]];
-        if me_greater then
+        //_dbg_tcp(2, &&outer.tcp.handle, "server", "***");
+        //[[ print('***', THIS.chain.head.length, '<-', THIS.length) ]];
+        var bool me_lengthier = [[ THIS.chain.head.length > THIS.length ]];
+        if me_lengthier then
             escape {MESSAGE10_HAVE};
         end
-    end
 
-    escape {MESSAGE10_OK};
-end;
-
-outer.tcp.buffer = [ret];
-await UV_Stream_Write_N(&outer.tcp,_);
-
-if ret=={MESSAGE10_NOTSUB} or ret=={MESSAGE10_HAVE} then
-    escape/out ret;     // terminate if not subcribed or local is lengthier
-end
-
-[[ ARGS = THIS ]];
-CHAIN_LOCK(l,outer.shared);
-
-{SERVERS_ALIVE++;}
-do finalize with
-    {SERVERS_ALIVE--;}
-end
-//[[ print('!!!', THIS.chain.head.length, '<-', THIS.length) ]];
-
-///////////////////////////////////////////////////////////////////////////
-// BLOCKS
-// - first, sends hashes from head -> genesis until finds common block
-// - then, receives from common.nxt -> head
-///////////////////////////////////////////////////////////////////////////
-
-[[ THIS.common = THIS.chain.head ]];
-var int i;
-loop i do
-    if i >= FORK_LENGTHY then
-        var Exception.Freechains.Fork_Lengthy e = val Exception.Freechains.Fork_Lengthy(_);
-        throw e;
-    end
-
-    // <= HASH
-    outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.common.hash ]];
-    do
-        var[] byte str = [] .. [[ tostring2(@outer.tcp.buffer) ]] .. [0];
-        _dbg_tcp(3, &&outer.tcp.handle, "server", "<= BLOCK_HASH? : %s", &&str[0]);
-    end
-    await UV_Stream_Write_N(&outer.tcp, _);
-
-    // => ACK-HASH
-    await UV_Stream_Read_N(&outer.tcp, 1);
-    var byte ret = outer.tcp.buffer[0];
-    $outer.tcp.buffer = $outer.tcp.buffer - 1;
-    if ret == {MESSAGE10_HAVE} then
-        break;
-    else/if ret == {MESSAGE10_OK} then
-        // continue
-    else
-        var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
-        throw e;
-    end
-
-    [[ THIS.common = THIS.common.prv ]];
-    var bool has = [[ THIS.common~=nil ]];
-    if not has then
-        // remote must have genesis at least
-        var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
-        throw e;
-    end
-end
-[[ THIS.fork = THIS.common.nxt ]];
-
-// RECEIVE ALL BLOCKS
-
-//_dbg_tcp(3, &&outer.tcp.handle, "server", "oioi");
-//[[ print('444', THIS.length, THIS.common.length, THIS.chain.head.length) ]];
-
-var u64 length = [[ THIS.length-THIS.common.length ]];
-var u64 i;
-loop i in [1 -> length] do
-{BLOCKS_RECEIVED++;}
-    [[
-        THIS.block = {
-            version = '1.0',
-            timestamp   = nil,
-            nonce       = nil,
-            chain       = THIS.chain,
-            publication = nil,
-            hash        = nil,
-            prv         = THIS.block or THIS.common,
-            nxt         = nil,
-            length      = THIS.common.length+@i,
-        }
-        THIS.first = THIS.first or THIS.block
-    ]];
-
-    [[ ARGS = THIS ]]
-    await Message10_block_recv(&outer.tcp);
-    [[ ARGS = THIS ]]
-    await Block_Check();
-    [[
-        if THIS.chain.head.length <= THIS.block.length then
---print('???', THIS.chain.head.length, '->', THIS.block.length)
-            THIS.chain.head = THIS.block
+    [[ print('>>> LENGTH', @outer.shared.port, THIS.chain.head.length, THIS.length) ]];
+        var bool me_same = [[ THIS.chain.head.length == THIS.length ]];
+        if me_same then
+            var bool me_greater = [[ THIS.chain.head.hash >= THIS.head_hash ]];
+    [[ print('>>>', tostring2(THIS.chain.head.hash), tostring2(THIS.head_hash)) ]];
+            if me_greater then
+    [[ print('<<<', 'HAVE') ]];
+                escape {MESSAGE10_HAVE};
+            end
         end
-        THIS.block.prv.nxt = THIS.block
-    ]];
+
+        escape {MESSAGE10_OK};
+    end;
+
+    outer.tcp.buffer = [ret];
+    await UV_Stream_Write_N(&outer.tcp,_);
+
+    if ret=={MESSAGE10_NOTSUB} or ret=={MESSAGE10_HAVE} then
+        escape/out ret;     // terminate if not subcribed or local is lengthier
+    end
+
+    {SERVERS_ALIVE++;}
+    do finalize with
+        {SERVERS_ALIVE--;}
+    end
+    //[[ print('!!!', THIS.chain.head.length, '<-', THIS.length) ]];
+
+    ///////////////////////////////////////////////////////////////////////////
+    // BLOCKS
+    // - first, sends hashes from head -> genesis until finds common block
+    // - then, receives from common.nxt -> head
+    ///////////////////////////////////////////////////////////////////////////
+
+    [[ THIS.common = THIS.chain.head ]];
+    var int i;
+    loop i do
+        if i >= FORK_LENGTHY then
+            var Exception.Freechains.Fork_Lengthy e = val Exception.Freechains.Fork_Lengthy(_);
+            throw e;
+        end
+
+        // <= HASH
+        outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.common.hash ]];
+        do
+            var[] byte str = [] .. [[ tostring2(@outer.tcp.buffer) ]] .. [0];
+            _dbg_tcp(3, &&outer.tcp.handle, "server", "<= BLOCK_HASH? : %s", &&str[0]);
+        end
+        await UV_Stream_Write_N(&outer.tcp, _);
+
+        // => ACK-HASH
+        await UV_Stream_Read_N(&outer.tcp, 1);
+        var byte ret = outer.tcp.buffer[0];
+        $outer.tcp.buffer = $outer.tcp.buffer - 1;
+        if ret == {MESSAGE10_HAVE} then
+            break;
+        else/if ret == {MESSAGE10_OK} then
+            // continue
+        else
+            var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+            throw e;
+        end
+
+        [[ THIS.common = THIS.common.prv ]];
+        var bool has = [[ THIS.common~=nil ]];
+        if not has then
+            // remote must have genesis at least
+            var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+            throw e;
+        end
+    end
+    [[ THIS.fork = THIS.common.nxt ]];
+
+    // RECEIVE ALL BLOCKS
+
+    //_dbg_tcp(3, &&outer.tcp.handle, "server", "oioi");
+    //[[ print('444', THIS.length, THIS.common.length, THIS.chain.head.length) ]];
+
+    #if 1
+        [[
+            chain = GG.chain_flatten(THIS.chain.id)
+            print('===> '..@outer.shared.port)
+            print(string.rep('>',79))
+            print(tostring2(chain))
+            print(string.rep('>',79))
+        ]];
+    #endif
+
+    var u64 length = [[ THIS.length-THIS.common.length ]];
+    var u64 i;
+    loop i in [1 -> length] do
+    {BLOCKS_RECEIVED++;}
+        [[
+            THIS.block = {
+                version = '1.0',
+                timestamp   = nil,
+                nonce       = nil,
+                chain       = THIS.chain,
+                publication = nil,
+                hash        = nil,
+                prv         = THIS.block or THIS.common,
+                nxt         = nil,
+                length      = THIS.common.length+@i,
+            }
+            THIS.first = THIS.first or THIS.block
+        ]];
+
+        [[ ARGS = THIS ]]
+        await Message10_block_recv(&outer.tcp);
+        [[ ARGS = THIS ]]
+        await Block_Check();
+        [[
+            if THIS.chain.head.length <= THIS.block.length then
+    --print('---', THIS.chain.head.length, '->', THIS.block.length)
+                THIS.chain.head = THIS.block
+            end
+            THIS.block.prv.nxt = THIS.block
+        ]];
+    end
+
+    // RECHAIN FORK
+
+    [[
+        ARGS = {
+            from = THIS.fork,
+            to   = { first=THIS.first, last=THIS.block },
+        }
+        print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-', THIS.block.length)
+        print('FROM: ', ARGS.from and tostring2(ARGS.from.hash))
+        print('HEAD: ', tostring2(ARGS.to.first.chain.head.hash))
+        print('TO: ', tostring2(ARGS.to.first.hash), tostring2(ARGS.to.last.hash))
+    ]]
+    await Chain_Fork();
+
+#if 1
+        [[
+            chain = GG.chain_flatten(THIS.chain.id)
+            print('===< '..@outer.shared.port)
+            print(string.rep('<',79))
+            print(tostring2(chain))
+            print(string.rep('<',79))
+        ]];
+#endif
 end
-
-// RECHAIN FORK
-
-[[
-    ARGS = {
-        from = THIS.fork,
-        to   = { first=THIS.first, last=THIS.block },
-    }
-    --print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-', THIS.block.length)
-    --print('FROM: ', ARGS.from and tostring2(ARGS.from.hash))
-    --print('HEAD: ', tostring2(ARGS.to.first.chain.head.hash))
-    --print('TO: ', tostring2(ARGS.to.first.hash), tostring2(ARGS.to.last.hash))
-]]
-await Chain_Fork();
 
 // RETRANSMIT NEW HEAD
 
-[[ ARGS = { chain=THIS.chain } ]]
-await Client_10(&outer.shared);
+do
+    [[ ARGS = { chain=THIS.chain } ]]
+    CHAIN_LOCK(l, outer.shared, "lock_send");
+    [[ ARGS = { chain=THIS.chain } ]]
+    await Client_10(&outer.shared);
+end
 
 escape/out {MESSAGE10_OK};
 

@@ -142,7 +142,7 @@ do
     end
 #endif
 
-#if 1
+#if 0
     await async/thread (zeros,pln,hash)
 #endif
     do
@@ -256,7 +256,7 @@ do
     end
 #endif
 
-#if 1
+#if 0
     await async/thread (zeros,pln,hash)
 #endif
     do
@@ -559,31 +559,36 @@ do
     ]];
 end
 
-#define CHAIN_LOCK(id,shared)                           \
-    [[ assert(ARGS and ARGS.chain) ]];                  \
-    var& Chain_Lock id = spawn Chain_Lock(&shared);     \
-    if id.is_locked then                                \
-        await id.ok;                                    \
+#define CHAIN_LOCK(var_id,shared,lock_id)                       \
+    [[ assert(ARGS and ARGS.chain) ]];                          \
+    var& Chain_Lock var_id = spawn Chain_Lock(&shared,lock_id); \
+    if var_id.is_locked then                                    \
+        await var_id.ok;                                        \
     end
 
-code/await Chain_Lock (var& UV_TCP_Server_Data shared) ->
+code/await Chain_Lock (var& UV_TCP_Server_Data shared, var _char&& id) ->
                         (var bool is_locked, event none ok) ->
                             NEVER
 do
-    [[ THIS = ARGS ]]
-    is_locked = [[ THIS.chain.is_locked ]];
+    [[
+        THIS = {
+            chain = ARGS.chain,
+            id    = @id,
+        }
+    ]]
+    is_locked = [[ THIS.chain[THIS.id] ]];
     if is_locked then
         loop do
             await shared.unlock;
-            is_locked = [[ THIS.chain.is_locked ]];
+            is_locked = [[ THIS.chain[THIS.id] ]];
             if not is_locked then
                 break;
             end
         end
     end
-    [[ THIS.chain.is_locked = true ]];
+    [[ THIS.chain[THIS.id] = true ]];
     do finalize with
-        [[ THIS.chain.is_locked = false ]];
+        [[ THIS.chain[THIS.id] = false ]];
         emit shared.unlock;
     end
     emit ok;

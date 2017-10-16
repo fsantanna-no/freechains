@@ -5,8 +5,8 @@
 //  - different blocks
 //      - 0 sends 0.1
 //      - 2 sends 1.1
-//  - 0.1 always wins (> hash)
-//  - 1.1 -> 0.1 -> ''
+//  - 1.1 always wins (> hash)
+//  - 0.1 -> 1.1 -> ''
 ///////////////////////////////////////////////////////////////////////////////
 
 par/and do
@@ -78,8 +78,8 @@ with
             print('<'..string.rep('=',78))
 
             assert( #CHAIN1==3 and
-                    CHAIN1[2].publication.payload=='0.1' and
-                    CHAIN1[3].publication.payload=='1.1' )
+                    CHAIN1[2].publication.payload=='1.1' and
+                    CHAIN1[3].publication.payload=='0.1' )
             print'OK!'
         ]];
     end
