@@ -49,7 +49,7 @@ par/and do
 
         [=[
             MESSAGE {
-                id = '1.0',
+                version = '1.0',
                 chain = {
                     key   = '',
                     zeros = 22,
@@ -63,7 +63,7 @@ par/and do
 
         [=[
             MESSAGE {
-                id = '1.0',
+                version = '1.0',
                 chain = {
                     key   = '',
                     zeros = 21,
@@ -75,7 +75,7 @@ par/and do
 
         [=[
             MESSAGE {
-                id = '1.0',
+                version = '1.0',
                 chain = {
                     key   = '',
                     zeros = 22,
@@ -87,7 +87,7 @@ par/and do
 
         [=[
             MESSAGE {
-                id = '1.0',
+                version = '1.0',
                 chain = {
                     key   = '',
                     zeros = 21,
@@ -152,7 +152,7 @@ with
         ]];
         chain1_2 = []..[[tostring2(CHAIN1_2)]];
         [[
-            assert(#CHAIN1_2==3 and CHAIN1_2[3].txs[1]=='22.2')
+            assert(#CHAIN1_2==3 and CHAIN1_2[3].publication.payload=='22.2')
             print'OK 1/4!'
         ]];
     end
@@ -243,7 +243,7 @@ with
         ]];
         chain3_2 = []..[[tostring2(CHAIN3_2)]];
         [[
-            assert(#CHAIN3_1==3 and CHAIN3_1[3].txs[1]=='21.2')
+            assert(#CHAIN3_1==3 and CHAIN3_1[3].publication.payload=='21.2')
             print'OK 2/4!'
         ]];
     end

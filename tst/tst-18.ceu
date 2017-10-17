@@ -49,7 +49,7 @@ par/and do
             [=[
                 APP.messages = {}
                 MESSAGE {
-                    id = '1.0',
+                    version = '1.0',
                     chain = {
                         key   = '',
                         zeros = 0,
@@ -117,7 +117,7 @@ with
         ]];
         [=[
             assert( #CHAIN1==4 and
-                    CHAIN1[4].txs[1]==[[0.3]])
+                    CHAIN1[4].publication.payload==[[0.3]])
             print'OK 1/2!'
         ]=];
     end
@@ -165,7 +165,7 @@ with
         ]];
         [=[
             assert( #CHAIN2==4 and
-                    CHAIN2[4].txs[1]==[[0.3]])
+                    CHAIN2[4].publication.payload==[[0.3]])
             print'OK 2/2!'
         ]=];
     end

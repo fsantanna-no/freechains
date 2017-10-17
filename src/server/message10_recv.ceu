@@ -162,17 +162,19 @@ do
 end
 
 do
+    var bool is_sub = [[ THIS.chain ~= nil ]];
+    _dbg_tcp(2, &&outer.tcp.handle, "server", "is_sub      = %d", is_sub);
+    if not is_sub then
+        outer.tcp.buffer = [{MESSAGE10_NOTSUB}];
+        await UV_Stream_Write_N(&outer.tcp,_);
+        escape/out {MESSAGE10_NOTSUB};
+    end
+
     [[ ARGS = THIS ]];
     CHAIN_LOCK(l, outer.shared, "lock_write");
     [[ print('<<< LENGTH', @outer.shared.port, THIS.chain.head.length, THIS.length) ]];
 
     var int ret = do
-        var bool is_sub = [[ THIS.chain ~= nil ]];
-        _dbg_tcp(2, &&outer.tcp.handle, "server", "is_sub      = %d", is_sub);
-        if not is_sub then
-            escape {MESSAGE10_NOTSUB};
-        end
-
         //_dbg_tcp(2, &&outer.tcp.handle, "server", "***");
         //[[ print('***', THIS.chain.head.length, '<-', THIS.length) ]];
         var bool me_lengthier = [[ THIS.chain.head.length > THIS.length ]];
