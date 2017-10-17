@@ -33,8 +33,6 @@ data Exception.Freechains.Fork_Lengthy with
 end
 
 native/pre do
-    ##define VOID_ALIAS(x) ((void*)&x)
-
     enum {
         MESSAGE10 = 0x100,
     };
@@ -98,8 +96,6 @@ native/pre do
         return zeros;
     }
 end
-#define G(v) GG[@(&&(v))]
-#define THIS GG[@(&&{*_ceu_mem})]
 
 data UV_TCP_Server_Data with
     event (int,bool,int) ok;
@@ -110,10 +106,41 @@ data UV_TCP_Server_Data with
 #endif
 end
 
-data SourceBlockHash;
-data SourceBlockHash.Network;
-data SourceBlockHash.File;
-data SourceBlockHash.New;
+#define CHAIN_LOCK(var_id,shared,lock_id)                       \
+    [[ assert(ARGS and ARGS.chain) ]];                          \
+    var& Chain_Lock var_id = spawn Chain_Lock(&shared,lock_id); \
+    if var_id.is_locked then                                    \
+        await var_id.ok;                                        \
+    end
+
+code/await Chain_Lock (var& UV_TCP_Server_Data shared, var _char&& id) ->
+                        (var bool is_locked, event none ok) ->
+                            NEVER
+do
+    [[
+        THIS = {
+            chain = ARGS.chain,
+            id    = @id,
+        }
+    ]]
+    is_locked = [[ THIS.chain[THIS.id] ]];
+    if is_locked then
+        loop do
+            await shared.unlock;
+            is_locked = [[ THIS.chain[THIS.id] ]];
+            if not is_locked then
+                break;
+            end
+        end
+    end
+    [[ THIS.chain[THIS.id] = true ]];
+    do finalize with
+        [[ THIS.chain[THIS.id] = false ]];
+        emit shared.unlock;
+    end
+    emit ok;
+    await FOREVER;
+end
 
 code/await Publication_New (none) -> none
     // input:  [[ ARGS={publication={TODO}} ]]
@@ -572,42 +599,6 @@ do
             chain  = THIS.chain,
         }
     ]];
-end
-
-#define CHAIN_LOCK(var_id,shared,lock_id)                       \
-    [[ assert(ARGS and ARGS.chain) ]];                          \
-    var& Chain_Lock var_id = spawn Chain_Lock(&shared,lock_id); \
-    if var_id.is_locked then                                    \
-        await var_id.ok;                                        \
-    end
-
-code/await Chain_Lock (var& UV_TCP_Server_Data shared, var _char&& id) ->
-                        (var bool is_locked, event none ok) ->
-                            NEVER
-do
-    [[
-        THIS = {
-            chain = ARGS.chain,
-            id    = @id,
-        }
-    ]]
-    is_locked = [[ THIS.chain[THIS.id] ]];
-    if is_locked then
-        loop do
-            await shared.unlock;
-            is_locked = [[ THIS.chain[THIS.id] ]];
-            if not is_locked then
-                break;
-            end
-        end
-    end
-    [[ THIS.chain[THIS.id] = true ]];
-    do finalize with
-        [[ THIS.chain[THIS.id] = false ]];
-        emit shared.unlock;
-    end
-    emit ok;
-    await FOREVER;
 end
 
 code/await FS_write_10 (var&[] byte path) -> none
