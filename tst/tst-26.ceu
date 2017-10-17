@@ -10,6 +10,16 @@
     dofile 'src/common.lua'
     dofile 'cfg/config.lua'
 
+    CHAINS {
+        files = 'tst/files/',
+        {
+            key   = '',     -- global chain (cannot be signed)
+            zeros = 0,      -- receive messages with 0 leading zeros in the hash
+            id    = nil,    -- concat of key..zeros
+            head  = nil,
+            -- TODO: mode 'pub,sub,pub/sub'
+        },
+    }
     CLIENT {
         peers = {
             {
@@ -23,22 +33,9 @@ var UV_TCP_Server_Data shared = _;
 
 await Init();
 
-var[] byte path = [].."x.chain";
-await FS_read_10(&path);
-[[
-    head1 = APP.blocks[ARGS.head_hash]
-
-    old = APP.chains['||0|'].head_hash
-    APP.chains['||0|'].head_hash = ARGS.head_hash
-    print('>'..string.rep('=',78))
-    print(GG.chain_tostring('||0|'))
-    print('<'..string.rep('=',78))
-    APP.chains['||0|'].head_hash = old
-]];
-
 [=[
     MESSAGE {
-        id = '1.0',
+        version = '1.0',
         chain = {
             key   = '',
             zeros = 0,
@@ -47,19 +44,15 @@ await FS_read_10(&path);
     }
 
     MESSAGE {
-        id = '1.0',
+        version = '1.0',
         chain = {
             key   = '',
             zeros = 0,
         },
         payload = [[222]],
     }
-]=];
-await ClientMessages(&shared);
-
-[=[
     MESSAGE {
-        id = '1.0',
+        version = '1.0',
         chain = {
             key   = '',
             zeros = 0,
@@ -68,7 +61,7 @@ await ClientMessages(&shared);
     }
 
     MESSAGE {
-        id = '1.0',
+        version = '1.0',
         chain = {
             key   = '',
             zeros = 0,
@@ -78,6 +71,23 @@ await ClientMessages(&shared);
 ]=];
 await ClientMessages(&shared);
 
+[[
+    head1 = APP.chains['||0|'].head
+]]
+
+var[] byte path = [].."x.chain";
+await FS_read_10(&path);
+[[
+    head2 = ARGS.chain.head
+    --old = APP.chains['||0|'].head_hash
+    --APP.chains['||0|'].head_hash = ARGS.head_hash
+    --print('>'..string.rep('=',78))
+    --print(GG.chain_tostring('||0|'))
+    --print('<'..string.rep('=',78))
+    --APP.chains['||0|'].head_hash = old
+]];
+
+#if 0
 [[
     print('>'..string.rep('=',78))
     print(GG.chain_tostring('||0|'))
@@ -89,23 +99,19 @@ await ClientMessages(&shared);
     head_hash = chain.head_hash
     base      = GG.chain_head_base_size(head_hash).base
 ]];
+#endif
 
 [[
-head2 = APP.blocks[head_hash]
-while head1 do
+while head1.prv do
     assert(head2)
 
-    assert(#head1.txs == #head2.txs)
-    for i=1, #head1.txs do
-        local tx1 = APP.txs[ head1.txs[i] ]
-        local tx2 = APP.txs[ head2.txs[i] ]
-        assert(tx1.nonce     == tx2.nonce)
-        assert(tx1.back_hash == tx2.back_hash)
-        assert(tx1.payload   == tx2.payload)
-    end
+    local pub1 = head1.publication
+    local pub2 = head2.publication
+    assert(pub1.nonce   == pub2.nonce)
+    assert(pub1.payload == pub2.payload)
 
-    head1 = head1.tail
-    head2 = APP.blocks[head2.tail_hash]
+    head1 = head1.prv
+    head2 = head2.prv
 end
 print 'OK!'
 ]];

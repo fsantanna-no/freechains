@@ -435,13 +435,11 @@ end
 
 code/await FS_read_10 (var&[] byte path) -> none
     throws Exception.Uv, Exception.Freechains.Malformed
-    // output [[ ARGS = { chain_id, head_hash } ]]
+    // output [[ ARGS={chain=...} ]]
 do
     [[
         THIS = {
-            chain_id = nil,
-            head     = nil,
-            base     = nil,
+            chain = nil,
         }
     ]];
 
@@ -470,116 +468,108 @@ do
     // => CHAIN_ID
     do
         var usize len;
-        do
-            var ssize n = await UV_FS_Read_N(&o.file, 1);
-            _ceu_assert(n == 1, &&path[0]);
-            len = o.file.buffer[0] as usize;
-            $o.file.buffer = 0;
-        end
+        await UV_FS_Read_N(&o.file, 1);
+        len = o.file.buffer[0] as usize;
+        $o.file.buffer = 0;
 
-        do
-            var ssize n = await UV_FS_Read_N(&o.file, len);
-            _ceu_assert(n == len, "bug found");
-            [[ THIS.chain_id = @o.file.buffer ]];
-            $o.file.buffer = 0;
-        end
+        await UV_FS_Read_N(&o.file, len);
+        [[
+            id = @o.file.buffer
+            THIS.chain = assert(APP.chains[id], id)
+        ]];
+        $o.file.buffer = 0;
         //[[ print('>>> chain_id',@buf) ]];
     end
 
     // => BLOCKS
+    [[
+        THIS.chain.head = THIS.chain.base
+    ]]
     loop do
-        // => TXS
-        var u32 txs_n = _;
-        do
-            // => TXS_N
-            var[sizeof(u32)] byte buf;
-            var ssize n = await UV_FS_Read_N(&o.file, sizeof(u32));
-            if n <= 0 then
-                break;          // EOF
-            end
-            _ceu_assert(n == sizeof(u32), "bug found");
-            txs_n = *(&&o.file.buffer[0] as u32&&);
-            $o.file.buffer = 0;
+        var ssize n = await UV_FS_Read_N(&o.file, HASH_BYTES);
+        if n <= 0 then
+            break;          // EOF
         end
 
-        // OK, non-emtpy block
         [[
-            THIS.previous = THIS.block
             THIS.block = {
-                txs = {},
-                tail_hash = (THIS.previous and THIS.previous.hash) or nil,
+                version = '1.0',
+                timestamp   = nil,
+                nonce       = nil,
+                chain       = THIS.chain,
+                publication = nil,
+                hash        = @o.file.buffer,
+                prv         = THIS.chain.head,
+                nxt         = nil,
+                length      = THIS.chain.head.length + 1,
             }
+            THIS.chain.head.nxt = THIS.block
+            THIS.chain.head = THIS.block
         ]];
 
-        var u32 i;
-        loop i in [0 -> txs_n[ do
-            // => TXS[i]
+        $o.file.buffer = 0;
+
+        // => TIMESTAMP + NONCE
+        await UV_FS_Read_N(&o.file, sizeof(u64));
+        var u64 timestamp = GET_BE64TOH(o.file.buffer,0);
+        $o.file.buffer = 0;
+        await UV_FS_Read_N(&o.file, sizeof(u64));
+        var u64 nonce     = GET_BE64TOH(o.file.buffer,0);
+        $o.file.buffer = 0;
+        [[
+            THIS.block.timestamp = @timestamp
+            THIS.block.nonce     = @nonce
+        ]]
+
+        // => PUBLICATION_HASH
+        await UV_FS_Read_N(&o.file, HASH_BYTES);
+        [[
+            THIS.publication_hash = @o.file.buffer
+            --THIS.block.publication = APP.publications[THIS.publication_hash]
+        ]]
+        $o.file.buffer = 0;
+
+        // => PUBLICATION
+        do
+            // => TIMESTAMP + NONCE + LEN
+            await UV_FS_Read_N(&o.file, sizeof(u64));
+            var u64 timestamp = GET_BE64TOH(o.file.buffer,0);
+            $o.file.buffer = 0;
+
+            await UV_FS_Read_N(&o.file, sizeof(u64));
+            var u64 nonce     = GET_BE64TOH(o.file.buffer,0);
+            $o.file.buffer = 0;
+
+            await UV_FS_Read_N(&o.file, sizeof(u32));
+            var u32 len       = GET_BE32TOH(o.file.buffer,0);
+            $o.file.buffer = 0;
+
+            // => PAYLOAD
+            await UV_FS_Read_N(&o.file, len as usize);
+
             [[
-                THIS.tx = {}
-                THIS.block.txs[@(i+1)] = THIS.tx
-            ]];
+                THIS.block.publication = {
+                    chain     = THIS.chain,
+                    timestamp = @timestamp,
+                    nonce     = @nonce,
+                    payload   = @o.file.buffer,
+                    hash      = THIS.publication_hash,
+                }
+                ARGS = { publication=THIS.block.publication }
+            ]]
 
-            // => NONCE
-            do
-                var ssize n = await UV_FS_Read_N(&o.file, NONCE_BYTES);
-                _ceu_assert(n == NONCE_BYTES, "bug found");
-                [[ THIS.tx.nonce = @o.file.buffer ]];
-                //[[ print('nonce','\n'..tostring2(THIS.tx.nonce)) ]];
-                $o.file.buffer = 0;
-            end
-
-            // => TX_BACH_HASH
-            do
-                var ssize n = await UV_FS_Read_N(&o.file, HASH_BYTES);
-                _ceu_assert(n == HASH_BYTES, "bug found");
-                [[ THIS.tx.back_hash = @o.file.buffer ]];
-                //[[ print('back_hash','\n'..tostring2(THIS.tx.back_hash)) ]];
-                $o.file.buffer = 0;
-            end
-
-            // => TX_PAYLOAD
-            do
-                var u32 payload_len;
-                do
-                    var ssize n = await UV_FS_Read_N(&o.file, sizeof(u32));
-                    _ceu_assert(n == sizeof(u32), "bug found");
-                    payload_len = *(&&o.file.buffer[0] as u32&&);
-                    //[[ print('payload_len', @payload_len) ]];
-                    $o.file.buffer = 0;
-                end
-                do
-                    var ssize n = await UV_FS_Read_N(&o.file, payload_len as usize);
-                    _ceu_assert(n == (payload_len as ssize), "bug found");
-                    [[ THIS.tx.payload = @o.file.buffer ]];
-                    //[[ print('payload', THIS.tx.payload) ]];
-                    $o.file.buffer = 0;
-                end
-            end
+            $o.file.buffer = 0;
+            [[ ARGS={publication=THIS.block.publication} ]];
+            await Publication_Check();
         end
-
-        [[
-            THIS.block.chain_id = THIS.chain_id
-            ARGS = {
-                block = THIS.block,
-            }
-        ]];
-        //await BlockHash(SourceBlockHash.File());
-
-        [[
-            if THIS.previous then
-                THIS.previous.up_hash = THIS.block.hash
-            else
-                --assert(not THIS.genesis_hash)
-                --THIS.genesis_hash = THIS.block.hash
-            end
-        ]];
     end
+
+    [[ ARGS={block=THIS.block} ]];
+    await Block_Check();
 
     [[
         ARGS = {
-            chain_id  = THIS.chain_id,
-            head_hash = THIS.block.hash,
-            --genesis_hash = THIS.genesis_hash,
+            chain  = THIS.chain,
         }
     ]];
 end
@@ -698,9 +688,7 @@ do
         end
 
         // <= PUBLICATION_HASH
-        // <= PRV_HASH
         o.file.buffer = o.file.buffer .. [[ THIS.cur.publication.hash ]];
-        o.file.buffer = o.file.buffer .. [[ THIS.cur.prv.hash         ]];
 
         await UV_FS_Write_N(&o.file,_);
 
