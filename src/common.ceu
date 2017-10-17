@@ -18,6 +18,8 @@
 #define CHAIN_KEY_BYTES 256
 #define FORK_LENGTHY    100
 
+#define THIS GG[@(&&{*_ceu_mem})]
+
 native/nohold _dbg, _dbg_tcp;
 native/pure _leading_zeros;
 

@@ -26,6 +26,17 @@ par/and do
             dofile 'src/common.lua'
             dofile 'cfg/config.lua'
 
+            CHAINS {
+                files = 'tst/files/',
+                {
+                    key   = '',     -- global chain (cannot be signed)
+                    zeros = 0,      -- receive messages with 0 leading zeros in the hash
+                    id    = nil,    -- concat of key..zeros
+                    head  = nil,
+                    -- TODO: mode 'pub,sub,pub/sub'
+                },
+            }
+
             CLIENT {
                 peers = {
                     {
@@ -35,7 +46,7 @@ par/and do
             }
 
             MESSAGE {
-                id = '1.0',
+                version = '1.0',
                 chain = {
                     key   = '',
                     zeros = 0,
@@ -49,9 +60,6 @@ par/and do
 
         var[] byte src = [].."x.chain";
         await FS_read_10(&src);
-        [[
-            APP.chains['||0|'].head_hash = ARGS.head_hash
-        ]];
 
         await ClientMessages(&shared);
 
@@ -99,7 +107,7 @@ with
         ]];
         chain1 = []..[[tostring2(CHAIN1)]];
         [[
-            assert( #CHAIN1==4 and CHAIN1[4].txs[1]=='555' )
+            assert( #CHAIN1==6 and CHAIN1[6].publication.payload=='555' )
             print'OK! 1/2'
         ]]
     end
