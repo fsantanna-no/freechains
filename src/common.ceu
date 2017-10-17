@@ -622,7 +622,7 @@ end
 
 code/await FS_write_10 (var&[] byte path) -> none
     throws Exception.Uv
-    // input [[ ARGS = { chain_id } ]]
+    // input [[ ARGS = { chain={...} } ]]
 do
 #if 0
     PS10
@@ -636,11 +636,8 @@ do
 #endif
 
     [[
-        chain = APP.chains[ ARGS.chain_id ]
-        t = GG.chain_head_base_size(chain.head_hash)
         THIS = {
-            base  = t.base,
-            chain = chain,
+            chain = ARGS.chain,
         }
     ]];
 
@@ -679,71 +676,57 @@ do
         end
     end
 
-    // <= BLOCKS
+    // <= BLOCKS (skip genesis)
+    [[ THIS.cur = THIS.chain.base.nxt ]];
     loop do
-        // <= TXS
-        var u32 txs_n = [[ #THIS.base.txs ]];
-        do
-            // <= TXS_N
-            _ceu_vector_setlen(&&o.file.buffer, sizeof(u32), 1);
-            _ceu_vector_buf_set(&&o.file.buffer, 0, (&&txs_n as byte&&), sizeof(u32));
-            var ssize n = await UV_FS_Write_N(&o.file, sizeof(u32));
-            _ceu_assert(n == sizeof(u32), "bug found");
-        end
-        var u32 i;
-        loop i in [0 -> txs_n[ do
-            // <= TXS[i]
-            // TX_HASH NONCE TX_BACK_HASH TX_PAYLOAD_LEN TX_PAYLOAD
-
-            [[
-                tx_hash = THIS.base.txs[@i+1]
-                THIS.tx = assert(APP.txs[tx_hash])
-            ]];
-
-            // <= NONCE
-            do
-                o.file.buffer = [] .. [[ THIS.tx.nonce ]];
-                var ssize n = await UV_FS_Write_N(&o.file, NONCE_BYTES);
-                _ceu_assert(n == NONCE_BYTES, "bug found");
-            end
-
-            // <= TX_BACK_HASH
-            do
-                o.file.buffer = [] .. [[ THIS.tx.back_hash ]];
-                var ssize n = await UV_FS_Write_N(&o.file, HASH_BYTES);
-                _ceu_assert(n == HASH_BYTES, "bug found");
-            end
-
-            // <= TX_PAYLOAD_LEN
-            // <= TX_PAYLOAD
-            do
-                var u32 len = [[ string.len(THIS.tx.payload) ]];
-                // <= TX_PAYLOAD_LEN
-                do
-                    _ceu_vector_setlen(&&o.file.buffer, sizeof(u32), 1);
-                    _ceu_vector_buf_set(&&o.file.buffer, 0, (&&len as byte&&), sizeof(u32));
-                    var ssize n = await UV_FS_Write_N(&o.file, sizeof(u32));
-                    _ceu_assert(n == sizeof(u32), "bug found");
-                end
-                // <= TX_PAYLOAD
-                do
-// TODO: may not fit default buffer length (1024)
-                    o.file.buffer = [] .. [[ THIS.tx.payload ]];
-                    var ssize n = await UV_FS_Write_N(&o.file, len as usize);
-                    _ceu_assert(n == (len as usize), "bug found");
-                end
-            end
-        end
-
-        // NEXT BLOCK
-        var bool has = [[ THIS.base.up_hash ~= nil ]];
+        var bool has = [[ THIS.cur~=nil ]];
         if not has then
             break;
         end
-        [[
-            --print('<<<', '|'..tostring2(THIS.base.hash)..'|')
-            THIS.base = assert(APP.blocks[THIS.base.up_hash])
-        ]];
+
+        // <= HASH
+        o.file.buffer = [] .. [[ THIS.cur.hash ]];
+
+        // <= TIMESTAMP
+        // <= NONCE
+        o.file.buffer = o.file.buffer .. [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+        do
+            var u64 timestamp = [[ THIS.cur.timestamp or 0 ]];
+            var u64 nonce     = [[ THIS.cur.nonce or 0     ]];
+            PUT_HTOBE64(o.file.buffer, HASH_BYTES,             timestamp);
+            PUT_HTOBE64(o.file.buffer, HASH_BYTES+sizeof(u64), nonce);
+        end
+
+        // <= PUBLICATION_HASH
+        // <= PRV_HASH
+        o.file.buffer = o.file.buffer .. [[ THIS.cur.publication.hash ]];
+        o.file.buffer = o.file.buffer .. [[ THIS.cur.prv.hash         ]];
+
+        await UV_FS_Write_N(&o.file,_);
+
+        // <= PUBLICATION
+        do
+            // <= TIMESTAMP
+            // <= NONCE
+            // <= LEN
+            o.file.buffer = [] .. [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+            do
+                var u64 timestamp = [[ THIS.cur.publication.timestamp ]];
+                var u64 nonce     = [[ THIS.cur.publication.nonce     ]];
+                var u32 len       = [[ string.len(THIS.cur.publication.payload) ]];
+                PUT_HTOBE64(o.file.buffer, 0,               timestamp);
+                PUT_HTOBE64(o.file.buffer, 0+sizeof(u64),   nonce);
+                PUT_HTOBE32(o.file.buffer, 0+2*sizeof(u64), len);
+                _ceu_assert($$o.file.buffer >= len, "FS buffer is too short for payload");
+                await UV_FS_Write_N(&o.file,_);
+            end
+
+            // <= PAYLOAD
+            o.file.buffer = [] .. [[ THIS.cur.publication.payload ]];
+            await UV_FS_Write_N(&o.file,_);
+        end
+
+        [[ THIS.cur = THIS.cur.nxt ]];
     end
 end
 
@@ -798,12 +781,13 @@ do
             end
 #endif
             [[
-                THIS.chain.head = {
+                THIS.chain.base = {
                     chain  = THIS.chain,
                     hash   = @chain_hash,
                     prv    = nil,
                     length = 0,
                 }
+                THIS.chain.head = THIS.chain.base
             ]]
         end
 
