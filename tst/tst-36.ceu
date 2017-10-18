@@ -9,11 +9,14 @@ _srand(_time(null));
 
 #define N 20
 
-code/await Node (var int i) -> void do
+code/await Node (var int i) -> none
+    throws Exception.Lua
+do
     lua[] do
         var UV_TCP_Server_Data shared = _;
+        shared.port = i;
 
-        var int local = 8330+i;
+        var int local  = 8330+i;
 
         [=[
             dofile 'src/common.lua'
@@ -41,21 +44,39 @@ code/await Node (var int i) -> void do
         await 100ms;
 
         do
-            vector[] byte ip      = [] .. [[ APP.server.host[1] ]] .. [0];
-            var      int  port    = [[ APP.server.host[2] ]];
-            var      int  backlog = [[ APP.server.backlog ]];
-            _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-            spawn UV_TCP_Server(&shared, &&ip[0], port, backlog);
+            var[] byte ip      = [] .. [[ APP.server.host[1] ]] .. [0];
+            var   int  port    = [[ APP.server.host[2] ]];
+            var   int  backlog = [[ APP.server.backlog ]];
+            _dbg(3, "server | listening in %s:%d", &&ip[0], port);
+            spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
+
+            spawn do
+                var int  a;
+                var bool err;
+                var int  c;
+                every (a,err,c) in shared.ok do
+#if 0
+[[
+print(@i, '>'..string.rep('=',70))
+print(GG.chain_tostring('||0|'))
+print(@i, '<'..string.rep('=',70))
+]];
+#endif
+
+                    if err then
+                        _printf("server | err | %d %d %d\n", a,err,c);
+                    end
+                end
+            end
 
             var int j;
-            loop j in [0 -> N[ do
+            loop j in [1 -> N] do
                 // how much time between each message?
-                await (_rand()%100)ms;
-    _printf(">>> I=%d j=%d\n", i, j);
+                await (_rand() % (100*N*N)) ms;
                 [[
                     APP.messages = {}
                     MESSAGE {
-                        id = '1.0',
+                        version = '1.0',
                         chain = {
                             key   = '',
                             zeros = 0,
@@ -64,33 +85,40 @@ code/await Node (var int i) -> void do
                     }
                 ]];
                 await ClientMessages(&shared);
+//[[print(@i,@j, "clients") ]];
             end
-    _printf("\t\t<<< I=%d\n", i);
+//[[print(@i, "CLIENTS") ]];
 
             // wait all messages to be received
             loop do
-                await 100ms;   // periodic check (any number is ok)
-                [[
-                    t = GG.chain_head_base_size(APP.chains['||0|'].head_hash)
-                ]]
-                var int size = [[ t.size ]];
-    //_printf("<<< I=%d n=%d\n", i, size);
-                if size == N*N+1 then
+                await shared.ok;
+                var int length = [[ APP.chains['||0|'].head.length ]];
+                if length == N*N then
                     break;
                 end
             end
-    _printf("<<< out=%d\n", i);
+
+            // wait for consensus
+            loop do
+                watching shared.ok do
+                    await (N)s;
+                    break;
+                end
+_dbg(0, "server | shared.ok | %s:%d", &&ip[0], port);
+            end
+_dbg(0, "server | END | %s:%d", &&ip[0], port);
+#if 0
+[[
+print(@i, '>'..string.rep('=',70))
+print(GG.chain_tostring('||0|'))
+print(@i, '<'..string.rep('=',70))
+]];
+#endif
+//[[print(@i, "END") ]];
         end
 
-    #if 0
-    [[
-    print(@i, '>'..string.rep('=',70))
-    print(GG.chain_tostring('||0|'))
-    print(@i, '<'..string.rep('=',70))
-    ]];
-    #endif
-        vector[] byte path = [] .. [[ '/tmp/'..string.format('%03d',@i)..'.chain' ]];
-        [[ ARGS = { chain_id='||0|' } ]];
+        var[] byte path = [] .. [[ '/tmp/'..string.format('%03d',@i)..'.chain' ]] .. [0];
+        [[ ARGS = { chain=APP.chains['||0|'] } ]];
         await FS_write_10(&path);
     end
 end
@@ -108,9 +136,7 @@ loop n in nodes do
     await n;
 end
 
-_printf("BLOCKS_RECEIVED  = %d\n", {BLOCKS_RECEIVED});
-_printf("BLOCKS_RECREATED = %d\n", {BLOCKS_RECREATED});
-//_ceu_dbg_assert({BLOCKS_RECEIVED} == N*(N-1)*N);
+//_ceu_dbg_assert({BLOCKS_RECEIVED} == N*N);
 
 // assert consensus
 [[ file1 = io.open('/tmp/000.chain'):read'*a' ]]
