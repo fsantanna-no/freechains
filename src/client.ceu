@@ -41,7 +41,7 @@ do
             var byte ret = tcp.buffer[0];
             $tcp.buffer = $tcp.buffer - 1;
 
-            _dbg_tcp(0, &&tcp.handle, "client", "=> ACK-header = %d", ret);
+            _dbg_tcp(3, &&tcp.handle, "client", "=> ACK-header = %d", ret);
 
             if ret == {MESSAGE10_OK} then
                 // OK: proceed to BLOCKS
@@ -250,9 +250,9 @@ do
         end
     end
     var[] byte id = [] .. [[ THIS.chain.id ]] .. [0];
-    _dbg(0, "client:%p | broadcasting %s messages to %d peer(s)", {&_ceu_mem}, &&id[0], ps_ok);
+    _dbg(3, "client:%p | broadcasting %s messages to %d peer(s)", {&_ceu_mem}, &&id[0], ps_ok);
     do finalize with
-        _dbg(0, "client:%p | broadcasts OK", {&_ceu_mem});
+        _dbg(3, "client:%p | broadcasts OK", {&_ceu_mem});
     end
     var&? Peer_10 p;
     loop p in peers do

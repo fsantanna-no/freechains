@@ -21,7 +21,7 @@ end
 var[] byte ip      = [] .. [[ APP.server.host[1] ]] .. [0];
 var   int  port    = [[ APP.server.host[2] ]];
 var   int  backlog = [[ APP.server.backlog ]];
-_dbg(0, "server | listening in %s:%d", &&ip[0], port);
+_dbg(3, "server | listening in %s:%d", &&ip[0], port);
 spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
 
 event none write_ok;
@@ -66,7 +66,7 @@ _printf(">>> SHARED.OK %d %d %d\n", msg, err, ret);
         ]]
         var[] byte path = [] .. [[path]] .. [0];
 
-        _dbg(0, "server | received");
+        _dbg(3, "server | received");
         [[ ARGS={ chain_id=main.chain.id } ]];
         await FS_write_10(&path);
 
@@ -105,9 +105,9 @@ with
             [[
                 assert(load(@msg))()
             ]]
-            _dbg(0, "client...");
+            _dbg(3, "client...");
             await ClientMessages(&shared);
-            _dbg(0, "client | ok");
+            _dbg(3, "client | ok");
             par/and do
                 emit ok;
             with

@@ -3,7 +3,7 @@
 
 code/await UV_TCP_Server_Handler (var& UV_Stream tcp, var& UV_TCP_Server_Data shared) -> none
 do
-    _dbg(0, "server | new handler");
+    _dbg(3, "server | new handler");
 
     var int msg = 0;
     var int ret = 0;

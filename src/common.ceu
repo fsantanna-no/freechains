@@ -48,7 +48,7 @@ native/pre do
 
     void dbg (int level, const char* fmt, ...) {
 #ifdef DBG
-        if (level < DBG) return;
+        if (level > DBG) return;
         fprintf(stderr, "[%d] | ", level);
         va_list args;
         va_start(args, fmt);
@@ -60,7 +60,7 @@ native/pre do
 
     void dbg_tcp (int level, uv_stream_t* tcp, char* client_server, const char* fmt, ...) {
 #ifdef DBG
-        if (level < DBG) return;
+        if (level > DBG) return;
         int p1 = ceu_uv_tcp_getsockport((uv_tcp_t*) tcp);
         int p2 = ceu_uv_tcp_getpeerport((uv_tcp_t*) tcp);
         char str[255];
@@ -218,7 +218,7 @@ do
             end
             _ceu_assert(0, "bug found");
         end;
-        _dbg(0, "client: POW rounds: %d\n", n);
+        _dbg(3, "client: POW rounds: %d\n", n);
     end
 
     [[ ARGS = THIS ]];
@@ -340,7 +340,7 @@ do
             _ceu_assert(0, "bug found");
         end;
         //{ceu_trace(((tceu_trace){&_ceu_mem->trace, __FILE__, __LINE__}),"alo");};
-        _dbg(0, "client: POW rounds: %d\n", n);
+        _dbg(3, "client: POW rounds: %d\n", n);
     end
 end
 
