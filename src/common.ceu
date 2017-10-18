@@ -127,6 +127,10 @@ do
     ]]
     is_locked = [[ THIS.chain[THIS.id] ]];
     if is_locked then
+spawn do
+    await 10s;
+    [[ error 'locked for too long' ]];
+end
         loop do
             await shared.unlock;
             is_locked = [[ THIS.chain[THIS.id] ]];
@@ -271,7 +275,6 @@ do
     ]];
 
     [[
-        --print('>>>', THIS.block.length, THIS.block.prv and THIS.block.prv.length)
         assert(THIS.block.prv)
         assert(THIS.block.prv.length==THIS.block.length-1)
     ]]

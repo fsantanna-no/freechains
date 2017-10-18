@@ -13,6 +13,7 @@ code/await Node (var int i) -> none
 do
     lua[] do
         var UV_TCP_Server_Data shared = _;
+        shared.port = i;
 
         var int local  = 8330+i;
         var int remote = 8331+i;
@@ -47,14 +48,33 @@ do
             _dbg(0, "server | listening in %s:%d", &&ip[0], port);
             spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
 
+            spawn do
+                var int  a;
+                var bool err;
+                var int  c;
+                every (a,err,c) in shared.ok do
+#if 0
+[[
+print(@i, '>'..string.rep('=',70))
+print(GG.chain_tostring('||0|'))
+print(@i, '<'..string.rep('=',70))
+]];
+#endif
+
+                    if err then
+                        _printf("server | shared.ok | %d %d %d\n", a,err,c);
+                    end
+                end
+            end
+
             var int j;
-            loop j in [0 -> N[ do
+            loop j in [1 -> N] do
                 // how much time between each message?
                 await (_rand()%100) ms;
                 [[
                     APP.messages = {}
                     MESSAGE {
-                        id = '1.0',
+                        version = '1.0',
                         chain = {
                             key   = '',
                             zeros = 0,
@@ -63,30 +83,39 @@ do
                     }
                 ]];
                 await ClientMessages(&shared);
+//[[print(@i,@j, "clients") ]];
             end
+//[[print(@i, "CLIENTS") ]];
 
             // wait all messages to be received
             loop do
-                await 100ms;   // periodic check (any number is ok)
-                [[
-                    t = GG.chain_head_base_size(APP.chains['||0|'].head_hash)
-                ]]
-                var int size = [[ t.size ]];
-                if size == N*N+1 then
+                await shared.ok;
+                var int length = [[ APP.chains['||0|'].head.length ]];
+                if length == N*N then
                     break;
                 end
             end
+
+#if 0
+[[
+print(@i, '>'..string.rep('=',70))
+print(GG.chain_tostring('||0|'))
+print(@i, '<'..string.rep('=',70))
+]];
+#endif
+
+            // wait for consensus
+            loop do
+                watching shared.ok do
+                    await (N*N)s;
+                    break;
+                end
+            end
+//[[print(@i, "END") ]];
         end
 
-    #if 1
-    [[
-    print(@i, '>'..string.rep('=',70))
-    print(GG.chain_tostring('||0|'))
-    print(@i, '<'..string.rep('=',70))
-    ]];
-    #endif
         var[] byte path = [] .. [[ '/tmp/'..string.format('%03d',@i)..'.chain' ]] .. [0];
-        [[ ARGS = { chain_id='||0|' } ]];
+        [[ ARGS = { chain=APP.chains['||0|'] } ]];
         await FS_write_10(&path);
     end
 end

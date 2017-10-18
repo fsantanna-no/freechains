@@ -44,15 +44,16 @@ do
 
         if e1? then
             [[ APP.errs[#APP.errs+1] = @(e1! as int) ]];
+            emit shared.ok(msg,true,e1! as int);
         else/if e2? then
             [[ APP.errs[#APP.errs+1] = @(e2! as int) ]];
+            emit shared.ok(msg,true,e2! as int);
         else/if ret != {MESSAGE10_OK} then
             [[ APP.errs[#APP.errs+1] = @ret ]];
         end
     end
 
-    // [[ ARGS = { chain=? } ]]
-    emit shared.ok(msg,e1?,ret);
+    emit shared.ok(msg,false,ret);
 end
 
 #endif

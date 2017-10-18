@@ -13,22 +13,28 @@ do
     ]];
 
     // => HASH
-    await UV_Stream_Read_N(&tcp, HASH_BYTES);
 
+    await UV_Stream_Read_N(&tcp, HASH_BYTES);
     var[HASH_BYTES] byte hash;
-    _ceu_vector_setlen(&&hash, HASH_BYTES, 1);
-    _ceu_vector_buf_set(&&hash, 0, &&tcp.buffer[0], HASH_BYTES);
+    _ceu_vector_copy(&&hash,0, &&tcp.buffer,0, HASH_BYTES);
     [[
         THIS.block.hash = @hash;
     ]];
     $tcp.buffer = $tcp.buffer - HASH_BYTES;
 
     // => TIMESTAMP + NONCE
+
     await UV_Stream_Read_N(&tcp, 2*sizeof(u64));
-    var u64 timestamp = GET_BE64TOH(tcp.buffer,0);
+    var[sizeof(u64)] byte buf;
+
+    _ceu_vector_copy(&&buf,0, &&tcp.buffer,0, sizeof(u64));
+    var u64 timestamp = GET_BE64TOH(buf,0);
     $tcp.buffer = $tcp.buffer - sizeof(u64);
-    var u64 nonce     = GET_BE64TOH(tcp.buffer,0);
+
+    _ceu_vector_copy(&&buf,0, &&tcp.buffer,0, sizeof(u64));
+    var u64 nonce = GET_BE64TOH(buf,0);
     $tcp.buffer = $tcp.buffer - sizeof(u64);
+
     [[
         THIS.block.timestamp = @timestamp
         THIS.block.nonce     = @nonce
@@ -41,10 +47,10 @@ do
     end
 
     // => PUBLICATION_HASH
+
     await UV_Stream_Read_N(&tcp, HASH_BYTES);
     var[HASH_BYTES] byte publication_hash;
-    _ceu_vector_setlen(&&publication_hash, HASH_BYTES, 1);
-    _ceu_vector_buf_set(&&publication_hash, 0, &&tcp.buffer[0], HASH_BYTES);
+    _ceu_vector_copy(&&publication_hash,0, &&tcp.buffer,0, HASH_BYTES);
     [[
 -- TODO: cache of publications
         THIS.publication_hash = @publication_hash
@@ -53,6 +59,7 @@ do
     $tcp.buffer = $tcp.buffer - HASH_BYTES;
 
     // => PRV_HASH
+
     await UV_Stream_Read_N(&tcp, HASH_BYTES);
     var[HASH_BYTES] byte hash_prv = [] .. tcp.buffer;
     [[
@@ -63,6 +70,7 @@ do
     $tcp.buffer = $tcp.buffer - HASH_BYTES;
 
     // <= ACK-publication
+
     var bool has_publication = [[ THIS.block.publication~=nil ]];
     var int ret = do
         if has_publication then
@@ -77,18 +85,24 @@ do
     if not has_publication then
         // => TIMESTAMP + NONCE + LEN
         await UV_Stream_Read_N(&tcp, 2*sizeof(u64) + sizeof(u32));
-        var u64 timestamp = GET_BE64TOH(tcp.buffer,0);
+        var[sizeof(u64)] byte buf;
+
+        _ceu_vector_copy(&&buf,0, &&tcp.buffer,0, sizeof(u64));
+        var u64 timestamp = GET_BE64TOH(buf,0);
         $tcp.buffer = $tcp.buffer - sizeof(u64);
-        var u64 nonce     = GET_BE64TOH(tcp.buffer,0);
+
+        _ceu_vector_copy(&&buf,0, &&tcp.buffer,0, sizeof(u64));
+        var u64 nonce = GET_BE64TOH(buf,0);
         $tcp.buffer = $tcp.buffer - sizeof(u64);
-        var u32 len       = GET_BE32TOH(tcp.buffer,0);
+
+        _ceu_vector_copy(&&buf,0, &&tcp.buffer,0, sizeof(u32));
+        var u32 len = GET_BE32TOH(buf,0);
         $tcp.buffer = $tcp.buffer - sizeof(u32);
 
         // => PAYLOAD
         await UV_Stream_Read_N(&tcp, len as usize);
         var[len] byte payload;
-        _ceu_vector_setlen(&&payload, len, 1);
-        _ceu_vector_buf_set(&&payload, 0, &&tcp.buffer[0], len);
+        _ceu_vector_copy(&&payload,0, &&tcp.buffer,0, len);
         $tcp.buffer = $tcp.buffer - (len as usize);
 
         [[
@@ -139,15 +153,16 @@ do
 
     // length
     await UV_Stream_Read_N(&outer.tcp, sizeof(u64));
-    var u64 length = GET_BE64TOH(outer.tcp.buffer,0);
+    var[sizeof(u64)] byte buf;
+    _ceu_vector_copy(&&buf,0, &&outer.tcp.buffer,0, sizeof(u64));
+    var u64 length = GET_BE64TOH(buf,0);
     _dbg_tcp(2, &&outer.tcp.handle, "server", "CHAIN_LENGTH  = %ld", length);
     $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
 
     // head_hash
     await UV_Stream_Read_N(&outer.tcp, HASH_BYTES);
     var[HASH_BYTES] byte head_hash;
-    _ceu_vector_setlen(&&head_hash, HASH_BYTES, 1);
-    _ceu_vector_buf_set(&&head_hash, 0, &&outer.tcp.buffer[0], HASH_BYTES);
+    _ceu_vector_copy(&&head_hash,0, &&outer.tcp.buffer,0, HASH_BYTES);
     $outer.tcp.buffer = $outer.tcp.buffer - HASH_BYTES;
 
     [[
@@ -173,23 +188,17 @@ do
 
     [[ ARGS = THIS ]];
     CHAIN_LOCK(l, outer.shared, "lock_write");
-    [[ print('<<< LENGTH', @outer.shared.port, THIS.chain.head.length, THIS.length) ]];
 
     var int ret = do
-        //_dbg_tcp(2, &&outer.tcp.handle, "server", "***");
-        //[[ print('***', THIS.chain.head.length, '<-', THIS.length) ]];
         var bool me_lengthier = [[ THIS.chain.head.length > THIS.length ]];
         if me_lengthier then
             escape {MESSAGE10_HAVE};
         end
 
-    [[ print('>>> LENGTH', @outer.shared.port, THIS.chain.head.length, THIS.length, tostring2(THIS.chain.head.hash)) ]];
         var bool me_same = [[ THIS.chain.head.length == THIS.length ]];
         if me_same then
             var bool me_greater = [[ THIS.chain.head.hash >= THIS.head_hash ]];
-    [[ print('>>>', tostring2(THIS.chain.head.hash), tostring2(THIS.head_hash)) ]];
             if me_greater then
-    [[ print('<<<', 'HAVE') ]];
                 escape {MESSAGE10_HAVE};
             end
         end
@@ -208,7 +217,6 @@ do
     do finalize with
         {SERVERS_ALIVE--;}
     end
-    //[[ print('!!!', THIS.chain.head.length, '<-', THIS.length) ]];
 
     ///////////////////////////////////////////////////////////////////////////
     // BLOCKS
@@ -257,13 +265,10 @@ do
 
     // RECEIVE ALL BLOCKS
 
-    //_dbg_tcp(3, &&outer.tcp.handle, "server", "oioi");
-    //[[ print('444', THIS.length, THIS.common.length, THIS.chain.head.length) ]];
-
-    #if 1
+    #if 0
         [[
             chain = GG.chain_flatten(THIS.chain.id)
-            print('===> '..@outer.shared.port)
+            print('===> '..@outer.shared.port, THIS.length-THIS.common.length)
             print(string.rep('>',79))
             print(tostring2(chain))
             print(string.rep('>',79))
@@ -308,14 +313,10 @@ do
             from = THIS.fork,
             to   = { first=THIS.first, last=THIS.block },
         }
-        print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-', THIS.block.length)
-        print('FROM: ', ARGS.from and tostring2(ARGS.from.hash))
-        print('HEAD: ', tostring2(ARGS.to.first.chain.head.hash))
-        print('TO: ', tostring2(ARGS.to.first.hash), tostring2(ARGS.to.last.hash))
     ]]
     await Chain_Fork();
 
-#if 1
+#if 0
         [[
             chain = GG.chain_flatten(THIS.chain.id)
             print('===< '..@outer.shared.port)

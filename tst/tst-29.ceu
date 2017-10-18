@@ -54,7 +54,7 @@ do
                 [[
                     APP.messages = {}
                     MESSAGE {
-                        id = '1.0',
+                        version = '1.0',
                         chain = {
                             key   = '',
                             zeros = 0,
@@ -65,28 +65,23 @@ do
                 await ClientMessages(&shared);
             end
 
-#if 1
             // wait all messages to be received
             loop do
-                await 100ms;   // periodic check (any number is ok)
-                [[
-                    t = GG.chain_head_base_size(APP.chains['||0|'].head_hash)
-                ]]
-                var int size = [[ t.size ]];
-                if size == N*N+1 then
+                await shared.ok;
+                var int length = [[ APP.chains['||0|'].head.length ]];
+                if length == N*N then
                     break;
                 end
             end
-#else
+
+            // wait for consensus
             loop do
                 watching shared.ok do
-                    await 10s;
+                    await (N*N)s;
                     break;
                 end
             end
-#endif
         end
-            
 
 #if 1
 [[
@@ -95,8 +90,8 @@ print(GG.chain_tostring('||0|'))
 print(@i, '<'..string.rep('=',70))
 ]];
 #endif
-        var[] byte path = [] .. [[ '/tmp/'..string.format('%03d',@i)..'.chain' ]];
-        [[ ARGS = { chain_id='||0|' } ]];
+        var[] byte path = [] .. [[ '/tmp/'..string.format('%03d',@i)..'.chain' ]] .. [0];
+        [[ ARGS = { chain=APP.chains['||0|'] } ]];
         await FS_write_10(&path);
     end
 end
@@ -123,7 +118,7 @@ var int i;
 loop i in [0 -> N[ do
     [[
         file2 = assert(io.open('/tmp/'..string.format('%03d',@i)..'.chain')):read'*a'
-        assert(file1 == file2)
+        assert(file1 == file2, 'differ')
     ]]
 end
 

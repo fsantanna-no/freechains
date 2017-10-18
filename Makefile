@@ -64,23 +64,21 @@ tests:
 	make tst
 
 tst:
-	for i in tst/tst-0[1-8].ceu tst/tst-a*.ceu; do                           \
+	for i in tst/tst-[0-2]*.ceu tst/tst-3[0-0].ceu tst/tst-a*.ceu; do \
 		echo;                                            \
 		echo "#####################################";    \
 		echo File: "$$i";                                \
 		echo "#####################################";    \
-		make CEU_SRC=$$i OUT=/tmp/freechains-tst all && /tmp/freechains-tst || exit 1; \
-		if [ "$$i" = "tst/tst-30.ceu" ]; then break; fi; \
+		make CEU_SRC=$$i all && /tmp/$$(basename $$i .ceu) || exit 1; \
 	done
 
 tst-run:
-	for i in tst/tst-0[1-8].ceu tst/tst-a*.ceu; do                           \
+	for i in tst/tst-[0-2]*.ceu tst/tst-3[0-0].ceu tst/tst-a*.ceu; do \
 		echo;                                            \
 		echo "#####################################";    \
 		echo File: "$$i";                                \
 		echo "#####################################";    \
-		/tmp/$$(basename $$i .ceu) || exit 1;             \
-		if [ "$$i" = "tst/tst-30.ceu" ]; then break; fi; \
+		/tmp/$$(basename $$i .ceu) || exit 1;            \
 	done
 
 milter:
