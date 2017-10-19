@@ -72,7 +72,7 @@ print(@i, '<'..string.rep('=',70))
             var int j;
             loop j in [1 -> N] do
                 // how much time between each message?
-                await (_rand() % (100*N*N)) ms;
+                await (_rand() % (100*N)) ms;
                 [[
                     APP.messages = {}
                     MESSAGE {
@@ -97,6 +97,7 @@ print(@i, '<'..string.rep('=',70))
                     break;
                 end
             end
+_dbg(0, "server | MSGS | %s:%d", &&ip[0], port);
 
             // wait for consensus
             loop do

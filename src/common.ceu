@@ -1,7 +1,7 @@
 #ifndef _COMMON_CEU
 #define _COMMON_CEU
 
-#define DBG 0
+//#define DBG 0
 
 #include "c.ceu"
 #include "uv/uv.ceu"
@@ -20,7 +20,7 @@
 
 #define THIS GG[@(&&{*_ceu_mem})]
 
-native/nohold _dbg, _dbg_tcp;
+native/nohold ___dbg, ___dbg_tcp;
 native/pure _leading_zeros;
 
 data Exception.Freechains;
@@ -34,6 +34,26 @@ data Exception.Freechains.Fork_Lengthy with
     var _char&& message = "fork is too lengthy";
 end
 
+#if 1
+#define _dbg(a,...)                         \
+    do                                      \
+        var bool dbg_on = [[DBG_ON==true]]; \
+        if dbg_on then                      \
+            ___dbg(a, ##__VA_ARGS__);        \
+        end                                 \
+    end
+#define _dbg_tcp(a,...)                     \
+    do                                      \
+        var bool dbg_on = [[DBG_ON==true]]; \
+        if dbg_on then                      \
+            ___dbg_tcp(a, ##__VA_ARGS__);    \
+        end                                 \
+    end
+#else
+#define _dbg(a,...)     __dbg(a, ##__VA_ARGS__)
+#define _dbg_tcp(a,...) __dbg_tcp(a, ##__VA_ARGS__)
+#endif
+
 native/pre do
     enum {
         MESSAGE10 = 0x100,
@@ -43,10 +63,11 @@ native/pre do
         MESSAGE10_OK = 0,
         MESSAGE10_NOTSUB,   // [ok ACK] not subscribed to this chain
         MESSAGE10_HAVE,     // [ok ACK] already has it
+        MESSAGE10_TIMEOUT,
         //MESSAGE10_ABORTED,  // [?? ???] aborted from external retransmit
     };
 
-    void dbg (int level, const char* fmt, ...) {
+    void __dbg (int level, const char* fmt, ...) {
 #ifdef DBG
         if (level > DBG) return;
         fprintf(stderr, "[%d] | ", level);
@@ -58,7 +79,7 @@ native/pre do
 #endif
     }
 
-    void dbg_tcp (int level, uv_stream_t* tcp, char* client_server, const char* fmt, ...) {
+    void __dbg_tcp (int level, uv_stream_t* tcp, char* client_server, const char* fmt, ...) {
 #ifdef DBG
         if (level > DBG) return;
         int p1 = ceu_uv_tcp_getsockport((uv_tcp_t*) tcp);
@@ -127,11 +148,13 @@ do
     ]]
     is_locked = [[ THIS.chain[THIS.id] ]];
     if is_locked then
-spawn do
-    await 10s;
-    [[ error 'locked for too long' ]];
-end
         loop do
+spawn do
+    await 30s;
+    //{ceu_trace(((tceu_trace){&_ceu_mem->trace, __FILE__, __LINE__}),"alo");};
+    [[ error 'locked for too long' ]];
+    [[ print 'locked for too long' ]];
+end
             await shared.unlock;
             is_locked = [[ THIS.chain[THIS.id] ]];
             if not is_locked then
@@ -339,7 +362,6 @@ do
             end
             _ceu_assert(0, "bug found");
         end;
-        //{ceu_trace(((tceu_trace){&_ceu_mem->trace, __FILE__, __LINE__}),"alo");};
         _dbg(3, "client: POW rounds: %d\n", n);
     end
 end

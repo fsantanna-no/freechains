@@ -99,7 +99,7 @@ print(@i, '<'..string.rep('=',70))
             // wait for consensus
             loop do
                 watching shared.ok do
-                    await (N)s;
+                    await (N*N)s;
                     break;
                 end
 _dbg(0, "server | shared.ok | %s:%d", &&ip[0], port);

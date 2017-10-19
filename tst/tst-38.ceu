@@ -8,6 +8,7 @@ _srand(_time(null));
 ///////////////////////////////////////////////////////////////////////////////
 
 #define N 20
+#define M  1
 
 code/await Node (var int i) -> none
     throws Exception.Lua
@@ -19,7 +20,9 @@ do
         var int local  = 8330+i;
 
         [=[
-DBG_ON = true
+if @i == 0 then
+    DBG_ON = true
+end
             dofile 'src/common.lua'
             dofile 'cfg/config.lua'
 
@@ -44,6 +47,11 @@ DBG_ON = true
         await Init();
         await 100ms;
 
+spawn do
+    every 1s do
+        //[[ print('>>>', @shared.port, APP.chains['||0|'].head.length, tostring2(APP.chains['||0|'].head.hash)) ]];
+    end
+end
         do
             var[] byte ip      = [] .. [[ APP.server.host[1] ]] .. [0];
             var   int  port    = [[ APP.server.host[2] ]];
@@ -71,7 +79,7 @@ print(@i, '<'..string.rep('=',70))
             end
 
             var int j;
-            loop j in [1 -> N] do
+            loop j in [1 -> M] do
                 // how much time between each message?
                 await (_rand() % (100*N)) ms;
                 [[
@@ -94,7 +102,7 @@ print(@i, '<'..string.rep('=',70))
             loop do
                 await shared.ok;
                 var int length = [[ APP.chains['||0|'].head.length ]];
-                if length == N*N then
+                if length == N*M then
                     break;
                 end
             end
