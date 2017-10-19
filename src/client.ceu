@@ -33,6 +33,7 @@ do
             PUT_HTOBE64(tcp.buffer, $tcp.buffer-sizeof(u64), length);
         end
         tcp.buffer = tcp.buffer .. [[ THIS.chain.head.hash ]];
+
         await UV_Stream_Write_N(&tcp,_);
 
         // => ACK-header
@@ -286,9 +287,14 @@ do
         if is_10 then
             [[
                 THIS = {}
+#ifdef DETERMINISTIC
+                THIS.now = 0
+#else
+                THIS.now = os.time() * 1000000      -- in ms since the epoch
+#endif
                 THIS.publication = {
                     chain     = assert(GG.chain_parse_get(msg.chain), msg.chain.id),
-                    timestamp = 0,    -- TODO: 64-bit timestamp
+                    timestamp = THIS.now,
                     nonce     = 0,
                     payload   = msg.payload,
                     hash      = nil,
@@ -302,7 +308,7 @@ do
                 [[
                     THIS.block = {
                         version     = '1.0',
-                        timestamp   = 0,    -- TODO: 64-bit timestamp
+                        timestamp   = THIS.now,
                         nonce       = 0,
                         chain       = THIS.publication.chain,
                         publication = THIS.publication,
