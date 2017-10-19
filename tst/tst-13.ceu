@@ -2,6 +2,7 @@
 12 um fork grande que acumula o passado em um unico bloco
 */
 
+#define DETERMINISTIC
 #include "common.ceu"
 
 ///////////////////////////////////////////////////////////////////////////////

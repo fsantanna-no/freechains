@@ -1,3 +1,5 @@
+#define DETERMINISTIC
+
 #include "common.ceu"
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -69,6 +71,12 @@ with
         var   int  backlog = [[ APP.server.backlog ]];
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
         spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
+
+spawn do
+    every 1s do
+        [[ print('>>>', @shared.port, APP.chains['||0|'].head.length, tostring2(APP.chains['||0|'].head.hash)) ]];
+    end
+end
 
         loop do
             var bool ok = [[ APP.chains['||0|'].head.length == 2 ]];
