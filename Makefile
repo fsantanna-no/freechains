@@ -6,7 +6,8 @@ CEU_FC_DIR   = $(CEU_UV_DIR)/ceu-libuv-freechains
 CEU_FCFS_DIR = $(CEU_FC_DIR)/util/fcfs
 
 main:
-	make CEU_SRC=src/main.ceu OUT=freechains all
+	make CEU_SRC=src/main.ceu all
+	cp /tmp/main freechains
 
 all:
 	ceu --pre --pre-args="-I$(CEU_DIR)/include -I$(CEU_UV_DIR)/include -Isrc/" \
@@ -64,7 +65,7 @@ tests:
 	make tst
 
 tst:
-	for i in tst/tst-[0-2]*.ceu tst/tst-3[0-0].ceu tst/tst-a*.ceu; do \
+	for i in tst/tst-[0-2]*.ceu tst/tst-3[0-4].ceu tst/tst-a*.ceu; do \
 		echo;                                            \
 		echo "#####################################";    \
 		echo File: "$$i";                                \
@@ -73,7 +74,7 @@ tst:
 	done
 
 tst-run:
-	for i in tst/tst-[0-2]*.ceu tst/tst-3[0-0].ceu tst/tst-a*.ceu; do \
+	for i in tst/tst-[0-2]*.ceu tst/tst-3[0-4].ceu tst/tst-a*.ceu; do \
 		echo;                                            \
 		echo "#####################################";    \
 		echo File: "$$i";                                \

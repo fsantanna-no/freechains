@@ -124,9 +124,6 @@ print(@i, '<'..string.rep('=',70))
 
         [[ ARGS = { chain=FC.chains['|tst-33|0|'] } ]];
         await FS_write_10();
-        [[
-            os.execute('cp /tmp/freechains/@(local)/chains/\\|tst-33\\|0\\|.chain /tmp/'..string.format('%03d',@i)..'.chain')
-        ]]
     end
 end
 
@@ -146,12 +143,12 @@ end
 //_ceu_dbg_assert({BLOCKS_RECEIVED} == N*N);
 
 // assert consensus
-[[ file1 = io.open('/tmp/000.chain'):read'*a' ]]
+[[ file1 = io.open('/tmp/freechains/8330/chains/|tst-33|0|.chain'):read'*a' ]]
 var int i;
 loop i in [0 -> N[ do
     [[
-        file2 = io.open('/tmp/'..string.format('%03d',@i)..'.chain'):read'*a'
-        assert(file1 == file2)
+        file2 = io.open('/tmp/freechains/8330+@(i)/chains/|tst-33|0|.chain'):read'*a'
+        assert(file1 == file2, 'differ')
     ]]
 end
 
