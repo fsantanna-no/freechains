@@ -142,7 +142,7 @@ end
 var int i;
 loop i in [0 -> N[ do
     [[
-        file2 = io.open('/tmp/freechains/8330+@(i)/chains/|tst-31|0|.chain'):read'*a'
+        file2 = io.open('/tmp/freechains/'..@(8330+i)..'/chains/|tst-31|0|.chain'):read'*a'
         assert(file1 == file2, 'differ')
     ]]
 end
