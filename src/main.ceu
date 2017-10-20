@@ -4,10 +4,9 @@
 
 [[
     dofile 'src/common.lua'
-    local config, input, output = table.unpack(arg)
+    local config, _, output = table.unpack(arg)
 
     THIS = {
-        input   = input,
         output  = output,
         pending = {},
     }
@@ -70,7 +69,7 @@ par do
         var[] byte path = [] .. [[path]] .. [0];
 
         [[
-            local f = assert(io.open(OUTPUT, 'a'))
+            local f = assert(io.open(THIS.output, 'a'))
             local function out (cur)   -- reverse order
                 if cur == THIS.chain.last_output then
                     return   -- handled previously
@@ -110,7 +109,7 @@ with
         await ok;
         loop do
             [[
-                assert(load('ARGS = { @msg }'))()
+                assert(load('ARGS = { message='..@msg..' }'))()
             ]]
             _dbg(0, "client...");
             await Client(&shared);
@@ -124,29 +123,18 @@ with
     with
         lua[] do
             [[
-                f = assert(io.open(THIS.input, 'r+'))
+                local _, input, _ = table.unpack(arg)
+                f = assert(io.open(input, 'r+'))
             ]]
             do finalize with
                 [[ f:close() ]]
             end
             loop do
-                await async/thread (msg) do
+                await async/thread do
                     [[
-                        n = f:read('l')
-                        print('>>> n >>>', f, n)
+                        msg = f:read('l')
                     ]]
                 end
-                var bool eof = [[ n == nil ]];
-                if eof then
-                    await write_ok;
-                    escape 0;
-                end
-                [[
-                    n = assert(tonumber(n))
-                    --print(n)
-                    msg = f:read(n)
-                    --print(msg)
-                ]]
                 msg = [] .. [[ msg ]];
                 par/and do
                     emit ok;
