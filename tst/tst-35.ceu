@@ -115,10 +115,10 @@ print(@i, '<'..string.rep('=',70))
 //[[print(@i, "END") ]];
         end
 
-        [[ ARGS = { chain=APP.chains['||0|'] } ]];
+        [[ ARGS = { chain=APP.chains['|tst-35|0|'] } ]];
         await FS_write_10();
         [[
-            os.execute('cp /tmp/freechains/chains/\\|\\|0\\|.chain /tmp/'..string.format('%03d',@i)..'.chain')
+            os.execute('cp /tmp/freechains/@(local)/chains/\\|tst-35\\|0\\|.chain /tmp/'..string.format('%03d',@i)..'.chain')
         ]]
     end
 end

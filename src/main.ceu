@@ -13,10 +13,7 @@
     }
 
     CFG = {}
-    local env = _ENV
-    _ENV = CFG
-    dofile(config)
-    _ENV = env
+    assert(loadfile(config,nil,CFG))()
 ]]
 
 event none write_ok;
