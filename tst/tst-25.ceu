@@ -97,7 +97,7 @@ await FS_write_10();
 
 [[
 local src   = io.open('tst/|tst-25|0|.chain'):read'*a'
-local build = io.open('/tmp/freechains/chains/|tst-25|0|.chain'):read'*a'
+local build = io.open('/tmp/freechains/0000/chains/|tst-25|0|.chain'):read'*a'
 assert(src == build)
 print 'OK!'
 ]];

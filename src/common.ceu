@@ -790,7 +790,9 @@ do
         THIS = {}
         FC['Exception.Freechains.Malformed'] = @({CEU_DATA_Exception__dot__Freechains__dot__Malformed} as int)
         FC.MESSAGE10_NOTSUB = @({MESSAGE10_NOTSUB} as int)
-        CFG.dir = CFG.dir or '/tmp/freechains'
+
+        local port = CFG.server and CFG.server.port or '0000'
+        CFG.dir = CFG.dir or '/tmp/freechains/'..port
     ]]
 
     var int n = [[ #CFG.chains ]];

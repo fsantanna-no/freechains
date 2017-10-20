@@ -26,7 +26,7 @@
 await Init();
 
 [[
-    src = io.open('/tmp/freechains/chains/|tst-25|0|.chain'):read'*a'
+    src = io.open('/tmp/freechains/0000/chains/|tst-25|0|.chain'):read'*a'
     ARGS = {
         chain = assert(FC.chains['|tst-25|0|'])
     }
@@ -40,7 +40,7 @@ await FS_read_10();
 await FS_write_10();
 
 [[
-    dst = io.open('/tmp/freechains/chains/|tst-25|0|.chain'):read'*a'
+    dst = io.open('/tmp/freechains/0000/chains/|tst-25|0|.chain'):read'*a'
     assert(src == dst)
 ]];
 

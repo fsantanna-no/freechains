@@ -5,12 +5,18 @@
 [[
     dofile 'src/common.lua'
     local config, input, output = table.unpack(arg)
-    dofile(config)
+
     THIS = {
         input   = input,
         output  = output,
         pending = {},
     }
+
+    CFG = {}
+    local env = _ENV
+    _ENV = CFG
+    dofile(config)
+    _ENV = env
 ]]
 
 event none write_ok;
