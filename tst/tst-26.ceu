@@ -2,7 +2,7 @@
 #include "common.ceu"
 
 ///////////////////////////////////////////////////////////////////////////////
-// Read from "x.chain"
+// Read from "tst-25.chain"
 //  - 111,222
 //  - 333,444
 ///////////////////////////////////////////////////////////////////////////////
@@ -11,9 +11,9 @@
     dofile 'src/common.lua'
     CFG = {
         chains = {
-            zeros_raise = TODO,     -- global and per-chain
+            not_persistency = true,
             [1] = {
-                key   = '',
+                key   = 'tst-25',
                 zeros = 0,
                 peers = {
                     {
@@ -35,7 +35,7 @@ await Init();
         message = {
             version = '1.0',
             chain = {
-                key   = '',
+                key   = 'tst-25',
                 zeros = 0,
             },
             payload = '111',
@@ -49,7 +49,7 @@ await Client(&shared);
         message = {
             version = '1.0',
             chain = {
-                key   = '',
+                key   = 'tst-25',
                 zeros = 0,
             },
             payload = '222',
@@ -63,7 +63,7 @@ await Client(&shared);
         message = {
             version = '1.0',
             chain = {
-                key   = '',
+                key   = 'tst-25',
                 zeros = 0,
             },
             payload = '333',
@@ -77,7 +77,7 @@ await Client(&shared);
         message = {
             version = '1.0',
             chain = {
-                key   = '',
+                key   = 'tst-25',
                 zeros = 0,
             },
             payload = '444',
@@ -87,30 +87,34 @@ await Client(&shared);
 await Client(&shared);
 
 [[
-    head1 = FC.chains['||0|'].head
+    head1 = FC.chains['|tst-25|0|'].head
 ]]
 
-var[] byte path = [].."x.chain";
-await FS_read_10(&path);
+[[
+    ARGS = {
+        chain = FC.chains['|tst-25|0|']
+    }
+]]
+await FS_read_10();
 [[
     head2 = ARGS.chain.head
-    --old = FC.chains['||0|'].head_hash
-    --FC.chains['||0|'].head_hash = ARGS.head_hash
+    --old = FC.chains['|tst-25|0|'].head_hash
+    --FC.chains['|tst-25|0|'].head_hash = ARGS.head_hash
     --print('>'..string.rep('=',78))
-    --print(GG.chain_tostring('||0|'))
+    --print(GG.chain_tostring('|tst-25|0|'))
     --print('<'..string.rep('=',78))
-    --FC.chains['||0|'].head_hash = old
+    --FC.chains['|tst-25|0|'].head_hash = old
 ]];
 
 #if 0
 [[
     print('>'..string.rep('=',78))
-    print(GG.chain_tostring('||0|'))
+    print(GG.chain_tostring('|tst-25|0|'))
     print('<'..string.rep('=',78))
 ]];
 
 [[
-    chain     = FC.chains['||0|']
+    chain     = FC.chains['|tst-25|0|']
     head_hash = chain.head_hash
     base      = GG.chain_head_base_size(head_hash).base
 ]];

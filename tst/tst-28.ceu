@@ -26,9 +26,8 @@ par/and do
             dofile 'src/common.lua'
             CFG = {
                 chains = {
-                    zeros_raise = TODO,     -- global and per-chain
                     [1] = {
-                        key   = '',
+                        key   = 'tst-25',
                         zeros = 0,
                         peers = {
                             {
@@ -44,15 +43,12 @@ par/and do
         await Init();
         await 100ms;
 
-        var[] byte src = [].."x.chain";
-        await FS_read_10(&src);
-
         [[
             ARGS = {
                 message = {
                     version = '1.0',
                     chain = {
-                        key   = '',
+                        key   = 'tst-25',
                         zeros = 0,
                     },
                     payload = '555',
@@ -62,10 +58,10 @@ par/and do
         await Client(&shared);
 
         [[
-            CHAIN0 = FC.chain_flatten('||0|')
+            CHAIN0 = FC.chain_flatten('|tst-25|0|')
             print'===> CLIENT'
             print('>'..string.rep('=',78))
-            print(FC.chain_tostring('||0|'))
+            print(FC.chain_tostring('|tst-25|0|'))
             print('<'..string.rep('=',78))
         ]];
         chain0 = []..[[tostring2(CHAIN0)]];
@@ -88,9 +84,9 @@ with
                     backlog = 128,
                 },
                 chains = {
-                    zeros_raise = TODO,     -- global and per-chain
+                    not_persistency = true,
                     [1] = {
-                        key   = '',
+                        key   = 'tst-25',
                         zeros = 0,
                     },
                 },
@@ -107,10 +103,10 @@ with
 
         await shared.ok;
         [[
-            CHAIN1 = FC.chain_flatten('||0|')
+            CHAIN1 = FC.chain_flatten('|tst-25|0|')
             print'===> SERVER'
             print('>'..string.rep('=',78))
-            print(FC.chain_tostring('||0|'))
+            print(FC.chain_tostring('|tst-25|0|'))
             print('<'..string.rep('=',78))
         ]];
         chain1 = []..[[tostring2(CHAIN1)]];

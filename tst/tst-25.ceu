@@ -13,9 +13,8 @@ var UV_TCP_Server_Data shared = _;
     dofile 'src/common.lua'
     CFG = {
         chains = {
-            zeros_raise = TODO,     -- global and per-chain
             [1] = {
-                key   = '',
+                key   = 'tst-25',
                 zeros = 0,
                 peers = {
                     {
@@ -35,7 +34,7 @@ await Init();
         message = {
             version = '1.0',
             chain = {
-                key   = '',
+                key   = 'tst-25',
                 zeros = 0,
             },
             payload = '111',
@@ -49,7 +48,7 @@ await Client(&shared);
         message = {
             version = '1.0',
             chain = {
-                key   = '',
+                key   = 'tst-25',
                 zeros = 0,
             },
             payload = '222',
@@ -63,7 +62,7 @@ await Client(&shared);
         message = {
             version = '1.0',
             chain = {
-                key   = '',
+                key   = 'tst-25',
                 zeros = 0,
             },
             payload = '333',
@@ -77,7 +76,7 @@ await Client(&shared);
         message = {
             version = '1.0',
             chain = {
-                key   = '',
+                key   = 'tst-25',
                 zeros = 0,
             },
             payload = '444',
@@ -88,17 +87,16 @@ await Client(&shared);
 
 [[
     print('>'..string.rep('=',78))
-    print(FC.chain_tostring('||0|'))
+    print(FC.chain_tostring('|tst-25|0|'))
     print('<'..string.rep('=',78))
 ]];
 
-var[] byte path = [].."x.chain";
-[[ ARGS={ chain=FC.chains['||0|'] } ]];
-await FS_write_10(&path);
+[[ ARGS={ chain=FC.chains['|tst-25|0|'] } ]];
+await FS_write_10();
 
 [[
-local src   = io.open('src/x.chain'):read'*a'
-local build = io.open('x.chain'):read'*a'
+local src   = io.open('tst/|tst-25|0|.chain'):read'*a'
+local build = io.open('/tmp/freechains/chains/|tst-25|0|.chain'):read'*a'
 assert(src == build)
 print 'OK!'
 ]];

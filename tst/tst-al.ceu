@@ -14,7 +14,7 @@ var UV_TCP_Server_Data shared = _;
     CFG = {
         chains = {
             [1] = {
-                key   = '',
+                key   = 'tst-al',
                 zeros = 0,
             },
         },

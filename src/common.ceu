@@ -659,7 +659,7 @@ do
 
         assert(CFG.dir, 'missing configuration directory')
         dir = CFG.dir..'/chains'
-        assert(os.execute('mkdir -p '..dir), 'cannot create directory "'..dir..'"')
+        os.execute('mkdir -p '..dir)
     ]];
 
     var[] byte path = []..[[dir..'/'..THIS.chain.id..'.chain']];
@@ -829,14 +829,17 @@ do
 
             // try to load from file
             // no problem if it fails
-            var Exception? e;
-            catch e do
-                [[
-                    ARGS = {
-                        chain = THIS.chain
-                    }
-                ]]
-                await FS_read_10();
+            var bool should_read = [[ not CFG.chains.not_persistency ]];
+            if should_read then
+                var Exception? e;
+                catch e do
+                    [[
+                        ARGS = {
+                            chain = THIS.chain
+                        }
+                    ]]
+                    await FS_read_10();
+                end
             end
         end
     end

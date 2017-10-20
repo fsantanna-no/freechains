@@ -10,9 +10,13 @@
     dofile 'src/common.lua'
     CFG = {
         chains = {
-            zeros_raise = TODO,     -- global and per-chain
+            not_persistency = true,
             [1] = {
-                key   = '',
+                key   = 'tst-25',
+                zeros = 0,
+            },
+            [2] = {
+                key   = 'tst-27',
                 zeros = 0,
             },
         },
@@ -21,26 +25,36 @@
 
 await Init();
 
-var[] byte src = [].."x.chain";
-var[] byte dst = [].."y.chain";
-
-await FS_read_10(&src);
-await FS_write_10(&dst);
+[[
+    src = io.open('/tmp/freechains/chains/|tst-25|0|.chain'):read'*a'
+    ARGS = {
+        chain = assert(FC.chains['|tst-25|0|'])
+    }
+]]
+await FS_read_10();
+[[
+    ARGS = {
+        chain = FC.chains['|tst-25|0|']
+    }
+]]
+await FS_write_10();
 
 [[
-local src = io.open(@src):read'*a'
-local dst = io.open(@dst):read'*a'
-assert(src == dst)
+    dst = io.open('/tmp/freechains/chains/|tst-25|0|.chain'):read'*a'
+    assert(src == dst)
 ]];
 
 // error r/w
 do
-    var[] byte err = [].."/no.chain";
-
     do
         var Exception.Uv? e;
         catch e do
-            await FS_read_10(&err);
+            [[
+                ARGS = {
+                    chain = FC.chains['|tst-27|0|']
+                }
+            ]]
+            await FS_read_10();
         end
         _fprintf(_stderr, "[%d] uv-error: %s\n", e!.number, e!.message);
         _ceu_sys_assert(e!.number == -_ENOENT, "bug");
@@ -48,10 +62,16 @@ do
     do
         var Exception.Uv? e;
         catch e do
-            await FS_write_10(&err);
+            [[
+                CFG.dir = '/'
+                ARGS = {
+                    chain = FC.chains['|tst-27|0|']
+                }
+            ]]
+            await FS_write_10();
         end
         _fprintf(_stderr, "[%d] uv-error: %s\n", e!.number, e!.message);
-        _ceu_sys_assert(e!.number == -_EACCES, "bug");
+        _ceu_sys_assert(e!.number == -_ENOENT, "bug");
     end
 end
 
