@@ -2,7 +2,7 @@ dir = '/tmp/freechains'
 
 server = {
     address = '127.0.0.1',
-    port    = '8330'
+    port    = '8331'
     backlog = 128,
     --timeout = 100,
 }

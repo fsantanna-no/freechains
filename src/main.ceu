@@ -1,11 +1,11 @@
 #include "common.ceu"
 
 var UV_TCP_Server_Data shared = _;
-[=[
+[[
     dofile 'src/common.lua'
     CONFIG, _, _ = table.unpack(arg)
     dofile(CONFIG)
-]=];
+]];
 
 await Init();
 

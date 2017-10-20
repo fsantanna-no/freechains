@@ -487,15 +487,18 @@ do
     end
 end
 
-code/await FS_read_10 (var&[] byte path) -> none
+code/await FS_read_10 (none) -> none
     throws Exception.Uv, Exception.Freechains.Malformed
-    // output [[ ARGS={chain=...} ]]
+    // input:  [[ ARGS={chain={TODO}} ]]
+    // output: [[ ARGS={chain={DONE}} ]]
 do
     [[
         THIS = {
-            chain = nil,
+            chain = ARGS.chain,
         }
+        path = CFG.dir..'/chains/'..THIS.chain.id..'.chain'
     ]];
+    var[] byte path = []..[[path]];
 
     var& UV_FS_Open o = spawn UV_FS_Open(&&path[0],_,_,_);
     await o.file.ok;
@@ -533,6 +536,12 @@ do
         ]];
         $o.file.buffer = 0;
         //[[ print('>>> chain_id',@buf) ]];
+
+        var bool ok = [[ id==ARGS.chain.id ]];
+        if not ok then
+            var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+            throw e;
+        end
     end
 
     // => BLOCKS
@@ -623,12 +632,12 @@ do
 
     [[
         ARGS = {
-            chain  = THIS.chain,
+            chain = THIS.chain,
         }
     ]];
 end
 
-code/await FS_write_10 (var&[] byte path) -> none
+code/await FS_write_10 (none) -> none
     throws Exception.Uv
     // input [[ ARGS = { chain={...} } ]]
 do
@@ -647,7 +656,13 @@ do
         THIS = {
             chain = ARGS.chain,
         }
+
+        assert(CFG.dir, 'missing configuration directory')
+        dir = CFG.dir..'/chains'
+        assert(os.execute('mkdir -p '..dir), 'cannot create directory "'..dir..'"')
     ]];
+
+    var[] byte path = []..[[dir..'/'..THIS.chain.id..'.chain']];
 
     // create/truncate file
     do/_
@@ -775,6 +790,7 @@ do
         THIS = {}
         FC['Exception.Freechains.Malformed'] = @({CEU_DATA_Exception__dot__Freechains__dot__Malformed} as int)
         FC.MESSAGE10_NOTSUB = @({MESSAGE10_NOTSUB} as int)
+        CFG.dir = CFG.dir or '/tmp/freechains'
     ]]
 
     var int n = [[ #CFG.chains ]];
@@ -811,23 +827,17 @@ do
                 ]]
             end
 
-// TODO: FS_*
-#if 0
-            var[] byte path = [] .. [[path]] .. [0];
+            // try to load from file
+            // no problem if it fails
             var Exception? e;
             catch e do
-                await FS_read_10(&path);
-            end
-            if not e? then
                 [[
-                    -- TODO: assert chain.id==file header
-                    --chain.genesis_hash = ARGS.genesis_hash
-                    THIS.chain.head_hash = ARGS.head_hash
-                ]];
-            else
-                //_dbg(0, "main: file not found: %s", &&path[0]);
+                    ARGS = {
+                        chain = THIS.chain
+                    }
+                ]]
+                await FS_read_10();
             end
-#endif
         end
     end
 end

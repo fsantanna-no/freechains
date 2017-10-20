@@ -1,0 +1,32 @@
+#define DETERMINISTIC
+#include "common.ceu"
+
+///////////////////////////////////////////////////////////////////////////////
+// Read from "||0|.chain"
+//  - 111,222
+//  - 333,444
+///////////////////////////////////////////////////////////////////////////////
+
+var UV_TCP_Server_Data shared = _;
+
+[[
+    dofile 'src/common.lua'
+    CFG = {
+        chains = {
+            [1] = {
+                key   = '',
+                zeros = 0,
+            },
+        },
+    }
+]];
+await Init();
+
+[[
+    assert(FC.chains['||0|'].base.nxt.publication.payload == '111')
+    assert(FC.chains['||0|'].head.publication.payload == '444')
+    assert(FC.chains['||0|'].head.length == 4)
+    print 'OK!'
+]]
+
+escape 0;

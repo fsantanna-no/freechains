@@ -1,0 +1,88 @@
+#define DETERMINISTIC
+#include "common.ceu"
+
+///////////////////////////////////////////////////////////////////////////////
+// Write to "||0|.chain"
+//  - 111,222
+//  - 333,444
+///////////////////////////////////////////////////////////////////////////////
+
+var UV_TCP_Server_Data shared = _;
+
+[[
+    dofile 'src/common.lua'
+    CFG = {
+        chains = {
+            [1] = {
+                key   = '',
+                zeros = 0,
+            },
+        },
+    }
+]];
+await Init();
+
+[[
+    ARGS = {
+        message = {
+            version = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = '111',
+        }
+    }
+]]
+await Client(&shared);
+[[
+    ARGS = {
+        message = {
+            version = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = '222',
+        }
+    }
+]];
+await Client(&shared);
+[[
+    ARGS = {
+        message = {
+            version = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = '333',
+        }
+    }
+]]
+await Client(&shared);
+[[
+    ARGS = {
+        message = {
+            version = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = '444',
+        }
+    }
+]];
+await Client(&shared);
+
+[[ ARGS={ chain=FC.chains['||0|'] } ]];
+await FS_write_10();
+
+[[
+local src   = io.open('src/x.chain'):read'*a'
+local build = io.open('/tmp/chains/||0|.chain'):read'*a'
+assert(src == build)
+print 'OK!'
+]];
+
+escape 0;
