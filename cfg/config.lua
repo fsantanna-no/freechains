@@ -1,37 +1,23 @@
--- global configurations
-BACK_HASH_JUMP_LIMIT = 10,
+dir = '/tmp/freechains'
 
--- subscribed chains
-CHAINS {
-    files = 'tst/files/',
-    {
-        key   = '',     -- global chain (cannot be signed)
-        zeros = 0,      -- receive messages with 0 leading zeros in the hash
-        id    = nil,    -- concat of key..zeros
-        head  = nil,    -- hash of newest block
-        -- TODO: mode 'pub,sub,pub/sub'
-    },
-}
-
--- server configurations
-SERVER {
-    host = { '127.0.0.1', '8330' },
+server = {
+    address = '127.0.0.1',
+    port    = '8330'
     backlog = 128,
-    message10_payload_len_limit = 1024,   -- max payload length for untrusted clients
+    --timeout = 100,
 }
 
--- client configurations
-CLIENT {
-    peers = {
---[[
-        {
-            host = { '127.0.0.1', '8331' },
-            chains = APP.server.chains,
+chains = {
+    zeros_raise = TODO,     -- global and per-chain
+    peers = {},             -- global and per-chain
+    [1] = {
+        key   = '',
+        zeros = 0,
+        peers = {
+            {
+                address = '127.0.0.1',
+                port    = '8330'
+            },
         },
-]]
     },
-}
-
--- blocks in memory
-BLOCKS {
 }
