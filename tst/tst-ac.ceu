@@ -2,30 +2,20 @@
 
 [[
     dofile 'src/common.lua'
-    CHAINS {
-        files = 'tst/files/',
-        {
-            key   = '',     -- global chain (cannot be signed)
-            zeros = 0,      -- receive messages with 0 leading zeros in the hash
-            id    = nil,    -- concat of key..zeros
-            head  = {       -- hash of newest block
-                hash   = nil,
-                prv    = nil,
-                length = 0,
-            },
-            -- TODO: mode 'pub,sub,pub/sub'
-        },
-    }
+    FC.chain_create('', 0)
 ]]
 
 do
     var[HASH_BYTES] byte chain_hash;
     _ceu_vector_setlen(&&chain_hash, HASH_BYTES, 1);
-    var[] byte chain_id = [] .. [[ APP.chains[1].id ]];
+    var[] byte chain_id = [] .. [[ FC.chains['||0|'].id ]];
     _crypto_generichash(&&chain_hash[0],HASH_BYTES, &&chain_id[0],$chain_id, null,0);
     [[
-        APP.chains[1].head.hash = @chain_hash
-        GENESIS = APP.chains[1].head
+        FC.chains['||0|'].base = {
+            hash = @chain_hash,
+            length = 0,
+        }
+        FC.chains['||0|'].head = FC.chains['||0|'].base
     ]]
 end
 
@@ -34,7 +24,7 @@ end
 [[
     THIS = {
         publication = {
-            chain     = APP.chains[1],
+            chain     = FC.chains['||0|'],
             timestamp = 0,
             nonce     = 0,
             payload   = '111',
@@ -121,33 +111,34 @@ end
 // MESSAGES //
 
 [[
-    APP.messages = {}
-    MESSAGE {
-        id = '1.0',
-        chain = {
-            key   = '',
-            zeros = 0,
+    messages = {
+        {
+            id = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = '222',
         },
-        payload = '222',
-    }
-    MESSAGE {
-        id = '1.0',
-        chain = {
-            key   = '',
-            zeros = 0,
+        {
+            id = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = '333',
         },
-        payload = '333',
     }
 ]];
 
-var int ms = [[ #APP.messages ]];
+var int ms = [[ #messages ]];
 var int i;
 loop i in [1 -> ms] do
     [[
         THIS = {}
-        msg = APP.messages[@i]
+        msg = messages[@i]
         THIS.publication = {
-            chain     = assert(GG.chain_parse_get(msg.chain), msg.chain.id),
+            chain     = assert(FC.chain_get(msg.chain), msg.chain.id),
             timestamp = 0,    -- TODO: 64-bit timestamp
             nonce     = 0,
             payload   = msg.payload,
@@ -182,38 +173,39 @@ end
 // FORK-1 //
 
 [[
-    APP.messages = {}
-    MESSAGE {
-        id = '1.0',
-        chain = {
-            key   = '',
-            zeros = 0,
+    messages = {
+        {
+            id = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = 'aaa',
         },
-        payload = 'aaa',
-    }
-    MESSAGE {
-        id = '1.0',
-        chain = {
-            key   = '',
-            zeros = 0,
+        {
+            id = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = 'bbb',
         },
-        payload = 'bbb',
-    }
-    MESSAGE {
-        id = '1.0',
-        chain = {
-            key   = '',
-            zeros = 0,
+        {
+            id = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = 'ccc',
         },
-        payload = 'ccc',
-    }
-    MESSAGE {
-        id = '1.0',
-        chain = {
-            key   = '',
-            zeros = 0,
+        {
+            id = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = 'ddd',
         },
-        payload = 'ddd',
     }
 ]];
 
@@ -224,13 +216,13 @@ end
     }
 ]]
 
-var int ms = [[ #APP.messages ]];
+var int ms = [[ #messages ]];
 var int i;
 loop i in [1 -> ms] do
     [[
-        msg = APP.messages[@i]
+        msg = messages[@i]
         THIS.publication = {
-            chain     = assert(GG.chain_parse_get(msg.chain), msg.chain.id),
+            chain     = assert(FC.chain_get(msg.chain), msg.chain.id),
             timestamp = 0,    -- TODO: 64-bit timestamp
             nonce     = 0,
             payload   = msg.payload,
@@ -247,7 +239,7 @@ loop i in [1 -> ms] do
             chain       = THIS.publication.chain,
             publication = THIS.publication,
             hash        = nil,
-            prv         = THIS.cur or GENESIS,
+            prv         = THIS.cur or THIS.publication.chain.base,
             nxt         = nil,
             length      = @i,
         }
@@ -290,38 +282,39 @@ await Chain_Fork();
 // FORK-2 //
 
 [[
-    APP.messages = {}
-    MESSAGE {
-        id = '1.0',
-        chain = {
-            key   = '',
-            zeros = 0,
+    messages = {
+        {
+            id = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = 'eee',
         },
-        payload = 'eee',
-    }
-    MESSAGE {
-        id = '1.0',
-        chain = {
-            key   = '',
-            zeros = 0,
+        {
+            id = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = 'fff',
         },
-        payload = 'fff',
-    }
-    MESSAGE {
-        id = '1.0',
-        chain = {
-            key   = '',
-            zeros = 0,
+        {
+            id = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = 'ggg',
         },
-        payload = 'ggg',
-    }
-    MESSAGE {
-        id = '1.0',
-        chain = {
-            key   = '',
-            zeros = 0,
+        {
+            id = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = 'hhh',
         },
-        payload = 'hhh',
     }
 ]];
 
@@ -332,13 +325,13 @@ await Chain_Fork();
     }
 ]]
 
-var int ms = [[ #APP.messages ]];
+var int ms = [[ #messages ]];
 var int i;
 loop i in [1 -> ms] do
     [[
-        msg = APP.messages[@i]
+        msg = messages[@i]
         THIS.publication = {
-            chain     = assert(GG.chain_parse_get(msg.chain), msg.chain.id),
+            chain     = assert(FC.chain_get(msg.chain), msg.chain.id),
             timestamp = 0,    -- TODO: 64-bit timestamp
             nonce     = 0,
             payload   = msg.payload,
@@ -396,6 +389,7 @@ await Chain_Fork();
     assert(FIRST.nxt.nxt.nxt.nxt.nxt.nxt.nxt.nxt.publication.payload == '111', '111')
     assert(FIRST.nxt.nxt.nxt.nxt.nxt.nxt.nxt.nxt.nxt.publication.payload == '222', '222')
     assert(FIRST.nxt.nxt.nxt.nxt.nxt.nxt.nxt.nxt.nxt.nxt.publication.payload == '333', '333')
+    print 'OK!'
 ]]
 
 escape 0;
