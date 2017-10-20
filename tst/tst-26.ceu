@@ -7,85 +7,99 @@
 //  - 333,444
 ///////////////////////////////////////////////////////////////////////////////
 
-[=[
+[[
     dofile 'src/common.lua'
-    dofile 'cfg/config.lua'
-
-    CHAINS {
-        files = 'tst/files/',
-        {
-            key   = '',     -- global chain (cannot be signed)
-            zeros = 0,      -- receive messages with 0 leading zeros in the hash
-            id    = nil,    -- concat of key..zeros
-            head  = nil,
-            -- TODO: mode 'pub,sub,pub/sub'
-        },
-    }
-    CLIENT {
-        peers = {
-            {
-                host = { '127.0.0.1', '8331' },
+    CFG = {
+        chains = {
+            zeros_raise = TODO,     -- global and per-chain
+            [1] = {
+                key   = '',
+                zeros = 0,
+                peers = {
+                    {
+                        address = '127.0.0.1',
+                        port    = '8331'
+                    },
+                },
             },
         },
     }
-]=];
+]];
 
 var UV_TCP_Server_Data shared = _;
 
 await Init();
 
-[=[
-    MESSAGE {
-        version = '1.0',
-        chain = {
-            key   = '',
-            zeros = 0,
+[[
+    ARGS = {
+        message = {
+            version = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = '111',
         },
-        payload = [[111]],
     }
-
-    MESSAGE {
-        version = '1.0',
-        chain = {
-            key   = '',
-            zeros = 0,
-        },
-        payload = [[222]],
-    }
-    MESSAGE {
-        version = '1.0',
-        chain = {
-            key   = '',
-            zeros = 0,
-        },
-        payload = [[333]],
-    }
-
-    MESSAGE {
-        version = '1.0',
-        chain = {
-            key   = '',
-            zeros = 0,
-        },
-        payload = [[444]],
-    }
-]=];
-await ClientMessages(&shared);
+]]
+await Client(&shared);
 
 [[
-    head1 = APP.chains['||0|'].head
+    ARGS = {
+        message = {
+            version = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = '222',
+        },
+    }
+]]
+await Client(&shared);
+
+[[
+    ARGS = {
+        message = {
+            version = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = '333',
+        },
+    }
+]]
+await Client(&shared);
+
+[[
+    ARGS = {
+        message = {
+            version = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = '444',
+        },
+    }
+]];
+await Client(&shared);
+
+[[
+    head1 = FC.chains['||0|'].head
 ]]
 
 var[] byte path = [].."x.chain";
 await FS_read_10(&path);
 [[
     head2 = ARGS.chain.head
-    --old = APP.chains['||0|'].head_hash
-    --APP.chains['||0|'].head_hash = ARGS.head_hash
+    --old = FC.chains['||0|'].head_hash
+    --FC.chains['||0|'].head_hash = ARGS.head_hash
     --print('>'..string.rep('=',78))
     --print(GG.chain_tostring('||0|'))
     --print('<'..string.rep('=',78))
-    --APP.chains['||0|'].head_hash = old
+    --FC.chains['||0|'].head_hash = old
 ]];
 
 #if 0
@@ -96,7 +110,7 @@ await FS_read_10(&path);
 ]];
 
 [[
-    chain     = APP.chains['||0|']
+    chain     = FC.chains['||0|']
     head_hash = chain.head_hash
     base      = GG.chain_head_base_size(head_hash).base
 ]];

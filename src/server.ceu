@@ -8,11 +8,17 @@ do
     var int msg = 0;
     var int ret = 0;
 
-    var int timeout = [[ APP.server.timeout ]];     // TODO: (msg,e1?,ret) for timeout?
-
     var Exception.Uv? e1;
 
-    watching (timeout)s do
+    par/or do
+        var int timeout = [[ CFG.server.timeout or 0 ]];
+        if timeout == 0 then
+            await FOREVER;
+        else
+            await (timeout)s;
+        end
+        emit shared.ok(msg,false,{MESSAGE10_TIMEOUT});
+    with
         var Exception.Freechains? e2;
         catch e1,e2 do
             // => MESSAGE
@@ -43,17 +49,18 @@ do
         end
 
         if e1? then
-            [[ APP.errs[#APP.errs+1] = @(e1! as int) ]];
+            [[ FC.errs[#FC.errs+1] = @(e1! as int) ]];
             emit shared.ok(msg,true,e1! as int);
         else/if e2? then
-            [[ APP.errs[#APP.errs+1] = @(e2! as int) ]];
+            [[ FC.errs[#FC.errs+1] = @(e2! as int) ]];
             emit shared.ok(msg,true,e2! as int);
-        else/if ret != {MESSAGE10_OK} then
-            [[ APP.errs[#APP.errs+1] = @ret ]];
+        else
+            if ret != {MESSAGE10_OK} then
+                [[ FC.errs[#FC.errs+1] = @ret ]];
+            end
+            emit shared.ok(msg,false,ret);
         end
     end
-
-    emit shared.ok(msg,false,ret);
 end
 
 #endif

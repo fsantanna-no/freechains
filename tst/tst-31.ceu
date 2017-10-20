@@ -21,32 +21,33 @@ do
             remote = 8330;
         end
 
-        [=[
+        [[
             dofile 'src/common.lua'
-            dofile 'cfg/config.lua'
-
-            SERVER {
-                host = { '127.0.0.1', @local },
-            }
-
-            CLIENT {
-                peers = {
-                    {
-                        host = { '127.0.0.1', @remote },
+            CFG = {
+                server = {
+                    address = '127.0.0.1',
+                    port    = @local,
+                },
+                chains = {
+                    zeros_raise = TODO,     -- global and per-chain
+                    [1] = {
+                        key   = '',
+                        zeros = 0,
+                        peers = {
+                            { address='127.0.0.1', port=@remote },
+                        },
                     },
                 },
             }
-        ]=]
+        ]]
 
         await Init();
         await 100ms;
 
         do
-            var[] byte ip      = [] .. [[ APP.server.host[1] ]] .. [0];
-            var   int  port    = [[ APP.server.host[2] ]];
-            var   int  backlog = [[ APP.server.backlog ]];
-            _dbg(3, "server | listening in %s:%d", &&ip[0], port);
-            spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
+            var   int  port    = [[ CFG.server.port ]];
+            _dbg(3, "server | listening in 0.0.0.0:%d", port);
+            spawn UV_TCP_Server(_, port, _, _, &shared);
 
             spawn do
                 var int  a;
@@ -72,17 +73,18 @@ print(@i, '<'..string.rep('=',70))
                 // how much time between each message?
                 await (_rand() % (100*N*N)) ms;
                 [[
-                    APP.messages = {}
-                    MESSAGE {
-                        version = '1.0',
-                        chain = {
-                            key   = '',
-                            zeros = 0,
-                        },
-                        payload = string.format('%03d',@i)..'.'..string.format('%03d',@j),
+                    ARGS = {
+                        message = {
+                            version = '1.0',
+                            chain = {
+                                key   = '',
+                                zeros = 0,
+                            },
+                            payload = string.format('%03d',@i)..'.'..string.format('%03d',@j),
+                        }
                     }
                 ]];
-                await ClientMessages(&shared);
+                await Client(&shared);
 //[[print(@i,@j, "clients") ]];
             end
 //[[print(@i, "CLIENTS") ]];
@@ -90,7 +92,7 @@ print(@i, '<'..string.rep('=',70))
             // wait all messages to be received
             loop do
                 await shared.ok;
-                var int length = [[ APP.chains['||0|'].head.length ]];
+                var int length = [[ FC.chains['||0|'].head.length ]];
                 if length == N*N then
                     break;
                 end
@@ -102,9 +104,9 @@ print(@i, '<'..string.rep('=',70))
                     await (N*N)s;
                     break;
                 end
-_dbg(0, "server | shared.ok | %s:%d", &&ip[0], port);
+_dbg(0, "server | shared.ok | 0.0.0.0:%d", port);
             end
-_dbg(0, "server | END | %s:%d", &&ip[0], port);
+_dbg(0, "server | END | 0.0.0.0:%d", port);
 #if 0
 [[
 print(@i, '>'..string.rep('=',70))
@@ -116,7 +118,7 @@ print(@i, '<'..string.rep('=',70))
         end
 
         var[] byte path = [] .. [[ '/tmp/'..string.format('%03d',@i)..'.chain' ]] .. [0];
-        [[ ARGS = { chain=APP.chains['||0|'] } ]];
+        [[ ARGS = { chain=FC.chains['||0|'] } ]];
         await FS_write_10(&path);
     end
 end

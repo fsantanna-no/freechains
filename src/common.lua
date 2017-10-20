@@ -1,125 +1,45 @@
---assert = function (...) return (...) end
-
-GG = {}
-
-APP = {
-    server   = {},  -- server configurations
-    client   = {},  -- client configurations
-    chains   = {},  -- chains configurations
-    messages = {},  -- pending messages to transmit
-    blocks = {      -- blocks in memory
-        --[hash] = {
-        --    hash      = nil,
-        --    up_hash   = nil,
-        --    tail_hash = nil,
-        --    txs       = { tx_hash1, tx_hash2, ... },
-        --},
-        --...
-    },
-    txs = {         -- txs in memory
-        --[hash] = {
-        --    hash    = nil,
-        --    nonce   = nil,
-        --    bytes   = nil,
-        --    payload = nil,
-        --}
-    },
-    gs = {          -- ceu->lua globals
-        --[usedata-k] = {}
+FC = {
+    chains = {
+        --[id] = {...}
     },
     errs = {
         -- NOTSUB, etc
     },
 }
 
-function CHAINS (t)
-    assert(type(t) == 'table')
-    APP.chains = {                     -- substitutes old
-        files = t.files or APP.chains.files,
-    }
-    for _,chain in ipairs(t) do
-        for i=chain.zeros,255 do
-            local new = {}
-            for k,v in pairs(chain) do new[k]=v end
-            new.zeros = i
-            local c = GG.chain_parse_get(new)
-            assert(not APP.chains[new.id], new.id)
-            APP.chains[new.id] = (c or new)
-            APP.chains[#APP.chains+1] = APP.chains[new.id]
-        end
-    end
-end
-
-function SERVER (t)
-    assert(type(t) == 'table')
-    for k,v in pairs(t) do
-        APP.server[k] = v
-    end
-    APP.server.timeout = APP.server.timeout or 10
-    APP.server.backlog = APP.server.backlog or 128
-    APP.server.message10_payload_len_limit = APP.server.message10_payload_len_limit or 1024 -- max payload length for untrusted clients
-end
-
-function CLIENT (t)
-    assert(type(t) == 'table')
-    for k, v in pairs(t) do
-        APP.client[k] = v
-    end
-    t = APP.client
-    assert(type(t.peers) == 'table')
-
-    for _, peer in ipairs(t.peers) do
-        assert(type(peer) == 'table')
-        if peer.chains then
-            assert(type(peer.chains) == 'table')
-            for _,chain in ipairs(peer.chains) do
-                local c = GG.chain_parse_get(chain)
-                assert(c)   -- must already exist
-            end
-        else
-            peer.chains = APP.chains
-        end
-    end
-end
-
-function BLOCKS (t)
-    --
-end
-
-function MESSAGE (t)
-    APP.messages[#APP.messages+1] = t
-end
-
 -------------------------------------------------------------------------------
 
-function GG.chain_parse_get (chain)
-    assert(type(chain) == 'table')
+function FC.chain_create (key, zeros)
+    local id = '|'..key..'|'..zeros..'|'
+    assert(not FC.chains[id])
+    local new = {
+        key   = key,
+        zeros = zeros,
+        id    = id,
+        cfg   = nil,
+        head  = nil,
+        base  = nil,
+    }
+    FC.chains[id] = new
+    return FC.chains[id]
+end
+
+function FC.chain_get (chain, should_create)
+    assert(type(chain)       == 'table')
     assert(type(chain.key)   == 'string')
     assert(type(chain.zeros) == 'number')
     if chain.key == '' then
         assert(chain.zeros < 256)
     end
-    chain.id = '|'..chain.key..'|'..chain.zeros..'|'
-    -- WARNING: do not reset other fields here
-    return APP.chains[chain.id]
-end
-
-function GG.chain_head_base_size (head_hash)
-    local head = APP.blocks[head_hash]
-    local cur  = head
-    local size = 1  -- genesis TX
-    while cur.tail_hash do
-        size = size + #cur.txs
-        cur = APP.blocks[cur.tail_hash]
+    local id = '|'..chain.key..'|'..chain.zeros..'|'
+    local ret = FC.chains[id]
+    if not ret and should_create then
+        ret = FC.chain_create(chain)
     end
-    return {
-        base = cur,
-        head = head,
-        size = size,     -- TODO: #payload
-    }
+    return ret
 end
 
-function GG.chain_block (chain, hash)
+function FC.chain_block_get (chain, hash)
     local cur = chain.head
     while cur do
         if cur.hash == hash then
@@ -130,22 +50,8 @@ function GG.chain_block (chain, hash)
     return nil
 end
 
--- TODO: go back only TODO jumps
-function GG.chain_tx_contains (head_hash, tx_hash)
-    local cur = APP.blocks[head_hash]
-    while cur.tail_hash do
-        for _, tx_hash_i in ipairs(cur.txs) do
-            if tx_hash_i == tx_hash then
-                return true
-            end
-        end
-        cur = APP.blocks[cur.tail_hash]
-    end
-    return false
-end
-
-function GG.chain_flatten (chain_id)
-    local chain = assert(APP.chains[chain_id],chain_id)
+function FC.chain_flatten (chain_id)
+    local chain = assert(FC.chains[chain_id],chain_id)
     local cur = chain.head
     local T = {}
     while cur do
@@ -163,35 +69,9 @@ function GG.chain_flatten (chain_id)
     return T
 end
 
-function GG.chain_tostring (chain_id)
-    return tostring2(GG.chain_flatten(chain_id))
+function FC.chain_tostring (chain_id)
+    return tostring2(FC.chain_flatten(chain_id))
 end
-
---[[
-function GG.chain_check (chain_id)
-    local str1 = GG.chain_tostring(chain_id)
-
-    base = GG.chain_head_base_size(APP.chains[chain_id].head_hash).base
-    T = {}
-    while base do
-        local t = {
-            hash = tostring2(base.hash),
-            txs  = {},
-        }
-        table.insert(T, t)
-        for i, tx in ipairs(base.txs) do
-            local str = string.sub(APP.txs[tx].payload,1,10)
-                  str = string.gsub(str,'%c','.')
-            t.txs[i] = string.sub(str,1,10)
-        end
-        base = APP.blocks[base.up_hash]
-    end
-    str2 = tostring2(T)
-
-print('=========>\n'..str1..'============='..str2..'<==========')
-    assert(str1 == str2)
-end
-]]
 
 -------------------------------------------------------------------------------
 
@@ -206,6 +86,14 @@ local function is_binary (str)
         end
     end
 ]]
+end
+
+function FC.hash2hex (hash)
+    local ret = ''
+    for i=1, string.len(hash) do
+        ret = ret .. string.format('%02X', string.byte(string.sub(hash,i,i)))
+    end
+    return ret
 end
 
 -------------------------------------------------------------------------------

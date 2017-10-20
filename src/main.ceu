@@ -9,18 +9,18 @@ var UV_TCP_Server_Data shared = _;
 
 await Init();
 
-var int n = [[ #APP.chains ]];
+var int n = [[ #FC.chains ]];
 var int i;
 loop i in [1 -> n] do
     [[
-        chain = APP.chains[@i]
+        chain = FC.chains[@i]
         chain.prv_head_hash = chain.head_hash
     ]]
 end
 
-var[] byte ip      = [] .. [[ APP.server.host[1] ]] .. [0];
-var   int  port    = [[ APP.server.host[2] ]];
-var   int  backlog = [[ APP.server.backlog ]];
+var[] byte ip      = [] .. [[ FC.server.address or '0.0.0.0' ]] .. [0];
+var   int  port    = [[ FC.server.port or 8330 ]];
+var   int  backlog = [[ FC.server.backlog or 128 ]];
 _dbg(3, "server | listening in %s:%d", &&ip[0], port);
 spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
 
@@ -61,7 +61,7 @@ _printf(">>> SHARED.OK %d %d %d\n", msg, err, ret);
 
         [[
             main.chain = table.remove(main.pending,1)
-            path = APP.chains.files..'/'..main.chain.id..'.chain'
+            path = FC.chains.files..'/'..main.chain.id..'.chain'
             print('>>> WRITE >>>', main.chain.id, path)
         ]]
         var[] byte path = [] .. [[path]] .. [0];
@@ -77,10 +77,10 @@ _printf(">>> SHARED.OK %d %d %d\n", msg, err, ret);
                 if hash == main.chain.prv_head_hash then
                     return   -- handled previously
                 end
-                local block = APP.blocks[hash]
+                local block = FC.blocks[hash]
                 out(block.tail_hash)
                 for _,tx in ipairs(block.txs) do
-                    tx = APP.txs[tx]
+                    tx = FC.txs[tx]
                     --for k,v in pairs(tx) do
                         --print(k,v)
                     --end

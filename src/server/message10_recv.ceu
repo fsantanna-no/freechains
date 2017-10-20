@@ -54,7 +54,7 @@ do
     [[
 -- TODO: cache of publications
         THIS.publication_hash = @publication_hash
-        --THIS.block.publication = APP.publications[THIS.publication_hash]
+        --THIS.block.publication = FC.publications[THIS.publication_hash]
     ]]
     $tcp.buffer = $tcp.buffer - HASH_BYTES;
 
@@ -169,10 +169,10 @@ do
         THIS = {
             length    = @length,
             head_hash = @head_hash,
-            chain     = GG.chain_parse_get( {
+            chain     = FC.chain_get {
                 key   = @key_str,
                 zeros = @zeros,
-            } )
+            },
         }
     ]];
 end
@@ -188,6 +188,13 @@ do
 
     [[ ARGS = THIS ]];
     CHAIN_LOCK(l, outer.shared, "lock_write");
+#if 0
+[[ THIS.old = os.time() ]];
+spawn do
+    await 20s;
+    [[ error '111' ]];
+end
+#endif
 
     var int ret = do
         var bool me_lengthier = [[ THIS.chain.head.length > THIS.length ]];
@@ -209,6 +216,15 @@ do
     outer.tcp.buffer = [ret];
     await UV_Stream_Write_N(&outer.tcp,_);
 
+#if 0
+[[
+    if DBG_ON then
+        print('>>>', @outer.shared.port, @(ret=={MESSAGE10_HAVE}) and 'NO' or 'YES', tostring2(THIS.chain.head.hash), THIS.chain.head.length, THIS.length, tostring2(THIS.head_hash))
+    end
+]]
+_ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
+#endif
+
     if ret=={MESSAGE10_NOTSUB} or ret=={MESSAGE10_HAVE} then
         escape/out ret;     // terminate if not subcribed or local is lengthier
     end
@@ -228,6 +244,7 @@ do
     var int i;
     loop i do
         if i >= FORK_LENGTHY then
+//[[error'oioioi']]
             var Exception.Freechains.Fork_Lengthy e = val Exception.Freechains.Fork_Lengthy(_);
             throw e;
         end
@@ -267,7 +284,7 @@ do
 
     #if 0
         [[
-            chain = GG.chain_flatten(THIS.chain.id)
+            chain = FC.chain_flatten(THIS.chain.id)
             print('===> '..@outer.shared.port, THIS.length-THIS.common.length)
             print(string.rep('>',79))
             print(tostring2(chain))
@@ -318,7 +335,7 @@ do
 
 #if 0
         [[
-            chain = GG.chain_flatten(THIS.chain.id)
+            chain = FC.chain_flatten(THIS.chain.id)
             print('===< '..@outer.shared.port)
             print(string.rep('<',79))
             print(tostring2(chain))

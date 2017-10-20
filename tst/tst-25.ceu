@@ -9,82 +9,91 @@
 
 var UV_TCP_Server_Data shared = _;
 
-[=[
+[[
     dofile 'src/common.lua'
-    dofile 'cfg/config.lua'
-
-    CHAINS {
-        files = 'tst/files/',
-        {
-            key   = '',     -- global chain (cannot be signed)
-            zeros = 0,      -- receive messages with 0 leading zeros in the hash
-            id    = nil,    -- concat of key..zeros
-            head  = nil,
-            -- TODO: mode 'pub,sub,pub/sub'
-        },
-    }
-    CLIENT {
-        peers = {
-            {
-                host = { '127.0.0.1', '8331' },
+    CFG = {
+        chains = {
+            zeros_raise = TODO,     -- global and per-chain
+            [1] = {
+                key   = '',
+                zeros = 0,
+                peers = {
+                    {
+                        address = '127.0.0.1',
+                        port    = '8331'
+                    },
+                },
             },
         },
     }
-]=];
+]];
 
 await Init();
 
-[=[
-    MESSAGE {
-        version = '1.0',
-        chain = {
-            key   = '',
-            zeros = 0,
-        },
-        payload = [[111]],
+[[
+    ARGS = {
+        message = {
+            version = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = '111',
+        }
     }
+]]
+await Client(&shared);
 
-    MESSAGE {
-        version = '1.0',
-        chain = {
-            key   = '',
-            zeros = 0,
-        },
-        payload = [[222]],
+[[
+    ARGS = {
+        message = {
+            version = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = '222',
+        }
     }
-]=];
+]];
+await Client(&shared);
 
-await ClientMessages(&shared);
-
-[=[
-    MESSAGE {
-        version = '1.0',
-        chain = {
-            key   = '',
-            zeros = 0,
-        },
-        payload = [[333]],
+[[
+    ARGS = {
+        message = {
+            version = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = '333',
+        }
     }
+]]
+await Client(&shared);
 
-    MESSAGE {
-        version = '1.0',
-        chain = {
-            key   = '',
-            zeros = 0,
-        },
-        payload = [[444]],
+[[
+    ARGS = {
+        message = {
+            version = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = '444',
+        }
     }
-]=];
-await ClientMessages(&shared);
+]];
+await Client(&shared);
 
 [[
     print('>'..string.rep('=',78))
-    print(GG.chain_tostring('||0|'))
+    print(FC.chain_tostring('||0|'))
     print('<'..string.rep('=',78))
 ]];
 
 var[] byte path = [].."x.chain";
-[[ ARGS={ chain=APP.chains['||0|'] } ]];
+[[ ARGS={ chain=FC.chains['||0|'] } ]];
 await FS_write_10(&path);
 
 [[

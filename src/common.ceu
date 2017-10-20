@@ -1,7 +1,7 @@
 #ifndef _COMMON_CEU
 #define _COMMON_CEU
 
-//#define DBG 0
+#define DBG 0
 
 #include "c.ceu"
 #include "uv/uv.ceu"
@@ -18,7 +18,7 @@
 #define CHAIN_KEY_BYTES 256
 #define FORK_LENGTHY    100
 
-#define THIS GG[@(&&{*_ceu_mem})]
+#define THIS FC[@(&&{*_ceu_mem})]
 
 native/nohold ___dbg, ___dbg_tcp;
 native/pure _leading_zeros;
@@ -34,7 +34,7 @@ data Exception.Freechains.Fork_Lengthy with
     var _char&& message = "fork is too lengthy";
 end
 
-#if 1
+#if 0
 #define _dbg(a,...)                         \
     do                                      \
         var bool dbg_on = [[DBG_ON==true]]; \
@@ -50,8 +50,8 @@ end
         end                                 \
     end
 #else
-#define _dbg(a,...)     __dbg(a, ##__VA_ARGS__)
-#define _dbg_tcp(a,...) __dbg_tcp(a, ##__VA_ARGS__)
+#define _dbg(a,...)     ___dbg(a, ##__VA_ARGS__)
+#define _dbg_tcp(a,...) ___dbg_tcp(a, ##__VA_ARGS__)
 #endif
 
 native/pre do
@@ -298,7 +298,7 @@ do
     ]];
 
     [[
-        assert(THIS.block.prv)
+        assert(THIS.block.prv, THIS.block.chain.id)
         assert(THIS.block.prv.length==THIS.block.length-1)
     ]]
 
@@ -529,7 +529,7 @@ do
         await UV_FS_Read_N(&o.file, len);
         [[
             id = @o.file.buffer
-            THIS.chain = assert(APP.chains[id], id)
+            THIS.chain = assert(FC.chains[id], id)
         ]];
         $o.file.buffer = 0;
         //[[ print('>>> chain_id',@buf) ]];
@@ -579,7 +579,7 @@ do
         await UV_FS_Read_N(&o.file, HASH_BYTES);
         [[
             THIS.publication_hash = @o.file.buffer
-            --THIS.block.publication = APP.publications[THIS.publication_hash]
+            --THIS.block.publication = FC.publications[THIS.publication_hash]
         ]]
         $o.file.buffer = 0;
 
@@ -756,64 +756,79 @@ end
 #include "server.ceu"
 #include "uv/tcp-server.ceu"
 
+code/await Errors (var& UV_TCP_Server_Data shared) -> none do
+    var int  msg;
+    var bool err;
+    var int  ret;
+    every (msg,err,ret) in shared.ok do
+            _dbg(0, "error | %d %d %d", err, msg, ret);
+        if err then
+            _dbg(0, "error | %d %d", msg, ret);
+        end
+    end
+end
+
 code/await Init (none) -> none
     throws Exception.Freechains.Malformed
 do
     [[
         THIS = {}
-        GG['Exception.Freechains.Malformed'] = @({CEU_DATA_Exception__dot__Freechains__dot__Malformed} as int)
-        GG.MESSAGE10_NOTSUB = @({MESSAGE10_NOTSUB} as int)
+        FC['Exception.Freechains.Malformed'] = @({CEU_DATA_Exception__dot__Freechains__dot__Malformed} as int)
+        FC.MESSAGE10_NOTSUB = @({MESSAGE10_NOTSUB} as int)
     ]]
 
-    var int n_chains = [[ #APP.chains ]];
+    var int n = [[ #CFG.chains ]];
     var int i;
-    loop i in [1 -> n_chains] do
-        [[
-            THIS.chain = APP.chains[@i]
-            assert(not THIS.chain.head)
-
-            path = APP.chains.files..'/'..THIS.chain.id..'.chain'
-        ]]
-
-        do
-            var[HASH_BYTES] byte chain_hash;
-            _ceu_vector_setlen(&&chain_hash, HASH_BYTES, 1);
-            var[] byte chain_id = [] .. [[ THIS.chain.id ]];
-            _crypto_generichash(&&chain_hash[0],HASH_BYTES, &&chain_id[0],$chain_id, null,0);
-#if 0
-            do
-                var[] byte str = [] .. [[ tostring2(@chain_hash) ]] .. [0];
-                _dbg(3, "|| CHAIN_HASH : %s", &&str[0]);
-            end
-#endif
+    loop i in [1 -> n] do
+        var int zeros = [[CFG.chains[@i].zeros]];
+        var int j;
+        loop j in [zeros -> 255] do
             [[
-                THIS.chain.base = {
-                    chain  = THIS.chain,
-                    hash   = @chain_hash,
-                    prv    = nil,
-                    length = 0,
-                }
-                THIS.chain.head = THIS.chain.base
+                cfg = CFG.chains[@i]
+                THIS.chain = FC.chain_create(cfg.key, @j)
+                THIS.chain.cfg = cfg
             ]]
-        end
+
+            do
+                var[HASH_BYTES] byte hash;
+                _ceu_vector_setlen(&&hash, HASH_BYTES, 1);
+                var[] byte id = [] .. [[ THIS.chain.id ]];
+                _crypto_generichash(&&hash[0],HASH_BYTES, &&id[0],$id, null,0);
+#if 0
+                do
+                    var[] byte str = [] .. [[ tostring2(@hash) ]] .. [0];
+                    _dbg(3, "|| CHAIN_HASH : %s", &&str[0]);
+                end
+#endif
+                [[
+                    THIS.chain.base = {
+                        chain  = THIS.chain,
+                        hash   = @hash,
+                        prv    = nil,
+                        length = 0,
+                    }
+                    THIS.chain.head = THIS.chain.base
+                ]]
+            end
 
 // TODO: FS_*
 #if 0
-        var[] byte path = [] .. [[path]] .. [0];
-        var Exception? e;
-        catch e do
-            await FS_read_10(&path);
-        end
-        if not e? then
-            [[
-                -- TODO: assert chain.id==file header
-                --chain.genesis_hash = ARGS.genesis_hash
-                THIS.chain.head_hash = ARGS.head_hash
-            ]];
-        else
-            //_dbg(0, "main: file not found: %s", &&path[0]);
-        end
+            var[] byte path = [] .. [[path]] .. [0];
+            var Exception? e;
+            catch e do
+                await FS_read_10(&path);
+            end
+            if not e? then
+                [[
+                    -- TODO: assert chain.id==file header
+                    --chain.genesis_hash = ARGS.genesis_hash
+                    THIS.chain.head_hash = ARGS.head_hash
+                ]];
+            else
+                //_dbg(0, "main: file not found: %s", &&path[0]);
+            end
 #endif
+        end
     end
 end
 

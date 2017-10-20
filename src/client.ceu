@@ -71,7 +71,7 @@ do
             _dbg_tcp(3, &&tcp.handle, "client", "=> BLOCK_HASH? : %s", &&str[0]);
         end
         [[
-            THIS.cur = GG.chain_block(THIS.chain,@tcp.buffer)
+            THIS.cur = FC.chain_block_get(THIS.chain,@tcp.buffer)
         ]]
         var bool has = [[ THIS.cur~=nil ]];
         var int ret = do
@@ -186,8 +186,8 @@ do finalize with
     {CLIENTS_ALIVE--;}
 end
 
-    var[] byte ip   = [] .. [[ THIS.peer.host[1] ]] .. [0];
-    var   int  port = [[ THIS.peer.host[2] ]];
+    var[] byte ip   = [] .. [[ THIS.peer.address ]] .. [0];
+    var   int  port = [[ THIS.peer.port ]];
     _dbg(2, "client:%p | connecting to %s:%d", {&_ceu_mem}, &&ip[0], port);
 
     var Exception.Uv? e1;
@@ -221,37 +221,24 @@ do
         }
     ]];
 
-    var int ps = [[#APP.client.peers]];
-    var int ps_ok = 0;
+    var int ps = [[THIS.chain.cfg.peers and #THIS.chain.cfg.peers or 0]];
     var int i;
     pool[] Peer_10 peers;
     loop i in [1 -> ps] do
-        [[
-            peer = APP.client.peers[@i]
-            ok = false
-            for _, chain in pairs(peer.chains) do
-                if chain.key==THIS.chain.key and
-                   chain.zeros<=THIS.chain.zeros then
-                    ok = true
-                    break
-                end
-            end
-        ]];
-        var bool ok_ = [[ ok ]];
-        if ok_ then
-            ps_ok = ps_ok + 1;
+        var bool min_zeros = [[ THIS.chain.zeros >= (THIS.chain.cfg.peers[@i].zeros or 0) ]];
+        if min_zeros then
             [[
                 ARGS = {
-                    peer  = peer,
+                    peer  = THIS.chain.cfg.peers[@i],
                     chain = THIS.chain,
                 }
-            ]];
+            ]]
             var&? Peer_10 p = spawn Peer_10() in peers;
             _ceu_assert(p?, "bug found");
         end
     end
     var[] byte id = [] .. [[ THIS.chain.id ]] .. [0];
-    _dbg(3, "client:%p | broadcasting %s messages to %d peer(s)", {&_ceu_mem}, &&id[0], ps_ok);
+    _dbg(3, "client:%p | broadcasting %s messages to (max) %d peer(s)", {&_ceu_mem}, &&id[0], ps);
     do finalize with
         _dbg(3, "client:%p | broadcasts OK", {&_ceu_mem});
     end
@@ -262,81 +249,74 @@ do
     end
 end
 
-code/await ClientMessages (var& UV_TCP_Server_Data shared) -> none
+code/await Client (var& UV_TCP_Server_Data shared) -> none
+    // [[ ARGS = { message={...} } ]]
     throws Exception.Freechains.Unsupported
 do
-    var int ms = [[ #APP.messages ]];
-    _ceu_assert(ms > 0, "no messages to client");
-
     // client mode: terminates
 
-    do finalize with
-        [[ APP.messages = {} ]];
-    end
+    [[
+        THIS = {
+            message = ARGS.message,
+        }
 
-    var int i;
-    loop i in [1 -> ms] do
+        assert(type(THIS.message)=='table', 'missing message')
+        assert(type(THIS.message.chain)=='table', 'missing chain')
+    ]];
+
+    var bool is_10 = [[ THIS.message.version=='1.0' ]];
+
+    if is_10 then
         [[
-            msg = APP.messages[@i]
-            assert(type(msg)=='table')
-            assert(type(msg.chain)=='table')
-        ]];
-
-        var bool is_10 = [[ APP.messages[@i].version=='1.0' ]];
-
-        if is_10 then
-            [[
-                THIS = {}
 #ifdef DETERMINISTIC
-                THIS.now = 0
+            THIS.now = 0
 #else
-                THIS.now = os.time() * 1000000      -- in ms since the epoch
+            THIS.now = os.time() * 1000000      -- in ms since the epoch
 #endif
-                THIS.publication = {
-                    chain     = assert(GG.chain_parse_get(msg.chain), msg.chain.id),
-                    timestamp = THIS.now,
-                    nonce     = 0,
-                    payload   = msg.payload,
-                    hash      = nil,
+            THIS.publication = {
+                chain     = assert(FC.chain_get(THIS.message.chain), 'not subscribed to |'..THIS.message.chain.key..'|'..THIS.message.chain.zeros..'|'),
+                timestamp = THIS.now,
+                nonce     = 0,
+                payload   = THIS.message.payload,
+                hash      = nil,
+            }
+            ARGS = THIS
+        ]]
+        await Publication_New();
+        do
+            [[ ARGS = { chain=THIS.publication.chain } ]]
+            CHAIN_LOCK(l, shared, "lock_write");
+            [[
+                THIS.block = {
+                    version     = '1.0',
+                    timestamp   = THIS.now,
+                    nonce       = 0,
+                    chain       = THIS.publication.chain,
+                    publication = THIS.publication,
+                    hash        = nil,
+                    prv         = nil,
+                    nxt         = nil,
+                    length      = nil,
                 }
                 ARGS = THIS
             ]]
-            await Publication_New();
-            do
-                [[ ARGS = { chain=THIS.publication.chain } ]]
-                CHAIN_LOCK(l, shared, "lock_write");
-                [[
-                    THIS.block = {
-                        version     = '1.0',
-                        timestamp   = THIS.now,
-                        nonce       = 0,
-                        chain       = THIS.publication.chain,
-                        publication = THIS.publication,
-                        hash        = nil,
-                        prv         = nil,
-                        nxt         = nil,
-                        length      = nil,
-                    }
-                    ARGS = THIS
-                ]]
-                await Block_Hash_Link();
-            end
-            do
-                [[
-                    THIS = { chain=THIS.block.chain }
-                    ARGS = THIS
-                ]];
-                CHAIN_LOCK(l, shared, "lock_send");
-                await Client_10(&shared);
-            end
-            [[
-                ARGS = THIS
-            ]]
-            emit shared.ok({MESSAGE10}, false, {MESSAGE10_OK});
-        else
-            var Exception.Freechains.Unsupported e = val Exception.Freechains.Unsupported(_);
-            throw e;
+            await Block_Hash_Link();
         end
+        do
+            [[
+                THIS = { chain=THIS.block.chain }
+                ARGS = THIS
+            ]];
+            CHAIN_LOCK(l, shared, "lock_send");
+            await Client_10(&shared);
+        end
+        [[
+            ARGS = THIS
+        ]]
+        emit shared.ok({MESSAGE10}, false, {MESSAGE10_OK});
+    else
+        var Exception.Freechains.Unsupported e = val Exception.Freechains.Unsupported(_);
+        throw e;
     end
 end
 
