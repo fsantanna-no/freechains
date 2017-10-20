@@ -76,7 +76,7 @@ print(@i, '<'..string.rep('=',70))
                     MESSAGE {
                         version = '1.0',
                         chain = {
-                            key   = '',
+                            key   = 'tst-35',
                             zeros = 0,
                         },
                         payload = string.format('%03d',@i)..'.'..string.format('%03d',@j),
@@ -115,9 +115,11 @@ print(@i, '<'..string.rep('=',70))
 //[[print(@i, "END") ]];
         end
 
-        var[] byte path = [] .. [[ '/tmp/'..string.format('%03d',@i)..'.chain' ]] .. [0];
         [[ ARGS = { chain=APP.chains['||0|'] } ]];
-        await FS_write_10(&path);
+        await FS_write_10();
+        [[
+            os.execute('cp /tmp/freechains/chains/\\|\\|0\\|.chain /tmp/'..string.format('%03d',@i)..'.chain')
+        ]]
     end
 end
 

@@ -498,7 +498,7 @@ do
         }
         path = CFG.dir..'/chains/'..THIS.chain.id..'.chain'
     ]];
-    var[] byte path = []..[[path]];
+    var[] byte path = []..[[path]]..[0];
 
     var& UV_FS_Open o = spawn UV_FS_Open(&&path[0],_,_,_);
     await o.file.ok;
@@ -662,7 +662,7 @@ do
         os.execute('mkdir -p '..dir)
     ]];
 
-    var[] byte path = []..[[dir..'/'..THIS.chain.id..'.chain']];
+    var[] byte path = []..[[dir..'/'..THIS.chain.id..'.chain']]..[0];
 
     // create/truncate file
     do/_

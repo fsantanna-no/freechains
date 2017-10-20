@@ -354,6 +354,7 @@ do
     await Client_10(&outer.shared);
 end
 
+[[ ARGS = { chain=THIS.chain } ]]
 escape/out {MESSAGE10_OK};
 
 #endif

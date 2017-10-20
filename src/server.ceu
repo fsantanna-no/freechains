@@ -17,7 +17,7 @@ do
         else
             await (timeout)s;
         end
-        emit shared.ok(msg,false,{MESSAGE10_TIMEOUT});
+        emit shared.ok(msg,true,{MESSAGE10_TIMEOUT});
     with
         var Exception.Freechains? e2;
         catch e1,e2 do
@@ -39,6 +39,7 @@ do
                     var int out;
                     out = do/out
                         #include "server/message10_recv.ceu"
+                        // output: { ARGS={chain={...}} }
                     end;
                     outer.ret = out;
                 end
@@ -58,6 +59,7 @@ do
             if ret != {MESSAGE10_OK} then
                 [[ FC.errs[#FC.errs+1] = @ret ]];
             end
+            // input: { ARGS={chain={...}} }
             emit shared.ok(msg,false,ret);
         end
     end

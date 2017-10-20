@@ -112,9 +112,11 @@ print(FC.chain_tostring('||0|'))
 print(@i, '<'..string.rep('=',70))
 ]];
 #endif
-        var[] byte path = [] .. [[ '/tmp/'..string.format('%03d',@i)..'.chain' ]] .. [0];
         [[ ARGS = { chain=FC.chains['||0|'] } ]];
-        await FS_write_10(&path);
+        await FS_write_10();
+        [[
+            os.execute('cp /tmp/freechains/chains/\\|\\|0\\|.chain /tmp/'..string.format('%03d',@i)..'.chain')
+        ]]
     end
 end
 

@@ -29,9 +29,9 @@ do
                     port    = @local,
                 },
                 chains = {
-                    zeros_raise = TODO,     -- global and per-chain
+                    not_persistency = true,
                     [1] = {
-                        key   = '',
+                        key   = 'tst-31',
                         zeros = 0,
                         peers = {
                             { address='127.0.0.1', port=@remote },
@@ -57,7 +57,7 @@ do
 #if 0
 [[
 print(@i, '>'..string.rep('=',70))
-print(GG.chain_tostring('||0|'))
+print(GG.chain_tostring('|tst-31|0|'))
 print(@i, '<'..string.rep('=',70))
 ]];
 #endif
@@ -77,7 +77,7 @@ print(@i, '<'..string.rep('=',70))
                         message = {
                             version = '1.0',
                             chain = {
-                                key   = '',
+                                key   = 'tst-31',
                                 zeros = 0,
                             },
                             payload = string.format('%03d',@i)..'.'..string.format('%03d',@j),
@@ -92,7 +92,7 @@ print(@i, '<'..string.rep('=',70))
             // wait all messages to be received
             loop do
                 await shared.ok;
-                var int length = [[ FC.chains['||0|'].head.length ]];
+                var int length = [[ FC.chains['|tst-31|0|'].head.length ]];
                 if length == N*N then
                     break;
                 end
@@ -110,16 +110,18 @@ _dbg(0, "server | END | 0.0.0.0:%d", port);
 #if 0
 [[
 print(@i, '>'..string.rep('=',70))
-print(GG.chain_tostring('||0|'))
+print(GG.chain_tostring('|tst-31|0|'))
 print(@i, '<'..string.rep('=',70))
 ]];
 #endif
 //[[print(@i, "END") ]];
         end
 
-        var[] byte path = [] .. [[ '/tmp/'..string.format('%03d',@i)..'.chain' ]] .. [0];
-        [[ ARGS = { chain=FC.chains['||0|'] } ]];
-        await FS_write_10(&path);
+        [[ ARGS = { chain=FC.chains['|tst-31|0|'] } ]];
+        await FS_write_10();
+        [[
+            os.execute('cp /tmp/freechains/chains/\\|\\|0\\|.chain /tmp/'..string.format('%03d',@i)..'.chain')
+        ]]
     end
 end
 
