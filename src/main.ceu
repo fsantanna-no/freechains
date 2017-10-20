@@ -1,35 +1,34 @@
+#define DBG 0
+
 #include "common.ceu"
 
-var UV_TCP_Server_Data shared = _;
 [[
     dofile 'src/common.lua'
-    CONFIG, _, _ = table.unpack(arg)
-    dofile(CONFIG)
-]];
-
-await Init();
-
-var int n = [[ #FC.chains ]];
-var int i;
-loop i in [1 -> n] do
-    [[
-        chain = FC.chains[@i]
-        chain.prv_head_hash = chain.head_hash
-    ]]
-end
-
-var[] byte ip      = [] .. [[ FC.server.address or '0.0.0.0' ]] .. [0];
-var   int  port    = [[ FC.server.port or 8330 ]];
-var   int  backlog = [[ FC.server.backlog or 128 ]];
-_dbg(3, "server | listening in %s:%d", &&ip[0], port);
-spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
-
-event none write_ok;
-[[
-    main = {
-        pending = {}
+    local config, input, output = table.unpack(arg)
+    dofile(config)
+    THIS = {
+        input   = input,
+        output  = output,
+        pending = {},
     }
 ]]
+
+event none write_ok;
+var UV_TCP_Server_Data shared = _;
+spawn Errors(&shared);
+
+await Init();
+[[
+    for id, chain in pairs(FC.chains) do
+        chain.last_output = chain.head
+    end
+]]
+
+var[] byte ip      = [] .. [[ CFG.server.address or '0.0.0.0' ]] .. [0];
+var   int  port    = [[ CFG.server.port or 8330 ]];
+var   int  backlog = [[ CFG.server.backlog or 128 ]];
+spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
+_dbg(0, "server | listening in %s:%d", &&ip[0], port);
 
 par do
     spawn do
@@ -37,12 +36,13 @@ par do
         var bool err;
         var int  ret;
         every (msg,err,ret) in shared.ok do
-_printf(">>> SHARED.OK %d %d %d\n", msg, err, ret);
             if not err then
                 _ceu_assert(msg == {MESSAGE10}, "bug found");
                 if ret == {MESSAGE10_OK} then
-                    [[ print('>>> PENDING >>>', ARGS.chain.id) ]];
-                    [[ main.pending[#main.pending+1] = ARGS.chain ]];
+                    //[[ print('>>> PENDING >>>', ARGS.chain.id) ]];
+                    [[ THIS.pending[#THIS.pending+1] = ARGS.chain ]];
+                    var[256] byte id = []..[[ARGS.chain.id]]..[0];
+                    _dbg(0, "server | pending in %s", &&id[0]);
                 end
             end
         end
@@ -50,7 +50,7 @@ _printf(">>> SHARED.OK %d %d %d\n", msg, err, ret);
 
     loop do
         loop do
-            var bool has_pending = [[ #main.pending>0 ]];
+            var bool has_pending = [[ #THIS.pending>0 ]];
             if has_pending then
                 break;
             else
@@ -60,39 +60,43 @@ _printf(">>> SHARED.OK %d %d %d\n", msg, err, ret);
         end
 
         [[
-            main.chain = table.remove(main.pending,1)
-            path = FC.chains.files..'/'..main.chain.id..'.chain'
-            print('>>> WRITE >>>', main.chain.id, path)
+            THIS.chain = table.remove(THIS.pending,1)
+            path = CFG.dir..'/chains/'..THIS.chain.id..'.chain'
+            --print('>>> WRITE >>>', THIS.chain.id, path)
         ]]
         var[] byte path = [] .. [[path]] .. [0];
 
-        _dbg(3, "server | received");
-        [[ ARGS={ chain_id=main.chain.id } ]];
-        await FS_write_10(&path);
-
         [[
-            _, _, OUTPUT = table.unpack(arg)
             local f = assert(io.open(OUTPUT, 'a'))
-            local function out (hash)
-                if hash == main.chain.prv_head_hash then
+            local function out (cur)   -- reverse order
+                if cur == THIS.chain.last_output then
                     return   -- handled previously
                 end
-                local block = FC.blocks[hash]
-                out(block.tail_hash)
-                for _,tx in ipairs(block.txs) do
-                    tx = FC.txs[tx]
-                    --for k,v in pairs(tx) do
-                        --print(k,v)
-                    --end
-                    f:write(main.chain.id..'\n')
-                    f:write(string.len(tx.payload)..'\n')
-                    f:write(tx.payload)
-                end
+                out(cur.prv)
+                local t = {
+                    version = '1.0',
+                    hash = cur.hash,
+                    timestamp = cur.timestamp,
+                    chain = {
+                        key   = cur.chain.key,
+                        zeros = cur.chain.zeros,
+                    },
+                    publication = {
+                        hash      = cur.publication.hash,
+                        timestamp = cur.publication.timestamp,
+                        payload   = cur.publication.payload,
+                    },
+                }
+                f:write(tostring2(t,true))
             end
-            out(main.chain.head_hash)
-            main.chain.prv_head_hash = main.chain.head_hash
+            out(THIS.chain.head)
+            THIS.chain.last_output = THIS.chain.head
             f:close()
         ]]
+
+        // persist after handling
+        [[ ARGS={ chain=THIS.chain } ]];
+        await FS_write_10();
     end
 with
     // the "par" is required because of the separated "lua[]"
@@ -103,11 +107,11 @@ with
         await ok;
         loop do
             [[
-                assert(load(@msg))()
+                assert(load('ARGS = { @msg }'))()
             ]]
-            _dbg(3, "client...");
-            await ClientMessages(&shared);
-            _dbg(3, "client | ok");
+            _dbg(0, "client...");
+            await Client(&shared);
+            _dbg(0, "client | ok");
             par/and do
                 emit ok;
             with
@@ -117,8 +121,7 @@ with
     with
         lua[] do
             [[
-                _, INPUT, _ = table.unpack(arg)
-                f = assert(io.open(INPUT, 'r+'))
+                f = assert(io.open(THIS.input, 'r+'))
             ]]
             do finalize with
                 [[ f:close() ]]
