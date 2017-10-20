@@ -13,6 +13,7 @@ var UV_TCP_Server_Data shared = _;
     dofile 'src/common.lua'
     CFG = {
         chains = {
+            not_persistency = true,
             [1] = {
                 key   = 'tst-25',
                 zeros = 0,
