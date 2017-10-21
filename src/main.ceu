@@ -69,7 +69,7 @@ par do
         [[
             local f = assert(io.open(CFG.dir..'/fifo.out', 'a'))
             local function out (cur)   -- reverse order
-                if cur == THIS.chain.last_output then
+                if cur.hash == THIS.chain.cfg.last.output[cur.chain.zeros] then
                     return   -- handled previously
                 end
                 out(cur.prv)
@@ -90,7 +90,7 @@ par do
                 f:write(tostring2(t,'plain')..'\n')
             end
             out(THIS.chain.head)
-            THIS.chain.last_output = THIS.chain.head
+            THIS.chain.cfg.last.output[THIS.chain.zeros] = THIS.chain.head.hash
             f:close()
         ]]
 
@@ -104,30 +104,100 @@ with
     // has to remain always open
     event none ok;
 
-    var[] byte msg;
-    var bool is_publish   = false;
-    var bool is_subscribe = false;
+    var[] byte cmd;
 
     par do
         await ok;
         loop do
+            [[
+                assert(load('ARGS = '..@cmd))()
+            ]]
+
+            var bool is_publish   = [[ ARGS.cmd == 'publish'   ]];
+            var bool is_subscribe = [[ ARGS.cmd == 'subscribe' ]];
+            var bool is_atom      = [[ ARGS.cmd == 'atom'      ]];
+
             if is_publish then
-                [[
-                    assert(load('ARGS = { message='..@msg..' }'))()
-                ]]
                 _dbg(0, "client...");
                 await Client(&shared);
                 _dbg(0, "client | ok");
             else/if is_subscribe then
                 [[
-                    assert(load('new = '..@msg))()
                     for _, old in ipairs(CFG.chains) do
-                        assert(old.key ~= new.key)
+                        assert(old.key ~= ARGS.chain.key)
                     end
-                    CFG.chains[#CFG.chains+1] = new
+                    CFG.chains[#CFG.chains+1] = ARGS.chain
                 ]]
                 //TODO-write-CFG
                 await Init();
+            else/if is_atom then
+                [=[
+                    TEMPLATES =
+                    {
+                        feed = [[
+                            <feed xmlns="http://www.w3.org/2005/Atom">
+                                <title>__TITLE__</title>
+                            <!--
+                                <link href="__HREF__" rel="self"/>
+                            -->
+                                <updated>__UPDATED__</updated>
+                            <!--
+                                <author>
+                                    <name>__NAME__</name>
+                                    <email>__EMAIL__</email>
+                                </author>
+                            -->
+                                <id>
+                                    freechains:/__CHAIN_ID__/
+                                </id>
+                            __ENTRIES__
+                            </feed>
+                        ]],
+                        entry = [[
+                            <entry>
+                                <title>__TITLE__</title>
+                            <!--
+                                <link type='text/html' href='http://www.fishinhole.com/reports/report.php?id=4'/>
+                            -->
+                                <id>
+                                    freechains:/__CHAIN_ID__/__HASH__
+                                </id>
+                                <published>__PUBLISHED__</published>
+                            <!--
+                                <author>
+                                    <name>__AUTHOR__</name>
+                                </author>
+                            -->
+                                <content>__CONTENT__</content>
+                            </entry>
+                        ]],
+                    }
+
+                    chain = assert(FC.chains[ARGS.chain.key] and FC.chain[ARGS.chain.key][ARGS.chain.id])
+                    f = assert(io.open(CFG.dir..'/fifo.out', 'a'))
+
+                    cur = chain.base.nxt
+                    entries = {}
+                    while cur do
+                        entry = TEMPLATES.entry
+                        entry = string.gsub(entry, '__TITLE__',     (string.match(cur.publication.payload,'([^\n]*)')))
+                        entry = string.gsub(entry, '__CHAIN_ID__',  cur.chain.id)
+                        entry = string.gsub(entry, '__HASH__',      FC.hash2hex(cur.hash))
+                        entry = string.gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', cur.publication.timestamp/1000000))
+                        entry = string.gsub(entry, '__CONTENT__',   cur.publication.payload)
+                        entries[#entries+1] = entry
+                        cur = cur.nxt
+                    end
+
+                    feed = TEMPLATES.feed
+                    feed = string.gsub(feed, '__TITLE__',    ARGS.chain.id)
+                    feed = string.gsub(feed, '__UPDATED__',  os.date('!%Y-%m-%dT%H:%M:%SZ', os.time()))
+                    feed = string.gsub(feed, '__CHAIN_ID__', ARGS.chain.id)
+                    feed = string.gsub(feed, '__ENTRIES__',  table.concat(entries,'\n'))
+
+                    f:write(feed)
+                    f:close()
+                ]=]
             end
             par/and do
                 emit ok;
@@ -147,38 +217,18 @@ with
             loop do
                 await async/thread do
                     [[
-                        local line = f:read('l')
-                        cmd, p1, p2 = string.match(line, '([^ ]*) ?([^ ]*) ?([^ ]*) ?')
-
-                        is_publish   = false
-                        is_subscribe = false
-                        
-                        if cmd == 'publish' then
-                            local n = assert(tonumber(p1))
-                            is_publish = true
-                            msg = f:read(n)
-                            print(n, msg)
-                        elseif cmd == 'subscribe' then
-                            local n = assert(tonumber(p1))
-                            is_subscribe = true
-                            msg = f:read(n)
-                            print(n, msg)
-                        end
+                        local n = f:read('l')
+                        n = assert(tonumber(n))
+                        cmd = f:read(n)
+                        print(n, cmd)
                     ]]
                 end
-
-                is_publish   = [[ is_publish ]];
-                is_subscribe = [[ is_subscribe ]];
-                msg          = [] .. [[ msg ]];
-
+                cmd = [] .. [[ cmd ]];
                 par/and do
                     emit ok;
                 with
                     await ok;
                 end
-
-                is_publish   = false;
-                is_subscribe = false;
             end
         end
     end

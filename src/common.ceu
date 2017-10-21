@@ -834,7 +834,7 @@ do
                         length = 0,
                     }
                     THIS.chain.head = THIS.chain.base
-                    THIS.chain.last_output = THIS.chain.base
+                    THIS.chain.cfg.last.output[@j] = THIS.chain.base.hash
                 ]]
             end
 
