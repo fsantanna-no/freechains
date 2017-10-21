@@ -20,6 +20,7 @@ function FC.chain_create (key, zeros)
         cfg   = nil,
         head  = nil,
         base  = nil,
+        last_output = nil,
     }
     FC.chains[key][zeros] = new
     return new

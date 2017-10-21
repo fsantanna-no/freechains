@@ -184,7 +184,7 @@ with
                     print(tostring2(chain1))
                     print('<'..string.rep('=',78))
                 ]];
-                var bool ok = [[ FC.chains['||0|'].head.length == 4 ]];
+                var bool ok = [[ FC.chains[''][0].head.length == 4 ]];
                 if ok then
                     break;
                 end

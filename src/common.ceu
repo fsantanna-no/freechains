@@ -804,9 +804,16 @@ do
         loop j in [zeros -> 255] do
             [[
                 cfg = CFG.chains[@i]
-                THIS.chain = FC.chain_create(cfg.key, @j)
-                THIS.chain.cfg = cfg
+                has = FC.chains[cfg.key] and FC.chains[cfg.key][@j]
+                if not has then
+                    THIS.chain = FC.chain_create(cfg.key, @j)
+                    THIS.chain.cfg = cfg
+                end
             ]]
+            var bool has = [[has]];
+            if has then
+                continue;   // from main.subscribe
+            end
 
             do
                 var[HASH_BYTES] byte hash;
@@ -827,6 +834,7 @@ do
                         length = 0,
                     }
                     THIS.chain.head = THIS.chain.base
+                    THIS.chain.last_output = THIS.chain.base
                 ]]
             end
 

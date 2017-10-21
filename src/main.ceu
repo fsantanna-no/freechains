@@ -22,12 +22,6 @@ await Init();
 [[
     os.execute('mkfifo '..CFG.dir..'/fifo.in')
     os.execute('mkfifo '..CFG.dir..'/fifo.out')
-
-    for key, chains in pairs(FC.chains) do
-        for zeros, chain in pairs(chains) do
-            chain.last_output = chain.head
-        end
-    end
 ]]
 
 var[] byte ip      = [] .. [[ CFG.server.address or '0.0.0.0' ]] .. [0];
@@ -106,18 +100,35 @@ par do
     end
 with
     // the "par" is required because of the separated "lua[]"
-    // because of the "async/thread" because of the blocking "f:read()"
-    var[] byte msg;
+    // because of the "async/thread" because of the blocking "f:read()" that
+    // has to remain always open
     event none ok;
+
+    var[] byte msg;
+    var bool is_publish   = false;
+    var bool is_subscribe = false;
+
     par do
         await ok;
         loop do
-            [[
-                assert(load('ARGS = { message='..@msg..' }'))()
-            ]]
-            _dbg(0, "client...");
-            await Client(&shared);
-            _dbg(0, "client | ok");
+            if is_publish then
+                [[
+                    assert(load('ARGS = { message='..@msg..' }'))()
+                ]]
+                _dbg(0, "client...");
+                await Client(&shared);
+                _dbg(0, "client | ok");
+            else/if is_subscribe then
+                [[
+                    assert(load('new = '..@msg))()
+                    for _, old in ipairs(CFG.chains) do
+                        assert(old.key ~= new.key)
+                    end
+                    CFG.chains[#CFG.chains+1] = new
+                ]]
+                //TODO-write-CFG
+                await Init();
+            end
             par/and do
                 emit ok;
             with
@@ -138,22 +149,36 @@ with
                     [[
                         local line = f:read('l')
                         cmd, p1, p2 = string.match(line, '([^ ]*) ?([^ ]*) ?([^ ]*) ?')
+
+                        is_publish   = false
+                        is_subscribe = false
                         
                         if cmd == 'publish' then
-                            local n = assert(tonumber(string.sub(p1,9)))
+                            local n = assert(tonumber(p1))
+                            is_publish = true
                             msg = f:read(n)
                             print(n, msg)
                         elseif cmd == 'subscribe' then
-                            error 'TODO'
+                            local n = assert(tonumber(p1))
+                            is_subscribe = true
+                            msg = f:read(n)
+                            print(n, msg)
                         end
                     ]]
                 end
-                msg = [] .. [[ msg ]];
+
+                is_publish   = [[ is_publish ]];
+                is_subscribe = [[ is_subscribe ]];
+                msg          = [] .. [[ msg ]];
+
                 par/and do
                     emit ok;
                 with
                     await ok;
                 end
+
+                is_publish   = false;
+                is_subscribe = false;
             end
         end
     end
