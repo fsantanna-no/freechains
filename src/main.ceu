@@ -4,10 +4,9 @@
 
 [[
     dofile 'src/common.lua'
-    local config, _, output = table.unpack(arg)
+    local config = table.unpack(arg)
 
     THIS = {
-        output  = output,
         pending = {},
     }
 
@@ -21,8 +20,13 @@ spawn Errors(&shared);
 
 await Init();
 [[
-    for id, chain in pairs(FC.chains) do
-        chain.last_output = chain.head
+    os.execute('mkfifo '..CFG.dir..'/fifo.in')
+    os.execute('mkfifo '..CFG.dir..'/fifo.out')
+
+    for key, chains in pairs(FC.chains) do
+        for zeros, chain in pairs(chains) do
+            chain.last_output = chain.head
+        end
     end
 ]]
 
@@ -69,7 +73,7 @@ par do
         var[] byte path = [] .. [[path]] .. [0];
 
         [[
-            local f = assert(io.open(THIS.output, 'a'))
+            local f = assert(io.open(CFG.dir..'/fifo.out', 'a'))
             local function out (cur)   -- reverse order
                 if cur == THIS.chain.last_output then
                     return   -- handled previously
@@ -89,7 +93,7 @@ par do
                         payload   = cur.publication.payload,
                     },
                 }
-                f:write(tostring2(t,true))
+                f:write(tostring2(t,'plain')..'\n')
             end
             out(THIS.chain.head)
             THIS.chain.last_output = THIS.chain.head
@@ -121,10 +125,10 @@ with
             end
         end
     with
+        var[] byte fifo_in = []..[[CFG.dir..'/fifo.in']];
         lua[] do
             [[
-                local _, input, _ = table.unpack(arg)
-                f = assert(io.open(input, 'r+'))
+                f = assert(io.open(@fifo_in, 'r+'))
             ]]
             do finalize with
                 [[ f:close() ]]
@@ -132,7 +136,16 @@ with
             loop do
                 await async/thread do
                     [[
-                        msg = f:read('l')
+                        local line = f:read('l')
+                        cmd, p1, p2 = string.match(line, '([^ ]*) ?([^ ]*) ?([^ ]*) ?')
+                        
+                        if cmd == 'publish' then
+                            local n = assert(tonumber(string.sub(p1,9)))
+                            msg = f:read(n)
+                            print(n, msg)
+                        elseif cmd == 'subscribe' then
+                            error 'TODO'
+                        end
                     ]]
                 end
                 msg = [] .. [[ msg ]];
