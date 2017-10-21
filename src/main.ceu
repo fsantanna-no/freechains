@@ -173,32 +173,37 @@ with
                         ]],
                     }
 
-                    chain = assert(FC.chains[ARGS.chain.key] and FC.chain[ARGS.chain.key][ARGS.chain.id])
-                    f = assert(io.open(CFG.dir..'/fifo.out', 'a'))
+                    chain = assert(FC.chains[ARGS.chain.key] and FC.chains[ARGS.chain.key][ARGS.chain.zeros])
+                    dir = CFG.dir..'/atoms'
+                    os.execute('mkdir -p '..dir)
+                    f = assert(io.open(dir..'/'..chain.id..'.xml', 'w'))
 
-                    cur = chain.base.nxt
                     entries = {}
-                    while cur do
+                    cur = chain.head
+                    while cur.hash ~= chain.cfg.last.atom[chain.zeros] do
+                        assert(cur ~= chain.base)
                         entry = TEMPLATES.entry
                         entry = string.gsub(entry, '__TITLE__',     (string.match(cur.publication.payload,'([^\n]*)')))
-                        entry = string.gsub(entry, '__CHAIN_ID__',  cur.chain.id)
+                        entry = string.gsub(entry, '__CHAIN_ID__',  chain.id)
                         entry = string.gsub(entry, '__HASH__',      FC.hash2hex(cur.hash))
                         entry = string.gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', cur.publication.timestamp/1000000))
                         entry = string.gsub(entry, '__CONTENT__',   cur.publication.payload)
-                        entries[#entries+1] = entry
-                        cur = cur.nxt
+                        table.insert(entries, 1, entry)
+                        cur = cur.prv
                     end
+                    chain.cfg.last.atom[chain.zeros] = chain.head.hash
 
                     feed = TEMPLATES.feed
-                    feed = string.gsub(feed, '__TITLE__',    ARGS.chain.id)
+                    feed = string.gsub(feed, '__TITLE__',    chain.id)
                     feed = string.gsub(feed, '__UPDATED__',  os.date('!%Y-%m-%dT%H:%M:%SZ', os.time()))
-                    feed = string.gsub(feed, '__CHAIN_ID__', ARGS.chain.id)
+                    feed = string.gsub(feed, '__CHAIN_ID__', chain.id)
                     feed = string.gsub(feed, '__ENTRIES__',  table.concat(entries,'\n'))
 
                     f:write(feed)
                     f:close()
                 ]=]
             end
+            await async do end;
             par/and do
                 emit ok;
             with

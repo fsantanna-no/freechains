@@ -835,6 +835,7 @@ do
                     }
                     THIS.chain.head = THIS.chain.base
                     THIS.chain.cfg.last.output[@j] = THIS.chain.base.hash
+                    THIS.chain.cfg.last.atom[@j]   = THIS.chain.base.hash
                 ]]
             end
 
