@@ -92,7 +92,7 @@ await Client(&shared);
     print('<'..string.rep('=',78))
 ]];
 
-[[ ARGS={ chain=FC.chains['|tst-25|0|'] } ]];
+[[ ARGS={ chain=FC.chains['tst-25'][0] } ]];
 await FS_write_10();
 
 [[

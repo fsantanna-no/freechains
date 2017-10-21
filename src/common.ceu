@@ -532,7 +532,8 @@ do
         await UV_FS_Read_N(&o.file, len);
         [[
             id = @o.file.buffer
-            THIS.chain = assert(FC.chains[id], id)
+            local key,zeros = string.match(id,'|(.*)|(.*)|')
+            THIS.chain = assert(FC.chains[key][tonumber(zeros)], id)
         ]];
         $o.file.buffer = 0;
         //[[ print('>>> chain_id',@buf) ]];

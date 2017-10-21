@@ -8,14 +8,14 @@
 do
     var[HASH_BYTES] byte chain_hash;
     _ceu_vector_setlen(&&chain_hash, HASH_BYTES, 1);
-    var[] byte chain_id = [] .. [[ FC.chains['||0|'].id ]];
+    var[] byte chain_id = [] .. [[ FC.chains[''][0].id ]];
     _crypto_generichash(&&chain_hash[0],HASH_BYTES, &&chain_id[0],$chain_id, null,0);
     [[
-        FC.chains['||0|'].base = {
+        FC.chains[''][0].base = {
             hash = @chain_hash,
             length = 0,
         }
-        FC.chains['||0|'].head = FC.chains['||0|'].base
+        FC.chains[''][0].head = FC.chains[''][0].base
     ]]
 end
 
@@ -24,7 +24,7 @@ end
 [[
     THIS = {
         publication = {
-            chain     = FC.chains['||0|'],
+            chain     = FC.chains[''][0],
             timestamp = 0,
             nonce     = 0,
             payload   = '111',
@@ -138,7 +138,7 @@ loop i in [1 -> ms] do
         THIS = {}
         msg = messages[@i]
         THIS.publication = {
-            chain     = assert(FC.chain_get(msg.chain), msg.chain.id),
+            chain     = FC.chains[msg.chain.key][msg.chain.zeros],
             timestamp = 0,    -- TODO: 64-bit timestamp
             nonce     = 0,
             payload   = msg.payload,

@@ -90,7 +90,7 @@ par/and do
                     print(tostring2(chain0))
                     print('<'..string.rep('=',78))
                 ]];
-                var bool ok = [[ FC.chains['||0|'].head.length == 4 ]];
+                var bool ok = [[ FC.chains[''][0].head.length == 4 ]];
                 if ok then
                     break;
                 end

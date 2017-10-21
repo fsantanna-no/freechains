@@ -76,7 +76,7 @@ await Client(&shared);
 ]];
 await Client(&shared);
 
-[[ ARGS={ chain=FC.chains['|tst-al|0|'] } ]];
+[[ ARGS={ chain=FC.chains['tst-al'][0] } ]];
 await FS_write_10();
 
 escape 0;

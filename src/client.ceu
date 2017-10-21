@@ -274,7 +274,7 @@ do
             THIS.now = os.time() * 1000000      -- in ms since the epoch
 #endif
             THIS.publication = {
-                chain     = assert(FC.chain_get(THIS.message.chain), 'not subscribed to |'..THIS.message.chain.key..'|'..THIS.message.chain.zeros..'|'),
+                chain     = assert(FC.chains[THIS.message.chain.key][THIS.message.chain.zeros], 'not subscribed to |'..THIS.message.chain.key..'|'..THIS.message.chain.zeros..'|'),
                 timestamp = THIS.now,
                 nonce     = 0,
                 payload   = THIS.message.payload,

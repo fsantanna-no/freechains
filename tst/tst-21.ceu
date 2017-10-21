@@ -135,8 +135,8 @@ with
         spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
 
         loop do
-            var bool ok1 = [[ FC.chains['||0|'].head.length == 1 ]];
-            var bool ok2 = [[ FC.chains['|hello|0|'].head.length == 1 ]];
+            var bool ok1 = [[ FC.chains[''][0].head.length == 1 ]];
+            var bool ok2 = [[ FC.chains['hello'][0].head.length == 1 ]];
             if ok1 and ok2 then
                 break;
             end

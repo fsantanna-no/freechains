@@ -236,7 +236,7 @@ with
 
         await shared.ok;
         [[
-            assert(not FC.chains['||0|'])
+            assert(not FC.chains[''])
             assert(#FC.errs==1 and FC.errs[1]==FC.MESSAGE10_NOTSUB)
         ]];
         [[

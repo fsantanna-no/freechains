@@ -97,7 +97,7 @@ print(@i, '<'..string.rep('=',70))
             // wait all messages to be received
             loop do
                 await shared.ok;
-                var int length = [[ FC.chains['|tst-33|0|'].head.length ]];
+                var int length = [[ FC.chains['tst-33'][0].head.length ]];
                 if length == N*N then
                     break;
                 end
@@ -122,7 +122,7 @@ print(@i, '<'..string.rep('=',70))
 //[[print(@i, "END") ]];
         end
 
-        [[ ARGS = { chain=FC.chains['|tst-33|0|'] } ]];
+        [[ ARGS = { chain=FC.chains['tst-33'][0] } ]];
         await FS_write_10();
     end
 end

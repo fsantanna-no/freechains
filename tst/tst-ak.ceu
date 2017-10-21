@@ -112,7 +112,7 @@ with
         spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
 
         loop do
-            var bool ok = [[ FC.chains['||0|'].head.length == 3 ]];
+            var bool ok = [[ FC.chains[''][0].head.length == 3 ]];
             if ok then
                 break;
             end

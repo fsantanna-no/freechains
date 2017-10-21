@@ -93,12 +93,12 @@ with
 
 spawn do
     every 1s do
-        [[ print('>>>', @shared.port, FC.chains['||0|'].head.length, tostring2(FC.chains['||0|'].head.hash)) ]];
+        [[ print('>>>', @shared.port, FC.chains[''][0].head.length, tostring2(FC.chains[''][0].head.hash)) ]];
     end
 end
 
         loop do
-            var bool ok = [[ FC.chains['||0|'].head.length == 2 ]];
+            var bool ok = [[ FC.chains[''][0].head.length == 2 ]];
             if ok then
                 break;
             end

@@ -86,7 +86,7 @@ par/and do
         await Client(&shared);
 
         loop do
-            var bool ok = [[ FC.chains['||0|'].head.length == 4 ]];
+            var bool ok = [[ FC.chains[''][0].head.length == 4 ]];
             if ok then
                 break;
             end
@@ -177,7 +177,7 @@ with
         await Client(&shared);
 
         loop do
-            var bool ok = [[ FC.chains['||0|'].head.length == 4 ]];
+            var bool ok = [[ FC.chains[''][0].head.length == 4 ]];
             if ok then
                 break;
             end
@@ -240,7 +240,7 @@ with
 
         par/and do
             loop do
-                var bool ok = [[ FC.chains['||0|'].head.length == 4 ]];
+                var bool ok = [[ FC.chains[''][0].head.length == 4 ]];
                 if ok then
                     break;
                 end

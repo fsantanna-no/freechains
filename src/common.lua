@@ -10,8 +10,9 @@ FC = {
 -------------------------------------------------------------------------------
 
 function FC.chain_create (key, zeros)
+    FC.chains[key] = FC.chains[key] or {}
+    assert(not FC.chains[key][zeros])
     local id = '|'..key..'|'..zeros..'|'
-    assert(not FC.chains[id])
     local new = {
         key   = key,
         zeros = zeros,
@@ -20,23 +21,8 @@ function FC.chain_create (key, zeros)
         head  = nil,
         base  = nil,
     }
-    FC.chains[id] = new
-    return FC.chains[id]
-end
-
-function FC.chain_get (chain, should_create)
-    assert(type(chain)       == 'table')
-    assert(type(chain.key)   == 'string')
-    assert(type(chain.zeros) == 'number')
-    if chain.key == '' then
-        assert(chain.zeros < 256)
-    end
-    local id = '|'..chain.key..'|'..chain.zeros..'|'
-    local ret = FC.chains[id]
-    if not ret and should_create then
-        ret = FC.chain_create(chain)
-    end
-    return ret
+    FC.chains[key][zeros] = new
+    return new
 end
 
 function FC.chain_block_get (chain, hash)
@@ -50,8 +36,9 @@ function FC.chain_block_get (chain, hash)
     return nil
 end
 
-function FC.chain_flatten (chain_id)
-    local chain = assert(FC.chains[chain_id],chain_id)
+function FC.chain_flatten (id)
+    local key,zeros = string.match(id,'|(.*)|(.*)|')
+    local chain = assert(FC.chains[key][tonumber(zeros)])
     local cur = chain.head
     local T = {}
     while cur do
@@ -69,8 +56,8 @@ function FC.chain_flatten (chain_id)
     return T
 end
 
-function FC.chain_tostring (chain_id)
-    return tostring2(FC.chain_flatten(chain_id))
+function FC.chain_tostring (id)
+    return tostring2(FC.chain_flatten(id))
 end
 
 -------------------------------------------------------------------------------
@@ -100,7 +87,7 @@ end
 -- 3rd-party code
 -------------------------------------------------------------------------------
 
-local function string2hex(buf,big)
+local function string2hex(buf, big)
     local ret = ''
     for byte=1, #buf, 16 do
         local chunk = buf:sub(byte, byte+15)
@@ -118,14 +105,14 @@ local function string2hex(buf,big)
     return ret
 end
 
-function tostring2 (tbl, big)
-    if "nil" == type(tbl) then
-        return tostring(nil)
-    elseif "table" == type(tbl) then
-        return table_show(tbl)
+function tostring2 (tbl, mode)
+    if "table" == type(tbl) then
+        return table_show(tbl,nil,nil,mode)
     elseif "string" == type(tbl) then
-        if is_binary(tbl) then
-            return string2hex(tbl, big)
+        if mode == 'plain' then
+            return string.format("%q", tbl)
+        elseif is_binary(tbl) then
+            return string2hex(tbl, mode)
         else
             return tbl
         end
@@ -163,7 +150,7 @@ end
       name is the name of the table (optional)
       indent is a first indentation (optional).
 --]]
-function table_show(t, name, indent)
+function table_show(t, name, indent, mode)
    local cart     -- a container
    local autoref  -- for self references
 
@@ -193,16 +180,21 @@ function table_show(t, name, indent)
       elseif type(o) == "number" or type(o) == "boolean" then
          return so
       elseif type(o) == "string" then
-         return string.format("%q", tostring2(o))
+         return tostring2(o,mode)
+         --return string.format("%q", tostring2(o,big))
       else
          return string.format("%q", so)
       end
    end
 
+   local FIRST = true
+
    local function addtocart (value, name, indent, saved, field)
       indent = indent or ""
       saved = saved or {}
       field = field or name
+      local first = FIRST
+      FIRST = false
 
       cart = cart .. indent .. field
 
@@ -216,10 +208,15 @@ function table_show(t, name, indent)
          else
             saved[value] = name
             --if tablecount(value) == 0 then
-            if isemptytable(value) then
-               cart = cart .. " = {};\n"
+            if first then
+               cart = ""
             else
-               cart = cart .. " = {\n"
+               cart = cart .. " = "
+            end
+            if isemptytable(value) then
+               cart = cart .. "{}"
+            else
+               cart = cart .. "{\n"
 
                local t = {}
                for k in pairs(value) do
@@ -235,8 +232,9 @@ function table_show(t, name, indent)
                   -- three spaces between levels
                   addtocart(v, fname, indent .. "   ", saved, field)
                end
-               cart = cart .. indent .. "};\n"
+               cart = cart .. indent .. "}"
             end
+            cart = cart .. (first and "" or ";").."\n"
          end
       end
    end

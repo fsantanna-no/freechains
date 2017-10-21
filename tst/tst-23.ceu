@@ -51,7 +51,7 @@ par/and do
             // inject error on nonce
             await UV_STREAM_CONNECT;
             [[
-                FC.chains['||22|'].head.nonce = FC.chains['||22|'].head.nonce + 1
+                FC.chains[''][22].head.nonce = FC.chains[''][22].head.nonce + 1
             ]]
         end
 

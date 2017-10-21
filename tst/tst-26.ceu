@@ -87,12 +87,12 @@ await Client(&shared);
 await Client(&shared);
 
 [[
-    head1 = FC.chains['|tst-25|0|'].head
+    head1 = FC.chains['tst-25'][0].head
 ]]
 
 [[
     ARGS = {
-        chain = FC.chains['|tst-25|0|']
+        chain = FC.chains['tst-25'][0]
     }
 ]]
 await FS_read_10();

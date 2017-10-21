@@ -51,7 +51,7 @@ par/and do
         loop i in [0 -> 10[ do
             [[
                 ARGS = {
-                    chain = assert(FC.chains['||0|'].head.chain),
+                    chain = assert(FC.chains[''][0].head.chain),
                 }
             ]];
             await Client_10(&shared);

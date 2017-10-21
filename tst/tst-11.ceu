@@ -1,3 +1,4 @@
+#define DETERMINISTIC
 #include "common.ceu"
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -102,7 +103,7 @@ with
         await ok;
         await ok;
         loop do
-            var bool ok = [[ FC.chains['||0|'].head.length == 3 ]];
+            var bool ok = [[ FC.chains[''][0].head.length == 3 ]];
             if ok then
                 break;
             end

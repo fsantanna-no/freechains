@@ -166,13 +166,11 @@ do
     $outer.tcp.buffer = $outer.tcp.buffer - HASH_BYTES;
 
     [[
+        key = @key_str
         THIS = {
             length    = @length,
             head_hash = @head_hash,
-            chain     = FC.chain_get {
-                key   = @key_str,
-                zeros = @zeros,
-            },
+            chain     = FC.chains[key] and FC.chains[key][tonumber(@zeros)]
         }
     ]];
 end
