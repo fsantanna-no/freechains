@@ -4,14 +4,13 @@
 
 [[
     dofile 'src/common.lua'
-    local config = table.unpack(arg)
 
     THIS = {
         pending = {},
     }
 
     CFG = {}
-    assert(loadfile(config,nil,CFG))()
+    assert(loadfile(arg[1],nil,CFG))()
 ]]
 
 event none write_ok;
@@ -93,6 +92,10 @@ par do
             THIS.chain.cfg.last.output[THIS.chain.zeros] = THIS.chain.head.hash
             f:close()
         ]]
+        [[
+            os.execute('dbus-send --session --dest=org.gnome.feed.Reader /org/gnome/feed/Reader org.gnome.feed.Reader.Refresh')
+            os.execute('dbus-send --session --dest=org.gnome.feed.Reader --print-reply=literal --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Ping')
+        ]]
 
         // persist after handling
         [[ ARGS={ chain=THIS.chain } ]];
@@ -137,16 +140,7 @@ with
                         feed = [[
                             <feed xmlns="http://www.w3.org/2005/Atom">
                                 <title>__TITLE__</title>
-                            <!--
-                                <link href="__HREF__" rel="self"/>
-                            -->
                                 <updated>__UPDATED__</updated>
-                            <!--
-                                <author>
-                                    <name>__NAME__</name>
-                                    <email>__EMAIL__</email>
-                                </author>
-                            -->
                                 <id>
                                     freechains:/__CHAIN_ID__/
                                 </id>
@@ -156,19 +150,11 @@ with
                         entry = [[
                             <entry>
                                 <title>__TITLE__</title>
-                            <!--
-                                <link type='text/html' href='http://www.fishinhole.com/reports/report.php?id=4'/>
-                            -->
                                 <id>
                                     freechains:/__CHAIN_ID__/__HASH__
                                 </id>
                                 <published>__PUBLISHED__</published>
-                            <!--
-                                <author>
-                                    <name>__AUTHOR__</name>
-                                </author>
-                            -->
-                                <content>__CONTENT__</content>
+                                <content type="html">__CONTENT__</content>
                             </entry>
                         ]],
                     }
@@ -192,6 +178,21 @@ with
                         cur = cur.prv
                     end
                     chain.cfg.last.atom[chain.zeros] = chain.head.hash
+
+                    -- MENU
+                    do
+                        entry = TEMPLATES.entry
+                        entry = string.gsub(entry, '__TITLE__',     'Menu')
+                        entry = string.gsub(entry, '__CHAIN_ID__',  chain.id)
+                        entry = string.gsub(entry, '__HASH__',      FC.hash2hex(string.rep('\0',32)))
+                        entry = string.gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', 0))
+                        entry = string.gsub(entry, '__CONTENT__',   [[
+&lt;ul&gt;
+    &lt;li&gt; &lt;a href="freechains:/]]..chain.id..[[/?cmd=publish&amp;cfg=]]..arg[1]..[["&gt;[X]&lt;/a&gt; Publish to this chain.
+&lt;/ul&gt;
+]])
+                        table.insert(entries, 1, entry)
+                    end
 
                     feed = TEMPLATES.feed
                     feed = string.gsub(feed, '__TITLE__',    chain.id)
