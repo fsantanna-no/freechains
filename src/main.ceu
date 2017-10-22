@@ -118,8 +118,24 @@ with
             ]]
 
             var bool is_publish   = [[ ARGS.cmd == 'publish'   ]];
+            var bool is_republish = [[ ARGS.cmd == 'republish' ]];
             var bool is_subscribe = [[ ARGS.cmd == 'subscribe' ]];
             var bool is_atom      = [[ ARGS.cmd == 'atom'      ]];
+
+            if is_republish then
+                is_publish = [[ ARGS.new.key ~= ARGS.old.key ]];
+                [[
+                    if ARGS.new.key ~= ARGS.old.key then
+                        ARGS.message = {
+                            version = '1.0',
+                            chain   = ARGS.new,
+                            payload = assert(FC.chains[ARGS.old.key].pubs[ARGS.hash].payload)
+                        }
+                    else
+                        error 'TODO'
+                    end
+                ]]
+            end
 
             if is_publish then
                 _dbg(0, "client...");
@@ -205,6 +221,11 @@ with
                             os.remove(tmp)
                         end
 
+                        payload = payload .. [[
+<hr>
+<a href="freechains:]]..FC.hash2hex(cur.publication.hash)..[[/?cmd=republish&old=]]..chain.id..[[&cfg=]]..arg[1]..[[">[X]</a> Republish to another chain.
+]]
+
                         payload = escape(payload)
 
                         entry = TEMPLATES.entry
@@ -226,11 +247,11 @@ with
                         entry = gsub(entry, '__CHAIN_ID__',  chain.id)
                         entry = gsub(entry, '__HASH__',      FC.hash2hex(string.rep('\0',32)))
                         entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', 25000))
-                        entry = gsub(entry, '__CONTENT__',   [[
-&lt;ul&gt;
-    &lt;li&gt; &lt;a href="freechains:/]]..chain.id..[[/?cmd=publish&amp;cfg=]]..arg[1]..[["&gt;[X]&lt;/a&gt; Publish to this chain.
-&lt;/ul&gt;
-]])
+                        entry = gsub(entry, '__CONTENT__',   escape([[
+<ul>
+    <li> <a href="freechains:/]]..chain.id..[[/?cmd=publish&amp;cfg=]]..arg[1]..[[">[X]</a> Publish to this chain.
+</ul>
+]]))
                         table.insert(entries, 1, entry)
                     end
 

@@ -285,6 +285,10 @@ do
         var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
         throw e;
     end
+
+    [[
+        THIS.publication.chain.up.pubs[THIS.publication.hash] = THIS.publication
+    ]]
 end
 
 code/await Block_Hash (none) -> none

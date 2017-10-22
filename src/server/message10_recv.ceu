@@ -52,9 +52,8 @@ do
     var[HASH_BYTES] byte publication_hash;
     _ceu_vector_copy(&&publication_hash,0, &&tcp.buffer,0, HASH_BYTES);
     [[
--- TODO: cache of publications
         THIS.publication_hash = @publication_hash
-        --THIS.block.publication = FC.publications[THIS.publication_hash]
+        THIS.block.publication = THIS.chain.up.pubs[THIS.publication_hash]
     ]]
     $tcp.buffer = $tcp.buffer - HASH_BYTES;
 

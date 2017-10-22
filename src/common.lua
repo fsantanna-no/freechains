@@ -10,13 +10,14 @@ FC = {
 -------------------------------------------------------------------------------
 
 function FC.chain_create (key, zeros)
-    FC.chains[key] = FC.chains[key] or {}
+    FC.chains[key] = FC.chains[key] or { pubs={} }
     assert(not FC.chains[key][zeros])
     local id = '|'..key..'|'..zeros..'|'
     local new = {
         key   = key,
         zeros = zeros,
         id    = id,
+        up    = FC.chains[key],
         cfg   = nil,
         head  = nil,
         base  = nil,
@@ -89,6 +90,15 @@ function FC.hash2hex (hash)
     local ret = ''
     for i=1, string.len(hash) do
         ret = ret .. string.format('%02X', string.byte(string.sub(hash,i,i)))
+    end
+    return ret
+end
+
+function FC.hex2hash (hex)
+    local ret = ''
+    for i=1, string.len(hex), 2 do
+        local n = tonumber('0x'..string.sub(hex,i,i+1))
+        ret = ret .. string.char(n)
     end
     return ret
 end
