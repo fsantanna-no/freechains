@@ -157,8 +157,8 @@ with
             print('>'..string.rep('=',78))
             print(tostring2(chain1))
             print('<'..string.rep('=',78))
-            assert(chain1[4] and chain1[4].publication.payload == '2.1', #chain1)
-            assert(chain1[5] and chain1[5].publication.payload == '2.2', #chain1)
+            assert(chain1[4] and chain1[4].pub.payload == '2.1', #chain1)
+            assert(chain1[5] and chain1[5].pub.payload == '2.2', #chain1)
         ]];
         chain1 = []..[[tostring2(chain1)]];
         chain1_len = [[#chain1]];
@@ -206,8 +206,8 @@ with
             print('>'..string.rep('=',78))
             print(tostring2(chain2))
             print('<'..string.rep('=',78))
-            assert(chain2[4] and chain2[4].publication.payload == '2.1', #chain2)
-            assert(chain2[5] and chain2[5].publication.payload == '2.2', #chain2)
+            assert(chain2[4] and chain2[4].pub.payload == '2.1', #chain2)
+            assert(chain2[5] and chain2[5].pub.payload == '2.2', #chain2)
         ]];
         chain2 = []..[[tostring2(chain2)]];
         chain2_len = [[#chain2]];

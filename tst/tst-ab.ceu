@@ -23,7 +23,7 @@ end
 
 [[
     THIS = {
-        publication = {
+        pub = {
             chain     = FC.chains[''][1],
             timestamp = 0,
             nonce     = 0,
@@ -35,21 +35,21 @@ end
 ]]
 await Publication_New();
 [[
-    --print('>>>', THIS.publication.timestamp, THIS.publication.nonce, tostring2(THIS.publication.hash,true))
-    assert(THIS.publication.hash == '\x04\x9A\x59\xFB\x55\x8E\x02\xD4\xA3\xFC\xC5\x6E\xA6\xF7\x90\xA4\xBF\x50\x34\xCB\xC7\xB1\x1B\x70\x2B\xE9\x6B\x5C\x2E\xDD\xEB\xBA')
-    assert(THIS.publication.timestamp == 0)
-    assert(THIS.publication.nonce == 0)
+    --print('>>>', THIS.pub.timestamp, THIS.pub.nonce, tostring2(THIS.pub.hash,true))
+    assert(THIS.pub.hash == '\x04\x9A\x59\xFB\x55\x8E\x02\xD4\xA3\xFC\xC5\x6E\xA6\xF7\x90\xA4\xBF\x50\x34\xCB\xC7\xB1\x1B\x70\x2B\xE9\x6B\x5C\x2E\xDD\xEB\xBA')
+    assert(THIS.pub.timestamp == 0)
+    assert(THIS.pub.nonce == 0)
 ]]
 
 do
-    [[ THIS.publication.payload = '222' ]]
+    [[ THIS.pub.payload = '222' ]]
     var Exception.Freechains.Malformed? e;
     catch e do
         await Publication_Check();
     end
     _ceu_assert(e?, "bug found");
 
-    [[ THIS.publication.payload = '111' ]]
+    [[ THIS.pub.payload = '111' ]]
     var Exception.Freechains.Malformed? f;
     catch f do
         await Publication_Check();
@@ -64,8 +64,8 @@ end
         version = '1.0',
         timestamp   = 0,
         nonce       = 0,
-        chain       = THIS.publication.chain,
-        publication = THIS.publication,
+        chain       = THIS.pub.chain,
+        pub = THIS.pub,
         hash        = nil,
         prv         = nil,
         nxt         = nil,
@@ -136,7 +136,7 @@ loop i in [1 -> ms] do
     [[
         THIS = {}
         msg = messages[@i]
-        THIS.publication = {
+        THIS.pub = {
             chain     = FC.chains[msg.chain.key][msg.chain.zeros],
             timestamp = 0,    -- TODO: 64-bit timestamp
             nonce     = 0,
@@ -151,8 +151,8 @@ loop i in [1 -> ms] do
             version = '1.0',
             timestamp   = 0,    -- TODO: 64-bit timestamp
             nonce       = 0,
-            chain       = THIS.publication.chain,
-            publication = THIS.publication,
+            chain       = THIS.pub.chain,
+            pub = THIS.pub,
             hash        = nil,
             prv         = nil,
             nxt         = nil,
@@ -163,9 +163,9 @@ loop i in [1 -> ms] do
 end
 
 [[
-    assert(FIRST.publication.payload == '111')
-    assert(FIRST.nxt.publication.payload == '222')
-    assert(FIRST.nxt.nxt.publication.payload == '333')
+    assert(FIRST.pub.payload == '111')
+    assert(FIRST.nxt.pub.payload == '222')
+    assert(FIRST.nxt.nxt.pub.payload == '333')
     print 'OK!'
 ]]
 

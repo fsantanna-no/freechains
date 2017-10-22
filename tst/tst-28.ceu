@@ -111,7 +111,7 @@ with
         ]];
         chain1 = []..[[tostring2(CHAIN1)]];
         [[
-            assert( #CHAIN1==6 and CHAIN1[6].publication.payload=='555' )
+            assert( #CHAIN1==6 and CHAIN1[6].pub.payload=='555' )
             print'OK! 1/2'
         ]]
     end

@@ -15,8 +15,8 @@ key, zeros, cmd, cfg = string.match(url, '/|(.*)|(.*)|/%?cmd=(.*)&cfg=(.*)')
 if cmd then
     log:write('INFO: '..key..','..zeros..','..cmd..','..cfg..'\n')
 else
-    publication, cmd, old_id, cfg = string.match(url, '(.*)/%?cmd=(.*)&old=(.*)&cfg=(.*)')
-    log:write('INFO: '..publication..','..cmd..','..old_id..','..cfg..'\n')
+    pub, cmd, old_id, cfg = string.match(url, '(.*)/%?cmd=(.*)&old=(.*)&cfg=(.*)')
+    log:write('INFO: '..pub..','..cmd..','..old_id..','..cfg..'\n')
 end
 
 local CFG = {}
@@ -60,7 +60,7 @@ elseif cmd == 'republish' then
     if ok and new_id~=old_id then
         local t = {
             cmd = 'republish',
-            hash = FC.hex2hash(publication),
+            hash = FC.hex2hash(pub),
             old = old,
             new = new,
         }

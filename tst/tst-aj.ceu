@@ -106,8 +106,8 @@ with
             print('<'..string.rep('=',78))
 
             assert( #CHAIN1==3 and
-                    CHAIN1[2].publication.payload=='2.1' and
-                    CHAIN1[3].publication.payload=='2.2' )
+                    CHAIN1[2].pub.payload=='2.1' and
+                    CHAIN1[3].pub.payload=='2.2' )
             print'OK!'
         ]];
     end

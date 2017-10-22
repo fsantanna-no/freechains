@@ -172,23 +172,23 @@ end
 end
 
 code/await Publication_New (none) -> none
-    // input:  [[ ARGS={publication={TODO}} ]]
-    // output: [[ ARGS={publication={DONE}} ]]
+    // input:  [[ ARGS={pub={TODO}} ]]
+    // output: [[ ARGS={pub={DONE}} ]]
 do
     [[
         THIS = {
-            publication = ARGS.publication,
+            pub = ARGS.pub,
         }
     ]];
 
     var[HASH_BYTES] byte hash;
     _ceu_vector_setlen(&&hash,HASH_BYTES,1);
 
-    var u8 zeros = [[ THIS.publication.chain.zeros ]];
+    var u8 zeros = [[ THIS.pub.chain.zeros ]];
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                     [[ THIS.publication.chain.key ]]   ..
-                     [[ THIS.publication.payload ]];
+                     [[ THIS.pub.chain.key ]]   ..
+                     [[ THIS.pub.payload ]];
 
     // show async/thread progress
     var int ms = 0;
@@ -209,8 +209,8 @@ do
         var u64 timestamp;
         var u64 nonce;
         atomic do
-            timestamp = [[ THIS.publication.timestamp ]];
-            nonce     = [[ THIS.publication.nonce     ]];
+            timestamp = [[ THIS.pub.timestamp ]];
+            nonce     = [[ THIS.pub.nonce     ]];
         end
 
         var u64 n = do
@@ -230,9 +230,9 @@ do
                     if zeros <= _leading_zeros(&&hash[0],HASH_BYTES) then
                         atomic do
                             [[
-                                THIS.publication.timestamp = @i
-                                THIS.publication.nonce     = @j
-                                THIS.publication.hash      = @hash
+                                THIS.pub.timestamp = @i
+                                THIS.pub.nonce     = @j
+                                THIS.pub.hash      = @hash
                             ]];
                         end
                         escape n_;
@@ -252,42 +252,42 @@ end
  * payload match the hash.
  */
 code/await Publication_Check (none) -> none
-    // input: [[ ARGS={publication={DONE}} ]]
+    // input: [[ ARGS={pub={DONE}} ]]
     throws Exception.Freechains.Malformed
 do
     [[
         THIS = {
-            publication = ARGS.publication,
+            pub = ARGS.pub,
         }
     ]];
 
-    var[HASH_BYTES] byte hash = [] .. [[ THIS.publication.hash ]];
+    var[HASH_BYTES] byte hash = [] .. [[ THIS.pub.hash ]];
 
-    var u8 zeros = [[ THIS.publication.chain.zeros ]];
+    var u8 zeros = [[ THIS.pub.chain.zeros ]];
     if zeros > _leading_zeros(&&hash[0],HASH_BYTES) then
         var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
         throw e;
     end
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                     [[ THIS.publication.chain.key ]]   ..
-                     [[ THIS.publication.payload ]];
+                     [[ THIS.pub.chain.key ]]   ..
+                     [[ THIS.pub.payload ]];
     do
-        var u64 timestamp = [[ THIS.publication.timestamp ]];
-        var u64 nonce     = [[ THIS.publication.nonce     ]];
+        var u64 timestamp = [[ THIS.pub.timestamp ]];
+        var u64 nonce     = [[ THIS.pub.nonce     ]];
         PUT_HTOBE64(pln, 0, timestamp);
         PUT_HTOBE64(pln, sizeof(u64), nonce);
     end
 
     _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
-    var bool ok = [[ THIS.publication.hash == @hash ]];
+    var bool ok = [[ THIS.pub.hash == @hash ]];
     if not ok then
         var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
         throw e;
     end
 
     [[
-        THIS.publication.chain.up.pubs[THIS.publication.hash] = THIS.publication
+        THIS.pub.chain.up.pubs[THIS.pub.hash] = THIS.pub
     ]]
 end
 
@@ -312,7 +312,7 @@ do
     var u8 zeros = [[ THIS.block.chain.zeros ]];
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                     [[ THIS.block.publication.hash ]] ..
+                     [[ THIS.block.pub.hash ]] ..
                      [[ THIS.block.prv.hash ]];
 
     // show async/thread progress
@@ -398,7 +398,7 @@ do
 end
 
 /*
- * Verifies if the hash has the expected leading zeros and if the publication
+ * Verifies if the hash has the expected leading zeros and if the pub
  * hash and back hash match the hash.
  */
 code/await Block_Check (none) -> none
@@ -420,7 +420,7 @@ do
     end
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                     [[ THIS.block.publication.hash ]] ..
+                     [[ THIS.block.pub.hash ]] ..
                      [[ THIS.block.prv.hash ]];
     do
         var u64 timestamp = [[ THIS.block.timestamp ]];
@@ -456,7 +456,7 @@ do
             found = false
             cur = THIS.to.first
             while true do
-                if cur.publication.hash == THIS.from.publication.hash then
+                if cur.pub.hash == THIS.from.pub.hash then
                     found = true
                     break
                 end
@@ -469,14 +469,14 @@ do
         var bool found = [[ found ]];
         if not found then
             [[
-                --print('>>>', tostring2(THIS.from.hash), THIS.from.publication.payload)
+                --print('>>>', tostring2(THIS.from.hash), THIS.from.pub.payload)
                 assert(THIS.from.chain == THIS.to.first.chain)
                 THIS.block = {
                     version     = '1.0',
                     timestamp   = 0,    -- TODO: 64-bit timestamp
                     nonce       = 0,
                     chain       = THIS.from.chain,
-                    publication = THIS.from.publication,
+                    pub = THIS.from.pub,
                     hash        = nil,
                     prv         = nil,
                     nxt         = nil,
@@ -565,7 +565,7 @@ do
                 timestamp   = nil,
                 nonce       = nil,
                 chain       = THIS.chain,
-                publication = nil,
+                pub = nil,
                 hash        = @o.file.buffer,
                 prv         = THIS.chain.head,
                 nxt         = nil,
@@ -592,8 +592,8 @@ do
         // => PUBLICATION_HASH
         await UV_FS_Read_N(&o.file, HASH_BYTES);
         [[
-            THIS.publication_hash = @o.file.buffer
-            --THIS.block.publication = FC.publications[THIS.publication_hash]
+            THIS.pub_hash = @o.file.buffer
+            --THIS.block.pub = FC.pubs[THIS.pub_hash]
         ]]
         $o.file.buffer = 0;
 
@@ -616,18 +616,18 @@ do
             await UV_FS_Read_N(&o.file, len as usize);
 
             [[
-                THIS.block.publication = {
+                THIS.block.pub = {
                     chain     = THIS.chain,
                     timestamp = @timestamp,
                     nonce     = @nonce,
                     payload   = @o.file.buffer,
-                    hash      = THIS.publication_hash,
+                    hash      = THIS.pub_hash,
                 }
-                ARGS = { publication=THIS.block.publication }
+                ARGS = { pub=THIS.block.pub }
             ]]
 
             $o.file.buffer = 0;
-            [[ ARGS={publication=THIS.block.publication} ]];
+            [[ ARGS={pub=THIS.block.pub} ]];
             await Publication_Check();
         end
     end
@@ -726,7 +726,7 @@ do
         end
 
         // <= PUBLICATION_HASH
-        o.file.buffer = o.file.buffer .. [[ THIS.cur.publication.hash ]];
+        o.file.buffer = o.file.buffer .. [[ THIS.cur.pub.hash ]];
 
         await UV_FS_Write_N(&o.file,_);
 
@@ -737,9 +737,9 @@ do
             // <= LEN
             o.file.buffer = [] .. [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
             do
-                var u64 timestamp = [[ THIS.cur.publication.timestamp ]];
-                var u64 nonce     = [[ THIS.cur.publication.nonce     ]];
-                var u32 len       = [[ string.len(THIS.cur.publication.payload) ]];
+                var u64 timestamp = [[ THIS.cur.pub.timestamp ]];
+                var u64 nonce     = [[ THIS.cur.pub.nonce     ]];
+                var u32 len       = [[ string.len(THIS.cur.pub.payload) ]];
                 PUT_HTOBE64(o.file.buffer, 0,               timestamp);
                 PUT_HTOBE64(o.file.buffer, 0+sizeof(u64),   nonce);
                 PUT_HTOBE32(o.file.buffer, 0+2*sizeof(u64), len);
@@ -748,7 +748,7 @@ do
             end
 
             // <= PAYLOAD
-            o.file.buffer = [] .. [[ THIS.cur.publication.payload ]];
+            o.file.buffer = [] .. [[ THIS.cur.pub.payload ]];
             await UV_FS_Write_N(&o.file,_);
         end
 

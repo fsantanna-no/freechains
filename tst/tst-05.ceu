@@ -89,7 +89,7 @@ with
             print(FC.chain_tostring('||0|'))
             print('<'..string.rep('=',78))
 
-            assert( #CHAIN1==2 and CHAIN1[2].publication.payload=='xxx' )
+            assert( #CHAIN1==2 and CHAIN1[2].pub.payload=='xxx' )
             print'OK!'
         ]];
     end

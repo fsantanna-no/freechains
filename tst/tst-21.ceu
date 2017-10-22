@@ -90,8 +90,8 @@ par/and do
         ]];
         [=[
             assert(#CHAIN0_1==2 and #CHAIN0_2==2 and
-                   CHAIN0_1[2].publication.payload==[['']] and
-                   CHAIN0_2[2].publication.payload==[['hello']])
+                   CHAIN0_1[2].pub.payload==[['']] and
+                   CHAIN0_2[2].pub.payload==[['hello']])
             print'OK 0/4!'
         ]=];
     end
@@ -154,8 +154,8 @@ with
         ]];
         [=[
             assert(#CHAIN1_1==2 and #CHAIN1_2==2 and
-                   CHAIN1_1[2].publication.payload==[['']] and
-                   CHAIN1_2[2].publication.payload==[['hello']])
+                   CHAIN1_1[2].pub.payload==[['']] and
+                   CHAIN1_2[2].pub.payload==[['hello']])
             print'OK 1/4!'
         ]=];
     end
@@ -264,7 +264,7 @@ with
         ]];
         [=[
             assert(#CHAIN3_1==1 and #CHAIN3_2==2 and
-                   CHAIN3_2[2].publication.payload==[['hello']])
+                   CHAIN3_2[2].pub.payload==[['hello']])
             print'OK 3/4!'
         ]=];
     end
@@ -317,7 +317,7 @@ with
         ]];
         [=[
             assert(#CHAIN4_2==2 and
-                   CHAIN4_2[2].publication.payload==[['hello']])
+                   CHAIN4_2[2].pub.payload==[['hello']])
             print'OK 4/4!'
         ]=];
     end

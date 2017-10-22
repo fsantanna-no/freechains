@@ -49,11 +49,11 @@ do
     // => PUBLICATION_HASH
 
     await UV_Stream_Read_N(&tcp, HASH_BYTES);
-    var[HASH_BYTES] byte publication_hash;
-    _ceu_vector_copy(&&publication_hash,0, &&tcp.buffer,0, HASH_BYTES);
+    var[HASH_BYTES] byte pub_hash;
+    _ceu_vector_copy(&&pub_hash,0, &&tcp.buffer,0, HASH_BYTES);
     [[
-        THIS.publication_hash = @publication_hash
-        THIS.block.publication = THIS.chain.up.pubs[THIS.publication_hash]
+        THIS.pub_hash = @pub_hash
+        THIS.block.pub = THIS.chain.up.pubs[THIS.pub_hash]
     ]]
     $tcp.buffer = $tcp.buffer - HASH_BYTES;
 
@@ -68,11 +68,11 @@ do
     ]]
     $tcp.buffer = $tcp.buffer - HASH_BYTES;
 
-    // <= ACK-publication
+    // <= ACK-pub
 
-    var bool has_publication = [[ THIS.block.publication~=nil ]];
+    var bool has_pub = [[ THIS.block.pub~=nil ]];
     var int ret = do
-        if has_publication then
+        if has_pub then
             escape {MESSAGE10_HAVE};
         else
             escape {MESSAGE10_OK};
@@ -81,7 +81,7 @@ do
     outer.tcp.buffer = [ret];
     await UV_Stream_Write_N(&outer.tcp,_);
 
-    if not has_publication then
+    if not has_pub then
         // => TIMESTAMP + NONCE + LEN
         await UV_Stream_Read_N(&tcp, 2*sizeof(u64) + sizeof(u32));
         var[sizeof(u64)] byte buf;
@@ -105,14 +105,14 @@ do
         $tcp.buffer = $tcp.buffer - (len as usize);
 
         [[
-            THIS.block.publication = {
+            THIS.block.pub = {
                 chain     = THIS.chain,
                 timestamp = @timestamp,
                 nonce     = @nonce,
                 payload   = @payload,
-                hash      = THIS.publication_hash,
+                hash      = THIS.pub_hash,
             }
-            ARGS = { publication=THIS.block.publication }
+            ARGS = { pub=THIS.block.pub }
         ]]
         await Publication_Check();
     end
@@ -299,7 +299,7 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
                 timestamp   = nil,
                 nonce       = nil,
                 chain       = THIS.chain,
-                publication = nil,
+                pub = nil,
                 hash        = nil,
                 prv         = THIS.block or THIS.common,
                 nxt         = nil,

@@ -159,7 +159,7 @@ with
         ]];
         chain1_2 = []..[[tostring2(CHAIN1_2)]];
         [[
-            assert(#CHAIN1_2==3 and CHAIN1_2[3].publication.payload=='22.2')
+            assert(#CHAIN1_2==3 and CHAIN1_2[3].pub.payload=='22.2')
             print'OK 1/4!'
         ]];
     end
@@ -262,7 +262,7 @@ with
         ]];
         chain3_2 = []..[[tostring2(CHAIN3_2)]];
         [[
-            assert(#CHAIN3_1==3 and CHAIN3_1[3].publication.payload=='21.2')
+            assert(#CHAIN3_1==3 and CHAIN3_1[3].pub.payload=='21.2')
             print'OK 2/4!'
         ]];
     end

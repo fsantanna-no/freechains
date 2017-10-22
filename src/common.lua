@@ -46,9 +46,9 @@ function FC.chain_flatten (id)
         local t = {
             hash = tostring2(cur.hash),
             length = cur.length,
-            publication = cur.publication and {
-                hash    = cur.publication.hash,
-                payload = cur.publication.payload,
+            pub = cur.pub and {
+                hash    = cur.pub.hash,
+                payload = cur.pub.payload,
             },
         }
         table.insert(T, 1, t)

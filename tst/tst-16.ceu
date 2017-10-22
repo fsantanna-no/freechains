@@ -126,7 +126,7 @@ with
         ]];
         [=[
             assert( #CHAIN1==3 and
-                    CHAIN1[3].publication.payload==[[0.2]])
+                    CHAIN1[3].pub.payload==[[0.2]])
             print'OK 1/2!'
         ]=];
     end
@@ -176,7 +176,7 @@ with
         ]];
         [=[
             assert( #CHAIN2==4 and
-                    CHAIN2[4].publication.payload==[[0.3]])
+                    CHAIN2[4].pub.payload==[[0.3]])
             print'OK 2/2!'
         ]=];
     end

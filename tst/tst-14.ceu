@@ -104,8 +104,8 @@ with
         ]];
         [=[
             assert( #CHAIN1==10 and
-                    CHAIN1[2].publication.payload==[[0.1]] and
-                    CHAIN1[10].publication.payload==[[0.9]])
+                    CHAIN1[2].pub.payload==[[0.1]] and
+                    CHAIN1[10].pub.payload==[[0.9]])
             print'OK!'
         ]=];
     end

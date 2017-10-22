@@ -109,7 +109,7 @@ do
         do
             tcp.buffer = [] .. [[ THIS.cur.hash ]] .. 
                                [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                               [[ THIS.cur.publication.hash ]] ..
+                               [[ THIS.cur.pub.hash ]] ..
                                [[ THIS.cur.prv.hash ]];
             do
                 var u64 timestamp = [[ THIS.cur.timestamp ]];
@@ -126,7 +126,7 @@ do
         end
 
         // => ACK-PUBLICATION-HASH
-        var bool send_publication = do
+        var bool send_pub = do
             await UV_Stream_Read_N(&tcp, 1);
             var byte ret = tcp.buffer[0];
             if ret == {MESSAGE10_HAVE} then
@@ -138,13 +138,13 @@ do
                 throw e;
             end
         end;
-        if send_publication then
+        if send_pub then
             tcp.buffer = [] .. [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
                                [0,0,0,0] ..
-                               [[ THIS.cur.publication.payload ]];
-            var u64 timestamp   = [[ THIS.cur.publication.timestamp ]];
-            var u64 nonce       = [[ THIS.cur.publication.nonce     ]];
-            var u32 payload_len = [[ string.len(THIS.cur.publication.payload) ]];
+                               [[ THIS.cur.pub.payload ]];
+            var u64 timestamp   = [[ THIS.cur.pub.timestamp ]];
+            var u64 nonce       = [[ THIS.cur.pub.nonce     ]];
+            var u32 payload_len = [[ string.len(THIS.cur.pub.payload) ]];
             PUT_HTOBE64(tcp.buffer, 0, timestamp);
             PUT_HTOBE64(tcp.buffer, sizeof(u64), nonce);
             PUT_HTOBE32(tcp.buffer, 2*sizeof(u64), payload_len);
@@ -273,7 +273,7 @@ do
 #else
             THIS.now = os.time() * 1000000      -- in ms since the epoch
 #endif
-            THIS.publication = {
+            THIS.pub = {
                 chain     = assert(FC.chains[THIS.message.chain.key][THIS.message.chain.zeros], 'not subscribed to |'..THIS.message.chain.key..'|'..THIS.message.chain.zeros..'|'),
                 timestamp = THIS.now,
                 nonce     = 0,
@@ -284,15 +284,15 @@ do
         ]]
         await Publication_New();
         do
-            [[ ARGS = { chain=THIS.publication.chain } ]]
+            [[ ARGS = { chain=THIS.pub.chain } ]]
             CHAIN_LOCK(l, shared, "lock_write");
             [[
                 THIS.block = {
                     version     = '1.0',
                     timestamp   = THIS.now,
                     nonce       = 0,
-                    chain       = THIS.publication.chain,
-                    publication = THIS.publication,
+                    chain       = THIS.pub.chain,
+                    pub = THIS.pub,
                     hash        = nil,
                     prv         = nil,
                     nxt         = nil,

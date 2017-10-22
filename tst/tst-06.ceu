@@ -109,8 +109,8 @@ with
 
         [=[
             assert( #CHAIN1==3 and
-                    CHAIN1[2].publication.payload==[[same]] and
-                    CHAIN1[3].publication.payload==[[same]] )
+                    CHAIN1[2].pub.payload==[[same]] and
+                    CHAIN1[3].pub.payload==[[same]] )
             print'OK!'
         ]=];
     end

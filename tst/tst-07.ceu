@@ -99,7 +99,7 @@ with
             print('<'..string.rep('=',78))
         ]];
         [=[
-            assert( #CHAIN1==2 and CHAIN1[2].publication.payload==[[same]] )
+            assert( #CHAIN1==2 and CHAIN1[2].pub.payload==[[same]] )
             print'OK!'
         ]=];
     end

@@ -124,8 +124,8 @@ await FS_read_10();
 while head1.prv do
     assert(head2)
 
-    local pub1 = head1.publication
-    local pub2 = head2.publication
+    local pub1 = head1.pub
+    local pub2 = head2.pub
     assert(pub1.nonce   == pub2.nonce)
     assert(pub1.payload == pub2.payload)
 

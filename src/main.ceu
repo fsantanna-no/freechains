@@ -80,10 +80,10 @@ par do
                         key   = cur.chain.key,
                         zeros = cur.chain.zeros,
                     },
-                    publication = {
-                        hash      = cur.publication.hash,
-                        timestamp = cur.publication.timestamp,
-                        payload   = cur.publication.payload,
+                    pub = {
+                        hash      = cur.pub.hash,
+                        timestamp = cur.pub.timestamp,
+                        payload   = cur.pub.payload,
                     },
                 }
                 f:write(tostring2(t,'plain')..'\n')
@@ -204,10 +204,10 @@ with
                     while cur.hash ~= (chain.cfg.last.atom[chain.zeros] or chain.base.hash) do
                         assert(cur ~= chain.base)
 
-                        title = escape(string.match(cur.publication.payload,'([^\n]*)'))
+                        title = escape(string.match(cur.pub.payload,'([^\n]*)'))
 
                         -- freechains links
-                        payload = string.gsub(cur.publication.payload, '(%[.-%]%(freechains:.-)%)', '%1&cfg='..arg[1]..')')
+                        payload = string.gsub(cur.pub.payload, '(%[.-%]%(freechains:.-)%)', '%1&cfg='..arg[1]..')')
 
                         -- markdown
                         do
@@ -223,7 +223,7 @@ with
 
                         payload = payload .. [[
 <hr>
-<a href="freechains:]]..FC.hash2hex(cur.publication.hash)..[[/?cmd=republish&old=]]..chain.id..[[&cfg=]]..arg[1]..[[">[X]</a> Republish to another chain.
+<a href="freechains:]]..FC.hash2hex(cur.pub.hash)..[[/?cmd=republish&old=]]..chain.id..[[&cfg=]]..arg[1]..[[">[X]</a> Republish to another chain.
 ]]
 
                         payload = escape(payload)
@@ -232,7 +232,7 @@ with
                         entry = gsub(entry, '__TITLE__',     title)
                         entry = gsub(entry, '__CHAIN_ID__',  chain.id)
                         entry = gsub(entry, '__HASH__',      FC.hash2hex(cur.hash))
-                        entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', cur.publication.timestamp/1000000))
+                        entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', cur.pub.timestamp/1000000))
                         entry = gsub(entry, '__CONTENT__',   payload)
                         table.insert(entries, 1, entry)
                         cur = cur.prv
