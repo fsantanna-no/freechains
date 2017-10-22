@@ -103,6 +103,17 @@ function FC.hex2hash (hex)
     return ret
 end
 
+function FC.escape (html)
+    return (string.gsub(html, "[}{\">/<'&]", {
+        ["&"] = "&amp;",
+        ["<"] = "&lt;",
+        [">"] = "&gt;",
+        ['"'] = "&quot;",
+        ["'"] = "&#39;",
+        ["/"] = "&#47;"
+    }))
+end -- https://github.com/kernelsauce/turbo/blob/master/turbo/escape.lua
+
 -------------------------------------------------------------------------------
 -- 3rd-party code
 -------------------------------------------------------------------------------

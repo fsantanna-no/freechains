@@ -11,19 +11,92 @@ end
 local log = assert(io.open('/tmp/log.txt','a+'))
 log:write(url..'\n')
 
-key, zeros, cmd, cfg = string.match(url, '/|(.*)|(.*)|/%?cmd=(.*)&cfg=(.*)')
-if cmd then
-    log:write('INFO: '..key..','..zeros..','..cmd..','..cfg..'\n')
-else
-    pub, cmd, old_id, cfg = string.match(url, '(.*)/%?cmd=(.*)&old=(.*)&cfg=(.*)')
-    log:write('INFO: '..pub..','..cmd..','..old_id..','..cfg..'\n')
+-- main menu
+if not cmd then
+    cmd, cfg = string.match(url, '/%?cmd=(menu)&cfg=(.*)')
 end
+
+-- subscribe
+if not cmd then
+    cmd, cfg     = string.match(url, '/%?cmd=(subscribe)&cfg=(.*)')
+end
+if not cmd then
+    cmd, id, cfg = string.match(url, '/%?cmd=(subscribe)&id=(.*)&cfg=(.*)')
+end
+
+-- publish
+if not cmd then
+    key, zeros, cmd, cfg = string.match(url, '/|(.*)|(.*)|/%?cmd=(publish)&cfg=(.*)')
+end
+
+-- republish
+if not cmd then
+    pub, cmd, old_id, cfg = string.match(url, '(.*)/%?cmd=(republish)&old=(.*)&cfg=(.*)')
+end
+
+log:write('INFO: .'..cmd..'.\n')
 
 local CFG = {}
 assert(loadfile(cfg,nil,CFG))()
 
-log:write('INFO: .'..cmd..'.\n')
-if cmd == 'publish' then
+if cmd == 'menu' then
+    print ([[
+<?xml version="1.0" encoding="utf-8"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+
+            <title>Freechains</title>
+        <!--
+            <link href="freechains:"/>
+        -->
+            <id>http://www.freechains.org/"</id>
+
+            <entry>
+                <title>Main Menu</title>
+                <id>http://www.freechains.org/main-menu</id>
+                <updated>1970-01-02T00:00:00Z</updated>
+                <content type="html">]]..FC.escape([[
+                    <ul>
+                        <li> <a href="freechains:/?cmd=subscribe&cfg=]]..cfg..[[">[X]</a> Subscribe to new chain.
+                    </ul>]])..[[
+                </content>
+            </entry>
+        </feed>
+    ]])
+    os.exit(0)
+
+elseif cmd == 'subscribe' then
+    local ok = true
+
+    if not id then
+        local f = io.popen('zenity --entry --title="Subscribe to Chain" --text="Enter the Chain ID:"')
+        id = f:read('*a')
+        ok = f:close()
+    end
+
+    if ok then
+        local key,zeros = string.match(id,'|(.*)|(.*)|')
+        local t = {
+            cmd = 'subscribe',
+            chain = {
+                key = key,
+                zeros = tonumber(zeros),
+                last  = {
+                    output = {},
+                    atom   = {},
+                },
+                peers = {},
+            }
+        }
+        local str = tostring2(t, 'plain')
+
+        local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
+        f:write(tostring(string.len(str))..'\n'..str)
+        f:close()
+    else
+        log:write('ERR: '..id..'\n')
+    end
+
+elseif cmd == 'publish' then
     local f = io.popen('zenity --text-info --editable --title "Publish to |'..key..'|'..zeros..'|"')
     local payload = f:read('*a')
     local ok = f:close()

@@ -186,25 +186,12 @@ with
                         return string.gsub(a, b, function() return c end)
                     end
 
-                    escape = function (html)
-                        return (string.gsub(html, "[}{\">/<'&]", {
-                            ["&"] = "&amp;",
-                            ["<"] = "&lt;",
-                            [">"] = "&gt;",
-                            ['"'] = "&quot;",
-#if 0
-                            ["'"] = "&#39;",
-                            ["/"] = "&#47;"
-#endif
-                        }))
-                    end -- https://github.com/kernelsauce/turbo/blob/master/turbo/escape.lua
-
                     entries = {}
                     cur = chain.head
                     while cur.hash ~= (chain.cfg.last.atom[chain.zeros] or chain.base.hash) do
                         assert(cur ~= chain.base)
 
-                        title = escape(string.match(cur.pub.payload,'([^\n]*)'))
+                        title = FC.escape(string.match(cur.pub.payload,'([^\n]*)'))
 
                         -- freechains links
                         payload = string.gsub(cur.pub.payload, '(%[.-%]%(freechains:.-)%)', '%1&cfg='..arg[1]..')')
@@ -226,7 +213,7 @@ with
 <a href="freechains:]]..FC.hash2hex(cur.pub.hash)..[[/?cmd=republish&old=]]..chain.id..[[&cfg=]]..arg[1]..[[">[X]</a> Republish to another chain.
 ]]
 
-                        payload = escape(payload)
+                        payload = FC.escape(payload)
 
                         entry = TEMPLATES.entry
                         entry = gsub(entry, '__TITLE__',     title)
@@ -247,7 +234,7 @@ with
                         entry = gsub(entry, '__CHAIN_ID__',  chain.id)
                         entry = gsub(entry, '__HASH__',      FC.hash2hex(string.rep('\0',32)))
                         entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', 25000))
-                        entry = gsub(entry, '__CONTENT__',   escape([[
+                        entry = gsub(entry, '__CONTENT__',   FC.escape([[
 <ul>
     <li> <a href="freechains:/]]..chain.id..[[/?cmd=publish&amp;cfg=]]..arg[1]..[[">[X]</a> Publish to this chain.
 </ul>
