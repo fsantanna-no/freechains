@@ -62,6 +62,16 @@ end
 
 -------------------------------------------------------------------------------
 
+function FC.cfg_write ()
+    local f = assert(io.open(arg[1],'w'))
+    for k,v in pairs(CFG) do
+        f:write(k..' = '..tostring2(v,'plain')..'\n')
+    end
+    f:close()
+end
+
+-------------------------------------------------------------------------------
+
 local function is_binary (str)
     return (string.gsub(str,'%c','') ~= str)
 --[[

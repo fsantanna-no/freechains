@@ -66,9 +66,9 @@ par do
         var[] byte path = [] .. [[path]] .. [0];
 
         [[
-            local f = assert(io.open(CFG.dir..'/fifo.out', 'a'))
+            f = assert(io.open(CFG.dir..'/fifo.out', 'a'))
             local function out (cur)   -- reverse order
-                if cur.hash == THIS.chain.cfg.last.output[cur.chain.zeros] then
+                if cur.hash == (THIS.chain.cfg.last.output[cur.chain.zeros] or THIS.chain.base.hash) then
                     return   -- handled previously
                 end
                 out(cur.prv)
@@ -91,6 +91,7 @@ par do
             out(THIS.chain.head)
             THIS.chain.cfg.last.output[THIS.chain.zeros] = THIS.chain.head.hash
             f:close()
+            FC.cfg_write()
         ]]
         [[
             os.execute('dbus-send --session --dest=org.gnome.feed.Reader /org/gnome/feed/Reader org.gnome.feed.Reader.Refresh')
@@ -130,8 +131,8 @@ with
                         assert(old.key ~= ARGS.chain.key)
                     end
                     CFG.chains[#CFG.chains+1] = ARGS.chain
+                    FC.cfg_write()
                 ]]
-                //TODO-write-CFG
                 await Init();
             else/if is_atom then
                 [=[
@@ -184,7 +185,7 @@ with
 
                     entries = {}
                     cur = chain.head
-                    while cur.hash ~= chain.cfg.last.atom[chain.zeros] do
+                    while cur.hash ~= (chain.cfg.last.atom[chain.zeros] or chain.base.hash) do
                         assert(cur ~= chain.base)
 
                         title = escape(string.match(cur.publication.payload,'([^\n]*)'))
@@ -216,6 +217,7 @@ with
                         cur = cur.prv
                     end
                     chain.cfg.last.atom[chain.zeros] = chain.head.hash
+                    FC.cfg_write()
 
                     -- MENU
                     do
@@ -223,7 +225,7 @@ with
                         entry = gsub(entry, '__TITLE__',     'Menu')
                         entry = gsub(entry, '__CHAIN_ID__',  chain.id)
                         entry = gsub(entry, '__HASH__',      FC.hash2hex(string.rep('\0',32)))
-                        entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', 50000))
+                        entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', 25000))
                         entry = gsub(entry, '__CONTENT__',   [[
 &lt;ul&gt;
     &lt;li&gt; &lt;a href="freechains:/]]..chain.id..[[/?cmd=publish&amp;cfg=]]..arg[1]..[["&gt;[X]&lt;/a&gt; Publish to this chain.
