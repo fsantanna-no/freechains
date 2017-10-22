@@ -2,7 +2,21 @@
 
 [[
     dofile 'src/common.lua'
-    FC.chain_create('', 1)
+    key = ''
+    zeros = 1
+    FC.chains[key] = FC.chains[key] or { pubs={} }
+    assert(not FC.chains[key][zeros])
+    local id = '|'..key..'|'..zeros..'|'
+    local new = {
+        key   = key,
+        zeros = zeros,
+        id    = id,
+        up    = FC.chains[key],
+        cfg   = nil,
+        head  = nil,
+        base  = nil,
+    }
+    FC.chains[key][zeros] = new
 ]]
 
 do

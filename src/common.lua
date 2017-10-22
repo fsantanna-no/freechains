@@ -9,23 +9,6 @@ FC = {
 
 -------------------------------------------------------------------------------
 
-function FC.chain_create (key, zeros)
-    FC.chains[key] = FC.chains[key] or { pubs={} }
-    assert(not FC.chains[key][zeros])
-    local id = '|'..key..'|'..zeros..'|'
-    local new = {
-        key   = key,
-        zeros = zeros,
-        id    = id,
-        up    = FC.chains[key],
-        cfg   = nil,
-        head  = nil,
-        base  = nil,
-    }
-    FC.chains[key][zeros] = new
-    return new
-end
-
 function FC.chain_block_get (chain, hash)
     local cur = chain.head
     while cur do

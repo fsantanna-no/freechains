@@ -803,15 +803,32 @@ do
     var int n = [[ #CFG.chains ]];
     var int i;
     loop i in [1 -> n] do
-        var int zeros = [[CFG.chains[@i].zeros]];
+        [[
+            cfg = CFG.chains[@i]
+            assert(not FC.chains[cfg.key])
+            FC.chains[cfg.key] = FC.chains[cfg.key] or {
+                cfg  = cfg,
+                pubs = {},
+            }
+        ]]
+        var int zeros = [[cfg.zeros]];
         var int j;
         loop j in [zeros -> 255] do
             [[
-                cfg = CFG.chains[@i]
-                has = FC.chains[cfg.key] and FC.chains[cfg.key][@j]
+                has = FC.chains[cfg.key][@j]
                 if not has then
-                    THIS.chain = FC.chain_create(cfg.key, @j)
-                    THIS.chain.cfg = cfg
+                    assert(not FC.chains[cfg.key][@j])
+                    local id = '|'..cfg.key..'|'..@j..'|'
+                    THIS.chain = {
+                        key   = cfg.key,
+                        zeros = @j,
+                        id    = id,
+                        up    = FC.chains[cfg.key],
+                        cfg   = cfg,
+                        head  = nil,
+                        base  = nil,
+                    }
+                    FC.chains[cfg.key][@j] = THIS.chain
                 end
             ]]
             var bool has = [[has]];
