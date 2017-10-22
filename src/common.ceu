@@ -805,8 +805,9 @@ do
     loop i in [1 -> n] do
         [[
             cfg = CFG.chains[@i]
-            assert(not FC.chains[cfg.key])
+            --assert(not FC.chains[cfg.key])
             FC.chains[cfg.key] = FC.chains[cfg.key] or {
+                key  = cfg.key,
                 cfg  = cfg,
                 pubs = {},
             }

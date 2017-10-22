@@ -143,11 +143,18 @@ with
                 _dbg(0, "client | ok");
             else/if is_subscribe then
                 [[
+                    is_sub = false
                     for _, old in ipairs(CFG.chains) do
-                        assert(old.key ~= ARGS.chain.key)
+                        --assert(old.key ~= ARGS.chain.key)
+                        if old.key == ARGS.chain.key then
+                            is_sub = true
+                            break
+                        end
                     end
-                    CFG.chains[#CFG.chains+1] = ARGS.chain
-                    FC.cfg_write()
+                    if not is_sub then
+                        CFG.chains[#CFG.chains+1] = ARGS.chain
+                        FC.cfg_write()
+                    end
                 ]]
                 await Init();
             else/if is_atom then
@@ -176,10 +183,11 @@ with
                         ]],
                     }
 
-                    chain = assert(FC.chains[ARGS.chain.key] and FC.chains[ARGS.chain.key][ARGS.chain.zeros])
+                    CHAIN = assert(FC.chains[ARGS.chain])
+
                     dir = CFG.dir..'/atoms'
                     os.execute('mkdir -p '..dir)
-                    f = assert(io.open(dir..'/'..chain.id..'.xml', 'w'))
+                    f = assert(io.open(dir..'/'..CHAIN.key..'.xml', 'w'))
 
                     -- TODO: hacky, "plain" gsub
                     gsub = function (a,b,c)
@@ -187,65 +195,71 @@ with
                     end
 
                     entries = {}
-                    cur = chain.head
-                    while cur.hash ~= (chain.cfg.last.atom[chain.zeros] or chain.base.hash) do
-                        assert(cur ~= chain.base)
 
-                        title = FC.escape(string.match(cur.pub.payload,'([^\n]*)'))
+                    for i=CHAIN.cfg.zeros, 255 do
+                        chain = assert(CHAIN[i])
+                        cur = chain.head
+                        while cur.hash ~= (chain.cfg.last.atom[chain.zeros] or chain.base.hash) do
+                            assert(cur ~= chain.base)
 
-                        -- freechains links
-                        payload = string.gsub(cur.pub.payload, '(%[.-%]%(freechains:.-)%)', '%1&cfg='..arg[1]..')')
+                            title = FC.escape(string.match(cur.pub.payload,'([^\n]*)'))
 
-                        -- markdown
-                        do
-                            local tmp = os.tmpname()
-                            local md = assert(io.popen('pandoc -r markdown -w html > '..tmp, 'w'))
-                            md:write(payload)
-                            assert(md:close())
-                            local html = assert(io.open(tmp))
-                            payload = html:read('*a')
-                            html:close()
-                            os.remove(tmp)
+                            -- freechains links
+                            payload = string.gsub(cur.pub.payload, '(%[.-%]%(freechains:.-)%)', '%1&cfg='..arg[1]..')')
+
+                            -- markdown
+                            do
+                                local tmp = os.tmpname()
+                                local md = assert(io.popen('pandoc -r markdown -w html > '..tmp, 'w'))
+                                md:write(payload)
+                                assert(md:close())
+                                local html = assert(io.open(tmp))
+                                payload = html:read('*a')
+                                html:close()
+                                os.remove(tmp)
+                            end
+
+                            payload = payload .. [[
+    <hr>
+    <a href="freechains:]]..FC.hash2hex(cur.pub.hash)..[[/?cmd=republish&old=]]..chain.id..[[&cfg=]]..arg[1]..[[">[X]</a> Republish to another chain.
+    ]]
+
+                            payload = FC.escape(payload)
+
+                            entry = TEMPLATES.entry
+                            entry = gsub(entry, '__TITLE__',     '['..i..'] '..title)
+                            entry = gsub(entry, '__CHAIN_ID__',  chain.id)
+                            entry = gsub(entry, '__HASH__',      FC.hash2hex(cur.hash))
+                            entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', cur.pub.timestamp/1000000))
+                            entry = gsub(entry, '__CONTENT__',   payload)
+                            entries[#entries+1] = entry
+                            cur = cur.prv
                         end
-
-                        payload = payload .. [[
-<hr>
-<a href="freechains:]]..FC.hash2hex(cur.pub.hash)..[[/?cmd=republish&old=]]..chain.id..[[&cfg=]]..arg[1]..[[">[X]</a> Republish to another chain.
-]]
-
-                        payload = FC.escape(payload)
-
-                        entry = TEMPLATES.entry
-                        entry = gsub(entry, '__TITLE__',     title)
-                        entry = gsub(entry, '__CHAIN_ID__',  chain.id)
-                        entry = gsub(entry, '__HASH__',      FC.hash2hex(cur.hash))
-                        entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', cur.pub.timestamp/1000000))
-                        entry = gsub(entry, '__CONTENT__',   payload)
-                        table.insert(entries, 1, entry)
-                        cur = cur.prv
+                        if chain.head.hash ~= chain.base.hash then  -- avoids polluting the cfg
+                            chain.cfg.last.atom[chain.zeros] = chain.head.hash
+                        end
                     end
-                    chain.cfg.last.atom[chain.zeros] = chain.head.hash
                     FC.cfg_write()
 
                     -- MENU
                     do
                         entry = TEMPLATES.entry
                         entry = gsub(entry, '__TITLE__',     'Menu')
-                        entry = gsub(entry, '__CHAIN_ID__',  chain.id)
+                        entry = gsub(entry, '__CHAIN_ID__',  CHAIN.key)
                         entry = gsub(entry, '__HASH__',      FC.hash2hex(string.rep('\0',32)))
                         entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', 25000))
                         entry = gsub(entry, '__CONTENT__',   FC.escape([[
 <ul>
-    <li> <a href="freechains:/]]..chain.id..[[/?cmd=publish&amp;cfg=]]..arg[1]..[[">[X]</a> Publish to this chain.
+    <li> <a href="freechains:/]]..CHAIN.key..[[/?cmd=publish&cfg=]]..arg[1]..[[">[X]</a> Publish to this chain.
 </ul>
 ]]))
-                        table.insert(entries, 1, entry)
+                        entries[#entries+1] = entry
                     end
 
                     feed = TEMPLATES.feed
-                    feed = gsub(feed, '__TITLE__',    chain.id)
+                    feed = gsub(feed, '__TITLE__',    CHAIN.key)
                     feed = gsub(feed, '__UPDATED__',  os.date('!%Y-%m-%dT%H:%M:%SZ', os.time()))
-                    feed = gsub(feed, '__CHAIN_ID__', chain.id)
+                    feed = gsub(feed, '__CHAIN_ID__', CHAIN.key)
                     feed = gsub(feed, '__ENTRIES__',  table.concat(entries,'\n'))
 
                     f:write(feed)
