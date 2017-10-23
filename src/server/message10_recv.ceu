@@ -98,6 +98,12 @@ do
         var u32 len = GET_BE32TOH(buf,0);
         $tcp.buffer = $tcp.buffer - sizeof(u32);
 
+        // removal expects the block hash
+        var bool is_removal = (len == 0);
+        if is_removal then
+            len = HASH_BYTES;
+        end
+
         // => PAYLOAD
         await UV_Stream_Read_N(&tcp, len as usize);
         var[len] byte payload;
@@ -112,9 +118,22 @@ do
                 payload   = @payload,
                 hash      = THIS.pub_hash,
             }
+
+            is_removal = @is_removal
+            if is_removal then
+                THIS.block.pub.remove_hash = THIS.block.pub.payload
+                THIS.block.pub.payload     = nil
+            end
+
             ARGS = { pub=THIS.block.pub }
         ]]
         await Publication_Check();
+        [[
+            if THIS.block.pub.remove_hash then
+                remove_block = assert(FC.chain_block_get(THIS.pub.chain, THIS.pub.remove_hash))
+                remove_block.pub = nil
+            end
+        ]]
     end
 end
 
@@ -299,7 +318,7 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
                 timestamp   = nil,
                 nonce       = nil,
                 chain       = THIS.chain,
-                pub = nil,
+                pub         = nil,
                 hash        = nil,
                 prv         = THIS.block or THIS.common,
                 nxt         = nil,

@@ -101,6 +101,9 @@ do
         if should_stop then
             break;
         end
+- nao contar removeds em length em forks
+- mandar hash zerado para removeds
+- o recebimento tem que confirmar no futuro isso
 
         // <= BLOCK_HASH
         // <= TIMESTAMP + NONCE
@@ -140,14 +143,22 @@ do
         end;
         if send_pub then
             tcp.buffer = [] .. [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                               [0,0,0,0] ..
-                               [[ THIS.cur.pub.payload ]];
+                               [0,0,0,0];
+
+            var bool is_removal = [[ THIS.cur.pub.remove_hash~=nil ]];
+            if is_removal then
+                tcp.buffer = tcp.buffer .. [[ THIS.cur.pub.remove_hash ]];
+            else
+                tcp.buffer = tcp.buffer .. [[ THIS.cur.pub.payload ]];
+            end
+
             var u64 timestamp   = [[ THIS.cur.pub.timestamp ]];
             var u64 nonce       = [[ THIS.cur.pub.nonce     ]];
-            var u32 payload_len = [[ string.len(THIS.cur.pub.payload) ]];
+            var u32 payload_len = [[ (@(is_removal) and 0) or string.len(THIS.cur.pub.payload) ]];
             PUT_HTOBE64(tcp.buffer, 0, timestamp);
             PUT_HTOBE64(tcp.buffer, sizeof(u64), nonce);
             PUT_HTOBE32(tcp.buffer, 2*sizeof(u64), payload_len);
+
             await UV_Stream_Write_N(&tcp,_);
         end
 
@@ -274,11 +285,12 @@ do
             THIS.now = os.time() * 1000000      -- in ms since the epoch
 #endif
             THIS.pub = {
-                chain     = assert(FC.chains[THIS.message.chain.key][THIS.message.chain.zeros], 'not subscribed to |'..THIS.message.chain.key..'|'..THIS.message.chain.zeros..'|'),
-                timestamp = THIS.now,
-                nonce     = THIS.message.nonce or 0,
-                payload   = THIS.message.payload,
-                hash      = nil,
+                chain       = assert(FC.chains[THIS.message.chain.key][THIS.message.chain.zeros], 'not subscribed to |'..THIS.message.chain.key..'|'..THIS.message.chain.zeros..'|'),
+                timestamp   = THIS.now,
+                nonce       = THIS.message.nonce or 0,
+                payload     = THIS.message.payload,
+                remove_hash = THIS.message.remove,
+                hash        = nil,
             }
             ARGS = THIS
         ]]
@@ -292,7 +304,7 @@ do
                     timestamp   = THIS.now,
                     nonce       = 0,
                     chain       = THIS.pub.chain,
-                    pub = THIS.pub,
+                    pub         = THIS.pub,
                     hash        = nil,
                     prv         = nil,
                     nxt         = nil,

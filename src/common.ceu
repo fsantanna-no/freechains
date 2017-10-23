@@ -179,6 +179,13 @@ do
         THIS = {
             pub = ARGS.pub,
         }
+        assert(THIS.pub.remove_hash or string.len(THIS.pub.payload)>0)
+
+        if THIS.pub.remove_hash then
+            THIS.remove_block = assert(FC.chain_block_get(THIS.pub.chain, THIS.pub.remove_hash))
+            THIS.pub.payload = THIS.remove_block.pub.payload
+            remove_block.pub = nil
+        end
     ]];
 
     var[HASH_BYTES] byte hash;
@@ -189,6 +196,12 @@ do
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
                      [[ THIS.pub.chain.key ]]   ..
                      [[ THIS.pub.payload ]];
+
+    // when removing, append the original pub hash to avoid nonce reuse
+    var bool is_removal = [[ THIS.pub.remove_hash~=nil ]];
+    if is_removal then
+        pln = pln .. [[ THIS.remove_block.pub.hash ]];
+    end
 
     // show async/thread progress
     var int ms = 0;
@@ -279,6 +292,17 @@ do
         PUT_HTOBE64(pln, sizeof(u64), nonce);
     end
 
+    // when removing, append the original pub hash to avoid nonce reuse
+    [[
+        if THIS.pub.remove_hash then
+            THIS.remove_block = assert(FC.chain_block_get(THIS.pub.chain, THIS.pub.remove_hash))
+        end
+    ]]
+    var bool is_removal = [[ THIS.pub.remove_hash~=nil ]];
+    if is_removal then
+        pln = pln .. [[ THIS.remove_block.pub.hash ]];
+    end
+
     _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
     var bool ok = [[ THIS.pub.hash == @hash ]];
     if not ok then
@@ -288,6 +312,9 @@ do
 
     [[
         THIS.pub.chain.up.pubs[THIS.pub.hash] = THIS.pub
+
+        if THIS.pub.remove_hash then
+        end
     ]]
 end
 
