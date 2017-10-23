@@ -122,22 +122,19 @@ with
             var bool is_subscribe = [[ ARGS.cmd == 'subscribe' ]];
             var bool is_atom      = [[ ARGS.cmd == 'atom'      ]];
 
-            if is_republish then
-                is_publish = [[ ARGS.new.key ~= ARGS.old.key ]];
-                [[
-                    if ARGS.new.key ~= ARGS.old.key then
+            if is_publish or is_republish then
+                if is_republish then
+                    [[
+                        pub = assert(FC.chains[ARGS.old.key].pubs[ARGS.hash])
                         ARGS.message = {
                             version = '1.0',
                             chain   = ARGS.new,
-                            payload = assert(FC.chains[ARGS.old.key].pubs[ARGS.hash].payload)
+                            nonce   = (ARGS.new.key==ARGS.old.key and pub.nonce) or nil,
+                            payload = pub.payload,
                         }
-                    else
-                        error 'TODO'
-                    end
-                ]]
-            end
+                    ]]
+                end
 
-            if is_publish then
                 _dbg(0, "client...");
                 await Client(&shared);
                 _dbg(0, "client | ok");

@@ -276,7 +276,7 @@ do
             THIS.pub = {
                 chain     = assert(FC.chains[THIS.message.chain.key][THIS.message.chain.zeros], 'not subscribed to |'..THIS.message.chain.key..'|'..THIS.message.chain.zeros..'|'),
                 timestamp = THIS.now,
-                nonce     = 0,
+                nonce     = THIS.message.nonce or 0,
                 payload   = THIS.message.payload,
                 hash      = nil,
             }
