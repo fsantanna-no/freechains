@@ -221,7 +221,7 @@ with
 
                             payload = payload .. [[
     <hr>
-    <a href="freechains:]]..FC.hash2hex(cur.pub.hash)..[[/?cmd=republish&old=]]..chain.id..[[&cfg=]]..arg[1]..[[">[X]</a> Republish to another chain.
+    <a href="freechains:]]..FC.hash2hex(cur.pub.hash)..[[/?cmd=republish&old=]]..chain.id..[[&cfg=]]..arg[1]..[[">[X]</a> Republish Contents
     ]]
 
                             payload = FC.escape(payload)
@@ -250,7 +250,7 @@ with
                         entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', 25000))
                         entry = gsub(entry, '__CONTENT__',   FC.escape([[
 <ul>
-    <li> <a href="freechains:/]]..CHAIN.key..[[/?cmd=publish&cfg=]]..arg[1]..[[">[X]</a> Publish to this chain.
+    <li> <a href="freechains:/]]..CHAIN.key..[[/?cmd=publish&cfg=]]..arg[1]..[[">[X]</a> Publish to ]]..CHAIN.key..[[
 </ul>
 ]]))
                         entries[#entries+1] = entry

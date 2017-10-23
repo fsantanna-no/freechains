@@ -35,6 +35,20 @@ ceu:
 	    --cc --cc-args="-lm -llua5.3 -luv -lsodium -g"                         \
 			 --cc-output=/tmp/$$(basename $(CEU_SRC) .ceu);
 
+tst-cmds:
+	echo 38             > /tmp/freechains/8400/fifo.in
+	cat tst/atom.lua    > /tmp/freechains/8400/fifo.in
+	echo 185            > /tmp/freechains/8400/fifo.in
+	cat tst/pub.lua     > /tmp/freechains/8400/fifo.in
+	echo 226            > /tmp/freechains/8400/fifo.in
+	cat tst/pub-sub.lua > /tmp/freechains/8400/fifo.in
+	echo 177            > /tmp/freechains/8400/fifo.in
+	cat tst/pub-5.lua   > /tmp/freechains/8400/fifo.in
+	echo 187            > /tmp/freechains/8400/fifo.in
+	cat tst/sub.lua     > /tmp/freechains/8400/fifo.in
+	echo 189            > /tmp/freechains/8400/fifo.in
+	cat tst/pub-new.lua > /tmp/freechains/8400/fifo.in
+
 c:
 	ceu --cc --cc-input=/tmp/x.c --cc-args="-lm -llua5.3 -luv -lsodium -g"     \
 	         --cc-output=freechains
