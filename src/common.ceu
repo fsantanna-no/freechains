@@ -179,13 +179,7 @@ do
         THIS = {
             pub = ARGS.pub,
         }
-        assert(THIS.pub.remove_hash or string.len(THIS.pub.payload)>0)
-
-        if THIS.pub.remove_hash then
-            THIS.remove_block = assert(FC.chain_block_get(THIS.pub.chain, THIS.pub.remove_hash))
-            THIS.pub.payload = THIS.remove_block.pub.payload
-            remove_block.pub = nil
-        end
+        assert(THIS.pub.remove_block or string.len(THIS.pub.payload)>0)
     ]];
 
     var[HASH_BYTES] byte hash;
@@ -195,12 +189,12 @@ do
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
                      [[ THIS.pub.chain.key ]]   ..
-                     [[ THIS.pub.payload ]];
+                     [[ (THIS.pub.remove_block and THIS.pub.remove_block.pub.payload) or THIS.pub.payload ]];
 
-    // when removing, append the original pub hash to avoid nonce reuse
-    var bool is_removal = [[ THIS.pub.remove_hash~=nil ]];
+    // when removing, append the original payload hash to avoid nonce reuse
+    var bool is_removal = [[ THIS.pub.remove_block~=nil ]];
     if is_removal then
-        pln = pln .. [[ THIS.remove_block.pub.hash ]];
+        pln = pln .. [[ THIS.pub.remove_block.pub.hash ]];
     end
 
     // show async/thread progress
@@ -284,7 +278,7 @@ do
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
                      [[ THIS.pub.chain.key ]]   ..
-                     [[ THIS.pub.payload ]];
+                     [[ (THIS.pub.remove_block and THIS.pub.remove_block.pub.payload) or THIS.pub.payload ]];
     do
         var u64 timestamp = [[ THIS.pub.timestamp ]];
         var u64 nonce     = [[ THIS.pub.nonce     ]];
@@ -293,14 +287,9 @@ do
     end
 
     // when removing, append the original pub hash to avoid nonce reuse
-    [[
-        if THIS.pub.remove_hash then
-            THIS.remove_block = assert(FC.chain_block_get(THIS.pub.chain, THIS.pub.remove_hash))
-        end
-    ]]
-    var bool is_removal = [[ THIS.pub.remove_hash~=nil ]];
+    var bool is_removal = [[ THIS.pub.remove_block~=nil ]];
     if is_removal then
-        pln = pln .. [[ THIS.remove_block.pub.hash ]];
+        pln = pln .. [[ THIS.pub.remove_block.pub.hash ]];
     end
 
     _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
@@ -312,9 +301,6 @@ do
 
     [[
         THIS.pub.chain.up.pubs[THIS.pub.hash] = THIS.pub
-
-        if THIS.pub.remove_hash then
-        end
     ]]
 end
 
@@ -836,7 +822,7 @@ do
             FC.chains[cfg.key] = FC.chains[cfg.key] or {
                 key  = cfg.key,
                 cfg  = cfg,
-                pubs = {},
+                pubs = { [string.rep('\0',@HASH_BYTES)]=true }, -- have all removeds
             }
         ]]
         var int zeros = [[cfg.zeros]];

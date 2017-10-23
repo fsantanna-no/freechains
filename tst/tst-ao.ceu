@@ -1,0 +1,240 @@
+#include "common.ceu"
+
+///////////////////////////////////////////////////////////////////////////////
+// 0->1->2
+///////////////////////////////////////////////////////////////////////////////
+
+var[] byte chain0;
+var[] byte chain1;
+var[] byte chain2;
+
+var int chain0_len = _;
+var int chain1_len = _;
+var int chain2_len = _;
+
+par/and do
+
+///////////////////////////////////////////////////////////////////////////////
+// 0
+///////////////////////////////////////////////////////////////////////////////
+
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        [[
+            dofile 'src/common.lua'
+            CFG = {
+                chains = {
+                    zeros_raise = TODO,     -- global and per-chain
+                    [1] = {
+                        key   = '',
+                        zeros = 0,
+                        peers = {
+                            {
+                                address = '127.0.0.1',
+                                port    = '8331'
+                            },
+                        },
+                    },
+                },
+            }
+        ]];
+
+        await Init();
+        await 100ms;
+
+        [[
+            ARGS = {
+                message = {
+                    version = '1.0',
+                    chain = {
+                        key   = '',
+                        zeros = 0,
+                    },
+                    payload = '1.1',
+                }
+            }
+        ]]
+        await Client(&shared);
+
+        [[
+            ARGS = {
+                message = {
+                    version = '1.0',
+                    chain = {
+                        key   = '',
+                        zeros = 0,
+                    },
+                    payload = '1.2',
+                }
+            }
+        ]]
+        await Client(&shared);
+
+        [[
+            ARGS = {
+                message = {
+                    version = '1.0',
+                    chain = {
+                        key   = '',
+                        zeros = 0,
+                    },
+                    remove = FC.chains[''][0].head.prv.hash,
+                }
+            }
+        ]]
+        await Client(&shared);
+
+        [[
+            chain0 = FC.chain_flatten('||0|')
+            print('===> 0, #'..#chain0)
+            print('>'..string.rep('=',78))
+            print(tostring2(chain0))
+            print('<'..string.rep('=',78))
+        ]];
+        chain0 = []..[[tostring2(chain0)]];
+        chain0_len = [[#chain0]];
+    end
+with
+
+///////////////////////////////////////////////////////////////////////////////
+// 1
+///////////////////////////////////////////////////////////////////////////////
+
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        [[
+            dofile 'src/common.lua'
+            CFG = {
+                server = {
+                    address = '127.0.0.1',
+                    port    = '8331'
+                },
+                chains = {
+                    zeros_raise = TODO,     -- global and per-chain
+                    [1] = {
+                        key   = '',
+                        zeros = 0,
+                        peers = {
+                            {
+                                address = '127.0.0.1',
+                                port    = '8332'
+                            },
+                        },
+                    },
+                },
+            }
+        ]];
+
+        await Init();
+
+        var[] byte ip      = [] .. [[ CFG.server.address or '127.0.0.1' ]] .. [0];
+        var   int  port    = [[ CFG.server.port ]];
+        var   int  backlog = [[ CFG.server.backlog or 128 ]];
+        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
+        spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
+
+        await shared.ok;
+        await shared.ok;
+
+        [[
+            ARGS = {
+                message = {
+                    version = '1.0',
+                    chain = {
+                        key   = '',
+                        zeros = 0,
+                    },
+                    payload = '2.1',
+                }
+            }
+        ]]
+        await Client(&shared);
+
+        [[
+            ARGS = {
+                message = {
+                    version = '1.0',
+                    chain = {
+                        key   = '',
+                        zeros = 0,
+                    },
+                    payload = '2.2',
+                }
+            }
+        ]]
+        await Client(&shared);
+
+        [[
+            chain1 = FC.chain_flatten('||0|')
+            print('===> 1, #'..#chain1)
+            print('>'..string.rep('=',78))
+            print(tostring2(chain1))
+            print('<'..string.rep('=',78))
+            assert(chain1[2] and chain1[2].pub == nil, #chain1)
+            assert(chain1[5] and chain1[5].pub.payload == '2.1', #chain1)
+            assert(chain1[6] and chain1[6].pub.payload == '2.2', #chain1)
+        ]];
+        chain1 = []..[[tostring2(chain1)]];
+        chain1_len = [[#chain1]];
+    end
+with
+
+///////////////////////////////////////////////////////////////////////////////
+// 2
+///////////////////////////////////////////////////////////////////////////////
+
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        [[
+            dofile 'src/common.lua'
+            CFG = {
+                server = {
+                    address = '127.0.0.1',
+                    port    = '8332',
+                    backlog = 128,
+                },
+                chains = {
+                    zeros_raise = TODO,     -- global and per-chain
+                    [1] = {
+                        key   = '',
+                        zeros = 0,
+                    },
+                },
+            }
+        ]];
+
+        await Init();
+
+        var[] byte ip      = [] .. [[ CFG.server.address ]] .. [0];
+        var   int  port    = [[ CFG.server.port ]];
+        var   int  backlog = [[ CFG.server.backlog ]];
+        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
+        spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
+
+        await shared.ok;
+        await shared.ok;
+        await shared.ok;
+        await shared.ok;
+        await shared.ok;
+        [[
+            chain2 = FC.chain_flatten('||0|')
+            print('===> 3, #'..#chain2)
+            print('>'..string.rep('=',78))
+            print(tostring2(chain2))
+            print('<'..string.rep('=',78))
+            assert(chain2[2] and chain2[2].pub == nil, #chain2)
+            assert(chain2[5] and chain2[5].pub.payload == '2.1', #chain2)
+            assert(chain2[6] and chain2[6].pub.payload == '2.2', #chain2)
+        ]];
+        chain2 = []..[[tostring2(chain2)]];
+        chain2_len = [[#chain2]];
+    end
+end
+
+[[
+    assert(@chain0_len==4 and @chain1_len==6 and @chain2_len==6)
+    assert(@chain1 == @chain2)
+    print'OK!'
+]]
+
+escape 0;

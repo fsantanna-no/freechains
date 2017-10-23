@@ -101,18 +101,15 @@ do
         if should_stop then
             break;
         end
-- nao contar removeds em length em forks
-- mandar hash zerado para removeds
-- o recebimento tem que confirmar no futuro isso
 
         // <= BLOCK_HASH
         // <= TIMESTAMP + NONCE
-        // <= PUBLICATION_HASH
+        // <= PUBLICATION_HASH (maybe removed)
         // <= PRV_HASH
         do
             tcp.buffer = [] .. [[ THIS.cur.hash ]] .. 
                                [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                               [[ THIS.cur.pub.hash ]] ..
+                               [[ (THIS.cur.pub and THIS.cur.pub.hash) or string.rep('\0',@HASH_BYTES) ]] ..
                                [[ THIS.cur.prv.hash ]];
             do
                 var u64 timestamp = [[ THIS.cur.timestamp ]];
@@ -145,9 +142,9 @@ do
             tcp.buffer = [] .. [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
                                [0,0,0,0];
 
-            var bool is_removal = [[ THIS.cur.pub.remove_hash~=nil ]];
+            var bool is_removal = [[ THIS.cur.pub.remove_block~=nil ]];
             if is_removal then
-                tcp.buffer = tcp.buffer .. [[ THIS.cur.pub.remove_hash ]];
+                tcp.buffer = tcp.buffer .. [[ THIS.cur.pub.remove_block.hash ]];
             else
                 tcp.buffer = tcp.buffer .. [[ THIS.cur.pub.payload ]];
             end
@@ -284,17 +281,23 @@ do
 #else
             THIS.now = os.time() * 1000000      -- in ms since the epoch
 #endif
+            chain = assert(FC.chains[THIS.message.chain.key][THIS.message.chain.zeros], 'not subscribed to |'..THIS.message.chain.key..'|'..THIS.message.chain.zeros..'|')
             THIS.pub = {
-                chain       = assert(FC.chains[THIS.message.chain.key][THIS.message.chain.zeros], 'not subscribed to |'..THIS.message.chain.key..'|'..THIS.message.chain.zeros..'|'),
-                timestamp   = THIS.now,
-                nonce       = THIS.message.nonce or 0,
-                payload     = THIS.message.payload,
-                remove_hash = THIS.message.remove,
-                hash        = nil,
+                chain        = chain,
+                timestamp    = THIS.now,
+                nonce        = THIS.message.nonce or 0,
+                payload      = THIS.message.payload,
+                remove_block = THIS.message.remove and assert(FC.chain_block_get(chain, THIS.message.remove)),
+                hash         = nil,
             }
             ARGS = THIS
         ]]
         await Publication_New();
+        [[
+            if THIS.pub.remove_block then
+                THIS.pub.remove_block.pub = nil
+            end
+        ]]
         do
             [[ ARGS = { chain=THIS.pub.chain } ]]
             CHAIN_LOCK(l, shared, "lock_write");

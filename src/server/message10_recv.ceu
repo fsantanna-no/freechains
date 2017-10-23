@@ -54,6 +54,15 @@ do
     [[
         THIS.pub_hash = @pub_hash
         THIS.block.pub = THIS.chain.up.pubs[THIS.pub_hash]
+
+        -- removed: must confirm in future block
+        -- although I can't validate the removal, those who got the payload
+        -- before the removal did validate
+        if THIS.block.pub == true then
+            assert(THIS.pub_hash == string.rep('\0',@HASH_BYTES))
+            THIS.chain.removeds = THIS.chain.removeds or {}
+            THIS.chain.removeds[THIS.block.hash] = true
+        end
     ]]
     $tcp.buffer = $tcp.buffer - HASH_BYTES;
 
@@ -119,19 +128,26 @@ do
                 hash      = THIS.pub_hash,
             }
 
-            is_removal = @is_removal
-            if is_removal then
-                THIS.block.pub.remove_hash = THIS.block.pub.payload
-                THIS.block.pub.payload     = nil
+            THIS.is_removal = @is_removal
+            if THIS.is_removal then
+                THIS.block.pub.remove_block = assert(FC.chain_block_get(THIS.chain, THIS.block.pub.payload))
+                THIS.block.pub.payload = nil    -- payload is actually the hash of the block to remove
+                already_removed = THIS.chain.removeds and THIS.chain.removeds[THIS.block.pub.remove_block.hash]
             end
 
             ARGS = { pub=THIS.block.pub }
         ]]
-        await Publication_Check();
+        var bool already_removed = [[ already_removed ]];
+        if not already_removed then
+            await Publication_Check();
+        end
         [[
-            if THIS.block.pub.remove_hash then
-                remove_block = assert(FC.chain_block_get(THIS.pub.chain, THIS.pub.remove_hash))
-                remove_block.pub = nil
+            if THIS.is_removal then
+                THIS.block.pub.remove_block.pub = nil
+
+                if THIS.chain.removeds then
+                    THIS.chain.removeds[THIS.block.pub.remove_block.hash] = nil
+                end
             end
         ]]
     end
@@ -358,6 +374,11 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
             print(string.rep('<',79))
         ]];
 #endif
+
+    [[
+        assert(not next(THIS.chain.removeds or {}))
+        THIS.chain.removeds = nil
+    ]]
 end
 
 // RETRANSMIT NEW HEAD

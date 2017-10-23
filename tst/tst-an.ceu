@@ -1,0 +1,82 @@
+#include "common.ceu"
+
+///////////////////////////////////////////////////////////////////////////////
+// 0
+///////////////////////////////////////////////////////////////////////////////
+
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        [[
+            dofile 'src/common.lua'
+            CFG = {
+                chains = {
+                    zeros_raise = TODO,     -- global and per-chain
+                    [1] = {
+                        key   = '',
+                        zeros = 0,
+                        peers = {
+                        },
+                    },
+                },
+            }
+        ]];
+
+        await Init();
+        await 100ms;
+
+        [[
+            ARGS = {
+                message = {
+                    version = '1.0',
+                    chain = {
+                        key   = '',
+                        zeros = 0,
+                    },
+                    payload = '1.1',
+                }
+            }
+        ]]
+        await Client(&shared);
+
+        [[
+            ARGS = {
+                message = {
+                    version = '1.0',
+                    chain = {
+                        key   = '',
+                        zeros = 0,
+                    },
+                    payload = '1.2',
+                }
+            }
+        ]]
+        await Client(&shared);
+
+        [[
+            ARGS = {
+                message = {
+                    version = '1.0',
+                    chain = {
+                        key   = '',
+                        zeros = 0,
+                    },
+                    remove = FC.chains[''][0].head.prv.hash,
+                }
+            }
+        ]]
+        await Client(&shared);
+
+        [[
+            chain0 = FC.chain_flatten('||0|')
+            print('===> 0, #'..#chain0)
+            print('>'..string.rep('=',78))
+            print(tostring2(chain0))
+            print('<'..string.rep('=',78))
+
+            assert(FC.chains[''][0].base.nxt.payload == nil)
+
+            print'OK!'
+        ]];
+    end
+
+escape 0;
