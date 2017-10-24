@@ -39,12 +39,12 @@ end
 
 -- republish
 if not cmd then
-    pub, cmd, old_id, cfg = string.match(url, '^(.*)/%?cmd=(republish)&old=(.*)&cfg=(.*)')
+    key, pub, cmd, cfg = string.match(url, '^/(.*)/(.*)/%?cmd=(republish)&old=(.*)&cfg=(.*)')
 end
 
 -- removal
 if not cmd then
-    block, cmd, old_id, cfg = string.match(url, '^(.*)/%?cmd=(removal)&old=(.*)&cfg=(.*)')
+    key, zeros, block, cmd, cfg = string.match(url, '^/(.*)/(.*)/(.*)/%?cmd=(removal)&cfg=(.*)')
 end
 
 log:write('INFO: .'..cmd..'.\n')
@@ -156,7 +156,7 @@ elseif cmd == 'publish' then
     f:close()
 
 elseif cmd == 'republish' then
-    local old_key,old_zeros = string.match(old_id,'|(.*)|(.*)|')
+    local old_key = key
     local f = io.popen('zenity --entry --title="Republish Contents" --text="Enter the Chain Key:" --entry-text="'..old_key..'"')
     local new_key = f:read('*a')
 log:write('>>>.'..new_key..'.\n')
@@ -196,7 +196,6 @@ log:write('>>>.'..new_key..'.\n')
     f:close()
 
 elseif cmd == 'removal' then
-    local key,zeros = string.match(old_id,'|(.*)|(.*)|')
     zeros = assert(tonumber(zeros))
     local t = {
         cmd = 'publish',

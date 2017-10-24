@@ -168,7 +168,7 @@ with
                             <entry>
                                 <title>__TITLE__</title>
                                 <id>
-                                    freechains:/__CHAIN_ID__/__HASH__
+                                    freechains:/__CHAIN_ID__/__HASH__/
                                 </id>
                                 <published>__PUBLISHED__</published>
                                 <content type="html">__CONTENT__</content>
@@ -199,6 +199,16 @@ if cur.pub then
 
                             title = FC.escape(string.match(payload,'([^\n]*)'))
 
+                            if cur.pub.payload then
+                                payload = payload .. [[
+-------------------------------------------------------------------------------
+- [X](freechains:/]]..chain.key..'/'..FC.hash2hex(cur.pub.hash)..[[/?cmd=republish)
+    Republish Contents
+- [X](freechains:/]]..chain.key..'/'..chain.zeros..'/'..FC.hash2hex(cur.hash)..[[/?cmd=removal)
+    Inappropriate Contents
+]]
+                            end
+
                             -- freechains links
                             payload = string.gsub(payload, '(%[.-%]%(freechains:.-)%)', '%1&cfg='..arg[1]..')')
 
@@ -212,16 +222,6 @@ if cur.pub then
                                 payload = html:read('*a')
                                 html:close()
                                 os.remove(tmp)
-                            end
-
-                            if cur.pub.payload then
-                                payload = payload .. [[
-<hr>
-<ul>
-<li> <a href="freechains:]]..FC.hash2hex(cur.pub.hash)..[[/?cmd=republish&old=]]..chain.id..[[&cfg=]]..arg[1]..[[">[X]</a> Republish Contents
-<li> <a href="freechains:]]..FC.hash2hex(cur.hash)..[[/?cmd=removal&old=]]..chain.id..[[&cfg=]]..arg[1]..[[">[X]</a> Inappropriate Contents
-</ul>
-]]
                             end
 
                             payload = FC.escape(payload)
