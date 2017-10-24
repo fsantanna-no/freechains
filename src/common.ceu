@@ -804,7 +804,7 @@ code/await Errors (var& UV_TCP_Server_Data shared) -> none do
     var bool err;
     var int  ret;
     every (msg,err,ret) in shared.ok do
-            _dbg(0, "error | %d %d %d", err, msg, ret);
+        //_dbg(0, "error | %d %d %d", err, msg, ret);
         if err then
             _dbg(0, "error | %d %d", msg, ret);
         end

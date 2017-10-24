@@ -1,3 +1,4 @@
+#define DETERMINISTIC
 #define DBG 0
 
 #include "common.ceu"
@@ -19,6 +20,7 @@ spawn Errors(&shared);
 
 await Init();
 [[
+    os.execute('mkdir -p '..CFG.dir)
     os.execute('mkfifo '..CFG.dir..'/fifo.in')
     os.execute('mkfifo '..CFG.dir..'/fifo.out')
 ]]
@@ -60,13 +62,8 @@ par do
 
         [[
             THIS.chain = table.remove(THIS.pending,1)
-            path = CFG.dir..'/chains/'..THIS.chain.id..'.chain'
-            --print('>>> WRITE >>>', THIS.chain.id, path)
-        ]]
-        var[] byte path = [] .. [[path]] .. [0];
 
-        [[
-            f = assert(io.open(CFG.dir..'/fifo.out', 'a'))
+            f = assert(io.open(CFG.dir..'/fifo.out', 'a+'))
             local function out (cur)   -- reverse order
                 if cur.hash == (THIS.chain.cfg.last.output[cur.chain.zeros] or THIS.chain.base.hash) then
                     return   -- handled previously
@@ -92,8 +89,7 @@ par do
             THIS.chain.cfg.last.output[THIS.chain.zeros] = THIS.chain.head.hash
             f:close()
             FC.cfg_write()
-        ]]
-        [[
+
             os.execute('dbus-send --session --dest=org.gnome.feed.Reader /org/gnome/feed/Reader org.gnome.feed.Reader.Refresh')
             os.execute('dbus-send --session --dest=org.gnome.feed.Reader --print-reply=literal --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Ping')
         ]]
@@ -199,11 +195,12 @@ with
                         while cur.hash ~= (chain.cfg.last.atom[chain.zeros] or chain.base.hash) do
                             assert(cur ~= chain.base)
 if cur.pub then
+                            payload = (cur.pub.payload or ('Removed publication: '..FC.hash2hex(cur.pub.removal.hash)))
 
-                            title = FC.escape(string.match(cur.pub.payload,'([^\n]*)'))
+                            title = FC.escape(string.match(payload,'([^\n]*)'))
 
                             -- freechains links
-                            payload = string.gsub(cur.pub.payload, '(%[.-%]%(freechains:.-)%)', '%1&cfg='..arg[1]..')')
+                            payload = string.gsub(payload, '(%[.-%]%(freechains:.-)%)', '%1&cfg='..arg[1]..')')
 
                             -- markdown
                             do
@@ -217,10 +214,12 @@ if cur.pub then
                                 os.remove(tmp)
                             end
 
-                            payload = payload .. [[
-    <hr>
-    <a href="freechains:]]..FC.hash2hex(cur.pub.hash)..[[/?cmd=republish&old=]]..chain.id..[[&cfg=]]..arg[1]..[[">[X]</a> Republish Contents
-    ]]
+                            if cur.pub.payload then
+                                payload = payload .. [[
+<hr>
+<a href="freechains:]]..FC.hash2hex(cur.pub.hash)..[[/?cmd=republish&old=]]..chain.id..[[&cfg=]]..arg[1]..[[">[X]</a> Republish Contents
+]]
+                            end
 
                             payload = FC.escape(payload)
 
@@ -245,7 +244,7 @@ end
                         entry = TEMPLATES.entry
                         entry = gsub(entry, '__TITLE__',     'Menu')
                         entry = gsub(entry, '__CHAIN_ID__',  CHAIN.key)
-                        entry = gsub(entry, '__HASH__',      FC.hash2hex(string.rep('\0',32)))
+                        entry = gsub(entry, '__HASH__',      FC.hash2hex(string.rep('\0',@HASH_BYTES)))
                         entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', 25000))
                         entry = gsub(entry, '__CONTENT__',   FC.escape([[
 <ul>
