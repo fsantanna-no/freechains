@@ -12,7 +12,7 @@
                 chains = {
                     zeros_raise = TODO,     -- global and per-chain
                     [1] = {
-                        key   = '',
+                        key   = 'tst-aq',
                         zeros = 0,
                         peers = {
                         },
@@ -29,7 +29,7 @@
                 message = {
                     version = '1.0',
                     chain = {
-                        key   = '',
+                        key   = 'tst-aq',
                         zeros = 0,
                     },
                     payload = '1.1',
@@ -43,7 +43,7 @@
                 message = {
                     version = '1.0',
                     chain = {
-                        key   = '',
+                        key   = 'tst-aq',
                         zeros = 0,
                     },
                     payload = '1.2',
@@ -57,26 +57,26 @@
                 message = {
                     version = '1.0',
                     chain = {
-                        key   = '',
+                        key   = 'tst-aq',
                         zeros = 0,
                     },
-                    remove = FC.chains[''][0].head.prv.hash,
+                    remove = FC.chains['tst-aq'][0].head.prv.hash,
                 }
             }
         ]]
         await Client(&shared);
 
         [[
-            chain0 = FC.chain_flatten('||0|')
+            chain0 = FC.chain_flatten('|tst-aq|0|')
             print('===> 0, #'..#chain0)
             print('>'..string.rep('=',78))
             print(tostring2(chain0))
             print('<'..string.rep('=',78))
 
-            assert(FC.chains[''][0].base.nxt.payload == nil)
+            assert(FC.chains['tst-aq'][0].base.nxt.payload == nil)
         ]];
 
-        [[ ARGS={ chain=FC.chains[''][0] } ]];
+        [[ ARGS={ chain=FC.chains['tst-aq'][0] } ]];
         await FS_write_10();
     end
 

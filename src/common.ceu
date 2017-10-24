@@ -610,7 +610,7 @@ do
         ]]
         $o.file.buffer = 0;
 
-        var bool is_removed = [[ THIS.pub_hash==string.rep(32,'\0') ]];
+        var bool is_removed = [[ THIS.pub_hash==string.rep('\0',@HASH_BYTES) ]];
 
         // => PUBLICATION
         if not is_removed then
@@ -636,12 +636,12 @@ do
 
             [[
                 is_removal = (@len == 0);
-                payload = @o.file.buffer,
+                payload = @o.file.buffer
                 THIS.block.pub = {
                     chain     = THIS.chain,
                     timestamp = @timestamp,
                     nonce     = @nonce,
-                    payload   = (is_removal and nil) or payload,
+                    payload   = ((not is_removal) and payload) or nil,
                     removal   = (is_removal and assert(FC.chain_block_get(THIS.chain,payload))) or nil,
                     hash      = THIS.pub_hash,
                 }
@@ -748,7 +748,7 @@ do
         end
 
         // <= PUBLICATION_HASH (or 32x0's, if removed)
-        o.file.buffer = o.file.buffer .. [[ (THIS.cur.pub and THIS.cur.pub.hash) or string.rep('\0',32) ]];
+        o.file.buffer = o.file.buffer .. [[ (THIS.cur.pub and THIS.cur.pub.hash) or string.rep('\0',@HASH_BYTES) ]];
         await UV_FS_Write_N(&o.file,_);
 
         var bool is_removed = [[ THIS.cur.pub==nil ]];

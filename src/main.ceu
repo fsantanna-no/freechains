@@ -80,7 +80,7 @@ par do
                         key   = cur.chain.key,
                         zeros = cur.chain.zeros,
                     },
-                    pub = {
+                    pub = cur.pub and {
                         hash      = cur.pub.hash,
                         timestamp = cur.pub.timestamp,
                         payload   = cur.pub.payload,
@@ -198,6 +198,7 @@ with
                         cur = chain.head
                         while cur.hash ~= (chain.cfg.last.atom[chain.zeros] or chain.base.hash) do
                             assert(cur ~= chain.base)
+if cur.pub then
 
                             title = FC.escape(string.match(cur.pub.payload,'([^\n]*)'))
 
@@ -230,6 +231,7 @@ with
                             entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', cur.pub.timestamp/1000000))
                             entry = gsub(entry, '__CONTENT__',   payload)
                             entries[#entries+1] = entry
+end
                             cur = cur.prv
                         end
                         if chain.head.hash ~= chain.base.hash then  -- avoids polluting the cfg
