@@ -42,10 +42,14 @@ tst-cmds:
 	cat tst/pub.lua     > /tmp/freechains/8400/fifo.in
 	echo 226            > /tmp/freechains/8400/fifo.in
 	cat tst/pub-sub.lua > /tmp/freechains/8400/fifo.in
+	echo 182            > /tmp/freechains/8400/fifo.in
+	cat tst/pub-add.lua > /tmp/freechains/8400/fifo.in
 	echo 177            > /tmp/freechains/8400/fifo.in
 	cat tst/pub-5.lua   > /tmp/freechains/8400/fifo.in
 	echo 187            > /tmp/freechains/8400/fifo.in
 	cat tst/sub.lua     > /tmp/freechains/8400/fifo.in
+	echo 296            > /tmp/freechains/8400/fifo.in
+	cat tst/pub-rem.lua > /tmp/freechains/8400/fifo.in
 	echo 189            > /tmp/freechains/8400/fifo.in
 	cat tst/pub-new.lua > /tmp/freechains/8400/fifo.in
 

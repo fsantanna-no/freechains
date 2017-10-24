@@ -1,0 +1,11 @@
+{
+    cmd = 'publish',
+    message = {
+        version = '1.0',
+        chain = {
+            key = '',
+            zeros = 0,
+        },
+        remove = '\x2D\xA8\x73\xC6\xE9\xDA\x95\xFC\xA5\xDE\x9C\xED\x94\xAB\xC1\x71\xB8\xF9\x44\x19\x34\x85\x22\x63\x83\x5E\x25\x4B\x87\x12\x71\xEB',
+    },
+}
