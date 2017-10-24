@@ -179,7 +179,7 @@ do
         THIS = {
             pub = ARGS.pub,
         }
-        assert(THIS.pub.remove_block or string.len(THIS.pub.payload)>0)
+        assert(THIS.pub.removal or string.len(THIS.pub.payload)>0)
     ]];
 
     var[HASH_BYTES] byte hash;
@@ -189,12 +189,12 @@ do
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
                      [[ THIS.pub.chain.key ]]   ..
-                     [[ (THIS.pub.remove_block and THIS.pub.remove_block.pub.payload) or THIS.pub.payload ]];
+                     [[ (THIS.pub.removal and THIS.pub.removal.pub.payload) or THIS.pub.payload ]];
 
     // when removing, append the original payload hash to avoid nonce reuse
-    var bool is_removal = [[ THIS.pub.remove_block~=nil ]];
+    var bool is_removal = [[ THIS.pub.removal~=nil ]];
     if is_removal then
-        pln = pln .. [[ THIS.pub.remove_block.pub.hash ]];
+        pln = pln .. [[ THIS.pub.removal.pub.hash ]];
     end
 
     // show async/thread progress
@@ -278,7 +278,7 @@ do
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
                      [[ THIS.pub.chain.key ]]   ..
-                     [[ (THIS.pub.remove_block and THIS.pub.remove_block.pub.payload) or THIS.pub.payload ]];
+                     [[ (THIS.pub.removal and THIS.pub.removal.pub.payload) or THIS.pub.payload ]];
     do
         var u64 timestamp = [[ THIS.pub.timestamp ]];
         var u64 nonce     = [[ THIS.pub.nonce     ]];
@@ -287,9 +287,9 @@ do
     end
 
     // when removing, append the original pub hash to avoid nonce reuse
-    var bool is_removal = [[ THIS.pub.remove_block~=nil ]];
+    var bool is_removal = [[ THIS.pub.removal~=nil ]];
     if is_removal then
-        pln = pln .. [[ THIS.pub.remove_block.pub.hash ]];
+        pln = pln .. [[ THIS.pub.removal.pub.hash ]];
     end
 
     _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
@@ -578,7 +578,7 @@ do
                 timestamp   = nil,
                 nonce       = nil,
                 chain       = THIS.chain,
-                pub = nil,
+                pub         = nil,
                 hash        = @o.file.buffer,
                 prv         = THIS.chain.head,
                 nxt         = nil,
@@ -610,8 +610,10 @@ do
         ]]
         $o.file.buffer = 0;
 
+        var bool is_removed = [[ THIS.pub_hash==string.rep(32,'\0') ]];
+
         // => PUBLICATION
-        do
+        if not is_removed then
             // => TIMESTAMP + NONCE + LEN
             await UV_FS_Read_N(&o.file, sizeof(u64));
             var u64 timestamp = GET_BE64TOH(o.file.buffer,0);
@@ -626,14 +628,21 @@ do
             $o.file.buffer = 0;
 
             // => PAYLOAD
-            await UV_FS_Read_N(&o.file, len as usize);
+            if len == 0 then
+                await UV_FS_Read_N(&o.file, HASH_BYTES);
+            else
+                await UV_FS_Read_N(&o.file, len as usize);
+            end
 
             [[
+                is_removal = (@len == 0);
+                payload = @o.file.buffer,
                 THIS.block.pub = {
                     chain     = THIS.chain,
                     timestamp = @timestamp,
                     nonce     = @nonce,
-                    payload   = @o.file.buffer,
+                    payload   = (is_removal and nil) or payload,
+                    removal   = (is_removal and assert(FC.chain_block_get(THIS.chain,payload))) or nil,
                     hash      = THIS.pub_hash,
                 }
                 ARGS = { pub=THIS.block.pub }
@@ -738,13 +747,14 @@ do
             PUT_HTOBE64(o.file.buffer, HASH_BYTES+sizeof(u64), nonce);
         end
 
-        // <= PUBLICATION_HASH
-        o.file.buffer = o.file.buffer .. [[ THIS.cur.pub.hash ]];
-
+        // <= PUBLICATION_HASH (or 32x0's, if removed)
+        o.file.buffer = o.file.buffer .. [[ (THIS.cur.pub and THIS.cur.pub.hash) or string.rep('\0',32) ]];
         await UV_FS_Write_N(&o.file,_);
 
+        var bool is_removed = [[ THIS.cur.pub==nil ]];
+
         // <= PUBLICATION
-        do
+        if not is_removed then
             // <= TIMESTAMP
             // <= NONCE
             // <= LEN
@@ -752,7 +762,7 @@ do
             do
                 var u64 timestamp = [[ THIS.cur.pub.timestamp ]];
                 var u64 nonce     = [[ THIS.cur.pub.nonce     ]];
-                var u32 len       = [[ string.len(THIS.cur.pub.payload) ]];
+                var u32 len = [[ (THIS.cur.pub.removal and 0) or string.len(THIS.cur.pub.payload) ]];
                 PUT_HTOBE64(o.file.buffer, 0,               timestamp);
                 PUT_HTOBE64(o.file.buffer, 0+sizeof(u64),   nonce);
                 PUT_HTOBE32(o.file.buffer, 0+2*sizeof(u64), len);
@@ -761,7 +771,7 @@ do
             end
 
             // <= PAYLOAD
-            o.file.buffer = [] .. [[ THIS.cur.pub.payload ]];
+            o.file.buffer = [] .. [[ (THIS.cur.pub.removal and THIS.cur.pub.removal.hash) or THIS.cur.pub.payload ]];
             await UV_FS_Write_N(&o.file,_);
         end
 

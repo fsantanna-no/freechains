@@ -130,9 +130,9 @@ do
 
             THIS.is_removal = @is_removal
             if THIS.is_removal then
-                THIS.block.pub.remove_block = assert(FC.chain_block_get(THIS.chain, THIS.block.pub.payload))
+                THIS.block.pub.removal = assert(FC.chain_block_get(THIS.chain, THIS.block.pub.payload))
                 THIS.block.pub.payload = nil    -- payload is actually the hash of the block to remove
-                already_removed = THIS.chain.removeds and THIS.chain.removeds[THIS.block.pub.remove_block.hash]
+                already_removed = THIS.chain.removeds and THIS.chain.removeds[THIS.block.pub.removal.hash]
             end
 
             ARGS = { pub=THIS.block.pub }
@@ -143,10 +143,10 @@ do
         end
         [[
             if THIS.is_removal then
-                THIS.block.pub.remove_block.pub = nil
+                THIS.block.pub.removal.pub = nil
 
                 if THIS.chain.removeds then
-                    THIS.chain.removeds[THIS.block.pub.remove_block.hash] = nil
+                    THIS.chain.removeds[THIS.block.pub.removal.hash] = nil
                 end
             end
         ]]

@@ -142,9 +142,9 @@ do
             tcp.buffer = [] .. [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
                                [0,0,0,0];
 
-            var bool is_removal = [[ THIS.cur.pub.remove_block~=nil ]];
+            var bool is_removal = [[ THIS.cur.pub.removal~=nil ]];
             if is_removal then
-                tcp.buffer = tcp.buffer .. [[ THIS.cur.pub.remove_block.hash ]];
+                tcp.buffer = tcp.buffer .. [[ THIS.cur.pub.removal.hash ]];
             else
                 tcp.buffer = tcp.buffer .. [[ THIS.cur.pub.payload ]];
             end
@@ -283,19 +283,19 @@ do
 #endif
             chain = assert(FC.chains[THIS.message.chain.key][THIS.message.chain.zeros], 'not subscribed to |'..THIS.message.chain.key..'|'..THIS.message.chain.zeros..'|')
             THIS.pub = {
-                chain        = chain,
-                timestamp    = THIS.now,
-                nonce        = THIS.message.nonce or 0,
-                payload      = THIS.message.payload,
-                remove_block = THIS.message.remove and assert(FC.chain_block_get(chain, THIS.message.remove)),
-                hash         = nil,
+                chain     = chain,
+                timestamp = THIS.now,
+                nonce     = THIS.message.nonce or 0,
+                payload   = THIS.message.payload,
+                removal   = THIS.message.remove and assert(FC.chain_block_get(chain, THIS.message.remove)),
+                hash      = nil,
             }
             ARGS = THIS
         ]]
         await Publication_New();
         [[
-            if THIS.pub.remove_block then
-                THIS.pub.remove_block.pub = nil
+            if THIS.pub.removal then
+                THIS.pub.removal.pub = nil
             end
         ]]
         do
