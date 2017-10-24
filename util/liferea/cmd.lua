@@ -26,20 +26,25 @@ end
 
 -- subscribe
 if not cmd then
-    cmd, cfg     = string.match(url, '%?cmd=(subscribe)&cfg=(.*)')
+    cmd, cfg = string.match(url, '^/%?cmd=(subscribe)&cfg=(.*)')
 end
 if not cmd then
-    cmd, key, cfg = string.match(url, '^/%?cmd=(subscribe)&key=(.*)&cfg=(.*)')
+    key, cmd, cfg = string.match(url, '^/(.*)/%?cmd=(subscribe)&cfg=(.*)')
 end
 
 -- publish
+if not cmd then
+    -- TODO: bug in Liferea?
+    cmd, cfg = string.match(url, '^:%-1%?cmd=(publish)&cfg=(.*)')
+    key = ''
+end
 if not cmd then
     key, cmd, cfg = string.match(url, '^/(.*)/%?cmd=(publish)&cfg=(.*)')
 end
 
 -- republish
 if not cmd then
-    key, pub, cmd, cfg = string.match(url, '^/(.*)/(.*)/%?cmd=(republish)&old=(.*)&cfg=(.*)')
+    key, zeros, pub, cmd, cfg = string.match(url, '^/(.*)/(.*)/(.*)/%?cmd=(republish)&cfg=(.*)')
 end
 
 -- removal
@@ -83,9 +88,9 @@ elseif cmd == 'subscribe' then
     if not key then
         local f = io.popen('zenity --entry --title="Subscribe to Chain" --text="Enter the Chain Key:"')
         key = f:read('*a')
+        key = string.sub(key,1,-2)
         ok = f:close()
     end
-    key = string.sub(key,1,-2)
 
     local f = io.popen('zenity --entry --title="Subscribe to '..key..'/" --text="Minimum Amount of Work:" --entry-text=0')
     local zeros = f:read('*a')
@@ -95,14 +100,13 @@ elseif cmd == 'subscribe' then
         return
     end
     zeros = string.sub(zeros,1,-2)
-    zeros = assert(tonumber(zeros))
 
     if ok then
         local t = {
             cmd = 'subscribe',
             chain = {
                 key   = key,
-                zeros = zeros,
+                zeros = assert(tonumber(zeros)),
                 peers = {},
                 last  = {
                     output = {},
@@ -136,7 +140,6 @@ elseif cmd == 'publish' then
         return
     end
     zeros = string.sub(zeros,1,-2)
-    zeros = assert(tonumber(zeros))
 
     local t = {
         cmd = 'publish',
@@ -144,7 +147,7 @@ elseif cmd == 'publish' then
             version = '1.0',
             chain = {
                 key   = key,
-                zeros = zeros,
+                zeros = assert(tonumber(zeros)),
             },
             payload = payload,
         },
@@ -156,7 +159,8 @@ elseif cmd == 'publish' then
     f:close()
 
 elseif cmd == 'republish' then
-    local old_key = key
+    local old_key   = key
+    local old_zeros = zeros
     local f = io.popen('zenity --entry --title="Republish Contents" --text="Enter the Chain Key:" --entry-text="'..old_key..'"')
     local new_key = f:read('*a')
 log:write('>>>.'..new_key..'.\n')
@@ -166,6 +170,7 @@ log:write('>>>.'..new_key..'.\n')
         return
     end
     new_key = string.sub(new_key,1,-2)
+log:write('>>>.'..new_key..'.\n')
 
     local f = io.popen('zenity --entry --title="Republish to '..new_key..'/" --text="Amount of Work:" --entry-text="'..old_zeros..'"')
     local new_zeros = f:read('*a')
@@ -175,7 +180,6 @@ log:write('>>>.'..new_key..'.\n')
         return
     end
     new_zeros = string.sub(new_zeros,1,-2)
-    new_zeros = assert(tonumber(new_zeros))
 
     local t = {
         cmd = 'republish',
@@ -196,14 +200,13 @@ log:write('>>>.'..new_key..'.\n')
     f:close()
 
 elseif cmd == 'removal' then
-    zeros = assert(tonumber(zeros))
     local t = {
         cmd = 'publish',
         message = {
             version = '1.0',
             chain = {
                 key   = key,
-                zeros = zeros,
+                zeros = assert(tonumber(zeros)),
             },
             removal = FC.hex2hash(block),
         },

@@ -201,8 +201,11 @@ if cur.pub then
 
                             if cur.pub.payload then
                                 payload = payload .. [[
+
+
 -------------------------------------------------------------------------------
-- [X](freechains:/]]..chain.key..'/'..FC.hash2hex(cur.pub.hash)..[[/?cmd=republish)
+
+- [X](freechains:/]]..chain.key..'/'..chain.zeros..'/'..FC.hash2hex(cur.pub.hash)..[[/?cmd=republish)
     Republish Contents
 - [X](freechains:/]]..chain.key..'/'..chain.zeros..'/'..FC.hash2hex(cur.hash)..[[/?cmd=removal)
     Inappropriate Contents
