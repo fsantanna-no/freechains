@@ -60,7 +60,7 @@
                         key   = 'tst-aq',
                         zeros = 0,
                     },
-                    remove = FC.chains['tst-aq'][0].head.prv.hash,
+                    removal = FC.chains['tst-aq'][0].head.prv.hash,
                 }
             }
         ]]

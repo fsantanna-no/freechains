@@ -80,7 +80,7 @@ par/and do
                         key   = '',
                         zeros = 0,
                     },
-                    remove = FC.chains[''][0].head.prv.hash,
+                    removal = FC.chains[''][0].head.prv.hash,
                 }
             }
         ]]
