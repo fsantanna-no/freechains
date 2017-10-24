@@ -345,8 +345,11 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
 
         [[ ARGS = THIS ]]
         await Message10_block_recv(&outer.tcp);
-        [[ ARGS = THIS ]]
-        await Block_Check();
+        var bool is_removed = [[ THIS.block.pub==true ]];
+        if not is_removed then
+            [[ ARGS = THIS ]]
+            await Block_Check();
+        end
         [[
             if THIS.chain.head.length <= THIS.block.length then
                 THIS.chain.head = THIS.block
