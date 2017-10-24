@@ -1,4 +1,4 @@
-#define DETERMINISTIC
+//#define DETERMINISTIC
 #define DBG 0
 
 #include "common.ceu"
@@ -217,7 +217,10 @@ if cur.pub then
                             if cur.pub.payload then
                                 payload = payload .. [[
 <hr>
-<a href="freechains:]]..FC.hash2hex(cur.pub.hash)..[[/?cmd=republish&old=]]..chain.id..[[&cfg=]]..arg[1]..[[">[X]</a> Republish Contents
+<ul>
+<li> <a href="freechains:]]..FC.hash2hex(cur.pub.hash)..[[/?cmd=republish&old=]]..chain.id..[[&cfg=]]..arg[1]..[[">[X]</a> Republish Contents
+<li> <a href="freechains:]]..FC.hash2hex(cur.hash)..[[/?cmd=removal&old=]]..chain.id..[[&cfg=]]..arg[1]..[[">[X]</a> Inappropriate Contents
+</ul>
 ]]
                             end
 

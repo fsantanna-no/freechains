@@ -42,6 +42,11 @@ if not cmd then
     pub, cmd, old_id, cfg = string.match(url, '^(.*)/%?cmd=(republish)&old=(.*)&cfg=(.*)')
 end
 
+-- removal
+if not cmd then
+    block, cmd, old_id, cfg = string.match(url, '^(.*)/%?cmd=(removal)&old=(.*)&cfg=(.*)')
+end
+
 log:write('INFO: .'..cmd..'.\n')
 
 local CFG = {}
@@ -189,6 +194,27 @@ log:write('>>>.'..new_key..'.\n')
     local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
     f:write(tostring(string.len(str))..'\n'..str)
     f:close()
+
+elseif cmd == 'removal' then
+    local key,zeros = string.match(old_id,'|(.*)|(.*)|')
+    zeros = assert(tonumber(zeros))
+    local t = {
+        cmd = 'publish',
+        message = {
+            version = '1.0',
+            chain = {
+                key   = key,
+                zeros = zeros,
+            },
+            removal = FC.hex2hash(block),
+        },
+    }
+    local str = tostring2(t, 'plain')
+
+    local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
+    f:write(tostring(string.len(str))..'\n'..str)
+    f:close()
+
 end
 
 log:close()
