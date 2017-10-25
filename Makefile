@@ -1,5 +1,6 @@
 CEU_DIR    = $(error set absolute path to "<ceu>" repository)
 CEU_UV_DIR = $(error set absolute path to "<ceu-libuv>" repository)
+CEU_FC_DIR = $(error set absolute path to "<ceu-libuv>" repository)
 
 main:
 	make CEU_SRC=src/main.ceu one
@@ -34,7 +35,7 @@ ceu:
 tst-cmds-set:
 	rm -Rf /tmp/freechains/8400/
 	cp cfg/config-8400.lua.bak cfg/config-8400.lua
-	./freechains /data/ceu/ceu-libuv/ceu-libuv-freechains/cfg/config-8400.lua
+	./freechains $(CEU_FC_DIR)/cfg/config-8400.lua
 
 tst-cmds-go:
 	echo 38             > /tmp/freechains/8400/fifo.in
