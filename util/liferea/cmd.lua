@@ -98,7 +98,7 @@ elseif cmd == 'subscribe' then
     local ok = f:close()
     if not ok then
         log:write('ERR: '..zeros..'\n')
-        goto ERROR
+        goto END
     end
     zeros = string.sub(zeros,1,-2)
 
@@ -130,7 +130,7 @@ elseif cmd == 'publish' then
     local ok = f:close()
     if not ok then
         log:write('ERR: '..payload..'\n')
-        goto ERROR
+        goto END
     end
 
     local f = io.popen('zenity --entry --title="Publish to '..key..'/" --text="Amount of Work:" --entry-text=0')
@@ -138,7 +138,7 @@ elseif cmd == 'publish' then
     local ok = f:close()
     if not ok then
         log:write('ERR: '..zeros..'\n')
-        goto ERROR
+        goto END
     end
     zeros = string.sub(zeros,1,-2)
 
@@ -168,7 +168,7 @@ log:write('>>>.'..new_key..'.\n')
     local ok = f:close()
     if not ok then
         log:write('ERR: '..new_key..'\n')
-        goto ERROR
+        goto END
     end
     new_key = string.sub(new_key,1,-2)
 log:write('>>>.'..new_key..'.\n')
@@ -178,7 +178,7 @@ log:write('>>>.'..new_key..'.\n')
     local ok = f:close()
     if not ok then
         log:write('ERR: '..new_zeros..'\n')
-        goto ERROR
+        goto END
     end
     new_zeros = string.sub(new_zeros,1,-2)
 
