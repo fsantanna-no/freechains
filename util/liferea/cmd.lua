@@ -25,12 +25,14 @@ if not cmd then
     cmd, cfg = string.match(url, '%?cmd=(menu)&cfg=(.*)')
 end
 
+-- new
+if not cmd then
+    cmd, cfg = string.match(url, '^/%?cmd=(new)&cfg=(.*)')
+end
+
 -- subscribe
 if not cmd then
-    cmd, cfg = string.match(url, '^/%?cmd=(subscribe)&cfg=(.*)')
-end
-if not cmd then
-    key, cmd, cfg = string.match(url, '^/(.*)/%?cmd=(subscribe)&cfg=(.*)')
+    key, cmd, address, port, cfg = string.match(url, '^/(.*)/%?cmd=(subscribe)&peer=(.*):(.*)&cfg=(.*)')
 end
 
 -- publish
@@ -75,13 +77,54 @@ if cmd == 'menu' then
                 <updated>1970-01-02T00:00:00Z</updated>
                 <content type="html">]]..FC.escape([[
                     <ul>
-                        <li> <a href="freechains:/?cmd=subscribe&cfg=]]..cfg..[[">[X]</a> Subscribe to Chain
+                        <li> <a href="freechains:/?cmd=new&cfg=]]..cfg..[[">[X]</a> New Chain
                     </ul>]])..[[
                 </content>
             </entry>
         </feed>
     ]])
     os.exit(0)
+
+elseif cmd == 'new' then
+    local ok = true
+
+    if not key then
+        local f = io.popen('zenity --entry --title="New Chain" --text="Enter the Chain Key:"')
+        key = f:read('*a')
+        key = string.sub(key,1,-2)
+        ok = f:close()
+    end
+
+    local f = io.popen('zenity --entry --title="New Chain \"'..key..'\"" --text="Minimum Amount of Work:" --entry-text=0')
+    local zeros = f:read('*a')
+    local ok = f:close()
+    if not ok then
+        log:write('ERR: '..zeros..'\n')
+        goto END
+    end
+    zeros = string.sub(zeros,1,-2)
+
+    if ok then
+        local t = {
+            cmd = 'subscribe',
+            chain = {
+                key   = key,
+                zeros = assert(tonumber(zeros)),
+                peers = {},
+                last  = {
+                    output = {},
+                    atom   = {},
+                },
+            }
+        }
+        local str = tostring2(t, 'plain')
+
+        local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
+        f:write(tostring(string.len(str))..'\n'..str)
+        f:close()
+    else
+        log:write('ERR: '..key..'\n')
+    end
 
 elseif cmd == 'subscribe' then
     local ok = true
@@ -108,7 +151,12 @@ elseif cmd == 'subscribe' then
             chain = {
                 key   = key,
                 zeros = assert(tonumber(zeros)),
-                peers = {},
+                peers = {
+                    [1] = {
+                        address = address,
+                        port    = assert(tonumber(port)),
+                    }
+                },
                 last  = {
                     output = {},
                     atom   = {},

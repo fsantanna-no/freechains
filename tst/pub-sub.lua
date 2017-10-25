@@ -7,7 +7,7 @@
             zeros = 0,
         },
         payload = [[
-Subscribe to [oi](freechains:/oi/?cmd=subscribe).
+Subscribe to [oi](freechains:/oi/?cmd=subscribe&peer=localhost:8401).
 ]],
     },
 }
