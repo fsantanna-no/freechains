@@ -1,15 +1,11 @@
-#CEU_DIR    = $(error set absolute path to "<ceu>" repository)
-#CEU_UV_DIR = $(error set absolute path to "<ceu-libuv>" repository)
-CEU_DIR      = /data/ceu/ceu
-CEU_UV_DIR   = /data/ceu/ceu-libuv
-CEU_FC_DIR   = $(CEU_UV_DIR)/ceu-libuv-freechains
-CEU_FCFS_DIR = $(CEU_FC_DIR)/util/fcfs
+CEU_DIR    = $(error set absolute path to "<ceu>" repository)
+CEU_UV_DIR = $(error set absolute path to "<ceu-libuv>" repository)
 
 main:
-	make CEU_SRC=src/main.ceu all
+	make CEU_SRC=src/main.ceu one
 	cp /tmp/main freechains
 
-all:
+one:
 	ceu --pre --pre-args="-I$(CEU_DIR)/include -I$(CEU_UV_DIR)/include -Isrc/" \
 	          --pre-input=$(CEU_SRC)                                           \
 	    --ceu --ceu-features-lua=true --ceu-features-thread=true               \
@@ -36,11 +32,13 @@ ceu:
 			 --cc-output=/tmp/$$(basename $(CEU_SRC) .ceu);
 
 tst-cmds:
+	rm -Rf /tmp/freechains/8400/
+	cp cfg/config-8400.lua.bak cfg/config-8400.lua
 	echo 38             > /tmp/freechains/8400/fifo.in
 	cat tst/atom.lua    > /tmp/freechains/8400/fifo.in
 	echo 185            > /tmp/freechains/8400/fifo.in
 	cat tst/pub.lua     > /tmp/freechains/8400/fifo.in
-	echo 226            > /tmp/freechains/8400/fifo.in
+	echo 222            > /tmp/freechains/8400/fifo.in
 	cat tst/pub-sub.lua > /tmp/freechains/8400/fifo.in
 	echo 182            > /tmp/freechains/8400/fifo.in
 	cat tst/pub-add.lua > /tmp/freechains/8400/fifo.in
@@ -88,11 +86,11 @@ tst:
 		echo "#####################################";    \
 		echo File: "$$i";                                \
 		echo "#####################################";    \
-		make CEU_SRC=$$i all && /tmp/$$(basename $$i .ceu) || exit 1; \
+		make CEU_SRC=$$i one && /tmp/$$(basename $$i .ceu) || exit 1; \
 	done
 
 tst-run:
-	for i in tst/tst-[0-2]*.ceu tst/tst-3[0-4].ceu tst/tst-a*.ceu; do \
+	for i in tst/tst-[0-2]*.ceu tst/tst-3[0-3].ceu tst/tst-a*.ceu; do \
 		echo;                                            \
 		echo "#####################################";    \
 		echo File: "$$i";                                \
