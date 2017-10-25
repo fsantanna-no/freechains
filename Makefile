@@ -31,9 +31,12 @@ ceu:
 	    --cc --cc-args="-lm -llua5.3 -luv -lsodium -g"                         \
 			 --cc-output=/tmp/$$(basename $(CEU_SRC) .ceu);
 
-tst-cmds:
+tst-cmds-set:
 	rm -Rf /tmp/freechains/8400/
 	cp cfg/config-8400.lua.bak cfg/config-8400.lua
+	./freechains /data/ceu/ceu-libuv/ceu-libuv-freechains/cfg/config-8400.lua
+
+tst-cmds-go:
 	echo 38             > /tmp/freechains/8400/fifo.in
 	cat tst/atom.lua    > /tmp/freechains/8400/fifo.in
 	echo 185            > /tmp/freechains/8400/fifo.in

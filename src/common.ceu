@@ -240,6 +240,7 @@ do
                                 THIS.pub.timestamp = @i
                                 THIS.pub.nonce     = @j
                                 THIS.pub.hash      = @hash
+                                THIS.pub.chain.up.pubs[THIS.pub.hash] = THIS.pub
                             ]];
                         end
                         escape n_;
