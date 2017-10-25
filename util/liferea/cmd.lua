@@ -86,45 +86,67 @@ if cmd == 'menu' then
     os.exit(0)
 
 elseif cmd == 'new' then
-    local ok = true
-
-    if not key then
-        local f = io.popen('zenity --entry --title="New Chain" --text="Enter the Chain Key:"')
-        key = f:read('*a')
-        key = string.sub(key,1,-2)
-        ok = f:close()
-    end
-
-    local f = io.popen('zenity --entry --title="New Chain \"'..key..'\"" --text="Minimum Amount of Work:" --entry-text=0')
-    local zeros = f:read('*a')
+    -- get key
+    local f = io.popen('zenity --entry --title="New Chain" --text="Enter the Chain Key:"')
+    local key = f:read('*a')
+    key = string.sub(key,1,-2)
     local ok = f:close()
     if not ok then
-        log:write('ERR: '..zeros..'\n')
+        log:write('ERR: '..key..'\n')
         goto END
     end
-    zeros = string.sub(zeros,1,-2)
 
-    if ok then
-        local t = {
-            cmd = 'subscribe',
-            chain = {
-                key   = key,
-                zeros = assert(tonumber(zeros)),
-                peers = {},
-                last  = {
-                    output = {},
-                    atom   = {},
-                },
-            }
-        }
-        local str = tostring2(t, 'plain')
-
-        local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
-        f:write(tostring(string.len(str))..'\n'..str)
-        f:close()
-    else
-        log:write('ERR: '..key..'\n')
+    -- get description
+    local f = io.popen('zenity --entry --title="New Chain" --text="Enter the Chain Description:" --entry-text="Awesome chain!"')
+    local description = f:read('*a')
+    description = string.sub(description,1,-2)
+    ok = f:close()
+    if not ok then
+        log:write('ERR: '..description..'\n')
+        goto END
     end
+
+    -- subscribe
+    local t = {
+        cmd = 'subscribe',
+        chain = {
+            key   = key,
+            zeros = 0,
+            peers = {},
+            last  = {
+                output = {},
+                atom   = {},
+            },
+        }
+    }
+    local str = tostring2(t, 'plain')
+    local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
+    f:write(tostring(string.len(str))..'\n'..str)
+    f:close()
+
+    -- publish announcement to //0/
+    local t = {
+        cmd = 'publish',
+        message = {
+            version = '1.0',
+            chain = {
+                key   = '',
+                zeros = 0,
+            },
+            payload = [[
+New chain "]]..key..[[":
+
+> ]]..description..[[
+
+
+Subscribe to []]..key..[[](freechains:/]]..key..[[/?cmd=subscribe&peer=]]..(CFG.server.address or 'localhost')..':'..(CFG.server.port or 8400)..[[).
+]],
+        },
+    }
+    local str = tostring2(t, 'plain')
+    local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
+    f:write(tostring(string.len(str))..'\n'..str)
+    f:close()
 
 elseif cmd == 'subscribe' then
     local ok = true
