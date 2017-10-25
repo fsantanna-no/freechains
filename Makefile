@@ -42,7 +42,7 @@ tst-cmds-go:
 	cat tst/atom.lua    > /tmp/freechains/8400/fifo.in
 	echo 185            > /tmp/freechains/8400/fifo.in
 	cat tst/pub.lua     > /tmp/freechains/8400/fifo.in
-	echo 222            > /tmp/freechains/8400/fifo.in
+	echo 242            > /tmp/freechains/8400/fifo.in
 	cat tst/pub-sub.lua > /tmp/freechains/8400/fifo.in
 	echo 182            > /tmp/freechains/8400/fifo.in
 	cat tst/pub-add.lua > /tmp/freechains/8400/fifo.in
