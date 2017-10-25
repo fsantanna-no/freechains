@@ -90,8 +90,7 @@ par do
             f:close()
             FC.cfg_write()
 
-            os.execute('dbus-send --session --dest=org.gnome.feed.Reader /org/gnome/feed/Reader org.gnome.feed.Reader.Refresh')
-            os.execute('dbus-send --session --dest=org.gnome.feed.Reader --print-reply=literal --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Ping')
+            os.execute('dbus-send --session --dest=org.gnome.feed.Reader --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Refresh')
         ]]
 
         // persist after handling
@@ -148,6 +147,10 @@ with
                         CFG.chains[#CFG.chains+1] = ARGS.chain
                         FC.cfg_write()
                     end
+                    len = string.len(ARGS.chain.key)
+                    cmd = 'dbus-send --session --dest=org.gnome.feed.Reader --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Subscribe "string:|/bin/echo -e \\"'..(24+len)..'\\n{ cmd=\'atom\', chain=\''..ARGS.chain.key..'\' }\\" > '..CFG.dir..'/fifo.in ; sleep 1 ; cat '..CFG.dir..'/atoms/'..ARGS.chain.key..'.xml"'
+                    print(cmd)
+                    os.execute(cmd)
                 ]]
                 await Init();
             else/if is_atom then

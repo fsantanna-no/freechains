@@ -1,15 +1,16 @@
 #!/usr/bin/env lua5.3
 
-dofile '/data/ceu/ceu-libuv/ceu-libuv-freechains/src/common.lua'
+local log = assert(io.open('/tmp/log.txt','a+'))
+log:write((...)..'\n')
+
+FC_DIR = error'set absolute path to "<freechains>" source'
+dofile(FC_DIR..'/src/common.lua')
 
 --[[
 freechains://?cmd=publish&cfg=/data/ceu/ceu-libuv/ceu-libuv-freechains/cfg/config-8400.lua
 freechains::-1?cmd=publish&cfg=/data/ceu/ceu-libuv/ceu-libuv-freechains/cfg/config-8400.lua
 
 ]]
-
-local log = assert(io.open('/tmp/log.txt','a+'))
-log:write((...)..'\n')
 
 local url = string.match((...), 'freechains:(.*)')
 if not url then
