@@ -254,7 +254,7 @@ end
                         entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', 25000))
                         entry = gsub(entry, '__CONTENT__',   FC.escape([[
 <ul>
-    <li> <a href="freechains:/]]..CHAIN.key..[[/?cmd=publish&cfg=]]..arg[1]..[[">[X]</a> Publish to ]]..CHAIN.key..[[
+    <li> <a href="freechains:/]]..CHAIN.key..[[/?cmd=publish&cfg=]]..arg[1]..[[">[X]</a> Publish to "]]..CHAIN.key..[["
 </ul>
 ]]))
                         entries[#entries+1] = entry
