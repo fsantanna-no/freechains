@@ -137,21 +137,35 @@ with
             else/if is_subscribe then
                 [[
                     is_sub = false
+                    OLD = nil
                     for _, old in ipairs(CFG.chains) do
                         --assert(old.key ~= ARGS.chain.key)
                         if old.key == ARGS.chain.key then
-                            is_sub = true
+                            OLD = old
                             break
                         end
                     end
-                    if not is_sub then
+                    if OLD then
+                        for _, new in ipairs(ARGS.chain.peers) do
+                            has = false
+                            for _, old in ipairs(OLD.peers) do
+                                if new.address==old.address and new.port==old.port then
+                                    has = true
+                                    break
+                                end
+                            end
+                            if not has then
+                                OLD.peers[#OLD.peers+1] = new
+                            end
+                        end
+                    else
                         CFG.chains[#CFG.chains+1] = ARGS.chain
-                        FC.cfg_write()
                         len = string.len(ARGS.chain.key)
                         cmd = 'dbus-send --session --dest=org.gnome.feed.Reader --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Subscribe "string:|/bin/echo -e \\"'..(25+len)..'\\n{ cmd=\'atom\', chain=\''..ARGS.chain.key..'\' }\\" > '..CFG.dir..'/fifo.in ; sleep 1 ; cat '..CFG.dir..'/atoms/'..ARGS.chain.key..'.xml"'
-                        print(cmd)
+                        --print(cmd)
                         os.execute(cmd)
                     end
+                    FC.cfg_write()
                 ]]
                 await Init();
             else/if is_atom then
