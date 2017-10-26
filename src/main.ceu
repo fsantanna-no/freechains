@@ -67,7 +67,7 @@ par do
 
             f = assert(io.open(CFG.dir..'/fifo.out', 'a+'))
             local function out (cur)   -- reverse order
-                if cur.hash == (THIS.chain.cfg.last.output[cur.chain.zeros] or THIS.chain.base.hash) then
+                if cur.hash==THIS.chain.base.hash or cur.hash==THIS.chain.cfg.last.output[THIS.chain.zeros] then
                     return   -- handled previously
                 end
                 out(cur.prv)
@@ -137,7 +137,7 @@ with
             else/if is_subscribe then
                 [[
                     is_sub = false
-                    OLD = FC.chains[ARGS.chain.key].cfg
+                    OLD = FC.chains[ARGS.chain.key] and FC.chains[ARGS.chain.key].cfg
                     if OLD then
                         -- change zeros
                         OLD.zeros = (ARGS.chain.zeros or OLD.zeros)
@@ -216,7 +216,7 @@ with
                         for i=CHAIN.cfg.zeros, 255 do
                             chain = assert(CHAIN[i])
                             cur = chain.head
-                            while cur.hash ~= (chain.cfg.last.atom[chain.zeros] or chain.base.hash) do
+                            while cur.hash~=chain.base.hash and cur.hash~=chain.cfg.last.atom[chain.zeros] do
                                 assert(cur ~= chain.base)
 if cur.pub then
                                 payload = (cur.pub.payload or ('Removed publication: '..FC.hash2hex(cur.pub.removal.hash)))
