@@ -14,7 +14,6 @@
     assert(loadfile(arg[1],nil,CFG))()
 ]]
 
-event none write_ok;
 var UV_TCP_Server_Data shared = _;
 spawn Errors(&shared);
 
@@ -55,7 +54,10 @@ par do
             if has_pending then
                 break;
             else
-                emit write_ok;
+                spawn do
+                    await 5s;
+                    [[os.execute('dbus-send --session --dest=org.gnome.feed.Reader --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Refresh')]]
+                end
                 await shared.ok;
             end
         end
@@ -89,7 +91,6 @@ par do
             THIS.chain.cfg.last.output[THIS.chain.zeros] = THIS.chain.head.hash
             f:close()
             FC.cfg_write()
-
             os.execute('dbus-send --session --dest=org.gnome.feed.Reader --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Refresh')
         ]]
 
