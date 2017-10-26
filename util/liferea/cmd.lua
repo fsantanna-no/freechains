@@ -89,7 +89,9 @@ if cmd=='new' or cmd=='subscribe' then
     -- get zeros
     zeros = 0
     if cmd == 'subscribe' then
-        local f = io.popen('zenity --entry --title="Subscribe to '..key..'/" --text="Minimum Amount of Work:" --entry-text=0')
+        local chain = FC.cfg_chain(key)
+        zeros = chain and chain.zeros or 0
+        local f = io.popen('zenity --entry --title="Subscribe to '..key..'/" --text="Minimum Amount of Work:" --entry-text='..zeros)
         zeros = f:read('*a')
         local ok = f:close()
         if not ok then
