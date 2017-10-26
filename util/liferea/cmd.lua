@@ -20,17 +20,20 @@ end
 
 log:write(url..'\n')
 
--- main menu
-if not cmd then
-    cmd, cfg = string.match(url, '%?cmd=(menu)&cfg=(.*)')
-end
-
 -- new
 if not cmd then
     cmd, cfg = string.match(url, '^/%?cmd=(new)&cfg=(.*)')
 end
 
 -- subscribe
+if not cmd then
+    -- TODO: bug in Liferea?
+    cmd, cfg = string.match(url, '^:%-1%?cmd=(subscribe)&cfg=(.*)')
+    key = ''
+end
+if not cmd then
+    key, cmd, cfg = string.match(url, '^/(.*)/%?cmd=(subscribe)&cfg=(.*)')
+end
 if not cmd then
     key, cmd, address, port, cfg = string.match(url, '^/(.*)/%?cmd=(subscribe)&peer=(.*):(.*)&cfg=(.*)')
 end
@@ -57,35 +60,10 @@ end
 
 log:write('INFO: .'..cmd..'.\n')
 
-local CFG = {}
+CFG = {}
 assert(loadfile(cfg,nil,CFG))()
 
-if cmd == 'menu' then
-    print ([[
-<?xml version="1.0" encoding="utf-8"?>
-        <feed xmlns="http://www.w3.org/2005/Atom">
-
-            <title>Freechains</title>
-        <!--
-            <link href="freechains:"/>
-        -->
-            <id>http://www.freechains.org/"</id>
-
-            <entry>
-                <title>Main Menu</title>
-                <id>http://www.freechains.org/main-menu</id>
-                <updated>1970-01-02T00:00:00Z</updated>
-                <content type="html">]]..FC.escape([[
-                    <ul>
-                        <li> <a href="freechains:/?cmd=new&cfg=]]..cfg..[[">[X]</a> New Chain
-                    </ul>]])..[[
-                </content>
-            </entry>
-        </feed>
-    ]])
-    os.exit(0)
-
-elseif cmd=='new' or cmd=='subscribe' then
+if cmd=='new' or cmd=='subscribe' then
     -- get key
     if cmd == 'new' then
         local f = io.popen('zenity --entry --title="New Chain" --text="Enter the Chain Key:"')
@@ -123,7 +101,7 @@ elseif cmd=='new' or cmd=='subscribe' then
 
     -- get peers
     peers = {}
-    if cmd == 'subscribe' then
+    if cmd=='subscribe' and address and port then
         peers = {
             [1] = {
                 address = address,
@@ -152,9 +130,11 @@ elseif cmd=='new' or cmd=='subscribe' then
 
     -- publish announcement to //0/
 
-    payload = ''
-    if cmd == 'new' then
-        payload = [[
+    local was_sub = FC.cfg_chain(key)
+    if not was_sub then
+        payload = ''
+        if cmd == 'new' then
+            payload = [[
 New chain "]]..key..[[":
 
 > ]]..description..[[
@@ -162,29 +142,30 @@ New chain "]]..key..[[":
 
 Subscribe to []]..key..[[](freechains:/]]..key..[[/?cmd=subscribe&peer=]]..(CFG.server.address or 'localhost')..':'..(CFG.server.port or 8400)..[[).
 ]]
-    else
-        payload = [[
+        else
+            payload = [[
 I'm also subscribed to chain "]]..key..[[".
 
 Subscribe to []]..key..[[](freechains:/]]..key..[[/?cmd=subscribe&peer=]]..(CFG.server.address or 'localhost')..':'..(CFG.server.port or 8400)..[[).
 ]]
-    end
+        end
 
-    local t = {
-        cmd = 'publish',
-        message = {
-            version = '1.0',
-            chain = {
-                key   = '',
-                zeros = 0,
+        local t = {
+            cmd = 'publish',
+            message = {
+                version = '1.0',
+                chain = {
+                    key   = '',
+                    zeros = 0,
+                },
+                payload = payload,
             },
-            payload = payload,
-        },
-    }
-    local str = tostring2(t, 'plain')
-    local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
-    f:write(tostring(string.len(str))..'\n'..str)
-    f:close()
+        }
+        local str = tostring2(t, 'plain')
+        local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
+        f:write(tostring(string.len(str))..'\n'..str)
+        f:close()
+    end
 
 elseif cmd == 'publish' then
     local f = io.popen('zenity --text-info --editable --title="Publish to '..key..'/"')
@@ -195,8 +176,9 @@ elseif cmd == 'publish' then
         goto END
     end
 
-    local f = io.popen('zenity --entry --title="Publish to '..key..'/" --text="Amount of Work:" --entry-text=0')
-    local zeros = f:read('*a')
+    local zeros = assert(FC.cfg_chain(key)).zeros
+    local f = io.popen('zenity --entry --title="Publish to '..key..'/" --text="Amount of Work:" --entry-text='..zeros)
+    zeros = f:read('*a')
     local ok = f:close()
     if not ok then
         log:write('ERR: '..zeros..'\n')

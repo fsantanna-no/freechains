@@ -137,15 +137,12 @@ with
             else/if is_subscribe then
                 [[
                     is_sub = false
-                    OLD = nil
-                    for _, old in ipairs(CFG.chains) do
-                        --assert(old.key ~= ARGS.chain.key)
-                        if old.key == ARGS.chain.key then
-                            OLD = old
-                            break
-                        end
-                    end
+                    OLD = FC.chains[ARGS.chain.key].cfg
                     if OLD then
+                        -- change zeros
+                        OLD.zeros = (ARGS.chain.zeros or OLD.zeros)
+
+                        -- include all new peers
                         for _, new in ipairs(ARGS.chain.peers) do
                             has = false
                             for _, old in ipairs(OLD.peers) do
@@ -281,6 +278,10 @@ end
                             entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', 25000))
                             entry = gsub(entry, '__CONTENT__',   FC.escape([[
 <ul>
+]]..(CHAIN.key~='' and '' or [[
+    <li> <a href="freechains:/?cmd=new&cfg=]]..arg[1]..[[">[X]</a> New Chain
+]])..[[
+    <li> <a href="freechains:/]]..CHAIN.key..[[/?cmd=subscribe&cfg=]]..arg[1]..[[">[X]</a> Change Minimum Work for "]]..CHAIN.key..[["
     <li> <a href="freechains:/]]..CHAIN.key..[[/?cmd=publish&cfg=]]..arg[1]..[[">[X]</a> Publish to "]]..CHAIN.key..[["
 </ul>
 ]]))
