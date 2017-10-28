@@ -1,0 +1,186 @@
+#include "common.ceu"
+
+[[
+    dofile 'src/common.lua'
+    key = ''
+    zeros = 1
+    FC.chains[key] = FC.chains[key] or { pubs={} }
+    assert(not FC.chains[key][zeros])
+    local id = '|'..key..'|'..zeros..'|'
+    local new = {
+        key   = key,
+        zeros = zeros,
+        id    = id,
+        up    = FC.chains[key],
+        cfg   = nil,
+        head  = nil,
+        base  = nil,
+    }
+    FC.chains[key][zeros] = new
+]]
+
+do
+    var[HASH_BYTES] byte chain_hash;
+    _ceu_vector_setlen(&&chain_hash, HASH_BYTES, 1);
+    var[] byte chain_id = [] .. [[ FC.chains[''][1].id ]];
+    _crypto_generichash(&&chain_hash[0],HASH_BYTES, &&chain_id[0],$chain_id, null,0);
+    [[
+        FC.chains[''][1].base = {
+            hash = @chain_hash,
+            length = 0,
+        }
+        FC.chains[''][1].head = FC.chains[''][1].base
+    ]]
+end
+
+// PUBLICATION //
+
+[[
+    THIS = {
+        pub = {
+            chain     = FC.chains[''][1],
+            timestamp = 0,
+            nonce     = 0,
+            payload   = '111',
+            hash      = nil,
+        },
+    }
+    ARGS = THIS
+]]
+await Publication_New();
+[[
+    --print('>>>', THIS.pub.timestamp, THIS.pub.nonce, tostring2(THIS.pub.hash,true))
+    assert(THIS.pub.hash == '\x04\x9A\x59\xFB\x55\x8E\x02\xD4\xA3\xFC\xC5\x6E\xA6\xF7\x90\xA4\xBF\x50\x34\xCB\xC7\xB1\x1B\x70\x2B\xE9\x6B\x5C\x2E\xDD\xEB\xBA')
+    assert(THIS.pub.timestamp == 0)
+    assert(THIS.pub.nonce == 0)
+]]
+
+do
+    [[ THIS.pub.payload = '222' ]]
+    var Exception.Freechains.Malformed? e;
+    catch e do
+        await Publication_Check();
+    end
+    _ceu_assert(e?, "bug found");
+
+    [[ THIS.pub.payload = '111' ]]
+    var Exception.Freechains.Malformed? f;
+    catch f do
+        await Publication_Check();
+    end
+    _ceu_assert(not f?, "bug found");
+end
+
+// BLOCK //
+
+[[
+    THIS.block = {
+        version = '1.0',
+        timestamp   = 0,
+        nonce       = 0,
+        chain       = THIS.pub.chain,
+        pub = THIS.pub,
+        hash        = nil,
+        prv         = nil,
+        nxt         = nil,
+    }
+    FIRST = THIS.block
+    ARGS = THIS
+]]
+await Block_Hash_Link();
+[[
+    --print('>>>', THIS.block.timestamp, THIS.block.nonce, tostring2(THIS.block.hash,true))
+    assert(THIS.block.hash == '\x6F\xD2\xCC\xE9\x82\xAF\x49\xAB\xB5\xDD\x6B\x6A\x06\x76\x83\x57\x1C\x9E\xB0\x83\x37\x98\x87\xC6\xC4\x91\xB0\xA7\x24\x36\x7C\x91')
+    assert(THIS.block.timestamp == 0)
+    assert(THIS.block.nonce == 2)
+    assert(THIS.block.prv.prv == nil)
+    assert(THIS.block.nxt == nil)
+    assert(THIS.block.chain.head == THIS.block)
+]]
+
+do
+    [[
+        prv = THIS.block.prv
+        THIS.block.prv = THIS.block
+    ]]
+    var Exception.Freechains.Malformed? e;
+    catch e do
+        [[ ARGS = THIS ]]
+        await Block_Check();
+    end
+    _ceu_assert(e?, "bug found");
+
+    [[
+        THIS.block.prv = prv
+    ]]
+    var Exception.Freechains.Malformed? f;
+    catch f do
+        [[ ARGS = THIS ]]
+        await Block_Check();
+    end
+    _ceu_assert(not f?, "bug found");
+end
+
+// MESSAGES //
+
+[[
+    messages = {
+        {
+            id = '1.0',
+            chain = {
+                key   = '',
+                zeros = 1,
+            },
+            payload = '222',
+        },
+        {
+            id = '1.0',
+            chain = {
+                key   = '',
+                zeros = 1,
+            },
+            payload = '333',
+        }
+    }
+]];
+
+var int ms = [[ #messages ]];
+var int i;
+loop i in [1 -> ms] do
+    [[
+        THIS = {}
+        msg = messages[@i]
+        THIS.pub = {
+            chain     = FC.chains[msg.chain.key][msg.chain.zeros],
+            timestamp = 0,    -- TODO: 64-bit timestamp
+            nonce     = 0,
+            payload   = msg.payload,
+            hash      = nil,
+        }
+        ARGS = THIS
+    ]]
+    await Publication_New();
+    [[
+        THIS.block = {
+            version = '1.0',
+            timestamp   = 0,    -- TODO: 64-bit timestamp
+            nonce       = 0,
+            chain       = THIS.pub.chain,
+            pub = THIS.pub,
+            hash        = nil,
+            prv         = nil,
+            nxt         = nil,
+        }
+        ARGS = THIS
+    ]]
+    await Block_Hash_Link();
+end
+
+[[
+    assert(FIRST.pub.payload == '111')
+    assert(FIRST.nxt.pub.payload == '222')
+    assert(FIRST.nxt.nxt.pub.payload == '333')
+    print 'OK!'
+]]
+
+escape 0;

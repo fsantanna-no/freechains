@@ -1,0 +1,85 @@
+native/pos do
+    ##include "log.c"
+    ##include "bbfs.c"
+
+    tceu_callback_ret _ceu_callback_env (int cmd, tceu_callback_arg p1, tceu_callback_arg p2) {
+        tceu_callback_ret ret = { .is_handled=0 };
+        switch (cmd) {
+            case CEU_CALLBACK_LOG: {
+                ret.is_handled = 1;
+                switch (p1.num) {
+                    case 0:
+                        _log_msg("%s", (char*)p2.ptr);
+                        break;
+                    case 1:
+                        _log_msg("%p", p2.ptr);
+                        break;
+                    case 2:
+                        _log_msg("%d", p2.num);
+                        break;
+                }
+            }
+        }
+        return ret;
+    }
+end
+
+native/pre do
+    ##define ceu_callback_env _ceu_callback_env
+    tceu_callback_ret _ceu_callback_env (int cmd, tceu_callback_arg p1, tceu_callback_arg p2);
+    typedef struct fuse_file_info fuse_file_info_t;
+end
+
+native _fuse_file_info_t;
+input (_char&&, _fuse_file_info_t&&) BB_WRITE;
+input (_char&&, _fuse_file_info_t&&) BB_FLUSH;
+
+[[
+    DIR_SRC,DIR_DST,OUTPUT = table.unpack(arg)
+    --DIR_SRC = '/data/ceu/ceu-libuv/ceu-libuv-freechains/fuse-tutorial-2016-03-25/example/'..DIR_SRC
+    --OUTPUT = '/tmp/fifo.in'
+    FIS = {}
+]]
+
+par do
+    var _char&& path;
+    var _fuse_file_info_t&& fi;
+    every (path,fi) in BB_WRITE do
+        var u64 fh = fi:fh;
+        [[ FIS[@fh] = true ]]
+    end
+with
+    var _char&& path;
+    var _fuse_file_info_t&& fi;
+    every (path,fi) in BB_FLUSH do
+        var u64 fh = fi:fh;
+        var bool has_write = [[ FIS[@fh] == true ]];
+
+        if has_write then
+            [=[
+                FIS[@fh] = nil
+                local path = @path
+                local r = assert(io.open(DIR_SRC..path,'r'))
+                local rr = path..'\n'..r:read('*a')
+                r:close()
+                local str = [[
+MESSAGE {
+    id = '1.0',
+    chain = {
+        key   = 'fs',
+        zeros = 0,
+    },
+    payload = ]]..string.format('%q',rr)..[[,
+}
+]]
+                local f = assert(io.open(OUTPUT, 'w'))
+                f:write(string.len(str)..'\n')
+                f:write(str)
+                --print('>>> OUT >>>', string.len(str), str)
+                f:close()
+            ]=]
+        end
+    end
+with
+    {bb_main(CEU_APP.argc, CEU_APP.argv);}
+end

@@ -1,35 +1,336 @@
+//#define DETERMINISTIC
+#define DBG 0
+
 #include "common.ceu"
 
-input (int, _char&& &&) OS_START;
+[[
+    dofile 'src/common.lua'
 
-var int        argc;
-var _char&& && argv;
-(argc, argv) = await OS_START;
-if argc < 2 then
-    _fprintf(_stderr, "Usage: %s (<src.lua>)+\n", argv[0]);
-    _assert(0);
-end
+    THIS = {
+        pending = {},
+    }
 
-// load *.lua files
-loop i in argc-1 do
-    var char&& cfg = argv[i+1];
-    [[
-        dofile(@cfg)
-    ]];
-end
+    CFG = {}
+    assert(loadfile(arg[1],nil,CFG))()
+]]
 
-par/or do
-    var int err = do ClientMessages;
-    if err != _ERR_NONE then
-        await FOREVER;
+var UV_TCP_Server_Data shared = _;
+spawn Errors(&shared);
+
+await Init();
+[[
+    os.execute('mkdir -p '..CFG.dir)
+    os.execute('mkfifo '..CFG.dir..'/fifo.in')
+    os.execute('mkfifo '..CFG.dir..'/fifo.out')
+]]
+
+var[] byte ip      = [] .. [[ CFG.server.address or '0.0.0.0' ]] .. [0];
+var   int  port    = [[ CFG.server.port or 8330 ]];
+var   int  backlog = [[ CFG.server.backlog or 128 ]];
+spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
+_dbg(0, "server | listening in %s:%d", &&ip[0], port);
+
+par do
+    spawn do
+        var int  msg;
+        var bool err;
+        var int  ret;
+        every (msg,err,ret) in shared.ok do
+            if not err then
+                _ceu_assert(msg == {MESSAGE10}, "bug found");
+                if ret == {MESSAGE10_OK} then
+                    //[[ print('>>> PENDING >>>', ARGS.chain.id) ]];
+                    [[ THIS.pending[#THIS.pending+1] = ARGS.chain ]];
+                    var[256] byte id = []..[[ARGS.chain.id]]..[0];
+                    _dbg(0, "server | pending in %s", &&id[0]);
+                end
+            end
+        end
+    end
+
+    loop do
+        loop do
+            var bool has_pending = [[ #THIS.pending>0 ]];
+            if has_pending then
+                break;
+            else
+                spawn do
+                    await 5s;
+                    [[os.execute('dbus-send --session --dest=org.gnome.feed.Reader --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Refresh')]]
+                end
+                await shared.ok;
+            end
+        end
+
+        [[
+            THIS.chain = table.remove(THIS.pending,1)
+
+            f = assert(io.open(CFG.dir..'/fifo.out', 'a+'))
+            local function out (cur)   -- reverse order
+                if cur.hash==THIS.chain.base.hash or cur.hash==THIS.chain.cfg.last.output[THIS.chain.zeros] then
+                    return   -- handled previously
+                end
+                out(cur.prv)
+                local t = {
+                    version = '1.0',
+                    hash = cur.hash,
+                    timestamp = cur.timestamp,
+                    chain = {
+                        key   = cur.chain.key,
+                        zeros = cur.chain.zeros,
+                    },
+                    pub = cur.pub and {
+                        hash      = cur.pub.hash,
+                        timestamp = cur.pub.timestamp,
+                        payload   = cur.pub.payload,
+                    },
+                }
+                f:write(tostring2(t,'plain')..'\n')
+            end
+            out(THIS.chain.head)
+            THIS.chain.cfg.last.output[THIS.chain.zeros] = THIS.chain.head.hash
+            f:close()
+            FC.cfg_write()
+            os.execute('dbus-send --session --dest=org.gnome.feed.Reader --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Refresh')
+        ]]
+
+        // persist after handling
+        [[ ARGS={ chain=THIS.chain } ]];
+        await FS_write_10();
     end
 with
-    var char[] ip      = [[ APP.server.host[1] ]];
-    var int    port    = [[ APP.server.host[2] ]];
-    var int    backlog = [[ APP.server.backlog ]];
-    _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
-    do UV_TCP_Server.build(&ip, port, backlog);
-end
+    // the "par" is required because of the separated "lua[]"
+    // because of the "async/thread" because of the blocking "f:read()" that
+    // has to remain always open
+    event none ok;
 
-//_assert(0);
-escape 0;
+    var[] byte cmd;
+
+    par do
+        await ok;
+        loop do
+            [[
+                assert(load('ARGS = '..@cmd))()
+            ]]
+
+            var bool is_publish   = [[ ARGS.cmd == 'publish'   ]];
+            var bool is_republish = [[ ARGS.cmd == 'republish' ]];
+            var bool is_subscribe = [[ ARGS.cmd == 'subscribe' ]];
+            var bool is_atom      = [[ ARGS.cmd == 'atom'      ]];
+
+            if is_publish or is_republish then
+                if is_republish then
+                    [[
+                        pub = assert(FC.chains[ARGS.old.key].pubs[ARGS.hash])
+                        ARGS.message = {
+                            version = '1.0',
+                            chain   = ARGS.new,
+                            nonce   = (ARGS.new.key==ARGS.old.key and pub.nonce) or nil,
+                            payload = pub.payload,
+                        }
+                    ]]
+                end
+
+                _dbg(0, "client...");
+                await Client(&shared);
+                _dbg(0, "client | ok");
+            else/if is_subscribe then
+                [[
+                    is_sub = false
+                    OLD = FC.chains[ARGS.chain.key] and FC.chains[ARGS.chain.key].cfg
+                    if OLD then
+                        -- change zeros
+                        OLD.zeros = (ARGS.chain.zeros or OLD.zeros)
+
+                        -- include all new peers
+                        for _, new in ipairs(ARGS.chain.peers) do
+                            has = false
+                            for _, old in ipairs(OLD.peers) do
+                                if new.address==old.address and new.port==old.port then
+                                    has = true
+                                    break
+                                end
+                            end
+                            if not has then
+                                OLD.peers[#OLD.peers+1] = new
+                            end
+                        end
+                    else
+                        CFG.chains[#CFG.chains+1] = ARGS.chain
+                        len = string.len(ARGS.chain.key)
+                        cmd = 'dbus-send --session --dest=org.gnome.feed.Reader --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Subscribe "string:|/bin/echo -e \\"'..(25+len)..'\\n{ cmd=\'atom\', chain=\''..ARGS.chain.key..'\' }\\" > '..CFG.dir..'/fifo.in ; sleep 1 ; cat '..CFG.dir..'/atoms/'..ARGS.chain.key..'.xml"'
+                        --print(cmd)
+                        os.execute(cmd)
+                    end
+                    FC.cfg_write()
+                ]]
+                await Init();
+            else/if is_atom then
+                [=[
+                    TEMPLATES =
+                    {
+                        feed = [[
+                            <feed xmlns="http://www.w3.org/2005/Atom">
+                                <title>__TITLE__</title>
+                                <updated>__UPDATED__</updated>
+                                <id>
+                                    freechains:/__CHAIN_ID__/
+                                </id>
+                            __ENTRIES__
+                            </feed>
+                        ]],
+                        entry = [[
+                            <entry>
+                                <title>__TITLE__</title>
+                                <id>
+                                    freechains:/__CHAIN_ID__/__HASH__/
+                                </id>
+                                <published>__PUBLISHED__</published>
+                                <content type="html">__CONTENT__</content>
+                            </entry>
+                        ]],
+                    }
+
+                    dir = CFG.dir..'/atoms'
+                    os.execute('mkdir -p '..dir)
+                    f = assert(io.open(dir..'/'..ARGS.chain..'.xml', 'w'))
+
+                    -- TODO: hacky, "plain" gsub
+                    gsub = function (a,b,c)
+                        return string.gsub(a, b, function() return c end)
+                    end
+
+                    CHAIN = FC.chains[ARGS.chain]
+                    if not CHAIN then
+                        entries = {}
+                        entry = TEMPLATES.entry
+                        entry = gsub(entry, '__TITLE__',     'not subscribed')
+                        entry = gsub(entry, '__CHAIN_ID__',  ARGS.chain)
+                        entry = gsub(entry, '__HASH__',      string.rep('00', @HASH_BYTES))
+                        entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', os.time()))
+                        entry = gsub(entry, '__CONTENT__',   'not subscribed')
+                        entries[#entries+1] = entry
+                    else
+                        entries = {}
+
+                        for i=CHAIN.cfg.zeros, 255 do
+                            chain = assert(CHAIN[i])
+                            cur = chain.head
+                            while cur.hash~=chain.base.hash and cur.hash~=chain.cfg.last.atom[chain.zeros] do
+                                assert(cur ~= chain.base)
+if cur.pub then
+                                payload = (cur.pub.payload or ('Removed publication: '..FC.hash2hex(cur.pub.removal.hash)))
+
+                                title = FC.escape(string.match(payload,'([^\n]*)'))
+
+                                if cur.pub.payload then
+                                    payload = payload .. [[
+
+
+-------------------------------------------------------------------------------
+
+- [X](freechains:/]]..chain.key..'/'..chain.zeros..'/'..FC.hash2hex(cur.pub.hash)..[[/?cmd=republish)
+    Republish Contents
+- [X](freechains:/]]..chain.key..'/'..chain.zeros..'/'..FC.hash2hex(cur.hash)..[[/?cmd=removal)
+    Inappropriate Contents
+]]
+                                end
+
+                                -- freechains links
+                                payload = string.gsub(payload, '(%[.-%]%(freechains:.-)%)', '%1&cfg='..arg[1]..')')
+
+                                -- markdown
+                                do
+                                    local tmp = os.tmpname()
+                                    local md = assert(io.popen('pandoc -r markdown -w html > '..tmp, 'w'))
+                                    md:write(payload)
+                                    assert(md:close())
+                                    local html = assert(io.open(tmp))
+                                    payload = html:read('*a')
+                                    html:close()
+                                    os.remove(tmp)
+                                end
+
+                                payload = FC.escape(payload)
+
+                                entry = TEMPLATES.entry
+                                entry = gsub(entry, '__TITLE__',     '['..i..'] '..title)
+                                entry = gsub(entry, '__CHAIN_ID__',  chain.id)
+                                entry = gsub(entry, '__HASH__',      FC.hash2hex(cur.hash))
+                                entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', cur.pub.timestamp/1000000))
+                                entry = gsub(entry, '__CONTENT__',   payload)
+                                entries[#entries+1] = entry
+end
+                                cur = cur.prv
+                            end
+                            if chain.head.hash ~= chain.base.hash then  -- avoids polluting the cfg
+                                chain.cfg.last.atom[chain.zeros] = chain.head.hash
+                            end
+                        end
+                        FC.cfg_write()
+
+                        -- MENU
+                        do
+                            entry = TEMPLATES.entry
+                            entry = gsub(entry, '__TITLE__',     'Menu')
+                            entry = gsub(entry, '__CHAIN_ID__',  CHAIN.key)
+                            entry = gsub(entry, '__HASH__',      FC.hash2hex(string.rep('\0',@HASH_BYTES)))
+                            entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', 25000))
+                            entry = gsub(entry, '__CONTENT__',   FC.escape([[
+<ul>
+]]..(CHAIN.key~='' and '' or [[
+    <li> <a href="freechains:/?cmd=new&cfg=]]..arg[1]..[[">[X]</a> New Chain
+]])..[[
+    <li> <a href="freechains:/]]..CHAIN.key..[[/?cmd=subscribe&cfg=]]..arg[1]..[[">[X]</a> Change Minimum Work for "]]..CHAIN.key..[["
+    <li> <a href="freechains:/]]..CHAIN.key..[[/?cmd=publish&cfg=]]..arg[1]..[[">[X]</a> Publish to "]]..CHAIN.key..[["
+</ul>
+]]))
+                            entries[#entries+1] = entry
+                        end
+                    end
+
+                    feed = TEMPLATES.feed
+                    feed = gsub(feed, '__TITLE__',    ARGS.chain)
+                    feed = gsub(feed, '__UPDATED__',  os.date('!%Y-%m-%dT%H:%M:%SZ', os.time()))
+                    feed = gsub(feed, '__CHAIN_ID__', ARGS.chain)
+                    feed = gsub(feed, '__ENTRIES__',  table.concat(entries,'\n'))
+
+                    f:write(feed)
+                    f:close()
+                ]=]
+            end
+            await async do end;
+            par/and do
+                emit ok;
+            with
+                await ok;
+            end
+        end
+    with
+        var[] byte fifo_in = []..[[CFG.dir..'/fifo.in']];
+        lua[] do
+            [[
+                f = assert(io.open(@fifo_in, 'r+'))
+            ]]
+            do finalize with
+                [[ f:close() ]]
+            end
+            loop do
+                await async/thread do
+                    [[
+                        local n = f:read('l')
+                        n = assert(tonumber(n))
+                        cmd = f:read(n)
+                        print(n, cmd)
+                    ]]
+                end
+                cmd = [] .. [[ cmd ]];
+                par/and do
+                    emit ok;
+                with
+                    await ok;
+                end
+            end
+        end
+    end
+end

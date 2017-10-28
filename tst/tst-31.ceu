@@ -8,116 +8,142 @@ _srand(_time(null));
 
 #define N 10
 
-input void ANY;
-
-class Node with
-    var int i;
+code/await Node (var int i) -> none
+    throws Exception.Lua
 do
-    var App _;
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        shared.port = i;
 
-    var int local  = 8330+i;
-    var int remote = 8331+i;
-    if i == (N-1) then
-        remote = 8330;
-    end
+        var int local  = 8330+i;
+        var int remote = 8331+i;
+        if i == (N-1) then
+            remote = 8330;
+        end
 
-    [=[
-        dofile 'cfg/config.lua'
-
-        SERVER {
-            host = { '127.0.0.1', @local },
-        }
-
-        CLIENT {
-            peers = {
-                {
-                    host = { '127.0.0.1', @remote },
+        [[
+            dofile 'src/common.lua'
+            CFG = {
+                server = {
+                    address = '127.0.0.1',
+                    port    = @local,
                 },
-            },
-        }
-    ]=]
-
-    do Init;
-
-    do
-        var char[] ip      = [[ APP.server.host[1] ]];
-        var int    port    = [[ APP.server.host[2] ]];
-        var int    backlog = [[ APP.server.backlog ]];
-        _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
-        var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
-
-        loop j in N do
-            // how much time between each message?
-            await (100+_rand()%1000) ms;
-            [[
-                APP.messages = {}
-                MESSAGE {
-                    id = '1.0',
-                    chain = {
-                        key   = '',
+                chains = {
+                    not_persistency = true,
+                    [1] = {
+                        key   = 'tst-31',
                         zeros = 0,
+                        peers = {
+                            { address='127.0.0.1', port=@remote },
+                        },
                     },
-                    payload = string.format('%03d',@this.i)..'.'..string.format('%03d',@j),
-                }
-            ]];
-            do ClientMessages;
-        end
+                },
+            }
+        ]]
 
-        // wait all messages to be received
-        loop do
-            await 1s;   // periodic check (any number is ok)
-            [[
-                t = GG.chain_head_base_size(APP.chains['||0|'].head_hash)
-            ]]
-            var int size = [[ t.size ]];
-            if size == N*N+1 then
-                break;
-            end
-        end
+        await Init();
+        await 100ms;
 
-        // how much time to wait for consensus???
-        await N s;
-    end
+        do
+            var   int  port    = [[ CFG.server.port ]];
+            _dbg(3, "server | listening in 0.0.0.0:%d", port);
+            spawn UV_TCP_Server(_, port, _, _, &shared);
 
+            spawn do
+                var int  a;
+                var bool err;
+                var int  c;
+                every (a,err,c) in shared.ok do
 #if 0
 [[
-print(@this.i, '>'..string.rep('=',70))
-print(GG.chain_tostring('||0|'))
-print(@this.i, '<'..string.rep('=',70))
+print(@i, '>'..string.rep('=',70))
+print(GG.chain_tostring('|tst-31|0|'))
+print(@i, '<'..string.rep('=',70))
 ]];
 #endif
-    var char[] path = [[ '/tmp/'..string.format('%03d',@this.i)..'.chain' ]];
-    [[ ARGS = { chain_id='||0|' } ]];
-    var int ret = do FS_write_10.run(&path);
-    _assert(ret == _ERR_NONE);
+
+                    if err then
+                        _printf("server | err | %d %d %d\n", a,err,c);
+                    end
+                end
+            end
+
+            var int j;
+            loop j in [1 -> N] do
+                // how much time between each message?
+                await (_rand() % (100*N*N)) ms;
+                [[
+                    ARGS = {
+                        message = {
+                            version = '1.0',
+                            chain = {
+                                key   = 'tst-31',
+                                zeros = 0,
+                            },
+                            payload = string.format('%03d',@i)..'.'..string.format('%03d',@j),
+                        }
+                    }
+                ]];
+                await Client(&shared);
+//[[print(@i,@j, "clients") ]];
+            end
+//[[print(@i, "CLIENTS") ]];
+
+            // wait all messages to be received
+            loop do
+                await shared.ok;
+                var int length = [[ FC.chains['tst-31'][0].head.length ]];
+                if length == N*N then
+                    break;
+                end
+            end
+
+            // wait for consensus
+            loop do
+                watching shared.ok do
+                    await (N*N)s;
+                    break;
+                end
+_dbg(0, "server | shared.ok | 0.0.0.0:%d", port);
+            end
+_dbg(0, "server | END | 0.0.0.0:%d", port);
+#if 0
+[[
+print(@i, '>'..string.rep('=',70))
+print(GG.chain_tostring('|tst-31|0|'))
+print(@i, '<'..string.rep('=',70))
+]];
+#endif
+//[[print(@i, "END") ]];
+        end
+
+        [[ ARGS = { chain=FC.chains['tst-31'][0] } ]];
+        await FS_write_10();
+    end
 end
 
-pool Node[N] nodes;
+pool[N] Node nodes;
 
-loop i in N do
-    spawn Node in nodes with
-        this.i = i;
-    end;
+var int i;
+loop i in [0 -> N[ do
+    spawn Node(i) in nodes;
 end
 
 // wait all nodes to terminate
-loop do
-    await 5s;
-    var bool ok = true;
-    loop n in nodes do
-        ok = false;
-    end
-    if ok then
-        break;
-    end
+var&? Node n;
+loop n in nodes do
+    await n;
 end
 
+//_ceu_dbg_assert({BLOCKS_RECEIVED} == N*N);
+
 // assert consensus
-[[ file1 = io.open('/tmp/000.chain'):read'*a' ]]
-loop i in N do
+[[ file1 = io.open('/tmp/freechains/8330/chains/|tst-31|0|.chain'):read'*a' ]]
+var int i;
+loop i in [0 -> N[ do
     [[
-        file2 = io.open('/tmp/'..string.format('%03d',@i)..'.chain'):read'*a'
-        assert(file1 == file2)
+        file2 = io.open('/tmp/freechains/'..@(8330+i)..'/chains/|tst-31|0|.chain'):read'*a'
+        assert(file1 == file2, 'differ')
     ]]
 end
 

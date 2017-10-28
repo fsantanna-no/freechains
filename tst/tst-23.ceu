@@ -6,112 +6,113 @@
 //  - error on nonce => MALICIOUS
 ///////////////////////////////////////////////////////////////////////////////
 
-input void ANY;
-
 par/and do
 
 ///////////////////////////////////////////////////////////////////////////////
 // 0
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
-    [=[
-        dofile 'cfg/config.lua'
-
-        CLIENT {
-            peers = {
-                {
-                    host = { '127.0.0.1', '8331' },
-                },
-            },
-        }
-    ]=];
-
-    [=[
-        MESSAGE {
-            id = '1.0',
-            chain = {
-                key   = '',
-                zeros = 22,
-            },
-            payload = [[22.1]],
-        }
-    ]=];
-
-    do Init;
-
-    async do end;
-    par/and do
-        do ClientMessages;
-    with
-        // inject error on nonce
-        await UV_CONNECT;
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
         [[
-            head_hash = APP.chains['||22|'].head_hash
-            tx_hash = APP.blocks[head_hash].txs[1]
-            tx = APP.txs[tx_hash]
-            print('>>>')
-            print('\n'..tostring2(tx_hash,true))
-            print('\n'..tostring2(tx.nonce,true))
-            n1,n2 = string.sub(tx.nonce,1,15), string.sub(tx.nonce,16,16)
-            tx.nonce = n1..string.char(string.byte(n2)+1)
-            print('\n'..tostring2(tx.nonce,true))
-        ]]
+            dofile 'src/common.lua'
+            CFG = {
+                chains = {
+                    zeros_raise = TODO,     -- global and per-chain
+                    [1] = {
+                        key   = '',
+                        zeros = 0,
+                        peers = {
+                            { address='127.0.0.1', port=8331 },
+                        },
+                    },
+                },
+            }
+        ]];
+
+        await Init();
+        await 100ms;
+
+        par/and do
+            [[
+                ARGS = {
+                    message = {
+                        version = '1.0',
+                        chain = {
+                            key   = '',
+                            zeros = 22,
+                        },
+                        payload = '22.1',
+                    },
+                }
+            ]];
+            await Client(&shared);
+        with
+            // inject error on nonce
+            await UV_STREAM_CONNECT;
+            [[
+                FC.chains[''][22].head.nonce = FC.chains[''][22].head.nonce + 1
+            ]]
+        end
+
+        [[
+            CHAIN0 = FC.chain_flatten('||22|')
+            print'===> CLIENT'
+            print('>'..string.rep('=',78))
+            print(FC.chain_tostring('||22|'))
+            print('<'..string.rep('=',78))
+        ]];
     end
 
-    await 1s;
-
-    [[
-        CHAIN0 = GG.chain_flatten('||22|')
-        print'===> CLIENT'
-        print('>'..string.rep('=',78))
-        print(GG.chain_tostring('||22|'))
-        print('<'..string.rep('=',78))
-    ]];
 with
 
 ///////////////////////////////////////////////////////////////////////////////
 // 1
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
-    [[
-        dofile 'cfg/config.lua'
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        [[
+            dofile 'src/common.lua'
+            CFG = {
+                server = {
+                    address = '127.0.0.1',
+                    port    = '8331',
+                    backlog = 128,
+                },
+                chains = {
+                    zeros_raise = TODO,     -- global and per-chain
+                    [1] = {
+                        key   = '',
+                        zeros = 22,
+                    },
+                },
+            }
+        ]];
 
-        CHAINS {
-            {
-                key   = '',
-                zeros = 22,
-            },
-        }
+        await Init();
 
-        SERVER {
-            host = { '127.0.0.1', '8331' },
-        }
-    ]];
+        var[] byte ip      = [] .. [[ CFG.server.address ]] .. [0];
+        var   int  port    = [[ CFG.server.port ]];
+        var   int  backlog = [[ CFG.server.backlog ]];
+        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
+        spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
 
-    do Init;
+        await shared.ok;
+        [[
+            CHAIN1 = FC.chain_flatten('||22|')
+            print'===> SERVER-1'
+            print('>'..string.rep('=',78))
+            print(FC.chain_tostring('||22|'))
+            print('<'..string.rep('=',78))
+            assert(#FC.errs==1 and FC.errs[1]==FC['Exception.Freechains.Malformed'], #FC.errs)
+        ]];
+        [[
+            assert(#CHAIN1==1)
+            print'OK!'
+        ]];
+    end
 
-    var char[] ip      = [[ APP.server.host[1] ]];
-    var int    port    = [[ APP.server.host[2] ]];
-    var int    backlog = [[ APP.server.backlog ]];
-    _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
-    var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
-
-    await 5s;
-    [[
-        CHAIN1 = GG.chain_flatten('||22|')
-        print'===> SERVER-1'
-        print('>'..string.rep('=',78))
-        print(GG.chain_tostring('||22|'))
-        print('<'..string.rep('=',78))
-        assert(#APP.errs==1 and APP.errs[1]==GG.ERR_REMOTE_BUG_OR_MALICIOUS)
-    ]];
 end
-
-[[
-    assert(#CHAIN1==1)
-    print'OK!'
-]];
 
 escape 0;

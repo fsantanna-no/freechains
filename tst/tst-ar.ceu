@@ -1,0 +1,35 @@
+#define DETERMINISTIC
+#include "common.ceu"
+
+///////////////////////////////////////////////////////////////////////////////
+// Read from "||0|.chain"
+//  - 111,222
+//  - 333,444
+///////////////////////////////////////////////////////////////////////////////
+
+var UV_TCP_Server_Data shared = _;
+
+[[
+    dofile 'src/common.lua'
+    CFG = {
+        chains = {
+            [1] = {
+                key   = 'tst-aq',
+                zeros = 0,
+            },
+        },
+    }
+]];
+await Init();
+
+[[
+    chain = FC.chain_flatten('|tst-aq|0|')
+    print('>>>', tostring2(chain))
+    assert(not chain[2].pub)
+    assert(chain[2].hash == tostring2(FC.chains['tst-aq'][0].head.pub.removal.hash))
+    assert(chain[3].pub.payload == '1.2')
+    print('>>>', tostring2(chain))
+    print 'OK!'
+]]
+
+escape 0;

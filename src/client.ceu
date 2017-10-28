@@ -1,436 +1,338 @@
 #ifndef _CLIENT_CEU
 #define _CLIENT_CEU
 
-class Message10_tx_send with
-    var _uv_tcp_t& tcp;
-    var int        i;
-    function (_uv_tcp_t& tcp, int i)=>Message10_tx_send run;
+code/await Send_10 (var& UV_Stream tcp) -> none
+    // [[ ARGS = { chain={...} } ]]
+    throws Exception.Uv, Exception.Freechains.Malformed
 do
-    function (_uv_tcp_t& tcp, int i)=>Message10_tx_send run do
-        this.tcp = &tcp;
-        this.i   = i;
-    end
-
-    // <= TX_HASH
-    // <= TX_LEN
-    do
-        [[
-            tx_hash   = G(tcp).block.txs[@this.i+1]
-            G(tcp).tx = assert(APP.txs[tx_hash])
-            --print('[client] <= txs['..(@this.i+1)..']', string.len(G(tcp).tx.payload))
-            --print(tostring2(G(tcp).tx.hash))
-        ]];
-        var u32    payload_bytes = [[ string.len(G(tcp).tx.payload) ]];
-        var char[] bytes         = [[ G(tcp).tx.hash ]];
-        PUT_NETWORK_U32(bytes, HASH_BYTES, payload_bytes);
-        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
-
-        // => ACK-tx
-        do
-            var byte[1] recv;
-            var UV_Stream_Read reader =
-                    UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&recv);
-            do UV_Stream_ReadUntil.run(&reader, 1);
-            var int err = recv[0];
-
-            //_printf("[client] => ACK-tx = %d\n", err);
-            if err == _MESSAGE10_HAVE then
-                escape _ERR_NONE;   // next TX (not an error)
-            end
-        end
-    end
-
-    // OK: complete TX
-    //_printf("[client] <= complete...\n");
-    do
-        var byte[] bytes;
-
-        // <= NONCE
-        do
-            var char[] nonce = [[ G(tcp).tx.nonce ]];
-            bytes = []..bytes..nonce;
-            //_printf("[client] <= TIMESTAMP = %X\n", timestamp);
-        end
-
-        // <= TX_BACK_HASH
-        var char[HASH_BYTES] tx_back_hash = [[ G(tcp).tx.back_hash ]];
-        bytes = []..bytes..tx_back_hash;
-        [[
-            --print('[client] <= TX_BACK_HASH')
-            --print(tostring2(G(tcp).tx.back_hash))
-        ]]
-
-        // <= TX_PAYLOAD
-        var char[] tx_payload = [[ G(tcp).tx.payload ]];
-        bytes = []..bytes..tx_payload;
-
-        // <= PoS: TODO
-        var u8 pos = 0xEE;
-        bytes = []..bytes..[pos];
-        //_printf("TODO: POS generate!\n");
-
-        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
-    end
-
-    escape _ERR_NONE;
-end
-
-class Message10_send with
-    var _uv_tcp_t& tcp;
-    function (_uv_tcp_t& tcp)=>Message10_send run;
-do
-    function (_uv_tcp_t& tcp)=>Message10_send run do
-        this.tcp = &tcp;
-    end
+    [[
+        THIS = {
+            chain = ARGS.chain,
+        }
+    ]]
 
     ///////////////////////////////////////////////////////////////////////////
     // HEADER
     ///////////////////////////////////////////////////////////////////////////
 
     // <= MESSAGE
-    // <= CHAIN_LEN
-    // <= CHAIN_KEY
+    // <= CHAIN_KEY_LEN
+    // <= CHAIN_KEY_STR
     // <= CHAIN_ZEROS
-    // TODO: <= CHAIN_LIMITS
-    do
-        // <= MESSAGE
-        var byte[] bytes = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 1, 0];
-
-        // <= CHAIN_LEN
-        // <= CHAIN_KEY
-        // <= CHAIN_ZEROS
+    // <= CHAIN_LENGTH
+    // <= CHAIN_HEAD_HASH
+    do/_
+        tcp.buffer = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 1, 0];
         do
-            [[ chain = APP.chains[G(tcp).block.chain_id] ]];
-            var char[] chain_key   = [[ chain.key ]];
-            var int    chain_zeros = [[ chain.zeros ]];
-            var u32    chain_len   = [[ string.len(chain.key) ]];
-            _assert(chain_len<CHAIN_KEY_BYTES);
-            bytes = []..bytes..[chain_zeros,(u8)chain_len]..chain_key;
+            var u8     zeros   = [[ THIS.chain.zeros ]];
+            var[] byte key_str = [] .. [[ THIS.chain.key ]];
+            var u8     key_len = [[ string.len(THIS.chain.key) ]];
+            var u64    length  = [[ THIS.chain.head.length ]];
+            _ceu_assert(key_len<CHAIN_KEY_BYTES, "bug found");
+            tcp.buffer = tcp.buffer .. [key_len as byte] .. key_str .. [zeros as byte] .. [0,0,0,0,0,0,0,0];
+            PUT_HTOBE64(tcp.buffer, $tcp.buffer-sizeof(u64), length);
         end
+        tcp.buffer = tcp.buffer .. [[ THIS.chain.head.hash ]];
 
-        do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
+        await UV_Stream_Write_N(&tcp,_);
 
         // => ACK-header
-        do
-            var byte[1] recv;
-            var UV_Stream_Read reader =
-                    UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&recv);
-            do UV_Stream_ReadUntil.run(&reader, 1);
-            var int ret = recv[0];
+        do/_
+            await UV_Stream_Read_N(&tcp, 1);
+            var byte ret = tcp.buffer[0];
+            $tcp.buffer = $tcp.buffer - 1;
 
-            _dbg_tcp(0, &&this.tcp, "client", "=> ACK-header = %d", ret);
+            _dbg_tcp(3, &&tcp.handle, "client", "=> ACK-header = %d", ret);
 
-            if ret == _MESSAGE10_NOTSUB then
-                escape ret;
-            else
+            if ret == {MESSAGE10_OK} then
                 // OK: proceed to BLOCKS
+            else/if ret=={MESSAGE10_NOTSUB} or ret=={MESSAGE10_HAVE} then
+                escape;
+            else
+                var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+                throw e;
             end
         end
     end
 
     ///////////////////////////////////////////////////////////////////////////
     // BLOCKS
+    // - first, reads hashes from head -> genesis until finds common block
+    // - then, writes from common.nxt -> head
     ///////////////////////////////////////////////////////////////////////////
+
+    // TODO: PoS: before/after each block? once per block?
+
+    loop do
+        // => HASH
+        await UV_Stream_Read_N(&tcp, HASH_BYTES);
+        do
+            var[] byte str = [] .. [[ tostring2(@tcp.buffer) ]] .. [0];
+            _dbg_tcp(3, &&tcp.handle, "client", "=> BLOCK_HASH? : %s", &&str[0]);
+        end
+        [[
+            THIS.cur = FC.chain_block_get(THIS.chain,@tcp.buffer)
+        ]]
+        var bool has = [[ THIS.cur~=nil ]];
+        var int ret = do
+            if has then
+                escape {MESSAGE10_HAVE};
+            else
+                escape {MESSAGE10_OK};
+            end
+        end;
+        tcp.buffer = [ret];
+        // <= ACK-HASH
+        _dbg_tcp(3, &&tcp.handle, "client", "<= ACK-BLOCK_HASH? : %d", ret);
+        await UV_Stream_Write_N(&tcp,_);
+        if has then
+            [[
+                THIS.common = THIS.cur
+            ]]
+            break;
+        end
+    end
+
+    [[ THIS.cur = THIS.common.nxt ]];
+
+    var int i;
     loop i do
+        var bool should_stop = [[ THIS.cur==nil ]];
+        if should_stop then
+            break;
+        end
+
         // <= BLOCK_HASH
-        // <= BLOCK_TXS_N
+        // <= TIMESTAMP + NONCE
+        // <= PUBLICATION_HASH (maybe removed)
+        // <= PRV_HASH
         do
-            var byte[] bytes;
+            tcp.buffer = [] .. [[ THIS.cur.hash ]] .. 
+                               [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
+                               [[ (THIS.cur.pub and THIS.cur.pub.hash) or string.rep('\0',@HASH_BYTES) ]] ..
+                               [[ THIS.cur.prv.hash ]];
+            do
+                var u64 timestamp = [[ THIS.cur.timestamp ]];
+                var u64 nonce     = [[ THIS.cur.nonce     ]];
+                PUT_HTOBE64(tcp.buffer, HASH_BYTES, timestamp);
+                PUT_HTOBE64(tcp.buffer, HASH_BYTES+sizeof(u64), nonce);
 
-            // <= BLOCK_HASH
-            var char[HASH_BYTES] block_hash = [[ G(tcp).block.hash ]];
-            bytes = []..bytes..block_hash;
-            var char[] str = [[ tostring2(G(tcp).block.hash) ]];
-            _dbg_tcp(0, &&this.tcp, "client", "<= BLOCKS[%d] : %s", i, (_char&&)&&str);
+                var[] byte str = [] .. [[ tostring2(THIS.cur.hash) ]] .. [0];
+                _dbg_tcp(3, &&tcp.handle, "client", "<= BLOCK_HASH : %s", &&str[0]);
+                _dbg_tcp(3, &&tcp.handle, "client", "<= TIMESTAMP/NONCE : %ld %ld", timestamp,nonce);
+            end
 
-            // <= BLOCK_TXS_N
-            var u32 txs_n = [[ #G(tcp).block.txs ]];
-            PUT_NETWORK_U32(bytes, $bytes, txs_n);
-
-            do UV_Stream_Write.build(&_UV_STREAM_ALIAS(this.tcp), &bytes);
+            await UV_Stream_Write_N(&tcp,_);
         end
 
-        // => ACK-block
+        // => ACK-PUBLICATION-HASH
+        var bool send_pub = do
+            await UV_Stream_Read_N(&tcp, 1);
+            var byte ret = tcp.buffer[0];
+            if ret == {MESSAGE10_HAVE} then
+                escape false;
+            else/if ret == {MESSAGE10_OK} then
+                escape true;
+            else
+                var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+                throw e;
+            end
+        end;
+        if send_pub then
+            tcp.buffer = [] .. [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
+                               [0,0,0,0];
+
+            var bool is_removal = [[ THIS.cur.pub.removal~=nil ]];
+            if is_removal then
+                tcp.buffer = tcp.buffer .. [[ THIS.cur.pub.removal.hash ]];
+            else
+                tcp.buffer = tcp.buffer .. [[ THIS.cur.pub.payload ]];
+            end
+
+            var u64 timestamp   = [[ THIS.cur.pub.timestamp ]];
+            var u64 nonce       = [[ THIS.cur.pub.nonce     ]];
+            var u32 payload_len = [[ (@(is_removal) and 0) or string.len(THIS.cur.pub.payload) ]];
+            PUT_HTOBE64(tcp.buffer, 0, timestamp);
+            PUT_HTOBE64(tcp.buffer, sizeof(u64), nonce);
+            PUT_HTOBE32(tcp.buffer, 2*sizeof(u64), payload_len);
+
+            await UV_Stream_Write_N(&tcp,_);
+        end
+
+/*
+        // => ACK-BLOCK
+        // TODO: good place for PoS
         do
-            var byte[1] recv;
-            var UV_Stream_Read reader =
-                    UV_Stream_Read.build(&_UV_STREAM_ALIAS(this.tcp),&recv);
-            do UV_Stream_ReadUntil.run(&reader, 1);
-            var int ret = recv[0];
+            await UV_Stream_Read_N(&tcp, 1);
+            var byte ret = tcp.buffer[0];
+            $tcp.buffer = $tcp.buffer - 1;
 
-            _dbg_tcp(0, &&this.tcp, "client", "=> ACK-block = %d", ret);
-
-            if ret == _MESSAGE10_HAVE then
-                break;  // found common block
+            //_printf("[client] => ACK-tx = %d\n", ret);
+            if ret != {MESSAGE10_OK} then
+                var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+                throw e;
             end
         end
+*/
 
-        ///////////////////////////////////////////////////////////////////////
-        // TXS
-        ///////////////////////////////////////////////////////////////////////
-        var u32 txs_n = [[ #G(tcp).block.txs ]];
-        _dbg_tcp(0, &&tcp, "client", "<= %d txs", txs_n);
-        loop j in txs_n do
-            var int err = do Message10_tx_send.run(&tcp,j);
-            if err != _ERR_NONE then
-                escape err;
-            end
-        end
-
-        // next block
-        var bool has = [[ G(tcp).block.tail_hash ~= nil ]];
-        if not has then
-            escape _ERR_REMOTE_BUG_OR_MALICIOUS; // "genesis" always HAVE
-        end
-        [[ G(tcp).block = assert(APP.blocks[G(tcp).block.tail_hash]) ]];
+        [[ THIS.cur = THIS.cur.nxt ]];
     end
-
-    escape _ERR_NONE;
 end
 
-interface PeerListener with
-    event int ok;
-end
-
-class PeerSend with
-    // [[ ARGS = { peer=?, block=? } ]]
-input:
-    var PeerListener& client;
-
-    function (PeerListener& client)=>PeerSend run;
+code/await Peer_10 (none) -> none
+    // [[ ARGS = { peer={...}, chain={...} } ]]
 do
-    function (PeerListener& client)=>PeerSend run do
-        this.client = &client;
-    end
-
-_CLIENTS_ALIVE = _CLIENTS_ALIVE + 1;
-finalize with
-    _CLIENTS_ALIVE = _CLIENTS_ALIVE - 1;
-end
-
-    var char[] ip   = [[ ARGS.peer.host[1] ]];
-    var int    port = [[ ARGS.peer.host[2] ]];
-    _dbg(2, "client:%p | connecting to %s:%d", &&this, (_char&&)&&ip, port);
-    var UV_TCP_Client c = UV_TCP_Client.build(&ip, port);
-
     [[
-        G(c.tcp) = {
-            block = ARGS.block,
+        THIS = {
+            peer  = ARGS.peer,
+            chain = ARGS.chain,
         }
     ]];
 
-    var bool is_10 = [[ G(c.tcp).block~=nil and G(c.tcp).block.id=='1.0' ]];
-    // ...
-
-    var int err =
-    do
-        var int err_ = await c.ok;
-        if err_ != _ERR_NONE then
-            escape err_;
-        end
-
-        _dbg(2, "client:%p | connected to %s:%d", &&this, (_char&&)&&ip, port);
-        watching err_ in c do
-            err_ = _ERR_NONE;
-            if is_10 then
-                err_ = do Message10_send.run(&c.tcp);
-            else
-                // ...
-                err_ = _ERR_MESSAGE;
-            end
-            escape err_;
-        end
-        escape err_;
-// TODO: usar erro de c
-        //escape _ERR_DISCONNECTED;
-    end;
-
-    _dbg(2, "client:%p | disconnected from %s:%d", &&this, (_char&&)&&ip, port);
-    if err != _ERR_NONE then
-#ifdef DBG
-        _dbg(3, "client:%p | %s", &&this, _uv_strerror(err));
-#endif
-#ifdef FREECHAINS_NO_MALICIOUS
-        _assert(0);
-#endif
-    end
-    emit client.ok => err;
-    escape err;
+{CLIENTS_ALIVE++;}
+do finalize with
+    {CLIENTS_ALIVE--;}
 end
 
-class Client with
-    interface PeerListener;
-    // [[ ARGS = { chain=?, block=? } ]]
-do
-    [[ G(this) = ARGS ]];
+    var[] byte ip   = [] .. [[ THIS.peer.address ]] .. [0];
+    var   int  port = [[ THIS.peer.port ]];
+    _dbg(2, "client:%p | connecting to %s:%d", {&_ceu_mem}, &&ip[0], port);
 
-    // LOCK: only one "send" per chain
-    do
-        var bool is_locked = [[ G(this).chain.send_is_locked ]];
-        if is_locked then
-            loop do
-                par/or do
-                    await global:send_chain_unlocked;
-                with
-                    await 1s;
-                end
-                is_locked = [[ G(this).chain.send_is_locked ]];
-                if not is_locked then
-                    break;
-                end
-            end
+    var Exception.Uv? e1;
+    var Exception.Freechains? e2;
+    catch e1,e2 do
+        var& UV_TCP_Connect c = spawn UV_TCP_Connect(&&ip[0], port, _);
+
+        do finalize with
+            _dbg(2, "client:%p | disconnected from %s:%d", {&_ceu_mem}, &&ip[0], port);
         end
-        [[ G(this).chain.send_is_locked = true ]];
-    end
 
-// TODO: primitive "lock"
+        await c.ok;
+        _dbg(2, "client:%p | connected to %s:%d", {&_ceu_mem}, &&ip[0], port);
+
+        [[ ARGS = THIS ]]
+        await Send_10(&c.stream);
+    end
+    if e1? then
+        _dbg(3, "client:%p | %s", {&_ceu_mem}, e1!.message);
+    else/if e2? then
+        _dbg(3, "client:%p | %s", {&_ceu_mem}, e2!.message);
+    end
+end
+
+code/await Client_10 (var& UV_TCP_Server_Data shared) -> none
+    // [[ ARGS = { chain={...} } ]]
 do
-#if 0
-    lock X do
-        finalize with
-            ...
-        end
-        ...
-    end
-#endif
+    [[
+        THIS = {
+            chain = ARGS.chain,
+        }
+    ]];
 
-    finalize with
-        //var bool is_locked = [[ G(this).chain.send_is_locked ]];
-        //_assert(not is_locked);
-        [[ G(this).chain.send_is_locked = false ]];
-    end
-
-    var int ps = [[#APP.client.peers]];
-    var int ps_ok = 0;
-    loop i in ps do
-        [[
-            peer = APP.client.peers[@(i+1)]
-            ok = false
-            for _, chain in pairs(peer.chains) do
-                if chain.key==G(this).chain.key and
-                   chain.zeros<=G(this).chain.zeros then
-                    ok = true
-                    break
-                end
-            end
-        ]];
-        var bool ok_ = [[ ok ]];
-        if ok_ then
-            ps_ok = ps_ok + 1;
+    var int ps = [[THIS.chain.cfg.peers and #THIS.chain.cfg.peers or 0]];
+    var int i;
+    pool[] Peer_10 peers;
+    loop i in [1 -> ps] do
+        var bool min_zeros = [[ THIS.chain.zeros >= (THIS.chain.cfg.peers[@i].zeros or 0) ]];
+        if min_zeros then
             [[
                 ARGS = {
-                    peer  = peer,
-                    --block = G(this).block,
-                    block = APP.blocks[G(this).chain.head_hash],
+                    peer  = THIS.chain.cfg.peers[@i],
+                    chain = THIS.chain,
                 }
-            ]];
-            var PeerSend&&? p = spawn PeerSend.run(&this);
-            _assert(p! != null);
+            ]]
+            var&? Peer_10 p = spawn Peer_10() in peers;
+            _ceu_assert(p?, "bug found");
         end
     end
-    _dbg(0, "client:%p | broadcasting messages to %d peer(s)", &&this, ps_ok);
-    loop i in ps_ok do
-        var int err = await this.ok;
-        _dbg(0, "client:%p | peer %d", &&this, err);
+    var[] byte id = [] .. [[ THIS.chain.id ]] .. [0];
+    _dbg(3, "client:%p | broadcasting %s messages to (max) %d peer(s)", {&_ceu_mem}, &&id[0], ps);
+    do finalize with
+        _dbg(3, "client:%p | broadcasts OK", {&_ceu_mem});
     end
-    _dbg(0, "client:%p | broadcasts OK", &&this);
-
-    // UNLOCK "send"
-    [[ G(this).chain.send_is_locked = false ]];  // TODO: remove?
-end
-    emit global:send_chain_unlocked;
-
-    // go_client
-    async do end;   // HACK_1
-
-    escape _ERR_NONE;   // trasmitted messages
+    var&? Peer_10 p;
+    loop p in peers do
+        await p;
+        //_dbg(0, "client:%p | peer %d", {&_ceu_mem}, err);
+    end
 end
 
-class ClientMessages with
+code/await Client (var& UV_TCP_Server_Data shared) -> none
+    // [[ ARGS = { message={...} } ]]
+    throws Exception.Freechains.Unsupported
 do
-    var int ms = [[ #APP.messages ]];
-    if ms == 0 then
-        await FOREVER;  // server mode: don't let application terminate
-    end
-
     // client mode: terminates
 
     [[
-        -- id = 1.0
-        block = {
-            id        = nil,
-            chain_id  = nil,
-            txs       = { },
-            hash      = nil,
-            up_hash   = nil,
-            tail_hash = nil,
+        THIS = {
+            message = ARGS.message,
         }
-    ]]
-    finalize with
-        [[ APP.messages = {} ]];
-    end
 
-    var bool is_10 = [[ APP.messages[1].id=='1.0' ]];
+        assert(type(THIS.message)=='table', 'missing message')
+        assert(type(THIS.message.chain)=='table', 'missing chain')
+    ]];
 
-    loop i in ms do
-        [[
-            msg = APP.messages[@i+1]
-            assert(type(msg)=='table')
-            assert(msg.id == APP.messages[1].id)    -- all must be the same
-        ]];
-
-        if is_10 then
-            [[
-                block.id = '1.0'
-
-                assert(type(msg.chain)=='table')
-
-                chain = assert( GG.chain_parse_get(msg.chain) )
-                if (@i) == 0 then
-                    block.chain_id = chain.id
-                else
-                    assert(chain.id == block.chain_id)
-                end
-
-                head_hash = chain.head_hash
-                txs_back  = APP.blocks[head_hash].txs
-
-                block.txs[#block.txs+1] = {
-                    nonce     = nil,
-                    back_hash = txs_back[#txs_back],
-                    payload   = msg.payload,
-                }
-            ]];
-        end
-    end
+    var bool is_10 = [[ THIS.message.version=='1.0' ]];
 
     if is_10 then
-        [[ ARGS = { block=block } ]];
-        var int ret = do BlockHash with
-            this.source = SourceBlockHash.NEW();
-            // returns [[ ARGS = { block=block } ]];
-        end;
-        _assert(ret == _ERR_NONE);
         [[
-            block = ARGS.block
-            chain = APP.chains[block.chain_id]
-
-            -- last thing of BlockHash, no await in between
-            assert(block.tail_hash == chain.head_hash)
-
-            APP.blocks[chain.head_hash].up_hash = block.hash
-            chain.head_hash = block.hash
-
-            ARGS.app = APP
-            ARGS.chain_id = ARGS.block.chain_id
-        ]];
-        emit global:go_client;
-        await 100ms;
+#ifdef DETERMINISTIC
+            THIS.now = 0
+#else
+            THIS.now = os.time() * 1000000      -- in ms since the epoch
+#endif
+            chain = assert(FC.chains[THIS.message.chain.key][THIS.message.chain.zeros], 'not subscribed to |'..THIS.message.chain.key..'|'..THIS.message.chain.zeros..'|')
+            THIS.pub = {
+                chain     = chain,
+                timestamp = THIS.now,
+                nonce     = THIS.message.nonce or 0,
+                payload   = THIS.message.payload,
+                removal   = THIS.message.removal and assert(FC.chain_block_get(chain, THIS.message.removal)),
+                hash      = nil,
+            }
+            ARGS = THIS
+        ]]
+        await Publication_New();
+        [[
+            if THIS.pub.removal then
+                THIS.pub.removal.pub = nil
+            end
+        ]]
+        do
+            [[ ARGS = { chain=THIS.pub.chain } ]]
+            CHAIN_LOCK(l, shared, "lock_write");
+            [[
+                THIS.block = {
+                    version     = '1.0',
+                    timestamp   = THIS.now,
+                    nonce       = 0,
+                    chain       = THIS.pub.chain,
+                    pub         = THIS.pub,
+                    hash        = nil,
+                    prv         = nil,
+                    nxt         = nil,
+                    length      = nil,
+                }
+                ARGS = THIS
+            ]]
+            await Block_Hash_Link();
+        end
+        do
+            [[
+                THIS = { chain=THIS.block.chain }
+                ARGS = THIS
+            ]];
+            CHAIN_LOCK(l, shared, "lock_send");
+            await Client_10(&shared);
+        end
+        [[
+            ARGS = THIS
+        ]]
+        emit shared.ok({MESSAGE10}, false, {MESSAGE10_OK});
     else
-        _assert(0);  // message not supported
+        var Exception.Freechains.Unsupported e = val Exception.Freechains.Unsupported(_);
+        throw e;
     end
-
-    escape _ERR_NONE;
 end
 
 #endif

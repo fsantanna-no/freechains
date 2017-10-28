@@ -5,7 +5,8 @@
 //  - channel 'hello'
 ///////////////////////////////////////////////////////////////////////////////
 
-input void ANY;
+var[] byte chain1;
+var[] byte chain2;
 
 par/and do
 
@@ -13,90 +14,102 @@ par/and do
 // 0
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
-    [=[
-        dofile 'cfg/config.lua'
-
-        CHAINS {
-            {
-                key   = 'hello',
-                zeros = 0,
-            },
-        }
-
-        CLIENT {
-            peers = {
-                {
-                    host = { '127.0.0.1', '8331' },
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        [[
+            dofile 'src/common.lua'
+            CFG = {
+                chains = {
+                    zeros_raise = TODO,     -- global and per-chain
+                    [1] = {
+                        key   = 'hello',
+                        zeros = 0,
+                        peers = {
+                            { address='127.0.0.1', port=8331 },
+                        },
+                    },
                 },
-            },
-        }
+            }
+        ]]
 
-        MESSAGE {
-            id = '1.0',
-            chain = {
-                key   = 'hello',
-                zeros = 0,
-            },
-            payload = [[
+        await Init();
+        await 100ms;
+
+        [=[
+            ARGS = {
+                message = {
+                    version = '1.0',
+                    chain = {
+                        key   = 'hello',
+                        zeros = 0,
+                    },
+                    payload = [[
 Ola Mundo!
 ]],
-        }
-    ]=];
+                }
+            }
+        ]=];
+        await Client(&shared);
 
-    do Init;
+        [[
+            chain1 = FC.chain_flatten('|hello|0|')
+            print'===> CLIENT'
+            print('>'..string.rep('=',78))
+            print(FC.chain_tostring('|hello|0|'))
+            print('<'..string.rep('=',78))
+        ]];
+        chain1 = []..[[tostring2(chain1)]];
+    end
 
-    async do end;
-    do ClientMessages;
-    await 1s;
-
-    [[
-        CHAIN1 = GG.chain_flatten('|hello|0|')
-        print'===> CLIENT'
-        print('>'..string.rep('=',78))
-        print(GG.chain_tostring('|hello|0|'))
-        print('<'..string.rep('=',78))
-    ]];
 with
 
 ///////////////////////////////////////////////////////////////////////////////
 // 1
 ///////////////////////////////////////////////////////////////////////////////
 
-    var App _;
-    [[
-        dofile 'cfg/config.lua'
-        CHAINS {
-            {
-                key   = 'hello',
-                zeros = 0,
+    lua[] do
+        var UV_TCP_Server_Data shared = _;
+        [[
+            dofile 'src/common.lua'
+            CFG = {
+                server = {
+                    address = '127.0.0.1',
+                    port    = '8331',
+                    backlog = 128,
+                },
+                chains = {
+                    zeros_raise = TODO,     -- global and per-chain
+                    [1] = {
+                        key   = 'hello',
+                        zeros = 0,
+                    },
+                },
             }
-        }
-        SERVER {
-            host = { '127.0.0.1', '8331' },
-        }
-    ]];
+        ]];
 
-    do Init;
+        await Init();
 
-    var char[] ip      = [[ APP.server.host[1] ]];
-    var int    port    = [[ APP.server.host[2] ]];
-    var int    backlog = [[ APP.server.backlog ]];
-    _dbg(0, "server | listening in %s:%d", (_char&&)&&ip, port);
-    var UV_TCP_Server _ = UV_TCP_Server.build(&ip, port, backlog);
+        var[] byte ip      = [] .. [[ CFG.server.address ]] .. [0];
+        var   int  port    = [[ CFG.server.port ]];
+        var   int  backlog = [[ CFG.server.backlog ]];
+        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
+        spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
 
-    await 1s;
-    [[
-        CHAIN2 = GG.chain_flatten('|hello|0|')
-        print'===> SERVER'
-        print('>'..string.rep('=',78))
-        print(GG.chain_tostring('|hello|0|'))
-        print('<'..string.rep('=',78))
-    ]];
+        await shared.ok;
+        [[
+            chain2 = FC.chain_flatten('|hello|0|')
+            print'===> SERVER'
+            print('>'..string.rep('=',78))
+            print(FC.chain_tostring('|hello|0|'))
+            print('<'..string.rep('=',78))
+        ]];
+        chain2 = []..[[tostring2(chain2)]];
+    end
+
 end
 
 [[
-    assert( tostring2(CHAIN1) == tostring2(CHAIN2) )
+    assert(@chain1 == @chain2)
     print'OK!'
 ]]
 

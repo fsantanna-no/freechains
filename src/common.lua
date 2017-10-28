@@ -1,184 +1,66 @@
---assert = function (...) return (...) end
-
-GG = {}
-
-function app_create ()
-    return {
-        server   = {},  -- server configurations
-        client   = {},  -- client configurations
-        chains   = {},  -- chains configurations
-        messages = {},  -- pending messages to transmit
-        blocks = {      -- blocks in memory
-            --[hash] = {
-            --    hash      = nil,
-            --    up_hash   = nil,
-            --    tail_hash = nil,
-            --    txs       = { tx_hash1, tx_hash2, ... },
-            --},
-            --...
-        },
-        txs = {         -- txs in memory
-            --[hash] = {
-            --    hash    = nil,
-            --    nonce   = nil,
-            --    bytes   = nil,
-            --    payload = nil,
-            --}
-        },
-        gs = {          -- ceu->lua globals
-            --[usedata-k] = {}
-        },
-        errs = {
-            -- NOTSUB, etc
-        },
-    }
-end
-
-APP = app_create()
-
-function CHAINS (t)
-    APP.chains = {}
-    assert(type(t) == 'table')
-    for _,chain in ipairs(t) do
-        for i=chain.zeros,255 do
-            local new = {}
-            for k,v in pairs(chain) do new[k]=v end
-            new.zeros = i
-            local c = GG.chain_parse_get(new)
-            APP.chains[new.id] = (c or new)
-            APP.chains[#APP.chains+1] = APP.chains[new.id]
-        end
-    end
-end
-
-function SERVER (t)
-    assert(type(t) == 'table')
-    for k,v in pairs(t) do
-        APP.server[k] = v
-    end
-end
-
-function CLIENT (t)
-    assert(type(t) == 'table')
-    for k, v in pairs(t) do
-        APP.client[k] = v
-    end
-    t = APP.client
-    assert(type(t.peers) == 'table')
-
-    for _, peer in ipairs(t.peers) do
-        assert(type(peer) == 'table')
-        if peer.chains then
-            assert(type(peer.chains) == 'table')
-            for _,chain in ipairs(peer.chains) do
-                local c = GG.chain_parse_get(chain)
-                assert(c)   -- must already exist
-            end
-        else
-            peer.chains = APP.chains
-        end
-    end
-end
-
-function BLOCKS (t)
-    --
-end
-
-function MESSAGE (t)
-    APP.messages[#APP.messages+1] = t
-end
+FC = {
+    chains = {
+        --[id] = {...}
+    },
+    errs = {
+        -- NOTSUB, etc
+    },
+}
 
 -------------------------------------------------------------------------------
 
-function GG.chain_parse_get (chain)
-    assert(type(chain) == 'table')
-    assert(type(chain.key)   == 'string')
-    assert(type(chain.zeros) == 'number')
-    if chain.key == '' then
-        assert(chain.zeros < 256)
-    end
-    chain.id = '|'..chain.key..'|'..chain.zeros..'|'
-    return APP.chains[chain.id]
-end
-
-function GG.chain_head_base_size (head_hash)
-    local head = APP.blocks[head_hash]
-    local cur  = head
-    local size = 1  -- genesis TX
-    while cur.tail_hash do
-        size = size + #cur.txs
-        cur = APP.blocks[cur.tail_hash]
-    end
-    return {
-        base = cur,
-        head = head,
-        size = size,     -- TODO: #payload
-    }
-end
-
--- TODO: go back only TODO jumps
-function GG.chain_tx_contains (head_hash, tx_hash)
-    local cur = APP.blocks[head_hash]
-    while cur.tail_hash do
-        for _, tx_hash_i in ipairs(cur.txs) do
-            if tx_hash_i == tx_hash then
-                return true
-            end
+function FC.chain_block_get (chain, hash)
+    local cur = chain.head
+    while cur do
+        if cur.hash == hash then
+            return cur
         end
-        cur = APP.blocks[cur.tail_hash]
+        cur = cur.prv
     end
-    return false
+    return nil
 end
 
-function GG.chain_flatten (chain_id)
-    local chain = assert(APP.chains[chain_id],chain_id)
-    local head = APP.blocks[chain.head_hash]
+function FC.chain_flatten (id)
+    local key,zeros = string.match(id,'|(.*)|(.*)|')
+    local chain = assert(FC.chains[key][tonumber(zeros)])
+    local cur = chain.head
     local T = {}
-    while head do
+    while cur do
         local t = {
-            hash = tostring2(head.hash),
-            txs  = {},
+            hash = tostring2(cur.hash),
+            length = cur.length,
+            pub = cur.pub and {
+                hash    = cur.pub.hash,
+                payload = cur.pub.payload,
+            },
         }
         table.insert(T, 1, t)
-        for i, tx in ipairs(head.txs) do
-            local str = string.sub(APP.txs[tx].payload,1,10)
-                  str = string.gsub(str,'%c','.')
-            t.txs[i] = string.sub(str,1,10)
-        end
-        head = APP.blocks[head.tail_hash]
+        cur = cur.prv
     end
     return T
 end
 
-function GG.chain_tostring (chain_id)
-    return tostring2(GG.chain_flatten(chain_id))
+function FC.chain_tostring (id)
+    return tostring2(FC.chain_flatten(id))
 end
 
---[[
-function GG.chain_check (chain_id)
-    local str1 = GG.chain_tostring(chain_id)
+-------------------------------------------------------------------------------
 
-    base = GG.chain_head_base_size(APP.chains[chain_id].head_hash).base
-    T = {}
-    while base do
-        local t = {
-            hash = tostring2(base.hash),
-            txs  = {},
-        }
-        table.insert(T, t)
-        for i, tx in ipairs(base.txs) do
-            local str = string.sub(APP.txs[tx].payload,1,10)
-                  str = string.gsub(str,'%c','.')
-            t.txs[i] = string.sub(str,1,10)
-        end
-        base = APP.blocks[base.up_hash]
+function FC.cfg_write ()
+    local f = assert(io.open(arg[1],'w'))
+    for k,v in pairs(CFG) do
+        f:write(k..' = '..tostring2(v,'plain')..'\n')
     end
-    str2 = tostring2(T)
-
-print('=========>\n'..str1..'============='..str2..'<==========')
-    assert(str1 == str2)
+    f:close()
 end
-]]
+
+function FC.cfg_chain (key)
+    for _, chain in ipairs(CFG.chains) do
+        if chain.key == key then
+            return chain
+        end
+    end
+end
 
 -------------------------------------------------------------------------------
 
@@ -195,11 +77,39 @@ local function is_binary (str)
 ]]
 end
 
+function FC.hash2hex (hash)
+    local ret = ''
+    for i=1, string.len(hash) do
+        ret = ret .. string.format('%02X', string.byte(string.sub(hash,i,i)))
+    end
+    return ret
+end
+
+function FC.hex2hash (hex)
+    local ret = ''
+    for i=1, string.len(hex), 2 do
+        local n = tonumber('0x'..string.sub(hex,i,i+1))
+        ret = ret .. string.char(n)
+    end
+    return ret
+end
+
+function FC.escape (html)
+    return (string.gsub(html, "[}{\">/<'&]", {
+        ["&"] = "&amp;",
+        ["<"] = "&lt;",
+        [">"] = "&gt;",
+        ['"'] = "&quot;",
+        ["'"] = "&#39;",
+        ["/"] = "&#47;"
+    }))
+end -- https://github.com/kernelsauce/turbo/blob/master/turbo/escape.lua
+
 -------------------------------------------------------------------------------
 -- 3rd-party code
 -------------------------------------------------------------------------------
 
-local function string2hex(buf,big)
+local function string2hex(buf, big)
     local ret = ''
     for byte=1, #buf, 16 do
         local chunk = buf:sub(byte, byte+15)
@@ -217,14 +127,14 @@ local function string2hex(buf,big)
     return ret
 end
 
-function tostring2 (tbl, big)
-    if  "nil"       == type( tbl ) then
-        return tostring(nil)
-    elseif  "table" == type( tbl ) then
-        return table_show(tbl)
-    elseif  "string" == type( tbl ) then
-        if is_binary(tbl) then
-            return string2hex(tbl, big)
+function tostring2 (tbl, mode)
+    if "table" == type(tbl) then
+        return table_show(tbl,nil,nil,mode)
+    elseif "string" == type(tbl) then
+        if mode == 'plain' then
+            return string.format("%q", tbl)
+        elseif is_binary(tbl) then
+            return string2hex(tbl, mode)
         else
             return tbl
         end
@@ -262,7 +172,7 @@ end
       name is the name of the table (optional)
       indent is a first indentation (optional).
 --]]
-function table_show(t, name, indent)
+function table_show(t, name, indent, mode)
    local cart     -- a container
    local autoref  -- for self references
 
@@ -292,16 +202,21 @@ function table_show(t, name, indent)
       elseif type(o) == "number" or type(o) == "boolean" then
          return so
       elseif type(o) == "string" then
-         return string.format("%q", tostring2(o))
+         return tostring2(o,mode)
+         --return string.format("%q", tostring2(o,big))
       else
          return string.format("%q", so)
       end
    end
 
+   local FIRST = true
+
    local function addtocart (value, name, indent, saved, field)
       indent = indent or ""
       saved = saved or {}
       field = field or name
+      local first = FIRST
+      FIRST = false
 
       cart = cart .. indent .. field
 
@@ -315,19 +230,33 @@ function table_show(t, name, indent)
          else
             saved[value] = name
             --if tablecount(value) == 0 then
-            if isemptytable(value) then
-               cart = cart .. " = {};\n"
+            if first then
+               cart = ""
             else
-               cart = cart .. " = {\n"
-               for k, v in pairs(value) do
+               cart = cart .. " = "
+            end
+            if isemptytable(value) then
+               cart = cart .. "{}"
+            else
+               cart = cart .. "{\n"
+
+               local t = {}
+               for k in pairs(value) do
+                  t[#t+1] = k
+               end
+               table.sort(t)
+
+               for _, k in ipairs(t) do
+                  local v = value[k]
                   k = basicSerialize(k)
                   local fname = string.format("%s[%s]", name, k)
                   field = string.format("[%s]", k)
                   -- three spaces between levels
                   addtocart(v, fname, indent .. "   ", saved, field)
                end
-               cart = cart .. indent .. "};\n"
+               cart = cart .. indent .. "}"
             end
+            cart = cart .. (first and "" or ";").."\n"
          end
       end
    end

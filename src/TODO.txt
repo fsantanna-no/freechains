@@ -1,3 +1,20 @@
+- em vez de mandar ACCEPT,
+    server deve mandar ultimo hash que possui e
+    client deve comecar dele e ir subindo
+    server pode fazer as verificacoes em tempo real
+    - necessita ping-pong para achar common root
+
+- na bitcoin, as TXs têm custo zero, os criadores não propoem blocos
+    - os miners tem todo o custo e incluem multiplas TXs em um unico bloco
+- acho que em FC faz sentido ter uma TX por bloco já que o custo é de quem
+    cria a TX
+- que cria a TX vai querer incuir outras TXs em sequencia para ter mais chances
+    da sua propria TX ficar numa squencia maior
+
+
+- remove await async do end do bug do Write/Read duplo
+- lock, criar abstracao
+
 #if 0
 = TODO:
     - merkle tree of all TX_HASH
@@ -43,6 +60,7 @@
 = IDEAS:
     - freechains
     - IPFS + bitcoin
+    - reddit/place
     - esquema de nomes bc/path/, pega mais recente, bc/path/^..., git
     - /bc/dir/#hash/@search/%date/!sort
     - /\*/dir/#hash/@search/%date/!sort
@@ -54,6 +72,11 @@
     - meta-chain: create,touch,remove,...
     - pbfs, usa meta-chain, stack-based, head->tail
         - dropbox, fuse
+    - esquema para remover uma TX
+        - se aparecer um TX-RM em 00s apontando para um TX em 0s, o TX é removido
+            - como? teria que refazer os blocos todos
+                - quem refaz é quem propoe?
+            - como verificar se realmente foi removido?
 
 = CMDS:
     - while :; do make tests || break; done
@@ -185,7 +208,7 @@ LOOP END
     - univocally identifies a chain
     - hash[CHAIN_ZEROS, CHAIN_LEN, CHAIN_KEY]
     - genesis TX hash: hash(block_hash)
-- TX_BACK_HASH
+- TX_BACK_HASH (nova proposta: TX_CHAIN_HASH)
     - tem que ser TX e nao BLOCK, pois se houver remanejamento teria que refazer
       o trabalho para o novo BLOCK
     - com TX nao precisa recalcular, mas preciso checar o caminho para trás
@@ -198,9 +221,20 @@ LOOP END
         - preprocess TXs starting from TX_HASH_0 in fork point:
             - TX_HASH_0 -> 1 -> 2 -> 3 -> 4 -> ... -> n
         - propose BLOCK with all these
-            - TX_HASH_1 is not to distant from TX_HASH_0
+            - TX_HASH_1 is now too distant from TX_HASH_0
                 - because the network didn't stop
                     - and created many blocks in between 0->1
+        --
+        - o sistema acima impede o "boost" de um TX:
+            - se eu tentar por muito tempo achar mais 0's, o TX_BACK_HASH vai expirar
+            - outra solucao:
+                - usar TX_CHAIN_HASH para nao permitir cross-post
+                - como evitar "big fork"?
+                    - usar ideia do back off:
+                        - aguardar <N-bytes-from-fork>s antes de aceitar
+                        - criar um novo "blocao" com as novas TXs:
+                            - repassar para nós "confiáveis" como uma msg especial pedindo confirmacao
+                                - se o retorno for ok, apaga o fork
 - POS = *( PTR(TX_BACK_HASH) - TX_HASH )
     - go to the address of TX_BACK_HASH
     - subtract TX_HASH

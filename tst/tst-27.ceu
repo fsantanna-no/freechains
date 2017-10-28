@@ -7,41 +7,72 @@
 #include "common.ceu"
 
 [[
-    dofile 'cfg/config.lua'
+    dofile 'src/common.lua'
+    CFG = {
+        chains = {
+            not_persistency = true,
+            [1] = {
+                key   = 'tst-25',
+                zeros = 0,
+            },
+            [2] = {
+                key   = 'tst-27',
+                zeros = 0,
+            },
+        },
+    }
 ]];
 
-do Init;
-
-var char[] src = [].."x.chain";
-var char[] dst = [].."y.chain";
-
-do
-    var int ret = do FS_read_10.run(&src);
-    _assert(ret == _ERR_NONE);
-end
-
-do
-    var int ret = do FS_write_10.run(&dst);
-    _assert(ret == _ERR_NONE);
-end
+await Init();
 
 [[
-local src = io.open(@src):read'*a'
-local dst = io.open(@dst):read'*a'
-assert(src == dst)
+    src = io.open('/tmp/freechains/0000/chains/|tst-25|0|.chain'):read'*a'
+    ARGS = {
+        chain = assert(FC.chains['tst-25'][0])
+    }
+]]
+await FS_read_10();
+[[
+    ARGS = {
+        chain = FC.chains['tst-25'][0]
+    }
+]]
+await FS_write_10();
+
+[[
+    dst = io.open('/tmp/freechains/0000/chains/|tst-25|0|.chain'):read'*a'
+    assert(src == dst)
 ]];
 
 // error r/w
 do
-    var char[] err = [].."/no.chain";
-
-    var int ret = do FS_read_10.run(&err);
-    _fprintf(_stderr, "[%d] uv-error: %s\n", ret, _uv_strerror(ret));
-    _assert(ret == -_ENOENT);
-
-    ret = do FS_write_10.run(&err);
-    _fprintf(_stderr, "[%d] uv-error: %s\n", ret, _uv_strerror(ret));
-    _assert(ret == -_EACCES);
+    do
+        var Exception.Uv? e;
+        catch e do
+            [[
+                ARGS = {
+                    chain = FC.chains['tst-27'][0]
+                }
+            ]]
+            await FS_read_10();
+        end
+        _fprintf(_stderr, "[%d] uv-error: %s\n", e!.number, e!.message);
+        _ceu_sys_assert(e!.number == -_ENOENT, "bug");
+    end
+    do
+        var Exception.Uv? e;
+        catch e do
+            [[
+                CFG.dir = '/'
+                ARGS = {
+                    chain = FC.chains['tst-27'][0]
+                }
+            ]]
+            await FS_write_10();
+        end
+        _fprintf(_stderr, "[%d] uv-error: %s\n", e!.number, e!.message);
+        _ceu_sys_assert(e!.number == -_ENOENT, "bug");
+    end
 end
 
 [[ print'OK!' ]];

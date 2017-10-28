@@ -1,0 +1,82 @@
+#define DETERMINISTIC
+#include "common.ceu"
+
+///////////////////////////////////////////////////////////////////////////////
+// Write to "||0|.chain"
+//  - 111,222
+//  - 333,444
+///////////////////////////////////////////////////////////////////////////////
+
+var UV_TCP_Server_Data shared = _;
+
+[[
+    dofile 'src/common.lua'
+    CFG = {
+        chains = {
+            not_persistency = true,
+            [1] = {
+                key   = 'tst-al',
+                zeros = 0,
+            },
+        },
+    }
+]];
+await Init();
+
+[[
+    ARGS = {
+        message = {
+            version = '1.0',
+            chain = {
+                key   = 'tst-al',
+                zeros = 0,
+            },
+            payload = '111',
+        }
+    }
+]]
+await Client(&shared);
+[[
+    ARGS = {
+        message = {
+            version = '1.0',
+            chain = {
+                key   = 'tst-al',
+                zeros = 0,
+            },
+            payload = '222',
+        }
+    }
+]];
+await Client(&shared);
+[[
+    ARGS = {
+        message = {
+            version = '1.0',
+            chain = {
+                key   = 'tst-al',
+                zeros = 0,
+            },
+            payload = '333',
+        }
+    }
+]]
+await Client(&shared);
+[[
+    ARGS = {
+        message = {
+            version = '1.0',
+            chain = {
+                key   = 'tst-al',
+                zeros = 0,
+            },
+            payload = '444',
+        }
+    }
+]];
+await Client(&shared);
+
+[[ ARGS={ chain=FC.chains['tst-al'][0] } ]];
+await FS_write_10();
+
+escape 0;

@@ -1,0 +1,45 @@
+312
+MESSAGE {
+    id = '1.0',
+    chain = {
+        key = 'chico',
+        zeros = 0,
+    },
+    payload = "Subject: TESTE-2\
+From: other@other.com\
+To: chico\
+X-Mailer: mail (GNU Mailutils 2.99.99)\
+\
+teste-2\13\
+",
+}
+315
+MESSAGE {
+    id = '1.0',
+    chain = {
+        key = '',
+        zeros = 0,
+    },
+    payload = "Subject: TESTE-3\
+To: chico\
+X-Mailer: mail (GNU Mailutils 2.99.99)\
+From: chico@localhost (chico)\
+\
+teste-3\13\
+",
+}
+320
+MESSAGE {
+    id = '1.0',
+    chain = {
+        key = 'chico',
+        zeros = 0,
+    },
+    payload = "Subject: TESTE-4\
+To: chico\
+X-Mailer: mail (GNU Mailutils 2.99.99)\
+From: chico@localhost (chico)\
+\
+teste-4\13\
+",
+}

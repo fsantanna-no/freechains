@@ -1,0 +1,4 @@
+{
+    cmd = 'atom',
+    chain = '',
+}

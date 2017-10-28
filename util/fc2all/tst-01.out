@@ -1,0 +1,27 @@
+Return-Path: <chico@localhost>
+Delivered-To: chico@localhost
+Received: from localhost
+Received: by localhost (Postfix, from userid 1000)
+Subject: TESTE-2
+From: other@other.com
+To: chico@localhost
+X-Mailer: mail (GNU Mailutils 2.99.99)
+Status: 
+X-Keywords: 
+Content-Length: 8
+
+teste-2
+Return-Path: <chico@localhost>
+Delivered-To: chico@localhost
+Received: from localhost
+Received: by localhost (Postfix, from userid 1000)
+Subject: TESTE-2
+From: other@other.com
+To: chico@localhost
+X-Mailer: mail (GNU Mailutils 2.99.99)
+Status: 
+X-Keywords: 
+Content-Length: 8
+
+teste-2
+
