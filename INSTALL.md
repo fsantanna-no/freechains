@@ -37,7 +37,7 @@ $ make tst        # compiles and run tests, takes a lot of time
 
 ```
 $ make tst-cmds-set  # restart freechains from scratch every time
-$ make tst-cmds-run  # in another terminal, publish some contents
+$ make tst-cmds-go   # in another terminal, publish some contents
 ```
 
 - Persistent mode:
