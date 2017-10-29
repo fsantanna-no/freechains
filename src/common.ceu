@@ -621,11 +621,11 @@ do
             $o.file.buffer = 0;
 
             await UV_FS_Read_N(&o.file, sizeof(u64));
-            var u64 nonce     = GET_BE64TOH(o.file.buffer,0);
+            var u64 nonce = GET_BE64TOH(o.file.buffer,0);
             $o.file.buffer = 0;
 
             await UV_FS_Read_N(&o.file, sizeof(u32));
-            var u32 len       = GET_BE32TOH(o.file.buffer,0);
+            var u32 len = GET_BE32TOH(o.file.buffer,0);
             $o.file.buffer = 0;
 
             // => PAYLOAD
@@ -650,6 +650,18 @@ do
             ]]
 
             $o.file.buffer = 0;
+
+            // => LEN (pos)
+            do
+                await UV_FS_Read_N(&o.file, sizeof(u32));
+                var u32 len2 = GET_BE32TOH(o.file.buffer,0);
+                $o.file.buffer = 0;
+                if len != len2 then
+                    var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+                    throw e;
+                end
+            end
+
             [[ ARGS={pub=THIS.block.pub} ]];
             await Publication_Check();
         end
@@ -758,22 +770,32 @@ do
         if not is_removed then
             // <= TIMESTAMP
             // <= NONCE
-            // <= LEN
-            o.file.buffer = [] .. [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
             do
+                o.file.buffer = [] .. [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
                 var u64 timestamp = [[ THIS.cur.pub.timestamp ]];
                 var u64 nonce     = [[ THIS.cur.pub.nonce     ]];
-                var u32 len = [[ (THIS.cur.pub.removal and 0) or string.len(THIS.cur.pub.payload) ]];
                 PUT_HTOBE64(o.file.buffer, 0,               timestamp);
                 PUT_HTOBE64(o.file.buffer, 0+sizeof(u64),   nonce);
-                PUT_HTOBE32(o.file.buffer, 0+2*sizeof(u64), len);
-                _ceu_assert($$o.file.buffer >= len, "FS buffer is too short for payload");
                 await UV_FS_Write_N(&o.file,_);
             end
 
+            // <= LEN
             // <= PAYLOAD
-            o.file.buffer = [] .. [[ (THIS.cur.pub.removal and THIS.cur.pub.removal.hash) or THIS.cur.pub.payload ]];
-            await UV_FS_Write_N(&o.file,_);
+            // <= LEN
+            do
+                o.file.buffer = [] .. [0,0,0,0];
+                var u32 len = [[ (THIS.cur.pub.removal and 0) or string.len(THIS.cur.pub.payload) ]];
+                PUT_HTOBE32(o.file.buffer, 0, len);
+                _ceu_assert($$o.file.buffer >= len, "FS buffer is too short for payload");
+                await UV_FS_Write_N(&o.file,_);
+
+                o.file.buffer = [] .. [[ (THIS.cur.pub.removal and THIS.cur.pub.removal.hash) or THIS.cur.pub.payload ]];
+                await UV_FS_Write_N(&o.file,_);
+
+                o.file.buffer = [] .. [0,0,0,0];
+                PUT_HTOBE32(o.file.buffer, 0, len);
+                await UV_FS_Write_N(&o.file,_);
+            end
         end
 
         [[ THIS.cur = THIS.cur.nxt ]];
