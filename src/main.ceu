@@ -290,7 +290,7 @@ end
                     end
 
                     feed = TEMPLATES.feed
-                    feed = gsub(feed, '__TITLE__',    ARGS.chain)
+                    feed = gsub(feed, '__TITLE__',    (ARGS.chain=='' and '/' or ARGS.chain))
                     feed = gsub(feed, '__UPDATED__',  os.date('!%Y-%m-%dT%H:%M:%SZ', os.time()))
                     feed = gsub(feed, '__CHAIN_ID__', ARGS.chain)
                     feed = gsub(feed, '__ENTRIES__',  table.concat(entries,'\n'))
