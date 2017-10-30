@@ -328,7 +328,7 @@ do
         [[
             ARGS = THIS
         ]]
-        emit shared.ok({MESSAGE10}, false, {MESSAGE10_OK});
+        emit shared.ok_client({MESSAGE10}, 0);
     else
         var Exception.Freechains.Unsupported e = val Exception.Freechains.Unsupported(_);
         throw e;

@@ -17,7 +17,7 @@ do
         else
             await (timeout)s;
         end
-        emit shared.ok(msg,true,{MESSAGE10_TIMEOUT});
+        emit shared.err_server(msg, {MESSAGE10_TIMEOUT});
     with
         var Exception.Freechains? e2;
         catch e1,e2 do
@@ -92,16 +92,16 @@ port = 8330;
 
         if e1? then
             [[ FC.errs[#FC.errs+1] = @(e1! as int) ]];
-            emit shared.ok(msg,true,e1! as int);
+            emit shared.err_server(msg, e1! as int);
         else/if e2? then
             [[ FC.errs[#FC.errs+1] = @(e2! as int) ]];
-            emit shared.ok(msg,true,e2! as int);
+            emit shared.err_server(msg, e2! as int);
         else
             if ret != {MESSAGE10_OK} then
                 [[ FC.errs[#FC.errs+1] = @ret ]];
             end
             // input: { ARGS={chain={...}} }
-            emit shared.ok(msg,false,ret);
+            emit shared.ok_server(msg, ret);
         end
     end
 end

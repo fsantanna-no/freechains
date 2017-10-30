@@ -1,7 +1,7 @@
 #ifndef _COMMON_CEU
 #define _COMMON_CEU
 
-#define DBG 0
+#define DBG 10
 
 #include "c.ceu"
 #include "uv/uv.ceu"
@@ -121,9 +121,11 @@ native/pre do
 end
 
 data UV_TCP_Server_Data with
-    event (int,bool,int) ok;
+    event (int,int) ok_client;
+    event (int,int) err_client;
+    event (int,int) ok_server;
+    event (int,int) err_server;
     event none unlock;
-    event none retransmit;
 #if 1
     var int port;   // only for debug
 #endif
@@ -947,13 +949,9 @@ do
 
     spawn do
         var int  msg;
-        var bool err;
         var int  ret;
-        every (msg,err,ret) in shared.ok do
-            //_dbg(0, "error | %d %d %d", err, msg, ret);
-            if err then
-                _dbg(0, "error | %d %d", msg, ret);
-            end
+        every (msg,ret) in shared.err_server do
+            _dbg(0, "error | %d %d", msg, ret);
         end
     end
 
