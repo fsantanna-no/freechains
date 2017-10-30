@@ -230,8 +230,8 @@ end
 #endif
 
     var int ret = do
-        var bool me_lengthier = [[ THIS.chain.head.length > THIS.length ]];
-        if me_lengthier then
+        var bool me_longest = [[ THIS.chain.head.length > THIS.length ]];
+        if me_longest then
             escape {MESSAGE10_HAVE};
         end
 
@@ -259,7 +259,7 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
 #endif
 
     if ret=={MESSAGE10_NOTSUB} or ret=={MESSAGE10_HAVE} then
-        escape/out ret;     // terminate if not subcribed or local is lengthier
+        escape/out ret;     // terminate if not subcribed or local is longest
     end
 
     {SERVERS_ALIVE++;}
@@ -383,16 +383,6 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
         assert(not next(THIS.chain.removeds or {}))
         THIS.chain.removeds = nil
     ]]
-end
-
-// RETRANSMIT NEW HEAD
-
-do
-    [[ ARGS = { chain=THIS.chain } ]]
-    CHAIN_LOCK(l, outer.shared, "lock_send");
-
-    [[ ARGS = { chain=THIS.chain } ]]
-    await Client_10(&outer.shared);
 end
 
 [[ ARGS = { chain=THIS.chain } ]]

@@ -41,6 +41,16 @@ do
                         #include "server/message10_recv.ceu"
                         // output: { ARGS={chain={...}} }
                     end;
+
+                    if out == {MESSAGE10_OK} then
+                        // RETRANSMIT NEW HEAD
+                        [[ ARGS = { chain=THIS.chain } ]]
+                        CHAIN_LOCK(l, outer.shared, "lock_send");
+
+                        [[ ARGS = { chain=THIS.chain } ]]
+                        await Client_10(&outer.shared);
+                    end
+
                     outer.ret = out;
                 end
             else
