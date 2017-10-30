@@ -228,6 +228,7 @@ do
             chain = ARGS.chain,
         }
     ]];
+    CHAIN_LOCK(l, shared, "lock_send");
 
     var int ps = [[THIS.chain.cfg.peers and #THIS.chain.cfg.peers or 0]];
     var int i;
@@ -322,7 +323,6 @@ do
                 THIS = { chain=THIS.block.chain }
                 ARGS = THIS
             ]];
-            CHAIN_LOCK(l, shared, "lock_send");
             await Client_10(&shared);
         end
         [[

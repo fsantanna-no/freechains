@@ -1,0 +1,77 @@
+#include "common.ceu"
+
+///////////////////////////////////////////////////////////////////////////////
+// Tests NOTSUB
+///////////////////////////////////////////////////////////////////////////////
+
+event none ok;
+
+var[] byte chain1;
+var[] byte chain2;
+
+par/and do
+
+///////////////////////////////////////////////////////////////////////////////
+// 0
+///////////////////////////////////////////////////////////////////////////////
+
+    lua[] do
+        [[
+            dofile 'src/common.lua'
+            CFG = {
+                server = {
+                    address = '127.0.0.1',
+                    port    = '8330'
+                },
+                chains = {
+                    not_persistency = true,
+                },
+            }
+        ]];
+        var& Init init = spawn Init();
+        await ok;
+    end
+
+with
+
+///////////////////////////////////////////////////////////////////////////////
+// 1
+///////////////////////////////////////////////////////////////////////////////
+
+    lua[] do
+        [[
+            dofile 'src/common.lua'
+            CFG = {
+                server = {
+                    address = '127.0.0.1',
+                    port    = '8331'
+                },
+                chains = {
+                    zeros_raise = TODO,     -- global and per-chain
+                    [1] = {
+                        key   = 'tst-25',
+                        zeros = 0,
+                        peers = {
+                            {
+                                address = '127.0.0.1',
+                                port    = '8330'
+                            },
+                        },
+                    },
+                },
+            }
+        ]];
+        [[ os.execute('cp tst/\\|tst-25\\|0\\|.chain /tmp/freechains/8331/chains') ]]
+        var& Init init = spawn Init();
+        await init.ok;
+        await init.ok;
+        emit ok;
+    end
+
+end
+
+[[
+    print'OK!'
+]]
+
+escape 0;

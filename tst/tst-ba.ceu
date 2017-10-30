@@ -1,0 +1,111 @@
+#include "common.ceu"
+
+///////////////////////////////////////////////////////////////////////////////
+// 0->1 (starting in sequence)
+///////////////////////////////////////////////////////////////////////////////
+
+event none ok;
+
+var[] byte chain1;
+var[] byte chain2;
+
+par/and do
+
+///////////////////////////////////////////////////////////////////////////////
+// 0
+///////////////////////////////////////////////////////////////////////////////
+
+    lua[] do
+        [[
+            dofile 'src/common.lua'
+
+            CFG = {
+                server = {
+                    address = '127.0.0.1',
+                    port    = '8330'
+                },
+                chains = {
+                    not_persistency = true,
+                    [1] = {
+                        key   = 'tst-25',
+                        zeros = 0,
+                        peers = {
+                            {
+                                address = '127.0.0.1',
+                                port    = '8331'
+                            },
+                        },
+                    },
+                },
+            }
+        ]];
+        var& Init init = spawn Init();
+        await init.ok;
+        await init.ok;
+        emit ok;
+        await init.shared.ok;
+        [[
+            chain1 = FC.chain_tostring('|tst-25|0|')
+            print'===> CLIENT'
+            print('>'..string.rep('=',78))
+            print(chain1)
+            print('<'..string.rep('=',78))
+        ]];
+        chain1 = []..[[chain1]];
+    end
+
+with
+
+///////////////////////////////////////////////////////////////////////////////
+// 1
+///////////////////////////////////////////////////////////////////////////////
+
+    lua[] do
+        await ok;
+        [[
+            dofile 'src/common.lua'
+
+            CFG = {
+                server = {
+                    address = '127.0.0.1',
+                    port    = '8331'
+                },
+                chains = {
+                    zeros_raise = TODO,     -- global and per-chain
+                    [1] = {
+                        key   = 'tst-25',
+                        zeros = 0,
+                        peers = {
+                            {
+                                address = '127.0.0.1',
+                                port    = '8330'
+                            },
+                        },
+                    },
+                },
+            }
+        ]];
+        [[ os.execute('cp tst/\\|tst-25\\|0\\|.chain /tmp/freechains/8331/chains') ]]
+        var& Init init = spawn Init();
+        await init.ok;
+        await init.ok;
+        emit ok;
+
+        [[
+            chain2 = FC.chain_tostring('|tst-25|0|')
+            print'===> SERVER'
+            print('>'..string.rep('=',78))
+            print(chain2)
+            print('<'..string.rep('=',78))
+        ]];
+        chain2 = []..[[chain2]];
+    end
+
+end
+
+[[
+    assert(@chain1 == @chain2)
+    print'OK!'
+]]
+
+escape 0;

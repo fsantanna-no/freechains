@@ -164,7 +164,8 @@ with
                     end
                     FC.cfg_write()
                 ]]
-                await Init();
+                await Subscribe();
+                await Broadcast(&shared);
             else/if is_atom then
                 [=[
                     TEMPLATES =

@@ -232,13 +232,15 @@ end
     var int ret = do
         var bool me_longest = [[ THIS.chain.head.length > THIS.length ]];
         if me_longest then
+            [[ ARGS = { me_greater=true } ]]
             escape {MESSAGE10_HAVE};
         end
 
         var bool me_same = [[ THIS.chain.head.length == THIS.length ]];
         if me_same then
-            var bool me_greater = [[ THIS.chain.head.hash >= THIS.head_hash ]];
-            if me_greater then
+            var bool me_same_or_greater = [[ THIS.chain.head.hash >= THIS.head_hash ]];
+            if me_same_or_greater then
+                [[ ARGS = { me_greater=(THIS.chain.head.hash>THIS.head_hash) } ]]
                 escape {MESSAGE10_HAVE};
             end
         end

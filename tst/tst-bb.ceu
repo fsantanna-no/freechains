@@ -1,0 +1,120 @@
+#include "common.ceu"
+
+///////////////////////////////////////////////////////////////////////////////
+// 0->1 (starting in sequence)
+///////////////////////////////////////////////////////////////////////////////
+
+event none ok;
+
+var[] byte chain1;
+var[] byte chain2;
+
+par/and do
+
+///////////////////////////////////////////////////////////////////////////////
+// 0
+///////////////////////////////////////////////////////////////////////////////
+
+    lua[] do
+        [[
+            dofile 'src/common.lua'
+            CFG = {
+                server = {
+                    address = '127.0.0.1',
+                    port    = '8330'
+                },
+                chains = {
+                    not_persistency = true,
+                    [1] = {
+                        key   = '',
+                        zeros = 0,
+                        peers = {
+                            {
+                                address = '127.0.0.1',
+                                port    = '8331'
+                            },
+                        },
+                    },
+                },
+            }
+        ]];
+        var& Init init = spawn Init();
+        [[
+            ARGS = {
+                message = {
+                    version = '1.0',
+                    chain = {
+                        key   = '',
+                        zeros = 0,
+                    },
+                    payload = 'Ola Mundo!',
+                }
+            }
+        ]]
+        await Client(&init.shared);
+        par/and do
+            emit ok;
+        with
+            await ok;
+        end
+        [[
+            chain1 = FC.chain_tostring('||0|')
+            print'===> CLIENT'
+            print('>'..string.rep('=',78))
+            print(chain1)
+            print('<'..string.rep('=',78))
+        ]];
+        chain1 = []..[[chain1]];
+    end
+
+with
+
+///////////////////////////////////////////////////////////////////////////////
+// 1
+///////////////////////////////////////////////////////////////////////////////
+
+    lua[] do
+        await ok;
+        [[
+            dofile 'src/common.lua'
+            CFG = {
+                server = {
+                    address = '127.0.0.1',
+                    port    = '8331'
+                },
+                chains = {
+                    not_persistency = true,
+                    [1] = {
+                        key   = '',
+                        zeros = 0,
+                        peers = {
+                            {
+                                address = '127.0.0.1',
+                                port    = '8330'
+                            },
+                        },
+                    },
+                },
+            }
+        ]];
+        var& Init init = spawn Init();
+        await init.shared.ok;
+        emit ok;
+        [[
+            chain2 = FC.chain_tostring('||0|')
+            print'===> SERVER'
+            print('>'..string.rep('=',78))
+            print(chain2)
+            print('<'..string.rep('=',78))
+        ]];
+        chain2 = []..[[chain2]];
+    end
+
+end
+
+[[
+    assert(@chain1 == @chain2)
+    print'OK!'
+]]
+
+escape 0;

@@ -35,7 +35,7 @@ do
             $tcp.buffer = $tcp.buffer - MESSAGE_BYTES;
 
             if ok and msg=={MESSAGE10} then
-                do ()
+                do (tcp)
                     var int out;
                     out = do/out
                         #include "server/message10_recv.ceu"
@@ -43,12 +43,43 @@ do
                     end;
 
                     if out == {MESSAGE10_OK} then
-                        // RETRANSMIT NEW HEAD
-                        [[ ARGS = { chain=THIS.chain } ]]
-                        CHAIN_LOCK(l, outer.shared, "lock_send");
-
+                        // broadcast new received head
                         [[ ARGS = { chain=THIS.chain } ]]
                         await Client_10(&outer.shared);
+                    else/if out == {MESSAGE10_HAVE} then
+                        var bool me_greater = [[ ARGS.me_greater ]];
+                        if me_greater then
+                            // send old head to out-of-date peer
+                            [[ ARGS = { chain=THIS.chain } ]]
+#if 1
+                            // TODO: should send only to peer, but don't know his server port
+                            await Client_10(&outer.shared);
+#else
+                            CHAIN_LOCK(l, outer.shared, "lock_send");
+                            {
+                                struct sockaddr_in name;
+                                int namelen = sizeof(name);
+                                ceu_assert(uv_tcp_getpeername((uv_tcp_t*)(@&&tcp.handle), (struct sockaddr*) &name, &namelen) == 0, "bug found: uv_tcp_getpeername");
+                                char addr[16];
+                                uv_inet_ntop(AF_INET, &name.sin_addr, addr, sizeof(addr));
+                                int port = ntohs(name.sin_port);
+                            }
+                            var[16] byte addr = []..({addr} as _char&&);
+                            $addr = $addr - 1;
+                            var int port = {port};
+port = 8330;
+                            [[
+                                ARGS = {
+                                    chain = THIS.chain,
+                                    peer  = {
+                                        address = @addr,
+                                        port    = @port,
+                                    },
+                                }
+                            ]]
+                            await Peer_10();
+#endif
+                        end
                     end
 
                     outer.ret = out;
