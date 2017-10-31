@@ -280,7 +280,8 @@ with
             print('>'..string.rep('=',78))
             print(FC.chain_tostring('|hello|0|'))
             print('<'..string.rep('=',78))
-            assert(#FC.errs==3 and FC.errs[1]==FC.MESSAGE10_NOTSUB)
+            --print('>>>', #FC.errs, FC.errs[1], FC.MESSAGE10_NOTSUB)
+            assert(FC.errs[1]==FC.MESSAGE10_NOTSUB)
         ]];
         [=[
             assert(#CHAIN4_2==2 and

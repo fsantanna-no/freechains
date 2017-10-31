@@ -853,8 +853,8 @@ code/await Subscribe (none) -> none do
         ]]
         var int zeros = [[cfg.zeros]];
         var int j;
-        //loop j in [zeros -> 255] do
-loop j in [zeros -> 30] do
+        loop j in [zeros -> 255] do
+//loop j in [zeros -> 30] do
             [[
                 THIS = {}
                 j = @j
@@ -982,7 +982,7 @@ do
     pool[1] UV_TCP_Server server;
     var bool has_server = [[ CFG.server~=nil ]];
     if has_server then
-        var[] byte ip      = [] .. [[ CFG.server.address ]] .. [0];
+        var[] byte ip      = [] .. "0.0.0.0";
         var   int  port    = [[ CFG.server.port ]];
         var   int  backlog = [[ CFG.server.backlog or 128 ]];
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
