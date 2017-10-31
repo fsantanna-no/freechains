@@ -15,7 +15,7 @@ $ mkdir ceu
 $ cd ceu/
 $ git clone https://github.com/fsantanna/ceu
 $ git clone https://github.com/fsantanna/ceu-libuv
-$ git clone https://github.com/fsantanna/proto freechains
+$ git clone https://github.com/Freechains/freechains
 
 $ cd ceu/
 $ make
