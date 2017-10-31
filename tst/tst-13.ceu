@@ -23,7 +23,6 @@ par/or do
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -40,7 +39,7 @@ par/or do
             }
         ]];
 
-        await Init();
+        var& Init init = spawn Init();
         await 100ms;
 
         var int i;
@@ -57,7 +56,7 @@ par/or do
                     }
                 }
             ]];
-            await Client(&shared);
+            await Client(&init.shared);
         end
         emit e;
         await FOREVER;
@@ -70,7 +69,6 @@ with
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -88,21 +86,8 @@ with
             }
         ]];
 
-        await Init();
-
-        var[] byte ip      = [] .. [[ CFG.server.address ]] .. [0];
-        var   int  port    = [[ CFG.server.port ]];
-        var   int  backlog = [[ CFG.server.backlog ]];
-        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-        spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
-
-        loop do
-            var bool ok = [[ FC.chains[''][0].head.length == 17 ]];
-            if ok then
-                break;
-            end
-            await shared.ok;
-        end
+        var& Init init = spawn Init();
+        AWAIT_CHAIN_LENGTH(init.shared, '', 0, 17);
 
         [[
             CHAIN1 = FC.chain_flatten('||0|')
@@ -126,7 +111,6 @@ with
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -143,7 +127,7 @@ with
             }
         ]];
 
-        await Init();
+        var& Init init = spawn Init();
         await e;
 
         var int i;
@@ -160,7 +144,7 @@ with
                     }
                 }
             ]];
-            await Client(&shared);
+            await Client(&init.shared);
         end
         await FOREVER;
     end

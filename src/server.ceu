@@ -98,6 +98,7 @@ port = 8330;
             emit shared.err_server(msg, e2! as int);
         else
             if ret != {MESSAGE10_OK} then
+//[[ print('ERR', @ret) ]]
                 [[ FC.errs[#FC.errs+1] = @ret ]];
             end
             // input: { ARGS={chain={...}} }

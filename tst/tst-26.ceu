@@ -26,9 +26,7 @@
     }
 ]];
 
-var UV_TCP_Server_Data shared = _;
-
-await Init();
+var& Init init = spawn Init();
 
 [[
     ARGS = {
@@ -42,7 +40,7 @@ await Init();
         },
     }
 ]]
-await Client(&shared);
+await Client(&init.shared);
 
 [[
     ARGS = {
@@ -56,7 +54,7 @@ await Client(&shared);
         },
     }
 ]]
-await Client(&shared);
+await Client(&init.shared);
 
 [[
     ARGS = {
@@ -70,7 +68,7 @@ await Client(&shared);
         },
     }
 ]]
-await Client(&shared);
+await Client(&init.shared);
 
 [[
     ARGS = {
@@ -84,7 +82,7 @@ await Client(&shared);
         },
     }
 ]];
-await Client(&shared);
+await Client(&init.shared);
 
 [[
     head1 = FC.chains['tst-25'][0].head

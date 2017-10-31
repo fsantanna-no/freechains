@@ -98,7 +98,7 @@ with
             }
         ]];
         var& Init init = spawn Init();
-        await init.shared.ok;
+        await init.shared.ok_server;
         emit ok;
         [[
             chain2 = FC.chain_tostring('||0|')

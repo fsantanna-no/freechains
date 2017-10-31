@@ -18,7 +18,6 @@ par/and do
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = val UV_TCP_Server_Data(_,_,_,0);
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -28,7 +27,7 @@ par/and do
                     backlog = 128,
                 },
                 chains = {
-                    zeros_raise = TODO,     -- global and per-chain
+                    not_persistency = true,
                     [1] = {
                         key   = '',
                         zeros = 0,
@@ -40,7 +39,7 @@ par/and do
             }
         ]]
 
-        await Init();
+        var& Init init = spawn Init();
         await 100ms;
 
         [[
@@ -55,7 +54,7 @@ par/and do
                 }
             }
         ]];
-        await Client(&shared);
+        await Client(&init.shared);
     end
 with
 
@@ -64,7 +63,6 @@ with
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = val UV_TCP_Server_Data(_,_,_,1);
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -74,7 +72,7 @@ with
                     backlog = 128,
                 },
                 chains = {
-                    zeros_raise = TODO,     -- global and per-chain
+                    not_persistency = true,
                     [1] = {
                         key   = '',
                         zeros = 0,
@@ -83,28 +81,17 @@ with
             }
         ]];
 
-        await Init();
+        var& Init init = spawn Init();
 
-        var[] byte ip      = [] .. [[ CFG.server.address ]] .. [0];
-        var   int  port    = [[ CFG.server.port ]];
-        var   int  backlog = [[ CFG.server.backlog ]];
-        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-        spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
-
+#if 0
 spawn do
     every 1s do
         [[ print('>>>', @shared.port, FC.chains[''][0].head.length, tostring2(FC.chains[''][0].head.hash)) ]];
     end
 end
+#endif
 
-        loop do
-            var bool ok = [[ FC.chains[''][0].head.length == 2 ]];
-            if ok then
-                break;
-            end
-            await shared.ok;
-        end
-        await shared.ok;
+        AWAIT_CHAIN_LENGTH(init.shared, '', 0, 2);
 
         [[
             CHAIN1 = FC.chain_flatten('||0|')
@@ -127,7 +114,6 @@ with
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = val UV_TCP_Server_Data(_,_,_,2);
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -137,7 +123,7 @@ with
                     backlog = 128,
                 },
                 chains = {
-                    zeros_raise = TODO,     -- global and per-chain
+                    not_persistency = true,
                     [1] = {
                         key   = '',
                         zeros = 0,
@@ -149,7 +135,7 @@ with
             }
         ]];
 
-        await Init();
+        var& Init init = spawn Init();
         await 200ms;
 
         [[
@@ -164,7 +150,7 @@ with
                 }
             }
         ]];
-        await Client(&shared);
+        await Client(&init.shared);
         [[
             ARGS = {
                 message = {
@@ -177,7 +163,7 @@ with
                 }
             }
         ]];
-        await Client(&shared);
+        await Client(&init.shared);
 
         [[
             CHAIN2 = FC.chain_flatten('||0|')

@@ -12,9 +12,6 @@ code/await Node (var int i) -> none
     throws Exception.Lua
 do
     lua[] do
-        var UV_TCP_Server_Data shared = _;
-        shared.port = i;
-
         var int local  = 8330+i;
         var int remote = 8331+i;
         if i == (N-1) then
@@ -41,19 +38,16 @@ do
             }
         ]]
 
-        await Init();
+        var& Init init = spawn Init();
         await 100ms;
 
         do
-            var   int  port    = [[ CFG.server.port ]];
-            _dbg(3, "server | listening in 0.0.0.0:%d", port);
-            spawn UV_TCP_Server(_, port, _, _, &shared);
-
+#if 0
             spawn do
                 var int  a;
                 var bool err;
                 var int  c;
-                every (a,err,c) in shared.ok do
+                every (a,err,c) in init.shared.ok do
 #if 0
 [[
 print(@i, '>'..string.rep('=',70))
@@ -67,6 +61,7 @@ print(@i, '<'..string.rep('=',70))
                     end
                 end
             end
+#endif
 
             var int j;
             loop j in [1 -> N] do
@@ -84,29 +79,23 @@ print(@i, '<'..string.rep('=',70))
                         }
                     }
                 ]];
-                await Client(&shared);
+                await Client(&init.shared);
 //[[print(@i,@j, "clients") ]];
             end
 //[[print(@i, "CLIENTS") ]];
 
             // wait all messages to be received
-            loop do
-                await shared.ok;
-                var int length = [[ FC.chains['tst-31'][0].head.length ]];
-                if length == N*N then
-                    break;
-                end
-            end
+            AWAIT_CHAIN_LENGTH(init.shared, 'tst-31', 0, N*N);
 
             // wait for consensus
             loop do
-                watching shared.ok do
+                watching init.shared.ok_server do
                     await (N*N)s;
                     break;
                 end
-_dbg(0, "server | shared.ok | 0.0.0.0:%d", port);
+//_dbg(0, "server | shared.ok | 0.0.0.0:%d", port);
             end
-_dbg(0, "server | END | 0.0.0.0:%d", port);
+//_dbg(0, "server | END | 0.0.0.0:%d", port);
 #if 0
 [[
 print(@i, '>'..string.rep('=',70))

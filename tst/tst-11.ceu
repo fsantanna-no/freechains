@@ -19,7 +19,6 @@ par/and do
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -37,7 +36,7 @@ par/and do
         ]]
 
         par/and do
-            await Init();
+            var& Init init = spawn Init();
             await 100ms;
             [[
                 ARGS = {
@@ -51,7 +50,7 @@ par/and do
                     }
                 }
             ]];
-            await Client(&shared);
+            await Client(&init.shared);
             emit e;
             emit ok;
         with
@@ -74,7 +73,6 @@ with
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -92,23 +90,10 @@ with
             }
         ]];
 
-        await Init();
-
-        var[] byte ip      = [] .. [[ CFG.server.address ]] .. [0];
-        var   int  port    = [[ CFG.server.port ]];
-        var   int  backlog = [[ CFG.server.backlog ]];
-        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-        spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
-
+        var& Init init = spawn Init();
         await ok;
         await ok;
-        loop do
-            var bool ok = [[ FC.chains[''][0].head.length == 3 ]];
-            if ok then
-                break;
-            end
-            await shared.ok;
-        end
+        AWAIT_CHAIN_LENGTH(init.shared, '', 0, 3);
         emit ok;
         [[
             CHAIN1 = FC.chain_flatten('||0|')
@@ -131,7 +116,6 @@ with
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -149,7 +133,7 @@ with
         ]]
 
         par/and do
-            await Init();
+            var& Init init = spawn Init();
             await e;
 
             [[
@@ -164,7 +148,7 @@ with
                     }
                 }
             ]]
-            await Client(&shared);
+            await Client(&init.shared);
             [[
                 ARGS = {
                     message = {
@@ -177,7 +161,7 @@ with
                     }
                 }
             ]]
-            await Client(&shared);
+            await Client(&init.shared);
             [[
                 ARGS = {
                     message = {
@@ -190,7 +174,7 @@ with
                     }
                 }
             ]];
-            await Client(&shared);
+            await Client(&init.shared);
 
             [[
                 print'===> 222'

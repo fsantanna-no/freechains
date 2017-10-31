@@ -23,7 +23,8 @@
     }
 ]];
 
-await Init();
+var& Init init = spawn Init();
+await init.ok;
 
 [[
     src = io.open('/tmp/freechains/0000/chains/|tst-25|0|.chain'):read'*a'

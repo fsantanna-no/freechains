@@ -7,8 +7,6 @@
 //  - 333,444
 ///////////////////////////////////////////////////////////////////////////////
 
-var UV_TCP_Server_Data shared = _;
-
 [[
     dofile 'src/common.lua'
     CFG = {
@@ -20,7 +18,8 @@ var UV_TCP_Server_Data shared = _;
         },
     }
 ]];
-await Init();
+var& Init init = spawn Init();
+await init.ok;
 
 [[
     assert(FC.chains['tst-al'][0].base.nxt.pub.payload == '111')

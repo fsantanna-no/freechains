@@ -14,9 +14,6 @@ code/await Node (var int i) -> none
     throws Exception.Lua
 do
     lua[] do
-        var UV_TCP_Server_Data shared = _;
-        shared.port = i;
-
         var int local  = 8330+i;
 
         [=[
@@ -44,7 +41,7 @@ end
             }
         ]=]
 
-        await Init();
+        var& Init init = spawn Init();
         await 100ms;
 
 spawn do
@@ -53,17 +50,11 @@ spawn do
     end
 end
         do
-            var[] byte ip      = [] .. [[ APP.server.host[1] ]] .. [0];
-            var   int  port    = [[ APP.server.host[2] ]];
-            var   int  backlog = [[ APP.server.backlog ]];
-            _dbg(3, "server | listening in %s:%d", &&ip[0], port);
-            spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
-
             spawn do
                 var int  a;
                 var bool err;
                 var int  c;
-                every (a,err,c) in shared.ok do
+                every (a,err,c) in init.shared.ok do
 #if 0
 [[
 print(@i, '>'..string.rep('=',70))
@@ -93,14 +84,14 @@ print(@i, '<'..string.rep('=',70))
                         payload = string.format('%03d',@i)..'.'..string.format('%03d',@j),
                     }
                 ]];
-                await ClientMessages(&shared);
+                await ClientMessages(&init.shared);
 //[[print(@i,@j, "clients") ]];
             end
 //[[print(@i, "CLIENTS") ]];
 
             // wait all messages to be received
             loop do
-                await shared.ok;
+                await init.shared.ok;
                 var int length = [[ APP.chains['||0|'].head.length ]];
                 if length == N*M then
                     break;
@@ -110,7 +101,7 @@ _dbg(0, "server | MSGS | %s:%d", &&ip[0], port);
 
             // wait for consensus
             loop do
-                watching shared.ok do
+                watching init.shared.ok do
                     await (N)s;
                     break;
                 end

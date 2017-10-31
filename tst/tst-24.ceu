@@ -22,7 +22,6 @@ par/and do
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -42,7 +41,7 @@ par/and do
             }
         ]];
 
-        await Init();
+        var& Init init = spawn Init();
         await 100ms;
 
         [[
@@ -57,7 +56,7 @@ par/and do
                 }
             }
         ]];
-        await Client(&shared);
+        await Client(&init.shared);
 
         [[
             ARGS = {
@@ -71,7 +70,7 @@ par/and do
                 }
             }
         ]];
-        await Client(&shared);
+        await Client(&init.shared);
 
         [[
             ARGS = {
@@ -85,7 +84,7 @@ par/and do
                 }
             }
         ]];
-        await Client(&shared);
+        await Client(&init.shared);
 
         [[
             ARGS = {
@@ -99,7 +98,7 @@ par/and do
                 }
             }
         ]];
-        await Client(&shared);
+        await Client(&init.shared);
 
         [[
             CHAIN0_1 = FC.chain_flatten('||21|')
@@ -119,7 +118,6 @@ with
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -138,17 +136,9 @@ with
             }
         ]];
 
-        await Init();
-        spawn Errors(&shared);
-
-        var[] byte ip      = [] .. [[ CFG.server.address ]] .. [0];
-        var   int  port    = [[ CFG.server.port ]];
-        var   int  backlog = [[ CFG.server.backlog ]];
-        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-        spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
-
-        await shared.ok;
-        await shared.ok;
+        var& Init init = spawn Init();
+        await init.ok;
+        AWAIT_CHAIN_LENGTH(init.shared, '', 22, 2);
         [[
             CHAIN1_2 = FC.chain_flatten('||22|')
             print'===> SERVER-1'
@@ -171,7 +161,6 @@ with
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -190,18 +179,9 @@ with
             }
         ]];
 
-        await Init();
-
-        var[] byte ip      = [] .. [[ CFG.server.address ]] .. [0];
-        var   int  port    = [[ CFG.server.port ]];
-        var   int  backlog = [[ CFG.server.backlog ]];
-        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-        spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
-
-        await shared.ok;
-        await shared.ok;
-        await shared.ok;
-        await shared.ok;
+        var& Init init = spawn Init();
+        await init.ok;
+        AWAIT_CHAIN_LENGTH(init.shared, '', 22, 2);
         [[
             CHAIN2_2 = FC.chain_flatten('||22|')
             print'===> SERVER-2'
@@ -220,7 +200,6 @@ with
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -239,18 +218,13 @@ with
             }
         ]];
 
-        await Init();
-
-        var[] byte ip      = [] .. [[ CFG.server.address ]] .. [0];
-        var   int  port    = [[ CFG.server.port ]];
-        var   int  backlog = [[ CFG.server.backlog ]];
-        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-        spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
-
-        await shared.ok;
-        await shared.ok;
-        await shared.ok;
-        await shared.ok;
+        var& Init init = spawn Init();
+        await init.ok;
+        par/and do
+            AWAIT_CHAIN_LENGTH(init.shared, '', 21, 2);
+        with
+            AWAIT_CHAIN_LENGTH(init.shared, '', 22, 2);
+        end
         [[
             CHAIN3_1 = FC.chain_flatten('||21|')
             CHAIN3_2 = FC.chain_flatten('||22|')
@@ -274,7 +248,6 @@ with
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -293,16 +266,9 @@ with
             }
         ]];
 
-        await Init();
-
-        var[] byte ip      = [] .. [[ CFG.server.address ]] .. [0];
-        var   int  port    = [[ CFG.server.port ]];
-        var   int  backlog = [[ CFG.server.backlog ]];
-        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-        spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
-
-        await shared.ok;
-        await shared.ok;
+        var& Init init = spawn Init();
+        await init.ok;
+        AWAIT_CHAIN_LENGTH(init.shared, '', 22, 2);
         [[
             CHAIN4_1 = FC.chain_flatten('||21|')
             CHAIN4_2 = FC.chain_flatten('||22|')

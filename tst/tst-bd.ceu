@@ -48,7 +48,7 @@ par/and do
         ]]
         await Subscribe();
         spawn Broadcast(&init.shared);
-        await init.shared.ok;
+        await init.shared.ok_server;
         emit ok;
         [[
             chain1 = FC.chain_tostring('|tst-25|0|')

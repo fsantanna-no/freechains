@@ -60,6 +60,7 @@ do
         -- before the removal did validate
         if THIS.block.pub == true then
             assert(THIS.pub_hash == string.rep('\0',@HASH_BYTES))
+--error'oi'
             THIS.chain.removeds = THIS.chain.removeds or {}
             THIS.chain.removeds[THIS.block.hash] = true
         end
@@ -382,6 +383,7 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
 #endif
 
     [[
+        --print('>>>', next(THIS.chain.removeds or {}))
         assert(not next(THIS.chain.removeds or {}))
         THIS.chain.removeds = nil
     ]]

@@ -5,7 +5,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -21,7 +20,7 @@
             }
         ]];
 
-        await Init();
+        var& Init init = spawn Init();
         await 100ms;
 
         [[
@@ -36,7 +35,7 @@
                 }
             }
         ]]
-        await Client(&shared);
+        await Client(&init.shared);
 
         [[
             ARGS = {
@@ -50,7 +49,7 @@
                 }
             }
         ]]
-        await Client(&shared);
+        await Client(&init.shared);
 
         [[
             ARGS = {
@@ -64,7 +63,7 @@
                 }
             }
         ]]
-        await Client(&shared);
+        await Client(&init.shared);
 
         [[
             chain0 = FC.chain_flatten('||0|')

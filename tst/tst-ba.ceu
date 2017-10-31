@@ -43,7 +43,7 @@ par/and do
         await init.ok;
         await init.ok;
         emit ok;
-        await init.shared.ok;
+        await init.shared.ok_server;
         [[
             chain1 = FC.chain_tostring('|tst-25|0|')
             print'===> CLIENT'

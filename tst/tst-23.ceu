@@ -13,7 +13,6 @@ par/and do
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -30,7 +29,7 @@ par/and do
             }
         ]];
 
-        await Init();
+        var& Init init = spawn Init();
         await 100ms;
 
         par/and do
@@ -46,7 +45,7 @@ par/and do
                     },
                 }
             ]];
-            await Client(&shared);
+            await Client(&init.shared);
         with
             // inject error on nonce
             await UV_STREAM_CONNECT;
@@ -71,7 +70,6 @@ with
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -90,22 +88,15 @@ with
             }
         ]];
 
-        await Init();
-
-        var[] byte ip      = [] .. [[ CFG.server.address ]] .. [0];
-        var   int  port    = [[ CFG.server.port ]];
-        var   int  backlog = [[ CFG.server.backlog ]];
-        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-        spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
-
-        await shared.ok;
+        var& Init init = spawn Init();
+        await init.shared.err_server;
         [[
             CHAIN1 = FC.chain_flatten('||22|')
             print'===> SERVER-1'
             print('>'..string.rep('=',78))
             print(FC.chain_tostring('||22|'))
             print('<'..string.rep('=',78))
-            assert(#FC.errs==1 and FC.errs[1]==FC['Exception.Freechains.Malformed'], #FC.errs)
+            assert(#FC.errs==2 and FC.errs[2]==FC['Exception.Freechains.Malformed'], #FC.errs)
         ]];
         [[
             assert(#CHAIN1==1)

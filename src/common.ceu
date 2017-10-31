@@ -1,7 +1,7 @@
 #ifndef _COMMON_CEU
 #define _COMMON_CEU
 
-#define DBG 10
+#define DBG 0
 
 #include "c.ceu"
 #include "uv/uv.ceu"
@@ -126,10 +126,24 @@ data UV_TCP_Server_Data with
     event (int,int) ok_server;
     event (int,int) err_server;
     event none unlock;
-#if 1
+#if 0
     var int port;   // only for debug
 #endif
 end
+
+#define AWAIT_CHAIN_LENGTH(shared,key,zeros,len)                \
+    loop do                                                     \
+        var int len_ = [[ FC.chains[key][zeros].head.length ]]; \
+        [[ --print('>>>', FC.chains[key][zeros].head.length, @(len)) ]]; \
+        if len_ == (len) then                                   \
+            break;                                              \
+        end                                                     \
+        par/or do                                               \
+            await shared.ok_client;                             \
+        with                                                    \
+            await shared.ok_server;                             \
+        end                                                     \
+    end
 
 #define CHAIN_LOCK(var_id,shared,lock_id)                       \
     [[ assert(ARGS and ARGS.chain) ]];                          \
@@ -556,9 +570,9 @@ do
             THIS.chain = assert(FC.chains[key][tonumber(zeros)], id)
         ]];
         $o.file.buffer = 0;
-        //[[ print('>>> chain_id',@buf) ]];
+        //[[ print('>>> chain_id',id, THIS.chain.id) ]];
 
-        var bool ok = [[ id==ARGS.chain.id ]];
+        var bool ok = [[ id==THIS.chain.id ]];
         if not ok then
             var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
             throw e;
@@ -839,7 +853,8 @@ code/await Subscribe (none) -> none do
         ]]
         var int zeros = [[cfg.zeros]];
         var int j;
-        loop j in [zeros -> 255] do
+        //loop j in [zeros -> 255] do
+loop j in [zeros -> 30] do
             [[
                 THIS = {}
                 j = @j
@@ -954,6 +969,15 @@ do
             _dbg(0, "error | %d %d", msg, ret);
         end
     end
+#if 0
+    spawn do
+        var int  msg;
+        var int  ret;
+        every (msg,ret) in shared.ok_server do
+            _dbg(0, "ok | %d %d", msg, ret);
+        end
+    end
+#endif
 
     pool[1] UV_TCP_Server server;
     var bool has_server = [[ CFG.server~=nil ]];

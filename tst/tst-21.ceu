@@ -19,12 +19,11 @@ par/and do
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
                 chains = {
-                    zeros_raise = TODO,     -- global and per-chain
+                    not_persistency = true,
                     [1] = {
                         key   = '',
                         zeros = 0,
@@ -46,7 +45,7 @@ par/and do
             }
         ]];
 
-        await Init();
+        var& Init init = spawn Init();
         await 100ms;
 
         [[
@@ -61,7 +60,7 @@ par/and do
                 }
             }
         ]];
-        await Client(&shared);
+        await Client(&init.shared);
 
         [[
             ARGS = {
@@ -75,7 +74,7 @@ par/and do
                 }
             }
         ]];
-        await Client(&shared);
+        await Client(&init.shared);
 
         emit ok;
 
@@ -103,7 +102,6 @@ with
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -113,7 +111,7 @@ with
                     backlog = 128,
                 },
                 chains = {
-                    zeros_raise = TODO,     -- global and per-chain
+                    not_persistency = true,
                     [1] = {
                         key   = '',
                         zeros = 0,
@@ -126,21 +124,12 @@ with
             }
         ]];
 
-        await Init();
-
-        var[] byte ip      = [] .. [[ CFG.server.address ]] .. [0];
-        var   int  port    = [[ CFG.server.port ]];
-        var   int  backlog = [[ CFG.server.backlog ]];
-        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-        spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
-
-        loop do
-            var bool ok1 = [[ FC.chains[''][0].head.length == 1 ]];
-            var bool ok2 = [[ FC.chains['hello'][0].head.length == 1 ]];
-            if ok1 and ok2 then
-                break;
-            end
-            await shared.ok;
+        var& Init init = spawn Init();
+        await init.ok;
+        par/and do
+            AWAIT_CHAIN_LENGTH(init.shared, '', 0, 1);
+        with
+            AWAIT_CHAIN_LENGTH(init.shared, 'hello', 0, 1);
         end
 
         [[
@@ -167,7 +156,6 @@ with
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -177,7 +165,7 @@ with
                     backlog = 128,
                 },
                 chains = {
-                    zeros_raise = TODO,     -- global and per-chain
+                    not_persistency = true,
                     [1] = {
                         key   = '',
                         zeros = 0,
@@ -190,13 +178,8 @@ with
             }
         ]];
 
-        await Init();
-
-        var[] byte ip      = [] .. [[ CFG.server.address ]] .. [0];
-        var   int  port    = [[ CFG.server.port ]];
-        var   int  backlog = [[ CFG.server.backlog ]];
-        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-        spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
+        var& Init init = spawn Init();
+        await init.ok;
 
         await ok;
         [[
@@ -221,7 +204,6 @@ with
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -231,7 +213,7 @@ with
                     backlog = 128,
                 },
                 chains = {
-                    zeros_raise = TODO,     -- global and per-chain
+                    not_persistency = true,
                     [1] = {
                         key   = '',
                         zeros = 0,
@@ -244,15 +226,9 @@ with
             }
         ]];
 
-        await Init();
-
-        var[] byte ip      = [] .. [[ CFG.server.address ]] .. [0];
-        var   int  port    = [[ CFG.server.port ]];
-        var   int  backlog = [[ CFG.server.backlog ]];
-        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-        spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
-
-        await shared.ok;
+        var& Init init = spawn Init();
+        await init.ok;
+        AWAIT_CHAIN_LENGTH(init.shared, 'hello', 0, 1);
         [[
             CHAIN3_1 = FC.chain_flatten('||0|')
             CHAIN3_2 = FC.chain_flatten('|hello|0|')
@@ -276,7 +252,6 @@ with
 ///////////////////////////////////////////////////////////////////////////////
 
     lua[] do
-        var UV_TCP_Server_Data shared = _;
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -286,7 +261,7 @@ with
                     backlog = 128,
                 },
                 chains = {
-                    zeros_raise = TODO,     -- global and per-chain
+                    not_persistency = true,
                     [1] = {
                         key   = 'hello',
                         zeros = 0,
@@ -295,16 +270,9 @@ with
             }
         ]];
 
-        await Init();
-
-        var[] byte ip      = [] .. [[ CFG.server.address ]] .. [0];
-        var   int  port    = [[ CFG.server.port ]];
-        var   int  backlog = [[ CFG.server.backlog ]];
-        _dbg(0, "server | listening in %s:%d", &&ip[0], port);
-        spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
-
-        await shared.ok;
-        await shared.ok;
+        var& Init init = spawn Init();
+        await init.ok;
+        AWAIT_CHAIN_LENGTH(init.shared, 'hello', 0, 1);
         [[
             assert(not FC.chains['||0|'])
             CHAIN4_2 = FC.chain_flatten('|hello|0|')
@@ -312,8 +280,7 @@ with
             print('>'..string.rep('=',78))
             print(FC.chain_tostring('|hello|0|'))
             print('<'..string.rep('=',78))
-
-            assert(#FC.errs==1 and FC.errs[1]==FC.MESSAGE10_NOTSUB)
+            assert(#FC.errs==3 and FC.errs[1]==FC.MESSAGE10_NOTSUB)
         ]];
         [=[
             assert(#CHAIN4_2==2 and
