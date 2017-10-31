@@ -14,36 +14,24 @@
     assert(loadfile(arg[1],nil,CFG))()
 ]]
 
-var UV_TCP_Server_Data shared = _;
-spawn Errors(&shared);
-
-await Init();
 [[
     os.execute('mkdir -p '..CFG.dir)
     os.execute('mkfifo '..CFG.dir..'/fifo.in')
     os.execute('mkfifo '..CFG.dir..'/fifo.out')
 ]]
-
-var[] byte ip      = [] .. [[ CFG.server.address or '0.0.0.0' ]] .. [0];
-var   int  port    = [[ CFG.server.port or 8330 ]];
-var   int  backlog = [[ CFG.server.backlog or 128 ]];
-spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared);
-_dbg(0, "server | listening in %s:%d", &&ip[0], port);
+var& Init fc = spawn Init();
 
 par do
     spawn do
-        var int  msg;
-        var bool err;
-        var int  ret;
-        every (msg,err,ret) in shared.ok do
-            if not err then
-                _ceu_assert(msg == {MESSAGE10}, "bug found");
-                if ret == {MESSAGE10_OK} then
-                    //[[ print('>>> PENDING >>>', ARGS.chain.id) ]];
-                    [[ THIS.pending[#THIS.pending+1] = ARGS.chain ]];
-                    var[256] byte id = []..[[ARGS.chain.id]]..[0];
-                    _dbg(0, "server | pending in %s", &&id[0]);
-                end
+        var int msg;
+        var int ret;
+        every (msg,ret) in fc.shared.ok_server do
+            _ceu_assert(msg == {MESSAGE10}, "bug found");
+            if ret == {MESSAGE10_OK} then
+                //[[ print('>>> PENDING >>>', ARGS.chain.id) ]];
+                [[ THIS.pending[#THIS.pending+1] = ARGS.chain ]];
+                var[256] byte id = []..[[ARGS.chain.id]]..[0];
+                _dbg(0, "server | pending in %s", &&id[0]);
             end
         end
     end
@@ -58,7 +46,7 @@ par do
                     await 5s;
                     [[os.execute('dbus-send --session --dest=org.gnome.feed.Reader --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Refresh')]]
                 end
-                await shared.ok;
+                await fc.shared.ok_server;
             end
         end
 
@@ -132,7 +120,7 @@ with
                 end
 
                 _dbg(0, "client...");
-                await Client(&shared);
+                await Client(&fc.shared);
                 _dbg(0, "client | ok");
             else/if is_subscribe then
                 [[
@@ -165,7 +153,7 @@ with
                     FC.cfg_write()
                 ]]
                 await Subscribe();
-                await Broadcast(&shared);
+                await Broadcast(&fc.shared);
             else/if is_atom then
                 [=[
                     TEMPLATES =
