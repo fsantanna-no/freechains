@@ -225,40 +225,25 @@ do
     end
 #endif
 
-#if 0
-    await async/thread (zeros,pln,hash)
+    var u64 timestamp = [[ THIS.pub.timestamp ]];
+    var u64 nonce     = [[ THIS.pub.nonce     ]];
+#if 1
+    await async/thread (zeros,pln,hash, timestamp,nonce)
 #endif
     do
-        var u64 timestamp;
-        var u64 nonce;
-        atomic do
-            timestamp = [[ THIS.pub.timestamp ]];
-            nonce     = [[ THIS.pub.nonce     ]];
-        end
-
         var u64 n = do
             var u64 n_ = 0;
-            var u64 i;
-            loop i in [timestamp -> 0xFFffFFffFFffFFff] do
-                PUT_HTOBE64(pln, 0, i);
+            loop timestamp in [timestamp -> 0xFFffFFffFFffFFff] do
+                PUT_HTOBE64(pln, 0, timestamp);
 
-                var u64 j;
-                loop j in [nonce -> 0xFFffFFffFFffFFff] do
-                    PUT_HTOBE64(pln, sizeof(u64), j);
+                loop nonce in [nonce -> 0xFFffFFffFFffFFff] do
+                    PUT_HTOBE64(pln, sizeof(u64), nonce);
 
                     _ceu_assert(n_ < 0xFFffFFffFFffFFff, "bug found");
                     n_ = n_ + 1;
 
                     _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
                     if zeros <= _leading_zeros(&&hash[0],HASH_BYTES) then
-                        atomic do
-                            [[
-                                THIS.pub.timestamp = @i
-                                THIS.pub.nonce     = @j
-                                THIS.pub.hash      = @hash
-                                THIS.pub.chain.up.pubs[THIS.pub.hash] = THIS.pub
-                            ]];
-                        end
                         escape n_;
                     end
                 end
@@ -268,7 +253,13 @@ do
         _dbg(3, "client: POW rounds: %d\n", n);
     end
 
-    [[ ARGS = THIS ]];
+    [[
+        THIS.pub.timestamp = @timestamp
+        THIS.pub.nonce     = @nonce
+        THIS.pub.hash      = @hash
+        THIS.pub.chain.up.pubs[THIS.pub.hash] = THIS.pub
+        ARGS = THIS
+    ]];
 end
 
 /*
@@ -357,39 +348,25 @@ do
     end
 #endif
 
-#if 0
-    await async/thread (zeros,pln,hash)
+    var u64 timestamp = [[ THIS.block.timestamp ]];
+    var u64 nonce     = [[ THIS.block.nonce     ]];
+#if 1
+    await async/thread (zeros,pln,hash, timestamp,nonce)
 #endif
     do
-        var u64 timestamp;
-        var u64 nonce;
-        atomic do
-            timestamp = [[ THIS.block.timestamp ]];
-            nonce     = [[ THIS.block.nonce     ]];
-        end
-
         var u64 n = do
             var u64 n_ = 0;
-            var u64 i;
-            loop i in [timestamp -> 0xFFffFFffFFffFFff] do
-                PUT_HTOBE64(pln, 0, i);
+            loop timestamp in [timestamp -> 0xFFffFFffFFffFFff] do
+                PUT_HTOBE64(pln, 0, timestamp);
 
-                var u64 j;
-                loop j in [nonce -> 0xFFffFFffFFffFFff] do
-                    PUT_HTOBE64(pln, sizeof(u64), j);
+                loop nonce in [nonce -> 0xFFffFFffFFffFFff] do
+                    PUT_HTOBE64(pln, sizeof(u64), nonce);
 
                     _ceu_assert(n_ < 0xFFffFFffFFffFFff, "bug found");
                     n_ = n_ + 1;
 
                     _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
                     if zeros <= _leading_zeros(&&hash[0],HASH_BYTES) then
-                        atomic do
-                            [[
-                                THIS.block.timestamp = @i
-                                THIS.block.nonce     = @j
-                                THIS.block.hash      = @hash
-                            ]];
-                        end
                         escape n_;
                     end
                 end
@@ -398,6 +375,11 @@ do
         end;
         _dbg(3, "client: POW rounds: %d\n", n);
     end
+    [[
+        THIS.block.timestamp = @timestamp
+        THIS.block.nonce     = @nonce
+        THIS.block.hash      = @hash
+    ]];
 end
 
 code/await Block_Hash_Link (none) -> none
