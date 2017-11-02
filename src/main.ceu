@@ -10,6 +10,8 @@
 
 var& Init fc = spawn Init();
 
+var int msg;
+var int ret;
 every (msg,ret) in fc.shared.ok_server do
     if msg == {MESSAGE10} then
         if ret == {MESSAGE10_OK} then

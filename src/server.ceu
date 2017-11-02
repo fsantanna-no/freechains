@@ -93,6 +93,16 @@ port = 8330;
 
                         outer.ret = out;
                     end
+                else/if msg=={MESSAGE20} then
+                    _dbg(3, "server | MESSAGE 20");
+                    do ()
+                        #include "server/message_20.ceu"
+                    end
+                else/if msg=={MESSAGE30} then
+                    _dbg(3, "server | MESSAGE 30");
+                    do ()
+                        #include "server/message_30.ceu"
+                    end
                 else/if msg=={MESSAGEF0} then
                     _dbg(3, "server | MESSAGE F0");
                     do ()

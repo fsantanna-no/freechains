@@ -1,5 +1,5 @@
-#ifndef _MESSAGE20_RECV_CEU
-#define _MESSAGE20_RECV_CEU
+#ifndef _MESSAGEF0_CEU
+#define _MESSAGEF0_CEU
 
 var[] byte cmd;
 do
@@ -17,7 +17,7 @@ do
 end
 
 cmd = cmd..[0];
-_dbg(3, "server | MESSAGE 20 | %s", &&cmd[0]);
+_dbg(3, "server | MESSAGE F0 | %s", &&cmd[0]);
 $cmd = $cmd - 1;
 [[
     assert(load('ARGS = '..@cmd))()
@@ -98,7 +98,7 @@ else/if is_subscribe then
         ]]
     end
 else/if is_atom then
-    _dbg(3, "server | MESSAGE 20 | ATOM");
+    _dbg(3, "server | MESSAGE F0 | ATOM");
     [=[
         TEMPLATES =
         {
@@ -127,7 +127,7 @@ else/if is_atom then
         dir = CFG.dir..'/atoms'
         os.execute('mkdir -p '..dir)
         f = assert(io.open(dir..'/'..ARGS.chain..'.xml', 'w'))
-print("server | MESSAGE 20 | ATOM | OPENED");
+print("server | MESSAGE F0 | ATOM | OPENED");
 
         -- TODO: hacky, "plain" gsub
         gsub = function (a,b,c)

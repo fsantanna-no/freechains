@@ -1,5 +1,5 @@
-#ifndef _MESSAGE10_RECV_CEU
-#define _MESSAGE10_RECV_CEU
+#ifndef _MESSAGE10_CEU
+#define _MESSAGE10_CEU
 
 code/await Message10_block_recv (var& UV_Stream tcp) -> none
     // input: { chain={...}, block={TODO} }
