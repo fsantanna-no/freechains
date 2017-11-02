@@ -1,6 +1,38 @@
 #ifndef _MESSAGE20_CEU
 #define _MESSAGE20_CEU
 
+/*
+ * GET:
+ *
+ *  msg = {
+ *      chain = {
+ *          key   = <string>,
+ *          zeros = <number>,
+ *      }
+ *      block = <hash>,     -- or pub or nothing
+ *      pub   = <hash>,     -- or block or nothing
+ *
+ *      // TODO
+ *      from=1,   to=10   or
+ *      from=-10, to=-1   or
+ *      from=<date>, to=<date>
+ *  }
+ *
+ *  ret = {
+ *      hash      = <hash>,
+ *      prv       = <hash>,
+ *      timestamp = <number>,
+ *      nonce     = <number>,
+ *      removal   = <has>,      -- or pub
+ *      pub       = {           -- or removal
+ *          hash      = <hash>,
+ *          timestamp = <number>,
+ *          nonce     = <number>,
+ *          payload   = <string>,
+ *      },
+ *  }
+ */
+
 // echo -n -e "PS\x02\x00\x00\x00\x00\x18{chain={key='',zeros=0}}" | nc localhost 8500
 
 // => LEN
@@ -18,19 +50,39 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
     print('>>>', tostring2(msg,'plain'))
 
     chain = assert(FC.chains[msg.chain.key][msg.chain.zeros])
-    msg = {
-        hash = FC.hash2hex(chain.head.hash),
-        removal = chain.head.removal and FC.hash2hex(chain.head.removal.hash),
-        pub = chain.head.pub and {
-            hash    = FC.hash2hex(chain.head.pub.hash),
-            payload = chain.head.pub.payload,
+    block = chain.head
+
+    msg.block = msg.block and FC.hex2hash(msg.block)
+    msg.pub   = msg.pub   and FC.hex2hash(msg.pub)
+
+    -- find block or pub hash
+    if msg.block or msg.pub then
+        while true do
+            if block.hash==msg.block or (block.pub and (block.pub.hash==msg.pub)) then
+                break
+            end
+            assert(block ~= chain.base, 'not found')
+            block = block.prv
+        end
+    end
+
+    ret = {
+        hash      = FC.hash2hex(block.hash),
+        prv       = block.prv and FC.hash2hex(block.prv.hash) or nil,
+        timestamp = block.timestamp,
+        nonce     = block.nonce,
+        removal   = block.removal and FC.hash2hex(block.removal.hash),
+        pub       = block.pub and {
+            hash      = FC.hash2hex(block.pub.hash),
+            timestamp = block.pub.timestamp,
+            nonce     = block.pub.nonce,
+            payload   = block.pub.payload,
         } or nil,
-        prv = chain.head.prv and FC.hash2hex(chain.head.prv.hash) or nil,
     }
 ]]
 
 // <= MSG
-outer.tcp.buffer = []..[[ tostring2(msg,'plain') ]];
+outer.tcp.buffer = []..[[ tostring2(ret,'plain') ]];
 await UV_Stream_Write_N(&outer.tcp,_);
 
 #endif
