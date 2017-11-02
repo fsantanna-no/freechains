@@ -3,9 +3,9 @@
 ## Software Packages
 
 ```
-$ sudo apt-get install git gcc libuv1-dev lua5.3-dev lua-lpeg  # Céu
-$ sudo apt-get install libsodium-dev                           # Freechains
-$ sudo apt-get install liferea lua5.3 zenity pandoc            # GUI
+$ sudo apt-get install git gcc libuv1-dev lua5.3 lua5.3-dev lua-lpeg  # Céu
+$ sudo apt-get install libsodium-dev                                  # Freechains
+$ sudo apt-get install liferea lua-socket zenity pandoc               # GUI
 ```
 
 ## Source Repositories

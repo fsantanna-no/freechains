@@ -171,12 +171,8 @@ do
     _dbg_tcp(2, &&outer.tcp.handle, "server", "CHAIN_KEY_LEN = %d", key_len);
 
     // key_str
-    var[] byte key_str;
     await UV_Stream_Read_N(&outer.tcp, (key_len as usize));
-    _ceu_vector_setlen(&&key_str,key_len,1);
-    if key_len > 0 then
-        _memcpy(&&key_str[0], &&outer.tcp.buffer[0], key_len);
-    end
+    var[256] byte key_str = []..outer.tcp.buffer;
     _dbg_tcp(2, &&outer.tcp.handle, "server", "CHAIN_KEY_STR = %s", &&key_str[0]);
     $outer.tcp.buffer = $outer.tcp.buffer - (key_len as usize);
 
