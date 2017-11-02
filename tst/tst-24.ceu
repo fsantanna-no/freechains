@@ -26,15 +26,16 @@ par/and do
             dofile 'src/common.lua'
             CFG = {
                 chains = {
+                    not_persistency = true,
                     zeros_raise = TODO,     -- global and per-chain
                     [1] = {
                         key   = '',
                         zeros = 0,
                         peers = {
-                            { address='127.0.0.1', port=8331, zeros=22, },
-                            { address='127.0.0.1', port=8332 },
-                            { address='127.0.0.1', port=8333 },
-                            { address='127.0.0.1', port=8334, zeros=22, },
+                            { address='127.0.0.1', port=8341, zeros=22, },
+                            { address='127.0.0.1', port=8342 },
+                            { address='127.0.0.1', port=8343 },
+                            { address='127.0.0.1', port=8344, zeros=22, },
                         },
                     },
                 },
@@ -123,10 +124,11 @@ with
             CFG = {
                 server = {
                     address = '127.0.0.1',
-                    port    = '8331',
+                    port    = '8341',
                     backlog = 128,
                 },
                 chains = {
+                    not_persistency = true,
                     zeros_raise = TODO,     -- global and per-chain
                     [1] = {
                         key   = '',
@@ -166,10 +168,11 @@ with
             CFG = {
                 server = {
                     address = '127.0.0.1',
-                    port    = '8332',
+                    port    = '8342',
                     backlog = 128,
                 },
                 chains = {
+                    not_persistency = true,
                     zeros_raise = TODO,     -- global and per-chain
                     [1] = {
                         key   = '',
@@ -188,6 +191,7 @@ with
             print('>'..string.rep('=',78))
             print(FC.chain_tostring('||22|'))
             print('<'..string.rep('=',78))
+            print('>>>', #FC.errs, FC.errs[1], FC.MESSAGE10_NOTSUB)
             assert(#FC.errs==2 and FC.errs[1]==FC.MESSAGE10_NOTSUB)
         ]];
         chain2_2 = []..[[tostring2(CHAIN2_2)]];
@@ -205,10 +209,11 @@ with
             CFG = {
                 server = {
                     address = '127.0.0.1',
-                    port    = '8333',
+                    port    = '8343',
                     backlog = 128,
                 },
                 chains = {
+                    not_persistency = true,
                     zeros_raise = TODO,     -- global and per-chain
                     [1] = {
                         key   = '',
@@ -253,10 +258,11 @@ with
             CFG = {
                 server = {
                     address = '127.0.0.1',
-                    port    = '8334',
+                    port    = '8344',
                     backlog = 128,
                 },
                 chains = {
+                    not_persistency = true,
                     zeros_raise = TODO,     -- global and per-chain
                     [1] = {
                         key   = '',

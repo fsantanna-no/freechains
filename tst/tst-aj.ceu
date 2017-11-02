@@ -21,7 +21,7 @@ par/and do
             CFG = {
                 server = {
                     address = '127.0.0.1',
-                    port    = '8330',
+                    port    = '8340',
                     backlog = 128,
                 },
                 chains = {
@@ -30,7 +30,7 @@ par/and do
                         key   = '',
                         zeros = 0,
                         peers = {
-                            { address='127.0.0.1', port=8331 },
+                            { address='127.0.0.1', port=8341 },
                         },
                     },
                 },
@@ -66,7 +66,7 @@ with
             CFG = {
                 server = {
                     address = '127.0.0.1',
-                    port    = '8331',
+                    port    = '8341',
                     backlog = 128,
                 },
                 chains = {
@@ -108,7 +108,7 @@ with
             CFG = {
                 server = {
                     address = '127.0.0.1',
-                    port    = '8332',
+                    port    = '8342',
                     backlog = 128,
                 },
                 chains = {
@@ -117,7 +117,7 @@ with
                         key   = '',
                         zeros = 0,
                         peers = {
-                            { address='127.0.0.1', port=8331 },
+                            { address='127.0.0.1', port=8341 },
                         },
                     },
                 },

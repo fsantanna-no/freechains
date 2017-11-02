@@ -15,14 +15,13 @@ par/and do
 
     lua[] do
         [[
-            dofile 'src/common.lua'
             CFG = {
                 server = {
                     address = '127.0.0.1',
-                    port    = '8331'
+                    port    = '8341'
                 },
                 chains = {
-                    zeros_raise = TODO,     -- global and per-chain
+                    not_persistency = true,
                     [1] = {
                         key   = '',
                         zeros = 0,
@@ -50,17 +49,16 @@ with
 
     lua[] do
         [[
-            dofile 'src/common.lua'
             CFG = {
                 chains = {
-                    zeros_raise = TODO,     -- global and per-chain
+                    not_persistency = true,
                     [1] = {
                         key   = '',
                         zeros = 0,
                         peers = {
                             {
                                 address = '127.0.0.1',
-                                port    = '8331'
+                                port    = '8341'
                             },
                         },
                     },

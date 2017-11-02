@@ -21,12 +21,13 @@ par/or do
             dofile 'src/common.lua'
             CFG = {
                 chains = {
+                    not_persistency = true,
                     zeros_raise = TODO,     -- global and per-chain
                     [1] = {
                         key   = '',
                         zeros = 0,
                         peers = {
-                            { address='127.0.0.1', port=8331 },
+                            { address='127.0.0.1', port=8341 },
                         },
                     },
                 },
@@ -65,10 +66,11 @@ with
             CFG = {
                 server = {
                     address = '127.0.0.1',
-                    port    = '8331',
+                    port    = '8341',
                     backlog = 128,
                 },
                 chains = {
+                    not_persistency = true,
                     [1] = {
                         key   = '',
                         zeros = 0,
@@ -105,12 +107,13 @@ with
             dofile 'src/common.lua'
             CFG = {
                 chains = {
+                    not_persistency = true,
                     zeros_raise = TODO,     -- global and per-chain
                     [1] = {
                         key   = '',
                         zeros = 0,
                         peers = {
-                            { address='127.0.0.1', port=8331 },
+                            { address='127.0.0.1', port=8341 },
                         },
                     },
                 },

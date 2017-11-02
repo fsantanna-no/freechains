@@ -19,13 +19,14 @@ par/and do
             dofile 'src/common.lua'
             CFG = {
                 chains = {
+                    not_persistency = true,
                     zeros_raise = TODO,     -- global and per-chain
                     [1] = {
                         key   = '',
                         zeros = 0,
                         peers = {
-                            { address='127.0.0.1', port=8331 },
-                            { address='127.0.0.1', port=8334 },
+                            { address='127.0.0.1', port=8341 },
+                            { address='127.0.0.1', port=8344 },
                         },
                     },
                 },
@@ -73,10 +74,11 @@ with
             CFG = {
                 server = {
                     address = '127.0.0.1',
-                    port    = '8331',
+                    port    = '8341',
                     backlog = 128,
                 },
                 chains = {
+                    not_persistency = true,
                     zeros_raise = TODO,     -- global and per-chain
                     [1] = {
                         key   = '',
@@ -113,10 +115,11 @@ with
             CFG = {
                 server = {
                     address = '127.0.0.1',
-                    port    = '8332',
+                    port    = '8342',
                     backlog = 128,
                 },
                 chains = {
+                    not_persistency = true,
                     zeros_raise = TODO,     -- global and per-chain
                     [1] = {
                         key   = '',
@@ -153,10 +156,11 @@ with
             CFG = {
                 server = {
                     address = '127.0.0.1',
-                    port    = '8333',
+                    port    = '8343',
                     backlog = 128,
                 },
                 chains = {
+                    not_persistency = true,
                     zeros_raise = TODO,     -- global and per-chain
                     [1] = {
                         key   = '',
@@ -193,10 +197,11 @@ with
             CFG = {
                 server = {
                     address = '127.0.0.1',
-                    port    = '8334',
+                    port    = '8344',
                     backlog = 128,
                 },
                 chains = {
+                    not_persistency = true,
                 },
             }
         ]];

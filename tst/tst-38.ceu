@@ -14,7 +14,7 @@ code/await Node (var int i) -> none
     throws Exception.Lua
 do
     lua[] do
-        var int local  = 8330+i;
+        var int local  = 8340+i;
 
         [=[
 if @i == 0 then
@@ -31,7 +31,7 @@ end
             for j=0, N-1 do
                 if j ~= @i then
                     peers[#peers+1] = {
-                        host = { '127.0.0.1', (8330+j) },
+                        host = { '127.0.0.1', (8340+j) },
                     }
                 end
             end

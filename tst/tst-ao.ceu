@@ -25,6 +25,7 @@ par/and do
             dofile 'src/common.lua'
             CFG = {
                 chains = {
+                    not_persistency = true,
                     zeros_raise = TODO,     -- global and per-chain
                     [1] = {
                         key   = '',
@@ -32,7 +33,7 @@ par/and do
                         peers = {
                             {
                                 address = '127.0.0.1',
-                                port    = '8331'
+                                port    = '8341'
                             },
                         },
                     },
@@ -108,9 +109,10 @@ with
             CFG = {
                 server = {
                     address = '127.0.0.1',
-                    port    = '8331'
+                    port    = '8341'
                 },
                 chains = {
+                    not_persistency = true,
                     zeros_raise = TODO,     -- global and per-chain
                     [1] = {
                         key   = '',
@@ -118,7 +120,7 @@ with
                         peers = {
                             {
                                 address = '127.0.0.1',
-                                port    = '8332'
+                                port    = '8342'
                             },
                         },
                     },
@@ -183,10 +185,11 @@ with
             CFG = {
                 server = {
                     address = '127.0.0.1',
-                    port    = '8332',
+                    port    = '8342',
                     backlog = 128,
                 },
                 chains = {
+                    not_persistency = true,
                     zeros_raise = TODO,     -- global and per-chain
                     [1] = {
                         key   = '',

@@ -12,10 +12,10 @@ code/await Node (var int i) -> none
     throws Exception.Lua
 do
     lua[] do
-        var int local  = 8330+i;
-        var int remote = 8331+i;
+        var int local  = 8340+i;
+        var int remote = 8341+i;
         if i == (N-1) then
-            remote = 8330;
+            remote = 8340;
         end
 
         [[
@@ -124,11 +124,11 @@ _printf("BLOCKS_RECEIVED  = %d\n", {BLOCKS_RECEIVED});
 //_ceu_dbg_assert({BLOCKS_RECEIVED} == N*N);
 
 // assert consensus
-[[ file1 = io.open('/tmp/freechains/8330/chains/|tst-29|0|.chain'):read'*a' ]]
+[[ file1 = io.open('/tmp/freechains/8340/chains/|tst-29|0|.chain'):read'*a' ]]
 var int i;
 loop i in [0 -> N[ do
     [[
-        file2 = io.open('/tmp/freechains/'..@(8330+i)..'/chains/|tst-29|0|.chain'):read'*a'
+        file2 = io.open('/tmp/freechains/'..@(8340+i)..'/chains/|tst-29|0|.chain'):read'*a'
         assert(file1 == file2, 'differ')
     ]]
 end

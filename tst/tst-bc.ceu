@@ -21,7 +21,7 @@ par/and do
             CFG = {
                 server = {
                     address = '127.0.0.1',
-                    port    = '8330'
+                    port    = '8340'
                 },
                 chains = {
                     not_persistency = true,
@@ -44,7 +44,7 @@ with
             CFG = {
                 server = {
                     address = '127.0.0.1',
-                    port    = '8331'
+                    port    = '8341'
                 },
                 chains = {
                     zeros_raise = TODO,     -- global and per-chain
@@ -54,14 +54,14 @@ with
                         peers = {
                             {
                                 address = '127.0.0.1',
-                                port    = '8330'
+                                port    = '8340'
                             },
                         },
                     },
                 },
             }
         ]];
-        [[ os.execute('cp tst/\\|tst-25\\|0\\|.chain /tmp/freechains/8331/chains') ]]
+        [[ os.execute('cp tst/\\|tst-25\\|0\\|.chain /tmp/freechains/8341/chains') ]]
         var& Init init = spawn Init();
         await init.ok;
         await init.ok;
