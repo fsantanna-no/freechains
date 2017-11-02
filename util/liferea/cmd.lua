@@ -63,6 +63,24 @@ log:write('INFO: .'..cmd..'.\n')
 CFG = {}
 assert(loadfile(cfg,nil,CFG))()
 
+local socket = require 'socket'
+function send (t)
+    local c = assert(socket.connect(CFG.server.address,CFG.server.port))
+    local msg = tostring2(t, 'plain')
+    local buffer = 'PS\xF0\x00'
+    do
+        local len = string.len(msg)
+        assert(len <= 0xFFFFFFFF)
+        buffer = buffer..string.char((len>>24) & 0xFF)
+                       ..string.char((len>>16) & 0xFF)
+                       ..string.char((len>> 8) & 0xFF)
+                       ..string.char(len       & 0xFF)
+    end
+    buffer = buffer .. msg
+    assert(c:send(buffer))
+    c:close()
+end
+
 if cmd=='new' or cmd=='subscribe' then
     -- get key
     if cmd == 'new' then
@@ -125,10 +143,11 @@ if cmd=='new' or cmd=='subscribe' then
             },
         }
     }
-    local str = tostring2(t, 'plain')
-    local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
-    f:write(tostring(string.len(str))..'\n'..str)
-    f:close()
+    send(t)
+    --local str = tostring2(t, 'plain')
+    --local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
+    --f:write(tostring(string.len(str))..'\n'..str)
+    --f:close()
 
     -- publish announcement to //0/
 
@@ -163,10 +182,11 @@ Subscribe to []]..key..[[](freechains:/]]..key..[[/?cmd=subscribe&peer=]]..(CFG.
                 payload = payload,
             },
         }
-        local str = tostring2(t, 'plain')
-        local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
-        f:write(tostring(string.len(str))..'\n'..str)
-        f:close()
+        send(t)
+        --local str = tostring2(t, 'plain')
+        --local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
+        --f:write(tostring(string.len(str))..'\n'..str)
+        --f:close()
     end
 
 elseif cmd == 'publish' then
@@ -199,11 +219,11 @@ elseif cmd == 'publish' then
             payload = payload,
         },
     }
-    local str = tostring2(t, 'plain')
-
-    local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
-    f:write(tostring(string.len(str))..'\n'..str)
-    f:close()
+    send(t)
+    --local str = tostring2(t, 'plain')
+    --local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
+    --f:write(tostring(string.len(str))..'\n'..str)
+    --f:close()
 
 elseif cmd == 'republish' then
     local old_key   = key
@@ -240,11 +260,11 @@ log:write('>>>.'..new_key..'.\n')
             zeros = assert(tonumber(new_zeros)),
         },
     }
-
-    local str = tostring2(t, 'plain')
-    local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
-    f:write(tostring(string.len(str))..'\n'..str)
-    f:close()
+    send(t)
+    --local str = tostring2(t, 'plain')
+    --local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
+    --f:write(tostring(string.len(str))..'\n'..str)
+    --f:close()
 
 elseif cmd == 'removal' then
     local t = {
@@ -258,12 +278,11 @@ elseif cmd == 'removal' then
             removal = FC.hex2hash(block),
         },
     }
-    local str = tostring2(t, 'plain')
-
-    local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
-    f:write(tostring(string.len(str))..'\n'..str)
-    f:close()
-
+    send(t)
+    --local str = tostring2(t, 'plain')
+    --local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
+    --f:write(tostring(string.len(str))..'\n'..str)
+    --f:close()
 end
 
 ::OK::

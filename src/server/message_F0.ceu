@@ -1,0 +1,240 @@
+#ifndef _MESSAGE20_RECV_CEU
+#define _MESSAGE20_RECV_CEU
+
+var[] byte cmd;
+do
+    // => LEN
+    await UV_Stream_Read_N(&outer.tcp, sizeof(u32));
+    var u32 len = GET_BE32TOH(outer.tcp.buffer,0);
+    $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u32);
+    _dbg_tcp(2, &&outer.tcp.handle, "server", "LEN = %d", len);
+
+    // => CMD
+    await UV_Stream_Read_N(&outer.tcp, (len as usize));
+    cmd = []..outer.tcp.buffer;
+    _dbg_tcp(2, &&outer.tcp.handle, "server", "CMD = %s", &&cmd[0]);
+    $outer.tcp.buffer = $outer.tcp.buffer - (len as usize);
+end
+
+cmd = cmd..[0];
+_dbg(3, "server | MESSAGE 20 | %s", &&cmd[0]);
+$cmd = $cmd - 1;
+[[
+    assert(load('ARGS = '..@cmd))()
+]]
+
+var bool is_publish   = [[ ARGS.cmd == 'publish'   ]];
+var bool is_republish = [[ ARGS.cmd == 'republish' ]];
+var bool is_subscribe = [[ ARGS.cmd == 'subscribe' ]];
+var bool is_atom      = [[ ARGS.cmd == 'atom'      ]];
+#if 0
+var bool is_get       = [[ ARGS.cmd == 'get'       ]];
+
+if is_get then
+    [[
+
+        {
+            cmd = 'get',
+            chain = {
+                key = ?,        // get head of highest zeros
+                zeros = ?,      // get head of zeros
+                block = ?,      // get exactly block
+            },
+        }
+    ]]
+
+else/
+#endif
+if is_publish or is_republish then
+    if is_republish then
+        [[
+            pub = assert(FC.chains[ARGS.old.key].pubs[ARGS.hash])
+            ARGS.message = {
+                version = '1.0',
+                chain   = ARGS.new,
+                nonce   = (ARGS.new.key==ARGS.old.key and pub.nonce) or nil,
+                payload = pub.payload,
+            }
+        ]]
+    end
+
+    _dbg(0, "client...");
+    await Client(&outer.shared);
+    _dbg(0, "client | ok");
+else/if is_subscribe then
+    var bool is_new = [[ FC.chains[ARGS.chain.key]==nil ]];
+    [[
+        OLD = FC.chains[ARGS.chain.key] and FC.chains[ARGS.chain.key].cfg
+        if OLD then
+            -- change zeros
+            OLD.zeros = (ARGS.chain.zeros or OLD.zeros)
+
+            -- include all new peers
+            for _, new in ipairs(ARGS.chain.peers) do
+                has = false
+                for _, old in ipairs(OLD.peers) do
+                    if new.address==old.address and new.port==old.port then
+                        has = true
+                        break
+                    end
+                end
+                if not has then
+                    OLD.peers[#OLD.peers+1] = new
+                end
+            end
+        else
+            CFG.chains[#CFG.chains+1] = ARGS.chain
+        end
+        FC.cfg_write()
+    ]]
+    await Subscribe();
+    await Broadcast(&outer.shared);
+    if is_new then
+        [[
+            len = string.len(ARGS.chain.key)
+            cmd = 'dbus-send --session --dest=org.gnome.feed.Reader --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Subscribe "string:|/bin/echo -e \\"'..(25+len)..'\\n{ cmd=\'atom\', chain=\''..ARGS.chain.key..'\' }\\" > '..CFG.dir..'/fifo.in ; sleep 1 ; cat '..CFG.dir..'/atoms/'..ARGS.chain.key..'.xml"'
+            --print(cmd)
+            os.execute(cmd)
+        ]]
+    end
+else/if is_atom then
+    _dbg(3, "server | MESSAGE 20 | ATOM");
+    [=[
+        TEMPLATES =
+        {
+            feed = [[
+                <feed xmlns="http://www.w3.org/2005/Atom">
+                    <title>__TITLE__</title>
+                    <updated>__UPDATED__</updated>
+                    <id>
+                        freechains:/__CHAIN_ID__/
+                    </id>
+                __ENTRIES__
+                </feed>
+            ]],
+            entry = [[
+                <entry>
+                    <title>__TITLE__</title>
+                    <id>
+                        freechains:/__CHAIN_ID__/__HASH__/
+                    </id>
+                    <published>__PUBLISHED__</published>
+                    <content type="html">__CONTENT__</content>
+                </entry>
+            ]],
+        }
+
+        dir = CFG.dir..'/atoms'
+        os.execute('mkdir -p '..dir)
+        f = assert(io.open(dir..'/'..ARGS.chain..'.xml', 'w'))
+print("server | MESSAGE 20 | ATOM | OPENED");
+
+        -- TODO: hacky, "plain" gsub
+        gsub = function (a,b,c)
+            return string.gsub(a, b, function() return c end)
+        end
+
+        CHAIN = FC.chains[ARGS.chain]
+        if not CHAIN then
+            entries = {}
+            entry = TEMPLATES.entry
+            entry = gsub(entry, '__TITLE__',     'not subscribed')
+            entry = gsub(entry, '__CHAIN_ID__',  ARGS.chain)
+            entry = gsub(entry, '__HASH__',      string.rep('00', @HASH_BYTES))
+            entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', os.time()))
+            entry = gsub(entry, '__CONTENT__',   'not subscribed')
+            entries[#entries+1] = entry
+        else
+            entries = {}
+
+            for i=CHAIN.cfg.zeros, 255 do
+                chain = assert(CHAIN[i])
+                cur = chain.head
+                while cur.hash~=chain.base.hash and cur.hash~=chain.cfg.last.atom[chain.zeros] do
+                    assert(cur ~= chain.base)
+print'oioioi'
+if cur.pub then
+                    payload = (cur.pub.payload or ('Removed publication: '..FC.hash2hex(cur.pub.removal.hash)))
+
+                    title = FC.escape(string.match(payload,'([^\n]*)'))
+
+                    if cur.pub.payload then
+                        payload = payload .. [[
+
+
+-------------------------------------------------------------------------------
+
+- [X](freechains:/]]..chain.key..'/'..chain.zeros..'/'..FC.hash2hex(cur.pub.hash)..[[/?cmd=republish)
+Republish Contents
+- [X](freechains:/]]..chain.key..'/'..chain.zeros..'/'..FC.hash2hex(cur.hash)..[[/?cmd=removal)
+Inappropriate Contents
+]]
+                    end
+
+                    -- freechains links
+                    payload = string.gsub(payload, '(%[.-%]%(freechains:.-)%)', '%1&cfg='..arg[1]..')')
+
+                    -- markdown
+if false then
+                    do
+                        local tmp = os.tmpname()
+                        local md = assert(io.popen('pandoc -r markdown -w html > '..tmp, 'w'))
+                        md:write(payload)
+                        assert(md:close())
+                        local html = assert(io.open(tmp))
+                        payload = html:read('*a')
+                        html:close()
+                        os.remove(tmp)
+                    end
+end
+
+                    payload = FC.escape(payload)
+
+                    entry = TEMPLATES.entry
+                    entry = gsub(entry, '__TITLE__',     '['..i..'] '..title)
+                    entry = gsub(entry, '__CHAIN_ID__',  chain.id)
+                    entry = gsub(entry, '__HASH__',      FC.hash2hex(cur.hash))
+                    entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', cur.pub.timestamp/1000000))
+                    entry = gsub(entry, '__CONTENT__',   payload)
+                    entries[#entries+1] = entry
+end
+                    cur = cur.prv
+                end
+                if chain.head.hash ~= chain.base.hash then  -- avoids polluting the cfg
+                    chain.cfg.last.atom[chain.zeros] = chain.head.hash
+                end
+            end
+            FC.cfg_write()
+
+            -- MENU
+            do
+                entry = TEMPLATES.entry
+                entry = gsub(entry, '__TITLE__',     'Menu')
+                entry = gsub(entry, '__CHAIN_ID__',  CHAIN.key)
+                entry = gsub(entry, '__HASH__',      FC.hash2hex(string.rep('\0',@HASH_BYTES)))
+                entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', 25000))
+                entry = gsub(entry, '__CONTENT__',   FC.escape([[
+<ul>
+]]..(CHAIN.key~='' and '' or [[
+<li> <a href="freechains:/?cmd=new&cfg=]]..arg[1]..[[">[X]</a> New Chain
+]])..[[
+<li> <a href="freechains:/]]..CHAIN.key..[[/?cmd=subscribe&cfg=]]..arg[1]..[[">[X]</a> Change Minimum Work for "]]..CHAIN.key..[["
+<li> <a href="freechains:/]]..CHAIN.key..[[/?cmd=publish&cfg=]]..arg[1]..[[">[X]</a> Publish to "]]..CHAIN.key..[["
+</ul>
+]]))
+                entries[#entries+1] = entry
+            end
+        end
+
+        feed = TEMPLATES.feed
+        feed = gsub(feed, '__TITLE__',    (ARGS.chain=='' and '/' or ARGS.chain))
+        feed = gsub(feed, '__UPDATED__',  os.date('!%Y-%m-%dT%H:%M:%SZ', os.time()))
+        feed = gsub(feed, '__CHAIN_ID__', ARGS.chain)
+        feed = gsub(feed, '__ENTRIES__',  table.concat(entries,'\n'))
+
+        f:write(feed)
+        f:close()
+    ]=]
+end
+
+#endif

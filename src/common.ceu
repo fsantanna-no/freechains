@@ -56,7 +56,8 @@ end
 
 native/pre do
     enum {
-        MESSAGE10 = 0x100,
+        MESSAGE10 = 0x0100,
+        MESSAGEF0 = 0xF000,
     };
 
     enum {
@@ -816,10 +817,6 @@ spawn do
 end
 #endif
 
-#include "client.ceu"
-#include "server.ceu"
-#include "uv/tcp-server.ceu"
-
 code/await Subscribe (none) -> none do
     var int n = [[ #CFG.chains ]];
     var int i;
@@ -903,6 +900,8 @@ code/await Subscribe (none) -> none do
     end
 end
 
+#include "client.ceu"
+
 code/await Broadcast (var& UV_TCP_Server_Data shared) -> none do
     // broadcast all chains to all peers
     var int n = [[ #CFG.chains ]];
@@ -931,17 +930,23 @@ code/await Broadcast (var& UV_TCP_Server_Data shared) -> none do
     end
 end
 
+#include "server.ceu"
+#include "uv/tcp-server.ceu"
+
 code/await Init (none) -> (event none ok, var UV_TCP_Server_Data shared) -> NEVER
     throws Exception.Freechains.Malformed
 do
     shared = _;
 
     [[
+        dofile 'src/common.lua'
+
         FC['Exception.Freechains.Malformed'] = @({CEU_DATA_Exception__dot__Freechains__dot__Malformed} as int)
         FC.MESSAGE10_NOTSUB = @({MESSAGE10_NOTSUB} as int)
 
         local port = CFG.server and CFG.server.port or '0000'
         CFG.dir = CFG.dir or '/tmp/freechains/'..port
+        os.execute('mkdir -p '..CFG.dir)
     ]]
 
     spawn do
