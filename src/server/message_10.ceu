@@ -25,16 +25,10 @@ do
     // => TIMESTAMP + NONCE
 
     await UV_Stream_Read_N(&tcp, 2*sizeof(u64));
-    var[sizeof(u64)] byte buf;
-
-    _ceu_vector_copy(&&buf,0, &&tcp.buffer,0, sizeof(u64));
-    var u64 timestamp = GET_BE64TOH(buf,0);
+    var u64 timestamp = GET_BE64TOH(outer.tcp.buffer,0);
     $tcp.buffer = $tcp.buffer - sizeof(u64);
-
-    _ceu_vector_copy(&&buf,0, &&tcp.buffer,0, sizeof(u64));
-    var u64 nonce = GET_BE64TOH(buf,0);
+    var u64 nonce = GET_BE64TOH(outer.tcp.buffer,0);
     $tcp.buffer = $tcp.buffer - sizeof(u64);
-
     [[
         THIS.block.timestamp = @timestamp
         THIS.block.nonce     = @nonce
@@ -94,18 +88,11 @@ do
     if not has_pub then
         // => TIMESTAMP + NONCE + LEN
         await UV_Stream_Read_N(&tcp, 2*sizeof(u64) + sizeof(u32));
-        var[sizeof(u64)] byte buf;
-
-        _ceu_vector_copy(&&buf,0, &&tcp.buffer,0, sizeof(u64));
-        var u64 timestamp = GET_BE64TOH(buf,0);
+        var u64 timestamp = GET_BE64TOH(tcp.buffer,0);
         $tcp.buffer = $tcp.buffer - sizeof(u64);
-
-        _ceu_vector_copy(&&buf,0, &&tcp.buffer,0, sizeof(u64));
-        var u64 nonce = GET_BE64TOH(buf,0);
+        var u64 nonce = GET_BE64TOH(tcp.buffer,0);
         $tcp.buffer = $tcp.buffer - sizeof(u64);
-
-        _ceu_vector_copy(&&buf,0, &&tcp.buffer,0, sizeof(u32));
-        var u32 len = GET_BE32TOH(buf,0);
+        var u64 len = GET_BE32TOH(tcp.buffer,0);
         $tcp.buffer = $tcp.buffer - sizeof(u32);
 
         // removal expects the block hash
@@ -158,12 +145,19 @@ end
 // HEADER
 ///////////////////////////////////////////////////////////////////////////
 
+// => SERVER_PORT
 // => CHAIN_KEY_LEN
 // => CHAIN_KEY_STR
 // => CHAIN_ZEROS
 // => CHAIN_LENGTH
 // => CHAIN_HEAD_HASH
 do
+    // port
+    await UV_Stream_Read_N(&outer.tcp, sizeof(u16));
+    var u16 port = GET_BE16TOH(outer.tcp.buffer,0);
+    $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u16);
+    _dbg_tcp(2, &&outer.tcp.handle, "server", "SERVER_PORT = %d", port);
+
     // key_len
     await UV_Stream_Read_N(&outer.tcp, 1);
     var byte key_len = outer.tcp.buffer[0];
@@ -184,9 +178,7 @@ do
 
     // length
     await UV_Stream_Read_N(&outer.tcp, sizeof(u64));
-    var[sizeof(u64)] byte buf;
-    _ceu_vector_copy(&&buf,0, &&outer.tcp.buffer,0, sizeof(u64));
-    var u64 length = GET_BE64TOH(buf,0);
+    var u64 length = GET_BE64TOH(outer.tcp.buffer,0);
     _dbg_tcp(2, &&outer.tcp.handle, "server", "CHAIN_LENGTH  = %ld", length);
     $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
 
@@ -200,6 +192,7 @@ do
         key   = @key_str
         zeros = @zeros
         THIS  = {
+            port      = @port,
             length    = @length,
             head_hash = @head_hash,
             chain     = FC.chains[key] and FC.chains[key].cfg.zeros<=zeros and FC.chains[key][zeros] or nil
@@ -229,7 +222,7 @@ end
     var int ret = do
         var bool me_longest = [[ THIS.chain.head.length > THIS.length ]];
         if me_longest then
-            [[ ARGS = { me_greater=true } ]]
+            [[ ARGS = { port=THIS.port, me_greater=true } ]]
             escape {MESSAGE10_HAVE};
         end
 
@@ -237,7 +230,7 @@ end
         if me_same then
             var bool me_same_or_greater = [[ THIS.chain.head.hash >= THIS.head_hash ]];
             if me_same_or_greater then
-                [[ ARGS = { me_greater=(THIS.chain.head.hash>THIS.head_hash) } ]]
+                [[ ARGS = { port=THIS.port, me_greater=(THIS.chain.head.hash>THIS.head_hash) } ]]
                 escape {MESSAGE10_HAVE};
             end
         end

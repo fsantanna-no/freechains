@@ -56,10 +56,11 @@ do
                             await Client_10(&outer.shared);
                         else/if out == {MESSAGE10_HAVE} then
                             var bool me_greater = [[ ARGS.me_greater ]];
-                            if me_greater then
+                            var u16  port       = [[ (ARGS.me_greater and ARGS.port) or 0 ]];
+                            if me_greater and port!=0 then
                                 // send old head to out-of-date peer
                                 [[ ARGS = { chain=THIS.chain } ]]
-#if 1
+#if 0
                                 // TODO: should send only to peer, but don't know his server port
                                 await Client_10(&outer.shared);
 #else
@@ -70,13 +71,11 @@ do
                                     ceu_assert(uv_tcp_getpeername((uv_tcp_t*)(@&&tcp.handle), (struct sockaddr*) &name, &namelen) == 0, "bug found: uv_tcp_getpeername");
                                     char addr[16];
                                     uv_inet_ntop(AF_INET, &name.sin_addr, addr, sizeof(addr));
-                                    int port = ntohs(name.sin_port);
+                                    //int port = ntohs(name.sin_port);
                                 }
                                 var[16] byte addr = []..({addr} as _char&&);
                                 $addr = $addr - 1;
-                                var int port = {port};
-// TODO
-port = 8330;
+                                //var int port = {port};
                                 [[
                                     ARGS = {
                                         chain = THIS.chain,

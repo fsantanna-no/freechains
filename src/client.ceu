@@ -16,20 +16,23 @@ do
     ///////////////////////////////////////////////////////////////////////////
 
     // <= MESSAGE
+    // <= SERVER_PORT
     // <= CHAIN_KEY_LEN
     // <= CHAIN_KEY_STR
     // <= CHAIN_ZEROS
     // <= CHAIN_LENGTH
     // <= CHAIN_HEAD_HASH
     do/_
-        tcp.buffer = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 1, 0];
+        tcp.buffer = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 0x01, 0x00];
         do
-            var u8     zeros   = [[ THIS.chain.zeros ]];
-            var[] byte key_str = [] .. [[ THIS.chain.key ]];
+            var u16    port    = [[ (CFG.server and CFG.server.port) or 0 ]];
             var u8     key_len = [[ string.len(THIS.chain.key) ]];
+            var[] byte key_str = [] .. [[ THIS.chain.key ]];
+            var u8     zeros   = [[ THIS.chain.zeros ]];
             var u64    length  = [[ THIS.chain.head.length ]];
             _ceu_assert(key_len<CHAIN_KEY_BYTES, "bug found");
-            tcp.buffer = tcp.buffer .. [key_len as byte] .. key_str .. [zeros as byte] .. [0,0,0,0,0,0,0,0];
+            tcp.buffer = tcp.buffer .. [0,0] .. [key_len as byte] .. key_str .. [zeros as byte] .. [0,0,0,0,0,0,0,0];
+            PUT_HTOBE16(tcp.buffer, 4, port);
             PUT_HTOBE64(tcp.buffer, $tcp.buffer-sizeof(u64), length);
         end
         tcp.buffer = tcp.buffer .. [[ THIS.chain.head.hash ]];
@@ -281,7 +284,7 @@ do
                 timestamp = ARGS.message.timestamp or now,
                 nonce     = ARGS.message.nonce or 0,
                 payload   = ARGS.message.payload,
-                removal   = ARGS.message.removal and assert(FC.chain_block_get(chain, FC.hex2hash(ARGS.message.removal))),
+                removal   = ARGS.message.removal and assert(FC.chain_block_get(chain, ARGS.message.removal)),
                 hash      = nil,
             },
         }
