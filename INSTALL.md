@@ -75,7 +75,9 @@ $ gsettings set net.sf.liferea browser '/<freechains-repo>/util/liferea/cmd.lua 
 
 ```
 + New Subscription -> Advanced -> Command -> Source
-    /bin/echo -e "25\n{ cmd='atom', chain='' }" > /tmp/freechains/<port>/fifo.in ; sleep 1 ; cat /tmp/freechains/<port>/atoms/.xml
+    /<freechains-repo>/util/liferea/cmd.lua freechains://?cmd=atom\&cfg=/<freechains-repo>/cfg/<config.lua>
 ```
 
+<!--
 In testing mode, `<port>` is `8400`.
+-->
