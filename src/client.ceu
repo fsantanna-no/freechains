@@ -285,10 +285,10 @@ do
             chain = assert(FC.chains[THIS.message.chain.key][THIS.message.chain.zeros], 'not subscribed to |'..THIS.message.chain.key..'|'..THIS.message.chain.zeros..'|')
             THIS.pub = {
                 chain     = chain,
-                timestamp = THIS.now,
+                timestamp = THIS.message.timestamp or THIS.now,
                 nonce     = THIS.message.nonce or 0,
                 payload   = THIS.message.payload,
-                removal   = THIS.message.removal and assert(FC.chain_block_get(chain, THIS.message.removal)),
+                removal   = THIS.message.removal and assert(FC.chain_block_get(chain, FC.hex2hash(THIS.message.removal))),
                 hash      = nil,
             }
             ARGS = THIS
@@ -328,7 +328,7 @@ do
         [[
             ARGS = THIS
         ]]
-        emit shared.ok_client({MESSAGE10}, 0);
+        emit shared.ok_client({MESSAGE10}, {MESSAGE10_OK});
     else
         var Exception.Freechains.Unsupported e = val Exception.Freechains.Unsupported(_);
         throw e;

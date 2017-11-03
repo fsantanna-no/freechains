@@ -12,11 +12,17 @@ var& Init fc = spawn Init();
 
 var int msg;
 var int ret;
-every (msg,ret) in fc.shared.ok_server do
+loop do
+    par/or do
+        (msg,ret) = await fc.shared.ok_server;
+    with
+        (msg,ret) = await fc.shared.ok_client;
+    end
     if msg == {MESSAGE10} then
         if ret == {MESSAGE10_OK} then
             [[
-                os.execute('dbus-send --session --dest=org.gnome.feed.Reader --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Refresh')
+                print('>>>', CFG.chains.execute)
+                os.execute(CFG.chains.execute)
             ]];
         end
     end

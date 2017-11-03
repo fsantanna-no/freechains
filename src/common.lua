@@ -244,7 +244,7 @@ function table_show(t, name, indent, mode)
                for k in pairs(value) do
                   t[#t+1] = k
                end
-               table.sort(t)
+               table.sort(t, function(a,b) return tostring(a)<tostring(b) end)
 
                for _, k in ipairs(t) do
                   local v = value[k]

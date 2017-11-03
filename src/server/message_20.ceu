@@ -71,17 +71,18 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
         prv       = block.prv and FC.hash2hex(block.prv.hash) or nil,
         timestamp = block.timestamp,
         nonce     = block.nonce,
-        removal   = block.removal and FC.hash2hex(block.removal.hash),
         pub       = block.pub and {
             hash      = FC.hash2hex(block.pub.hash),
             timestamp = block.pub.timestamp,
             nonce     = block.pub.nonce,
             payload   = block.pub.payload,
+            removal   = block.pub.removal and FC.hash2hex(block.pub.removal.hash),
         } or nil,
     }
 ]]
 
 // <= MSG
+//[[ print('RET', tostring2(ret,'plain')) ]];
 outer.tcp.buffer = []..[[ tostring2(ret,'plain') ]];
 await UV_Stream_Write_N(&outer.tcp,_);
 

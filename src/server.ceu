@@ -103,10 +103,10 @@ port = 8330;
                     do ()
                         #include "server/message_30.ceu"
                     end
-                else/if msg=={MESSAGEF0} then
-                    _dbg(3, "server | MESSAGE F0");
+                else/if msg=={MESSAGE40} then
+                    _dbg(3, "server | MESSAGE 40");
                     do ()
-                        #include "server/message_F0.ceu"
+                        #include "server/message_40.ceu"
                     end
                 end
             else

@@ -1,6 +1,22 @@
 #ifndef _MESSAGE30_CEU
 #define _MESSAGE30_CEU
 
+/*
+ * PUBLISH:
+ *
+ *  msg = {
+ *      chain = {
+ *          key   = <string>,
+ *          zeros = <number>,
+ *      }
+ *      payload = <string>,
+ *  }
+ *
+ *  // TODO
+ *  ret = {
+ *  }
+ */
+
 // => LEN
 await UV_Stream_Read_N(&outer.tcp, sizeof(u32));
 var u32 len = GET_BE32TOH(outer.tcp.buffer,0);
@@ -16,9 +32,12 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
     print('>>>', tostring2(msg,'plain'))
     ARGS = {
         message = {
-            version = '1.0',
-            chain   = msg.chain,
-            payload = msg.payload,
+            version   = '1.0',
+            chain     = msg.chain,
+            timestamp = msg.timestamp,
+            nonce     = msg.nonce,
+            payload   = msg.payload,
+            removal   = msg.removal,
         },
     }
 ]]
