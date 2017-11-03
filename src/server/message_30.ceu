@@ -36,7 +36,7 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
             timestamp = msg.timestamp,
             nonce     = msg.nonce,
             payload   = msg.payload,
-            removal   = FC.hex2hash(msg.removal),
+            removal   = msg.removal and FC.hex2hash(msg.removal) or nil,
         },
     }
 ]]
