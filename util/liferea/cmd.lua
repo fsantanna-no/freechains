@@ -5,8 +5,7 @@ local HASH_BYTES = 32
 local log = assert(io.open('/tmp/log.txt','a+'))
 log:write((...)..'\n')
 
---FC_DIR = error 'set absolute path to "<freechains>" repository'
-FC_DIR = '/data/ceu/ceu-libuv/ceu-libuv-freechains'
+FC_DIR = error 'set absolute path to "<freechains>" repository'
 dofile(FC_DIR..'/src/common.lua')
 
 --[[
