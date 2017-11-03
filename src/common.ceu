@@ -487,7 +487,6 @@ do
                 --print('>>>', tostring2(THIS.from.hash), THIS.from.pub.payload)
                 assert(THIS.from.chain == THIS.to.first.chain)
                 THIS.block = {
-                    version     = '1.0',
                     timestamp   = 0,    -- TODO: 64-bit timestamp
                     nonce       = 0,
                     chain       = THIS.from.chain,
@@ -576,7 +575,6 @@ do
 
         [[
             THIS.block = {
-                version = '1.0',
                 timestamp   = nil,
                 nonce       = nil,
                 chain       = THIS.chain,

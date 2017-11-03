@@ -265,74 +265,63 @@ do
     // client mode: terminates
 
     [[
-        THIS = {
-            message = ARGS.message,
-        }
+        chain = ARGS.message.chain
+        chain = assert(FC.chains[chain.key][chain.zeros], 'not subscribed to |'..chain.key..'|'..chain.zeros..'|')
 
-        assert(type(THIS.message)=='table', 'missing message')
-        assert(type(THIS.message.chain)=='table', 'missing chain')
-    ]];
-
-    var bool is_10 = [[ THIS.message.version=='1.0' ]];
-
-    if is_10 then
-        [[
 #ifdef DETERMINISTIC
-            THIS.now = 0
+        now = 0
 #else
-            THIS.now = os.time() * 1000000      -- in ms since the epoch
+        now = os.time() * 1000000   -- in ms since the epoch
 #endif
-            chain = assert(FC.chains[THIS.message.chain.key][THIS.message.chain.zeros], 'not subscribed to |'..THIS.message.chain.key..'|'..THIS.message.chain.zeros..'|')
-            THIS.pub = {
+
+        THIS = {
+            now = now,
+            pub = {
                 chain     = chain,
-                timestamp = THIS.message.timestamp or THIS.now,
-                nonce     = THIS.message.nonce or 0,
-                payload   = THIS.message.payload,
-                removal   = THIS.message.removal and assert(FC.chain_block_get(chain, FC.hex2hash(THIS.message.removal))),
+                timestamp = ARGS.message.timestamp or now,
+                nonce     = ARGS.message.nonce or 0,
+                payload   = ARGS.message.payload,
+                removal   = ARGS.message.removal and assert(FC.chain_block_get(chain, FC.hex2hash(ARGS.message.removal))),
                 hash      = nil,
+            },
+        }
+        ARGS = THIS
+    ]]
+    await Publication_New();
+    [[
+        if THIS.pub.removal then
+            THIS.pub.removal.pub = nil
+        end
+    ]]
+    do
+        [[ ARGS = { chain=THIS.pub.chain } ]]
+        CHAIN_LOCK(l, shared, "lock_write");
+        [[
+            THIS.block = {
+                timestamp   = THIS.now,
+                nonce       = 0,
+                chain       = THIS.pub.chain,
+                pub         = THIS.pub,
+                hash        = nil,
+                prv         = nil,
+                nxt         = nil,
+                length      = nil,
             }
             ARGS = THIS
         ]]
-        await Publication_New();
-        [[
-            if THIS.pub.removal then
-                THIS.pub.removal.pub = nil
-            end
-        ]]
-        do
-            [[ ARGS = { chain=THIS.pub.chain } ]]
-            CHAIN_LOCK(l, shared, "lock_write");
-            [[
-                THIS.block = {
-                    version     = '1.0',
-                    timestamp   = THIS.now,
-                    nonce       = 0,
-                    chain       = THIS.pub.chain,
-                    pub         = THIS.pub,
-                    hash        = nil,
-                    prv         = nil,
-                    nxt         = nil,
-                    length      = nil,
-                }
-                ARGS = THIS
-            ]]
-            await Block_Hash_Link();
-        end
-        do
-            [[
-                THIS = { chain=THIS.block.chain }
-                ARGS = THIS
-            ]];
-            await Client_10(&shared);
-        end
-        [[
-            ARGS = THIS
-        ]]
-        emit shared.ok_client({MESSAGE10}, {MESSAGE10_OK});
-    else
-        var Exception.Freechains.Unsupported e = val Exception.Freechains.Unsupported(_);
-        throw e;
+        await Block_Hash_Link();
     end
+    do
+        [[
+            THIS = { chain=THIS.block.chain }
+            ARGS = THIS
+        ]];
+        await Client_10(&shared);
+    end
+    [[
+        ARGS = THIS
+    ]]
+    emit shared.ok_client({MESSAGE10}, {MESSAGE10_OK});
 end
 
 #endif

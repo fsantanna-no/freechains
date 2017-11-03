@@ -1,7 +1,7 @@
 #ifndef _MESSAGE10_CEU
 #define _MESSAGE10_CEU
 
-code/await Message10_block_recv (var& UV_Stream tcp) -> none
+code/await Message10_recv (var& UV_Stream tcp) -> none
     // input: { chain={...}, block={TODO} }
     throws Exception.Uv
 do
@@ -330,21 +330,20 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
     {BLOCKS_RECEIVED++;}
         [[
             THIS.block = {
-                version = '1.0',
-                timestamp   = nil,
-                nonce       = nil,
-                chain       = THIS.chain,
-                pub         = nil,
-                hash        = nil,
-                prv         = THIS.block or THIS.common,
-                nxt         = nil,
-                length      = THIS.common.length+@i,
+                timestamp = nil,
+                nonce     = nil,
+                chain     = THIS.chain,
+                pub       = nil,
+                hash      = nil,
+                prv       = THIS.block or THIS.common,
+                nxt       = nil,
+                length    = THIS.common.length+@i,
             }
             THIS.first = THIS.first or THIS.block
         ]];
 
         [[ ARGS = THIS ]]
-        await Message10_block_recv(&outer.tcp);
+        await Message10_recv(&outer.tcp);
         var bool is_removed = [[ THIS.block.pub==true ]];
         if not is_removed then
             [[ ARGS = THIS ]]
