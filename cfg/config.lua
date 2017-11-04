@@ -1,11 +1,3 @@
---dir = '/data/ceu/ceu-libuv/ceu-libuv-freechains/cache/8400'
-dir = '/tmp/freechains/8500'
-
-server = {
-    address = '192.168.56.1',
-    port = '8500',
-}
-
 chains = {
     execute = 'dbus-send --session --dest=org.gnome.feed.Reader --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Refresh',
     [1] = {
@@ -16,7 +8,7 @@ chains = {
             atom   = {},
         },
         peers = {
---[=[
+--[[
             {
                 address = '192.168.56.2',
                 port    = '8400'
@@ -30,7 +22,7 @@ chains = {
                 address = '152.92.236.9',
                 port    = '8330',
             },
-]=]
+]]
         },
     },
 }
