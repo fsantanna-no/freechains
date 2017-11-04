@@ -103,7 +103,8 @@ Commands:
 
 Options:
 
-    --daemon=<address:port>     daemon to connect (default: `localhost:8330`)
+    --address=<ip-address>      address to connect/bind (default: `localhost`)
+    --port=<tcp-port>           port to connect/bind (default: `8330`)
 
     --help                      display this help
     --version                   display version information
@@ -120,16 +121,9 @@ local arg, opts = parser:parse(_G.arg)
 local cmd = arg[1]
 
 local DAEMON = {
-    address = 'localhost',
-    port    = 8330,
+    address = opts.address or 'localhost',
+    port    = tonumber(opts.port) or 8330,
 }
-if opts.daemon then
-    local address, port = string.match(opts.daemon, '([^:]*):(.*)')
-    DAEMON = {
-        address = ASR(address),
-        port    = ASR(tonumber(port)),
-    }
-end
 
 --print('>>>', table.unpack(arg))
 
@@ -263,7 +257,7 @@ elseif cmd == 'configure' then
 
 elseif cmd == 'daemon' then
     ASR(#arg == 2)
-    os.execute('freechains '..arg[2])
+    os.execute('freechains.daemon '..arg[2])
 
 else
     ASR(false)
