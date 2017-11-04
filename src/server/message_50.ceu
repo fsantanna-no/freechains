@@ -1,0 +1,49 @@
+#ifndef _MESSAGE50_CEU
+#define _MESSAGE50_CEU
+
+/*
+ * CONFIGURE: get or set configuration
+ *
+ *  msg = {
+ *      config = nil,   -- or a table
+ *      config = {,     -- or nil
+ *          ...
+ *      }
+ *
+ *  ret = {
+ *      ...
+ *  }
+ */
+
+// echo -n -e "PS\x05\x00\x00\x00\x00\x03nil" | nc localhost 8500
+// echo -n -e "PS\x05\x00\x00\x00\x00\x09{dir='/'}" | nc localhost 8500
+
+// => LEN
+await UV_Stream_Read_N(&outer.tcp, sizeof(u32));
+var u32 len = GET_BE32TOH(outer.tcp.buffer,0);
+$outer.tcp.buffer = $outer.tcp.buffer - sizeof(u32);
+_dbg_tcp(2, &&outer.tcp.handle, "server", "LEN = %d", len);
+
+// => MSG
+await UV_Stream_Read_N(&outer.tcp, (len as usize));
+//outer.tcp.buffer = outer.tcp.buffer..[0];
+//_dbg(3, "server | MESSAGE 50 | %s", &&outer.tcp.buffer[0]);
+[[
+    assert(load('msg = '..@outer.tcp.buffer))()
+    print('>>>', tostring2(msg,'plain'))
+
+    if msg ~= nil then
+        CFG = msg
+        FC.cfg_write()
+    end
+]]
+
+var bool is_get = [[ msg==nil ]];
+if is_get then
+    // <= CFG
+    //[[ print('RET', tostring2(CFG,'plain')) ]];
+    outer.tcp.buffer = []..[[ tostring2(CFG,'plain') ]];
+    await UV_Stream_Write_N(&outer.tcp,_);
+end
+
+#endif

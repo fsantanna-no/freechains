@@ -107,6 +107,11 @@ do
                     do ()
                         #include "server/message_40.ceu"
                     end
+                else/if msg=={MESSAGE50} then
+                    _dbg(3, "server | MESSAGE 50");
+                    do ()
+                        #include "server/message_50.ceu"
+                    end
                 end
             else
                 var Exception.Freechains.Unsupported e = val Exception.Freechains.Unsupported(_);
