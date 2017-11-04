@@ -257,7 +257,7 @@ elseif cmd == 'configure' then
 
 elseif cmd == 'daemon' then
     ASR(#arg == 2)
-    os.execute('freechains.daemon '..arg[2]..' '..DAEMON.address..' '..DAEMON.port)
+    os.execute('freechains-daemon '..arg[2]..' '..DAEMON.address..' '..DAEMON.port)
 
 else
     ASR(false)

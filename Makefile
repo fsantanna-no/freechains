@@ -4,12 +4,12 @@ CEU_FC_DIR = $(error set absolute path to "<ceu-libuv>" repository)
 
 main:
 	make CEU_SRC=src/main.ceu one
-	mv /tmp/main freechains.daemon
+	mv /tmp/main freechains-daemon
 
 install:
 	cp src/freechains.cli.lua /usr/local/bin/freechains
 	cp src/freechains-liferea.lua /usr/local/bin/freechains-liferea
-	cp freechains.daemon /usr/local/bin/
+	cp freechains-daemon /usr/local/bin/
 
 one:
 	ceu --pre --pre-args="-I$(CEU_DIR)/include -I$(CEU_UV_DIR)/include -Isrc/" \
