@@ -7,8 +7,9 @@ main:
 	mv /tmp/main freechains.daemon
 
 install:
-	cp freechains.daemon /usr/local/bin/
 	cp src/freechains.cli.lua /usr/local/bin/freechains
+	cp src/freechains-liferea.lua /usr/local/bin/freechains-liferea
+	cp freechains.daemon /usr/local/bin/
 
 one:
 	ceu --pre --pre-args="-I$(CEU_DIR)/include -I$(CEU_UV_DIR)/include -Isrc/" \

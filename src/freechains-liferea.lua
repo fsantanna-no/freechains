@@ -1,81 +1,102 @@
 #!/usr/bin/env lua5.3
 
+--FC_DIR = error 'set absolute path to "<freechains>" repository'
+FC_DIR = '/data/ceu/ceu-libuv/ceu-libuv-freechains'
+dofile(FC_DIR..'/src/common.lua')
+
 local HASH_BYTES = 32
 
-local log = assert(io.open('/tmp/log.txt','a+'))
-log:write((...)..'\n')
+local url = assert((...))
 
-FC_DIR = error 'set absolute path to "<freechains>" repository'
-dofile(FC_DIR..'/src/common.lua')
+--local log = assert(io.open('/tmp/log.txt','a+'))
+local log = io.stderr
+log:write('URL: '..url..'\n')
+
+if string.sub(url,1,13) ~= 'freechains://' then
+    os.execute('xdg-open '..url)
+    os.exit(0)
+end
+
+local function ASR (cnd, msg)
+    msg = msg or 'malformed command'
+    if not cnd then
+        io.stderr:write('ERROR: '..msg..'\n')
+        os.exit(1)
+    end
+    return cnd
+end
 
 --[[
 freechains://?cmd=publish&cfg=/data/ceu/ceu-libuv/ceu-libuv-freechains/cfg/config-8400.lua
 freechains::-1?cmd=publish&cfg=/data/ceu/ceu-libuv/ceu-libuv-freechains/cfg/config-8400.lua
 
+freechains://<address>:<port>/<chain>/<work>/<hash>?
+
 ]]
 
-local url = string.match((...), 'freechains:(.*)')
-if not url then
-    os.execute('xdg-open '..(...))
-    os.exit(0)
-end
+local address, port, res = string.match(url, 'freechains://([^:]*):([^/]*)/(.*)')
+--print(address , port , res)
+ASR(address and port and res)
+log:write('URL: '..res..'\n')
 
-log:write(url..'\n')
+DAEMON = {
+    address = address,
+    port    = ASR(tonumber(port)),
+}
+daemon = DAEMON.address..':'..DAEMON.port
+
+CFG = FC.send(0x0500, nil, DAEMON)
+--print('>>>', FC.cfg_chain(''))
 
 -- new
 if not cmd then
-    cmd, cfg = string.match(url, '^/%?cmd=(new)&cfg=(.*)')
+    cmd, cfg = string.match(res, '^?cmd=(new)')
 end
 
 -- subscribe
 if not cmd then
     -- TODO: bug in Liferea?
-    cmd, cfg = string.match(url, '^:%-1%?cmd=(subscribe)&cfg=(.*)')
+    cmd, cfg = string.match(res, '^:%-1%?cmd=(subscribe)&cfg=(.*)')
     key = ''
 end
 if not cmd then
-    key, cmd, cfg = string.match(url, '^/(.*)/%?cmd=(subscribe)&cfg=(.*)')
+    key, cmd, cfg = string.match(res, '^/(.*)/%?cmd=(subscribe)&cfg=(.*)')
 end
 if not cmd then
-    key, cmd, address, port, cfg = string.match(url, '^/(.*)/%?cmd=(subscribe)&peer=(.*):(.*)&cfg=(.*)')
+    key, cmd, address, port, cfg = string.match(res, '^/(.*)/%?cmd=(subscribe)&peer=(.*):(.*)&cfg=(.*)')
 end
 
 -- publish
 if not cmd then
     -- TODO: bug in Liferea?
-    cmd, cfg = string.match(url, '^:%-1%?cmd=(publish)&cfg=(.*)')
+    cmd, cfg = string.match(res, '^:%-1%?cmd=(publish)&cfg=(.*)')
     key = ''
 end
 if not cmd then
-    key, cmd, cfg = string.match(url, '^/(.*)/%?cmd=(publish)&cfg=(.*)')
+    key, cmd, cfg = string.match(res, '^/(.*)/%?cmd=(publish)&cfg=(.*)')
 end
 
 -- republish
 if not cmd then
-    key, zeros, pub, cmd, cfg = string.match(url, '^/(.*)/(.*)/(.*)/%?cmd=(republish)&cfg=(.*)')
+    key, zeros, pub, cmd, cfg = string.match(res, '^/(.*)/(.*)/(.*)/%?cmd=(republish)&cfg=(.*)')
 end
 
 -- removal
 if not cmd then
-    key, zeros, block, cmd, cfg = string.match(url, '^/(.*)/(.*)/(.*)/%?cmd=(removal)&cfg=(.*)')
+    key, zeros, block, cmd, cfg = string.match(res, '^/(.*)/(.*)/(.*)/%?cmd=(removal)&cfg=(.*)')
 end
 
 -- atom
 if not cmd then
-    key, cmd, cfg = string.match(url, '^/(.*)/%?cmd=(atom)&cfg=(.*)')
+    key, cmd = string.match(res, '^(.*)/%?cmd=(atom)')
 end
 
 log:write('INFO: .'..cmd..'.\n')
 
-arg[1] = cfg    -- FC.cfg_write
-
-CFG = {}
-assert(loadfile(cfg,nil,CFG))()
-
 if cmd=='new' or cmd=='subscribe' then
     -- get key
     if cmd == 'new' then
-        local f = io.popen('zenity --entry --title="New Chain" --text="Enter the Chain Key:"')
+        local f = io.popen('zenity --entry --title="New Chain" --text="Chain Identifier:"')
         key = f:read('*a')
         key = string.sub(key,1,-2)
         local ok = f:close()
@@ -85,7 +106,7 @@ if cmd=='new' or cmd=='subscribe' then
         end
 
         -- get description
-        local f = io.popen('zenity --entry --title="New Chain" --text="Enter the Chain Description:" --entry-text="Awesome chain!"')
+        local f = io.popen('zenity --entry --title="New Chain" --text="Chain Description:" --entry-text="Awesome chain!"')
         description = f:read('*a')
         description = string.sub(description,1,-2)
         ok = f:close()
@@ -128,7 +149,7 @@ if cmd=='new' or cmd=='subscribe' then
             zeros = assert(tonumber(zeros)),
             peers = peers,
         }
-    })
+    }, DAEMON)
 
     -- publish announcement to //0/
 
@@ -142,13 +163,13 @@ New chain "]]..key..[[":
 > ]]..description..[[
 
 
-Subscribe to []]..key..[[](freechains:/]]..key..[[/?cmd=subscribe&peer=]]..(CFG.server.address or 'localhost')..':'..(CFG.server.port or 8400)..[[).
+Subscribe to []]..key..[[](freechains:/]]..key..[[/?cmd=subscribe&peer=]]..daemon..[[).
 ]]
         else
             payload = [[
 I'm also subscribed to chain "]]..key..[[".
 
-Subscribe to []]..key..[[](freechains:/]]..key..[[/?cmd=subscribe&peer=]]..(CFG.server.address or 'localhost')..':'..(CFG.server.port or 8400)..[[).
+Subscribe to []]..key..[[](freechains:/]]..key..[[/?cmd=subscribe&peer=]]..daemon..[[).
 ]]
         end
 
@@ -159,10 +180,10 @@ Subscribe to []]..key..[[](freechains:/]]..key..[[/?cmd=subscribe&peer=]]..(CFG.
             },
             payload = payload,
         }
-        FC.send(0x0300, msg)
+        FC.send(0x0300, msg, DAEMON)
 
         if cmd == 'new' then
-            local exe = 'dbus-send --session --dest=org.gnome.feed.Reader --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Subscribe "string:|/data/ceu/ceu-libuv/ceu-libuv-freechains/util/liferea/cmd.lua freechains:/'..key..'/?cmd=atom\\&cfg='..arg[1]..'"'
+            local exe = 'dbus-send --session --dest=org.gnome.feed.Reader --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Subscribe "string:|freechains-liferea freechains://'..daemon..'/'..key..'/?cmd=atom"'
             --print('>>>', exe)
             os.execute(exe)
         end
@@ -193,11 +214,7 @@ elseif cmd == 'publish' then
             zeros = assert(tonumber(zeros)),
         },
         payload = payload,
-    })
-    --local str = tostring2(t, 'plain')
-    --local f = assert(io.open(CFG.dir..'/fifo.in', 'a+'))
-    --f:write(tostring(string.len(str))..'\n'..str)
-    --f:close()
+    }, DAEMON)
 
 elseif cmd == 'republish' then
     local old_key   = key
@@ -228,7 +245,7 @@ log:write('>>>.'..new_key..'.\n')
             zeros = assert(tonumber(old_zeros)),
         },
         pub = pub,
-    })
+    }, DAEMON)
     FC.send(0x0300, {
         chain = {
             key   = new_key,
@@ -237,7 +254,7 @@ log:write('>>>.'..new_key..'.\n')
         -- TODO: timestamp if nonce reached maximum
         nonce = (new_key==old_key and ret.nonce) or nil,
         payload = ret.pub.payload,
-    })
+    }, DAEMON)
 
 elseif cmd == 'removal' then
     FC.send(0x0300, {
@@ -246,7 +263,7 @@ elseif cmd == 'removal' then
             zeros = assert(tonumber(zeros)),
         },
         removal = block,
-    })
+    }, DAEMON)
 
 elseif cmd == 'atom' then
     TEMPLATES =
@@ -294,7 +311,7 @@ elseif cmd == 'atom' then
         for i=CHAIN.zeros, 255 do
             head = FC.send(0x0200, {
                 chain = { key=CHAIN.key, zeros=i },
-            })
+            }, DAEMON)
             if not head then
                 goto i_continue
             end
@@ -321,7 +338,7 @@ Inappropriate Contents
                 end
 
                 -- freechains links
-                payload = string.gsub(payload, '(%[.-%]%(freechains:.-)%)', '%1&cfg='..arg[1]..')')
+                payload = string.gsub(payload, '(%[.-%]%(freechains:)(/.-%))', '%1//'..daemon..'%2')
 
                 -- markdown
 --if false then
@@ -351,14 +368,14 @@ Inappropriate Contents
                 cur = FC.send(0x0200, {
                     chain = { key=CHAIN.key, zeros=i },
                     block = cur.prv,
-                })
+                }, DAEMON)
             end
             if head.prv ~= nil then  -- avoids polluting the cfg
                 CHAIN.last.atom[i] = head.hash
             end
             ::i_continue::
         end
-        FC.cfg_write()
+        FC.send(0x0500, CFG, DAEMON)
 
         -- MENU
         do
@@ -370,10 +387,10 @@ Inappropriate Contents
             entry = gsub(entry, '__CONTENT__',   FC.escape([[
 <ul>
 ]]..(CHAIN.key~='' and '' or [[
-<li> <a href="freechains:/?cmd=new&cfg=]]..arg[1]..[[">[X]</a> New Chain
+<li> <a href="freechains://]]..daemon..[[/?cmd=new">[X]</a> New Chain
 ]])..[[
-<li> <a href="freechains:/]]..CHAIN.key..[[/?cmd=subscribe&cfg=]]..arg[1]..[[">[X]</a> Change Minimum Work for "]]..CHAIN.key..[["
-<li> <a href="freechains:/]]..CHAIN.key..[[/?cmd=publish&cfg=]]..arg[1]..[[">[X]</a> Publish to "]]..CHAIN.key..[["
+<li> <a href="freechains://]]..daemon..[[/]]..CHAIN.key..[[/?cmd=subscribe">[X]</a> Change Minimum Work for "]]..CHAIN.key..[["
+<li> <a href="freechains://]]..daemon..[[/]]..CHAIN.key..[[/?cmd=publish">[X]</a> Publish to "]]..CHAIN.key..[["
 </ul>
 ]]))
             entries[#entries+1] = entry
@@ -386,12 +403,8 @@ Inappropriate Contents
     feed = gsub(feed, '__CHAIN_ID__', key)
     feed = gsub(feed, '__ENTRIES__',  table.concat(entries,'\n'))
 
-    --dir = CFG.dir..'/atoms'
-    --os.execute('mkdir -p '..dir)
     f = io.stdout --assert(io.open(dir..'/'..key..'.xml', 'w'))
     f:write(feed)
-    --log:write(feed)
-    --f:close()
     goto END
 
 end

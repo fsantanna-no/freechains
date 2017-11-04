@@ -515,7 +515,7 @@ do
         THIS = {
             chain = ARGS.chain,
         }
-        path = CFG.dir..'/chains/'..THIS.chain.id..'.chain'
+        path = CFG.dir..'/'..THIS.chain.id..'.chain'
     ]];
     var[] byte path = []..[[path]]..[0];
 
@@ -697,12 +697,11 @@ do
             chain = ARGS.chain,
         }
 
-        assert(CFG.dir, 'missing configuration directory')
-        dir = CFG.dir..'/chains'
-        os.execute('mkdir -p '..dir)
+        assert(CFG.dir, 'missing persistency directory')
+        os.execute('mkdir -p '..CFG.dir)
     ]];
 
-    var[] byte path = []..[[dir..'/'..THIS.chain.id..'.chain']]..[0];
+    var[] byte path = []..[[CFG.dir..'/'..THIS.chain.id..'.chain']]..[0];
 
     // create/truncate file
     do/_
@@ -957,6 +956,10 @@ do
         CFG.dir = CFG.dir or '/tmp/freechains/'..FC.daemon.port
         os.execute('mkdir -p '..CFG.dir)
     ]]
+    do
+        var[] byte path = []..[[ CFG.dir ]]..[0];
+        _dbg(0, "server | persistency in %s", &&path[0]);
+    end
 
     spawn do
         var int  msg;

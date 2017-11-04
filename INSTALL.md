@@ -61,21 +61,21 @@ Example Feed -> Delete
 
 ```
 Tools -> Preferences -> Browser -> Browser -> Manual -> Manual ->
-    /<freechains-repo>/util/liferea/cmd.lua %s
+    freechains-liferea %s
 ```
 
 In some versions, clicking a link still opens the browser.
 Alternativelly, use the command line:
 
 ```
-$ gsettings set net.sf.liferea browser '/<freechains-repo>/util/liferea/cmd.lua %s'
+$ gsettings set net.sf.liferea browser 'freechains-liferea %s'
 ```
 
 - Add the root chain:
 
 ```
 + New Subscription -> Advanced -> Command -> Source
-    /<freechains-repo>/util/liferea/cmd.lua freechains://?cmd=atom\&cfg=/<freechains-repo>/cfg/<config.lua>
+    freechains-liferea freechains://localhost:8330//?cmd=atom
 ```
 
 <!--
