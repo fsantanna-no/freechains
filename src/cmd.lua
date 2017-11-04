@@ -22,6 +22,17 @@ Usage: freechains [<options>] <command> <arguments>
 
 Commands:
 
+    # DAEMON
+
+    Starts a freechain daemon.
+
+    $ freechains daemon <config>
+
+    Arguments:
+
+        config      path to config file
+
+
     # GET
 
     Gets newest or specific block from a chain. 
@@ -249,6 +260,10 @@ elseif cmd == 'configure' then
     elseif sub == 'set' then
         FC.send(0x0500, CFG, DAEMON)
     end
+
+elseif cmd == 'daemon' then
+    ASR(#arg == 2)
+    os.execute('freechains '..arg[2])
 
 else
     ASR(false)
