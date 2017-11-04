@@ -25,7 +25,7 @@ do
     do/_
         tcp.buffer = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 0x01, 0x00];
         do
-            var u16    port    = [[ (CFG.server and CFG.server.port) or 0 ]];
+            var u16    port    = [[ FC.daemon.port ]];
             var u8     key_len = [[ string.len(THIS.chain.key) ]];
             var[] byte key_str = [] .. [[ THIS.chain.key ]];
             var u8     zeros   = [[ THIS.chain.zeros ]];

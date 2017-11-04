@@ -108,9 +108,9 @@ end -- https://github.com/kernelsauce/turbo/blob/master/turbo/escape.lua
 -------------------------------------------------------------------------------
 
 local socket = require 'socket'
-function FC.send (tp, msg, server)
-    server = server or CFG.server
-    local c = assert(socket.connect(server.address,server.port))
+function FC.send (tp, msg, daemon)
+    daemon = daemon or FC.daemon
+    local c = assert(socket.connect(daemon.address,daemon.port))
     msg = tostring2(msg, 'plain')
     local buffer = 'PS'..string.char((tp>>8) & 0xFF)
                        ..string.char(tp      & 0xFF)

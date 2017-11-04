@@ -16,7 +16,7 @@ par/and do
     lua[] do
         [[
             CFG = {
-                server = {
+                daemon = {
                     address = '127.0.0.1',
                     port    = '8341'
                 },

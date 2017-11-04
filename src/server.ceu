@@ -11,7 +11,7 @@ do
     var Exception.Uv? e1;
 
     par/or do
-        var int timeout = [[ CFG.server.timeout or 0 ]];
+        var int timeout = [[ CFG.daemon.timeout or 0 ]];
         if timeout == 0 then
             await FOREVER;
         else

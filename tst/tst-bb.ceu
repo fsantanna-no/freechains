@@ -19,7 +19,7 @@ par/and do
         [[
             dofile 'src/common.lua'
             CFG = {
-                server = {
+                daemon = {
                     address = '127.0.0.1',
                     port    = '8340'
                 },
@@ -78,7 +78,7 @@ with
         [[
             dofile 'src/common.lua'
             CFG = {
-                server = {
+                daemon = {
                     address = '127.0.0.1',
                     port    = '8341'
                 },

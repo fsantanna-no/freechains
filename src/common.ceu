@@ -939,14 +939,22 @@ code/await Init (none) -> (event none ok, var UV_TCP_Server_Data shared) -> NEVE
 do
     shared = _;
 
+    // TODO: HACK-01: avoid fixing all tests
+    var bool is_tst_no_daemon = [[ MAIN==nil and CFG.daemon==nil ]];
+
     [[
         dofile 'src/common.lua'
 
         FC['Exception.Freechains.Malformed'] = @({CEU_DATA_Exception__dot__Freechains__dot__Malformed} as int)
         FC.MESSAGE10_NOTSUB = @({MESSAGE10_NOTSUB} as int)
 
-        local port = CFG.server and CFG.server.port or '0000'
-        CFG.dir = CFG.dir or '/tmp/freechains/'..port
+        CFG.daemon = CFG.daemon or {}
+
+        FC.daemon = {
+            address = CFG.daemon.address or arg[2] or 'localhost',
+            port    = CFG.daemon.port    or arg[3] or 8330,
+        }
+        CFG.dir = CFG.dir or '/tmp/freechains/'..FC.daemon.port
         os.execute('mkdir -p '..CFG.dir)
     ]]
 
@@ -967,12 +975,12 @@ do
     end
 #endif
 
+    // TODO: HACK-01: avoid fixing all tests
     pool[1] UV_TCP_Server server;
-    var bool has_server = [[ CFG.server~=nil ]];
-    if has_server then
+    if not is_tst_no_daemon then
         var[] byte ip      = [] .. "0.0.0.0";
-        var   int  port    = [[ CFG.server.port ]];
-        var   int  backlog = [[ CFG.server.backlog or 128 ]];
+        var   int  port    = [[ FC.daemon.port ]];
+        var   int  backlog = [[ CFG.daemon.backlog or 128 ]];
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
         spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared) in server;
     end

@@ -4,6 +4,7 @@
 #include "common.ceu"
 
 [[
+    MAIN = true     -- TODO: HACK-01: avoid fixing all tests
     CFG = {}
     assert(loadfile(arg[1],nil,CFG))()
 ]]

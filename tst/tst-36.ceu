@@ -18,7 +18,7 @@ do
         [[
             dofile 'src/common.lua'
             CFG = {
-                server = {
+                daemon = {
                     address = '127.0.0.1',
                     port    = @local,
                 },
