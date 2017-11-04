@@ -106,6 +106,32 @@ function FC.escape (html)
 end -- https://github.com/kernelsauce/turbo/blob/master/turbo/escape.lua
 
 -------------------------------------------------------------------------------
+
+local socket = require 'socket'
+function FC.send (tp, msg)
+    local c = assert(socket.connect(CFG.server.address,CFG.server.port))
+    msg = tostring2(msg, 'plain')
+    local buffer = 'PS'..string.char((tp>>8) & 0xFF)
+                       ..string.char(tp      & 0xFF)
+    do
+        local len = string.len(msg)
+        assert(len <= 0xFFFFFFFF)
+        buffer = buffer..string.char((len>>24) & 0xFF)
+                       ..string.char((len>>16) & 0xFF)
+                       ..string.char((len>> 8) & 0xFF)
+                       ..string.char(len       & 0xFF)
+    end
+    buffer = buffer .. msg
+    assert(c:send(buffer))
+
+    local ret = c:receive('*a')
+    c:close()
+    --print('>>>', ret)
+    --print('<<<', string.format('%q',ret))
+    return assert(load('return '..tostring(ret)))()
+end
+
+-------------------------------------------------------------------------------
 -- 3rd-party code
 -------------------------------------------------------------------------------
 

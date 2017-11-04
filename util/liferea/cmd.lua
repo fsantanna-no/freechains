@@ -72,47 +72,6 @@ arg[1] = cfg    -- FC.cfg_write
 CFG = {}
 assert(loadfile(cfg,nil,CFG))()
 
-local socket = require 'socket'
-function send (t)
-    local c = assert(socket.connect(CFG.server.address,CFG.server.port))
-    local msg = tostring2(t, 'plain')
-    local buffer = 'PS\xF0\x00'
-    do
-        local len = string.len(msg)
-        assert(len <= 0xFFFFFFFF)
-        buffer = buffer..string.char((len>>24) & 0xFF)
-                       ..string.char((len>>16) & 0xFF)
-                       ..string.char((len>> 8) & 0xFF)
-                       ..string.char(len       & 0xFF)
-    end
-    buffer = buffer .. msg
-    assert(c:send(buffer))
-    c:close()
-end
-
-function send2 (tp, msg)
-    local c = assert(socket.connect(CFG.server.address,CFG.server.port))
-    msg = tostring2(msg, 'plain')
-    local buffer = 'PS'..string.char((tp>>8) & 0xFF)
-                       ..string.char(tp      & 0xFF)
-    do
-        local len = string.len(msg)
-        assert(len <= 0xFFFFFFFF)
-        buffer = buffer..string.char((len>>24) & 0xFF)
-                       ..string.char((len>>16) & 0xFF)
-                       ..string.char((len>> 8) & 0xFF)
-                       ..string.char(len       & 0xFF)
-    end
-    buffer = buffer .. msg
-    assert(c:send(buffer))
-
-    local ret = c:receive('*a')
-    c:close()
-    --print('>>>', ret)
-    --print('<<<', string.format('%q',ret))
-    return assert(load('return '..tostring(ret)))()
-end
-
 if cmd=='new' or cmd=='subscribe' then
     -- get key
     if cmd == 'new' then
@@ -163,7 +122,7 @@ if cmd=='new' or cmd=='subscribe' then
     end
 
     -- subscribe
-    send2(0x0400, {
+    FC.send(0x0400, {
         chain = {
             key   = key,
             zeros = assert(tonumber(zeros)),
@@ -200,7 +159,7 @@ Subscribe to []]..key..[[](freechains:/]]..key..[[/?cmd=subscribe&peer=]]..(CFG.
             },
             payload = payload,
         }
-        send2(0x0300, msg)
+        FC.send(0x0300, msg)
 
         if cmd == 'new' then
             local exe = 'dbus-send --session --dest=org.gnome.feed.Reader --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Subscribe "string:|/data/ceu/ceu-libuv/ceu-libuv-freechains/util/liferea/cmd.lua freechains:/'..key..'/?cmd=atom\\&cfg='..arg[1]..'"'
@@ -228,7 +187,7 @@ elseif cmd == 'publish' then
     end
     zeros = string.sub(zeros,1,-2)
 
-    send2(0x0300, {
+    FC.send(0x0300, {
         chain = {
             key   = key,
             zeros = assert(tonumber(zeros)),
@@ -263,14 +222,14 @@ log:write('>>>.'..new_key..'.\n')
     end
     new_zeros = string.sub(new_zeros,1,-2)
 
-    local ret = send2(0x0200, {
+    local ret = FC.send(0x0200, {
         chain = {
             key   = old_key,
             zeros = assert(tonumber(old_zeros)),
         },
         pub = pub,
     })
-    send2(0x0300, {
+    FC.send(0x0300, {
         chain = {
             key   = new_key,
             zeros = assert(tonumber(new_zeros)),
@@ -281,7 +240,7 @@ log:write('>>>.'..new_key..'.\n')
     })
 
 elseif cmd == 'removal' then
-    send2(0x0300, {
+    FC.send(0x0300, {
         chain = {
             key   = key,
             zeros = assert(tonumber(zeros)),
@@ -333,7 +292,7 @@ elseif cmd == 'atom' then
         entries = {}
 
         for i=CHAIN.zeros, 255 do
-            head = send2(0x0200, {
+            head = FC.send(0x0200, {
                 chain = { key=CHAIN.key, zeros=i },
             })
             if not head then
@@ -389,7 +348,7 @@ Inappropriate Contents
                 entries[#entries+1] = entry
 
                 ::cur_continue::
-                cur = send2(0x0200, {
+                cur = FC.send(0x0200, {
                     chain = { key=CHAIN.key, zeros=i },
                     block = cur.prv,
                 })

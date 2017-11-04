@@ -40,7 +40,7 @@ outer.tcp.buffer[$outer.tcp.buffer-1] = {' '};
         output = {},
         atom   = {},
     }
-    print('>>>', tostring2(msg,'plain'))
+    --print('>>>', tostring2(msg,'plain'))
 ]]
 
 var bool is_new = [[ FC.chains[msg.chain.key]==nil ]];
