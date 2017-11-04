@@ -20,9 +20,9 @@ par/and do
                     address = '127.0.0.1',
                     port    = '8341'
                 },
+                not_persistency = true,
                 chains = {
-                    not_persistency = true,
-                    [1] = {
+                    [''] = {
                         key   = '',
                         zeros = 0,
                     },
@@ -50,9 +50,9 @@ with
     lua[] do
         [[
             CFG = {
+                not_persistency = true,
                 chains = {
-                    not_persistency = true,
-                    [1] = {
+                    [''] = {
                         key   = '',
                         zeros = 0,
                         peers = {

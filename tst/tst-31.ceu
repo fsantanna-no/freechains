@@ -25,9 +25,9 @@ do
                     address = '127.0.0.1',
                     port    = @local,
                 },
+                not_persistency = true,
                 chains = {
-                    not_persistency = true,
-                    [1] = {
+                    ['tst-31'] = {
                         key   = 'tst-31',
                         zeros = 0,
                         peers = {
@@ -127,11 +127,11 @@ end
 //_ceu_dbg_assert({BLOCKS_RECEIVED} == N*N);
 
 // assert consensus
-[[ file1 = io.open('/tmp/freechains/8340/chains/|tst-31|0|.chain'):read'*a' ]]
+[[ file1 = io.open('/tmp/freechains/8340/|tst-31|0|.chain'):read'*a' ]]
 var int i;
 loop i in [0 -> N[ do
     [[
-        file2 = io.open('/tmp/freechains/'..@(8340+i)..'/chains/|tst-31|0|.chain'):read'*a'
+        file2 = io.open('/tmp/freechains/'..@(8340+i)..'/|tst-31|0|.chain'):read'*a'
         assert(file1 == file2, 'differ')
     ]]
 end

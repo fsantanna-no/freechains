@@ -54,14 +54,6 @@ function FC.cfg_write ()
     f:close()
 end
 
-function FC.cfg_chain (key)
-    for _, chain in ipairs(CFG.chains) do
-        if chain.key == key then
-            return chain
-        end
-    end
-end
-
 -------------------------------------------------------------------------------
 
 local function is_binary (str)

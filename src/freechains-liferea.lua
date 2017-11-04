@@ -109,7 +109,7 @@ if cmd=='new' or cmd=='subscribe' then
     -- get zeros
     zeros = 0
     if cmd == 'subscribe' then
-        local chain = FC.cfg_chain(key)
+        local chain = CFG.chains[key]
         zeros = chain and chain.zeros or 0
         local f = io.popen('zenity --entry --title="Subscribe to '..key..'/" --text="Minimum Amount of Work:" --entry-text='..zeros)
         zeros = f:read('*a')
@@ -143,7 +143,7 @@ if cmd=='new' or cmd=='subscribe' then
 
     -- publish announcement to //0/
 
-    local was_sub = FC.cfg_chain(key)
+    local was_sub = CFG.chains[key]
     if not was_sub then
         payload = ''
         if cmd == 'new' then
@@ -188,7 +188,7 @@ elseif cmd == 'publish' then
         goto END
     end
 
-    local zeros = assert(FC.cfg_chain(key)).zeros
+    local zeros = assert(CFG.chains[key]).zeros
     local f = io.popen('zenity --entry --title="Publish to '..key..'/" --text="Amount of Work:" --entry-text='..zeros)
     zeros = f:read('*a')
     local ok = f:close()
@@ -285,7 +285,7 @@ elseif cmd == 'atom' then
         return string.gsub(a, b, function() return c end)
     end
 
-    CHAIN = FC.cfg_chain(key)
+    CHAIN = CFG.chains[key]
     if not CHAIN then
         entries = {}
         entry = TEMPLATES.entry

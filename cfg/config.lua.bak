@@ -1,6 +1,6 @@
+execute = 'dbus-send --session --dest=org.gnome.feed.Reader --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Refresh'
 chains = {
-    execute = 'dbus-send --session --dest=org.gnome.feed.Reader --type=method_call /org/gnome/feed/Reader org.gnome.feed.Reader.Refresh',
-    [1] = {
+    [''] = {
         key   = '',
         zeros = 0,
         last  = {

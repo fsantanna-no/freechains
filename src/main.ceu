@@ -22,8 +22,8 @@ loop do
     if msg == {MESSAGE10} then
         if ret == {MESSAGE10_OK} then
             [[
-                --print('>>>', CFG.chains.execute)
-                os.execute(CFG.chains.execute)
+                --print('>>>', CFG.execute)
+                os.execute(CFG.execute)
             ]];
         end
     end

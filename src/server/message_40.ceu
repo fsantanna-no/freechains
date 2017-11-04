@@ -42,7 +42,7 @@ outer.tcp.buffer[$outer.tcp.buffer-1] = {' '};
     }
     --print('>>>', tostring2(msg,'plain'))
 
-    OLD = FC.chains[msg.chain.key] and FC.chains[msg.chain.key].cfg
+    OLD = CFG.chains[msg.chain.key]
     if OLD then
         -- change zeros
         OLD.zeros = (msg.chain.zeros or OLD.zeros)
@@ -61,7 +61,7 @@ outer.tcp.buffer[$outer.tcp.buffer-1] = {' '};
             end
         end
     else
-        CFG.chains[#CFG.chains+1] = msg.chain
+        CFG.chains[msg.chain.key] = msg.chain
     end
     FC.cfg_write()
 ]]

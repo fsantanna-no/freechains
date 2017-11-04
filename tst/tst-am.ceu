@@ -11,7 +11,7 @@
     dofile 'src/common.lua'
     CFG = {
         chains = {
-            [1] = {
+            ['tst-al'] = {
                 key   = 'tst-al',
                 zeros = 0,
             },

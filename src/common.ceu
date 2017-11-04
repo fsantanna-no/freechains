@@ -818,15 +818,23 @@ end
 #endif
 
 code/await Subscribe (none) -> none do
-    var int n = [[ #CFG.chains ]];
+    [[
+        THIS = {
+            chains = {},
+        }
+        for _, chain in pairs(CFG.chains) do
+            THIS.chains[#THIS.chains+1] = chain
+        end
+    ]]
+    var int n = [[ #THIS.chains ]];
     var int i;
     loop i in [1 -> n] do
         [[
-            cfg = CFG.chains[@i]
+            cfg = THIS.chains[@i]
             --assert(not FC.chains[cfg.key])
             FC.chains[cfg.key] = FC.chains[cfg.key] or {
                 key  = cfg.key,
-                cfg  = cfg,
+                --cfg  = cfg,
                 pubs = { [string.rep('\0',@HASH_BYTES)]=true }, -- have all removeds
             }
         ]]
@@ -835,22 +843,20 @@ code/await Subscribe (none) -> none do
         loop j in [zeros -> 255] do
 //loop j in [zeros -> 30] do
             [[
-                THIS = {}
                 j = @j
                 has = FC.chains[cfg.key][j]
                 if not has then
                     assert(not FC.chains[cfg.key][j])
                     local id = '|'..cfg.key..'|'..j..'|'
-                    THIS.chain = {
+                    THIS.sub = {
                         key   = cfg.key,
                         zeros = j,
                         id    = id,
                         up    = FC.chains[cfg.key],
-                        cfg   = cfg,
                         head  = nil,
                         base  = nil,
                     }
-                    FC.chains[cfg.key][j] = THIS.chain
+                    FC.chains[cfg.key][j] = THIS.sub
                 end
             ]]
             var bool has = [[has]];
@@ -861,7 +867,7 @@ code/await Subscribe (none) -> none do
             do
                 var[HASH_BYTES] byte hash;
                 _ceu_vector_setlen(&&hash, HASH_BYTES, 1);
-                var[] byte id = [] .. [[ THIS.chain.id ]];
+                var[] byte id = [] .. [[ THIS.sub.id ]];
                 _crypto_generichash(&&hash[0],HASH_BYTES, &&id[0],$id, null,0);
 #if 0
                 do
@@ -870,13 +876,13 @@ code/await Subscribe (none) -> none do
                 end
 #endif
                 [[
-                    THIS.chain.base = {
-                        chain  = THIS.chain,
+                    THIS.sub.base = {
+                        chain  = THIS.sub,
                         hash   = @hash,
                         prv    = nil,
                         length = 0,
                     }
-                    THIS.chain.head = THIS.chain.base
+                    THIS.sub.head = THIS.sub.base
                     --THIS.chain.cfg.last.output[@j] = THIS.chain.cfg.last.output[@j] or THIS.chain.base.hash
                     --THIS.chain.cfg.last.atom[@j]   = THIS.chain.cfg.last.atom[@j]   or THIS.chain.base.hash
                 ]]
@@ -884,13 +890,13 @@ code/await Subscribe (none) -> none do
 
             // try to load from file
             // no problem if it fails
-            var bool should_read = [[ not CFG.chains.not_persistency ]];
+            var bool should_read = [[ not CFG.not_persistency ]];
             if should_read then
                 var Exception? e;
                 catch e do
                     [[
                         ARGS = {
-                            chain = THIS.chain
+                            chain = THIS.sub
                         }
                     ]]
                     await FS_read_10();
@@ -904,11 +910,19 @@ end
 
 code/await Broadcast (var& UV_TCP_Server_Data shared) -> none do
     // broadcast all chains to all peers
-    var int n = [[ #CFG.chains ]];
+    [[
+        THIS = {
+            chains = {},
+        }
+        for _, chain in pairs(CFG.chains) do
+            THIS.chains[#THIS.chains+1] = chain
+        end
+    ]]
+    var int n = [[ #THIS.chains ]];
     var int i;
     loop i in [1 -> n] do
         [[
-            cfg = CFG.chains[@i]
+            cfg = THIS.chains[@i]
         ]]
         var int zeros = [[cfg.zeros]];
         var int j;

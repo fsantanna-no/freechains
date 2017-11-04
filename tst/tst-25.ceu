@@ -10,9 +10,9 @@
 [[
     dofile 'src/common.lua'
     CFG = {
+        not_persistency = true,
         chains = {
-            not_persistency = true,
-            [1] = {
+            ['tst-25'] = {
                 key   = 'tst-25',
                 zeros = 0,
                 peers = {
@@ -94,8 +94,8 @@ await Client(&init.shared);
 await FS_write_10();
 
 [[
-local src   = io.open('tst/|tst-25|0|.chain'):read'*a'
-local build = io.open('/tmp/freechains/0000/chains/|tst-25|0|.chain'):read'*a'
+local src   = assert(io.open('tst/|tst-25|0|.chain')):read'*a'
+local build = assert(io.open('/tmp/freechains/8330/|tst-25|0|.chain')):read'*a'
 assert(src == build)
 print 'OK!'
 ]];

@@ -24,9 +24,9 @@ par/and do
                     address = '127.0.0.1',
                     port    = '8340'
                 },
+                not_persistency = true,
                 chains = {
-                    not_persistency = true,
-                    [1] = {
+                    ['tst-25'] = {
                         key   = 'tst-25',
                         zeros = 0,
                         peers = {
@@ -71,8 +71,7 @@ with
                     port    = '8341'
                 },
                 chains = {
-                    zeros_raise = TODO,     -- global and per-chain
-                    [1] = {
+                    ['tst-25'] = {
                         key   = 'tst-25',
                         zeros = 0,
                         peers = {
@@ -85,7 +84,7 @@ with
                 },
             }
         ]];
-        [[ os.execute('cp tst/\\|tst-25\\|0\\|.chain /tmp/freechains/8341/chains') ]]
+        [[ os.execute('cp tst/\\|tst-25\\|0\\|.chain /tmp/freechains/8341') ]]
         var& Init init = spawn Init();
         await init.ok;
         await init.ok;

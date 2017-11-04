@@ -121,7 +121,7 @@ print(@i, '<'..string.rep('=',70))
         [[ ARGS = { chain=APP.chains['||0|'] } ]];
         await FS_write_10();
         [[
-            os.execute('mv /tmp/freechains/chains/\\|tst-38\\|0\\|.chain /tmp/'..string.format('%03d',@i)..'.chain')
+            os.execute('mv /tmp/freechains/\\|tst-38\\|0\\|.chain /tmp/'..string.format('%03d',@i)..'.chain')
         ]]
     end
 end

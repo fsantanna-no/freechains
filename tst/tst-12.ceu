@@ -20,10 +20,10 @@ par/or do
         [[
             dofile 'src/common.lua'
             CFG = {
+                not_persistency = true,
+                zeros_raise = TODO,     -- global and per-chain
                 chains = {
-                    not_persistency = true,
-                    zeros_raise = TODO,     -- global and per-chain
-                    [1] = {
+                    [''] = {
                         key   = '',
                         zeros = 0,
                         peers = {
@@ -69,9 +69,9 @@ with
                     port    = '8341',
                     backlog = 128,
                 },
+                not_persistency = true,
                 chains = {
-                    not_persistency = true,
-                    [1] = {
+                    [''] = {
                         key   = '',
                         zeros = 0,
                     },
@@ -106,10 +106,10 @@ with
         [=[
             dofile 'src/common.lua'
             CFG = {
+                not_persistency = true,
+                zeros_raise = TODO,     -- global and per-chain
                 chains = {
-                    not_persistency = true,
-                    zeros_raise = TODO,     -- global and per-chain
-                    [1] = {
+                    [''] = {
                         key   = '',
                         zeros = 0,
                         peers = {

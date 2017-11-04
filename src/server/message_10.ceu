@@ -195,7 +195,7 @@ do
             port      = @port,
             length    = @length,
             head_hash = @head_hash,
-            chain     = FC.chains[key] and FC.chains[key].cfg.zeros<=zeros and FC.chains[key][zeros] or nil
+            chain     = FC.chains[key] and CFG.chains[key].zeros<=zeros and FC.chains[key][zeros] or nil
         }
     ]];
 end

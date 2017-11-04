@@ -48,7 +48,7 @@ do
                         if out == {MESSAGE10_OK} then
                             // broadcast new received head
                             [[ ARGS = { chain=THIS.chain } ]]
-                            var bool should_write = [[ not THIS.chain.cfg.not_persistency ]];
+                            var bool should_write = [[ not CFG.not_persistency ]];
                             if should_write then
                                 await FS_write_10();
                             end

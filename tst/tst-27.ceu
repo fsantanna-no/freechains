@@ -9,13 +9,13 @@
 [[
     dofile 'src/common.lua'
     CFG = {
+        not_persistency = true,
         chains = {
-            not_persistency = true,
-            [1] = {
+            ['tst-25'] = {
                 key   = 'tst-25',
                 zeros = 0,
             },
-            [2] = {
+            ['tst-27'] = {
                 key   = 'tst-27',
                 zeros = 0,
             },
@@ -27,7 +27,7 @@ var& Init init = spawn Init();
 await init.ok;
 
 [[
-    src = io.open('/tmp/freechains/0000/chains/|tst-25|0|.chain'):read'*a'
+    src = io.open('/tmp/freechains/8330/|tst-25|0|.chain'):read'*a'
     ARGS = {
         chain = assert(FC.chains['tst-25'][0])
     }
@@ -41,7 +41,7 @@ await FS_read_10();
 await FS_write_10();
 
 [[
-    dst = io.open('/tmp/freechains/0000/chains/|tst-25|0|.chain'):read'*a'
+    dst = io.open('/tmp/freechains/8330/|tst-25|0|.chain'):read'*a'
     assert(src == dst)
 ]];
 
@@ -72,7 +72,7 @@ do
             await FS_write_10();
         end
         _fprintf(_stderr, "[%d] uv-error: %s\n", e!.number, e!.message);
-        _ceu_sys_assert(e!.number == -_ENOENT, "bug");
+        _ceu_sys_assert(e!.number == -{EACCESS}, "bug");
     end
 end
 

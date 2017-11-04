@@ -229,19 +229,20 @@ do
     [[
         THIS = {
             chain = ARGS.chain,
+            peers = CFG.chains[ARGS.chain.key].peers
         }
     ]];
     CHAIN_LOCK(l, shared, "lock_send");
 
-    var int ps = [[THIS.chain.cfg.peers and #THIS.chain.cfg.peers or 0]];
+    var int ps = [[ (THIS.peers and #THIS.peers) or 0 ]];
     var int i;
     pool[] Peer_10 peers;
     loop i in [1 -> ps] do
-        var bool min_zeros = [[ THIS.chain.zeros >= (THIS.chain.cfg.peers[@i].zeros or 0) ]];
+        var bool min_zeros = [[ THIS.chain.zeros >= (THIS.peers[@i].zeros or 0) ]];
         if min_zeros then
             [[
                 ARGS = {
-                    peer  = THIS.chain.cfg.peers[@i],
+                    peer  = THIS.peers[@i],
                     chain = THIS.chain,
                 }
             ]]
