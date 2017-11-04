@@ -50,40 +50,30 @@ CFG = FC.send(0x0500, nil, DAEMON)
 
 -- new
 if not cmd then
-    cmd, cfg = string.match(res, '^?cmd=(new)')
+    cmd = string.match(res, '^?cmd=(new)')
 end
 
 -- subscribe
 if not cmd then
-    -- TODO: bug in Liferea?
-    cmd, cfg = string.match(res, '^:%-1%?cmd=(subscribe)&cfg=(.*)')
-    key = ''
+    key, cmd = string.match(res, '^([^/]*)/%?cmd=(subscribe)')
 end
 if not cmd then
-    key, cmd, cfg = string.match(res, '^/(.*)/%?cmd=(subscribe)&cfg=(.*)')
-end
-if not cmd then
-    key, cmd, address, port, cfg = string.match(res, '^/(.*)/%?cmd=(subscribe)&peer=(.*):(.*)&cfg=(.*)')
+    key, cmd, address, port = string.match(res, '^([^/]*)/%?cmd=(subscribe)&peer=(.*):(.*)')
 end
 
 -- publish
 if not cmd then
-    -- TODO: bug in Liferea?
-    cmd, cfg = string.match(res, '^:%-1%?cmd=(publish)&cfg=(.*)')
-    key = ''
-end
-if not cmd then
-    key, cmd, cfg = string.match(res, '^/(.*)/%?cmd=(publish)&cfg=(.*)')
+    key, cmd = string.match(res, '^([^/]*)/%?cmd=(publish)')
 end
 
 -- republish
 if not cmd then
-    key, zeros, pub, cmd, cfg = string.match(res, '^/(.*)/(.*)/(.*)/%?cmd=(republish)&cfg=(.*)')
+    key, zeros, pub, cmd = string.match(res, '^([^/]*)/([^/]*)/([^/]*)/%?cmd=(republish)')
 end
 
 -- removal
 if not cmd then
-    key, zeros, block, cmd, cfg = string.match(res, '^/(.*)/(.*)/(.*)/%?cmd=(removal)&cfg=(.*)')
+    key, zeros, block, cmd = string.match(res, '^([^/]*)/([^/]*)/([^/]*)/%?cmd=(removal)')
 end
 
 -- atom

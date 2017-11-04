@@ -41,10 +41,7 @@ outer.tcp.buffer[$outer.tcp.buffer-1] = {' '};
         atom   = {},
     }
     --print('>>>', tostring2(msg,'plain'))
-]]
 
-var bool is_new = [[ FC.chains[msg.chain.key]==nil ]];
-[[
     OLD = FC.chains[msg.chain.key] and FC.chains[msg.chain.key].cfg
     if OLD then
         -- change zeros
