@@ -61,28 +61,35 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
             if block.hash==msg.block or (block.pub and (block.pub.hash==msg.pub)) then
                 break
             end
-            assert(block ~= chain.base, 'not found')
+            if block == chain.base then
+                block = nil
+                break
+            end
             block = block.prv
         end
     end
 
-    ret = {
-        hash      = FC.hash2hex(block.hash),
-        prv       = block.prv and FC.hash2hex(block.prv.hash) or nil,
-        timestamp = block.timestamp,
-        nonce     = block.nonce,
-        pub       = block.pub and {
-            hash      = FC.hash2hex(block.pub.hash),
-            timestamp = block.pub.timestamp,
-            nonce     = block.pub.nonce,
-            payload   = block.pub.payload,
-            removal   = block.pub.removal and FC.hash2hex(block.pub.removal.hash),
-        } or nil,
-    }
+    if block then
+        ret = {
+            hash      = FC.hash2hex(block.hash),
+            prv       = block.prv and FC.hash2hex(block.prv.hash) or nil,
+            timestamp = block.timestamp,
+            nonce     = block.nonce,
+            pub       = block.pub and {
+                hash      = FC.hash2hex(block.pub.hash),
+                timestamp = block.pub.timestamp,
+                nonce     = block.pub.nonce,
+                payload   = block.pub.payload,
+                removal   = block.pub.removal and FC.hash2hex(block.pub.removal.hash),
+            } or nil,
+        }
+    else
+        ret = nil
+    end
 ]]
 
 // <= MSG
-//[[ print('RET', tostring2(ret,'plain')) ]];
+[[ print('RET', tostring2(ret,'plain')) ]];
 outer.tcp.buffer = []..[[ tostring2(ret,'plain') ]];
 await UV_Stream_Write_N(&outer.tcp,_);
 

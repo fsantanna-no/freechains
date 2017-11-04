@@ -127,17 +127,21 @@ if cmd == 'get' then
     local key, zeros = string.match(arg[2], '([^/]*)/?([^/]*)')
     zeros = tonumber(zeros)
     local hash = arg[3]
-    ASR((not hash) or zeros)
 
-    local ret = FC.send(0x0200, {
-        chain = {
-            key   = key,
-            zeros = zeros,
+    local ret
+    for i=(zeros or 255), (zeros or 0), -1 do
+        ret = FC.send(0x0200, {
+            chain = {
+                key   = key,
+                zeros = i,
+            },
             block = hash,
             pub   = hash,
-        },
-        payload = payload,
-    }, DAEMON)
+        }, DAEMON)
+        if ret and ret.prv then
+            break
+        end
+    end
     print(tostring2(ret,'plain'))
 
 elseif cmd == 'publish' then
