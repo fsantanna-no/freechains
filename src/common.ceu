@@ -61,6 +61,7 @@ native/pre do
         MESSAGE30 = 0x0300,     // PUBLISH to a chain
         MESSAGE40 = 0x0400,     // SUBSCRIBE to a chain
         MESSAGE50 = 0x0500,     // CONFIGURE freechains
+        MESSAGE60 = 0x0600,     // LISTEN for new blocks
     };
 
     enum {

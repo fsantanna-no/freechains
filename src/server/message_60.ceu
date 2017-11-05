@@ -1,0 +1,98 @@
+#ifndef _MESSAGE60_CEU
+#define _MESSAGE60_CEU
+
+/*
+ * LISTEN:
+ *
+ *  msg = {
+ *      chain = {               -- or nil (listen all chains)
+ *          key   = <string>,
+ *          zeros = <number>,   -- or nil (listan all zeros)
+ *      }
+ *      TODO: reset
+ *  }
+ *
+ *  ret = {
+ *      hash      = <hash>,
+ *      prv       = <hash>,
+ *      timestamp = <number>,
+ *      nonce     = <number>,
+ *      removal   = <has>,      -- or pub
+ *      pub       = {           -- or removal
+ *          hash      = <hash>,
+ *          timestamp = <number>,
+ *          nonce     = <number>,
+ *          payload   = <string>,
+ *      },
+ *  }
+ *  ...                         -- one for each new block
+ */
+
+// echo -n -e "PS\x02\x00\x00\x00\x00\x18{chain={key='',zeros=0}}" | nc localhost 8500
+
+// => LEN
+await UV_Stream_Read_N(&outer.tcp, sizeof(u32));
+var u32 len = GET_BE32TOH(outer.tcp.buffer,0);
+$outer.tcp.buffer = $outer.tcp.buffer - sizeof(u32);
+_dbg_tcp(2, &&outer.tcp.handle, "server", "LEN = %d", len);
+
+// => MSG
+await UV_Stream_Read_N(&outer.tcp, (len as usize));
+//outer.tcp.buffer = outer.tcp.buffer..[0];
+//_dbg(3, "server | MESSAGE 60 | %s", &&outer.tcp.buffer[0]);
+[[
+    --print('>>>', tostring2(msg,'plain'))
+    THIS = {
+        msg = assert(load('return '..@outer.tcp.buffer))()
+    }
+]]
+
+var int msg;
+var int ret;
+loop do
+    par/or do
+        (msg,ret) = await outer.shared.ok_server;
+    with
+        (msg,ret) = await outer.shared.ok_client;
+    end
+    if msg == {MESSAGE10} then
+        if ret == {MESSAGE10_OK} then
+            [[
+                listen = THIS.msg.chain
+                received = ARGS.chain
+                if listen==nil or
+                   (listen.key==received.key and (listen.zeros==nil or
+                                                  (listen.zeros<=received.zeros)))
+                then
+                    block = ARGS.chain.head
+                    ret = {
+                        chain     = { key=received.key, zeros=received.zeros },
+                        hash      = FC.hash2hex(block.hash),
+                        prv       = block.prv and FC.hash2hex(block.prv.hash) or nil,
+                        timestamp = block.timestamp,
+                        nonce     = block.nonce,
+                        pub       = block.pub and {
+                            hash      = FC.hash2hex(block.pub.hash),
+                            timestamp = block.pub.timestamp,
+                            nonce     = block.pub.nonce,
+                            payload   = block.pub.payload,
+                            removal   = block.pub.removal and FC.hash2hex(block.pub.removal.hash),
+                        } or nil,
+                    }
+                else
+                    ret = nil
+                end
+            ]]
+            var bool has_ret = [[ ret~=nil ]];
+            if has_ret then
+                // <= MSG
+                //[[ print('RET', tostring2(ret,'plain')) ]];
+                [[ ret = tostring2(ret,'plain') ]];
+                outer.tcp.buffer = []..[[ string.len(ret) ]]..[{'\n'}]..[[ ret ]];
+                await UV_Stream_Write_N(&outer.tcp,_);
+            end
+        end
+    end
+end
+
+#endif

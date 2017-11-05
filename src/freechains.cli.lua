@@ -15,7 +15,7 @@ local function ASR (cnd, msg)
     return cnd
 end
 
-local help = [[
+local help = [=[
 freechains 0.1
 
 Usage: freechains [<options>] <command> <arguments>
@@ -95,11 +95,15 @@ Commands:
 
     # LISTEN
 
-    Listen to a chain.
+    Listen for new blocks.
 
-    $ freechains listen <chain>
+    $ freechains listen [<chain>[/<work>]]
 
-    TODO
+    Arguments:
+
+        chain       chain to listen for blocks (default: all chains)
+
+        work        minimum block work (default: `0`)
 
 Options:
 
@@ -114,7 +118,7 @@ More Information:
     http://www.freechains.org/
 
     Please report bugs at <http://github.com/Freechains/freechains>.
-]]
+]=]
 
 local parser = optparse(help)
 local arg, opts = parser:parse(_G.arg)
@@ -254,6 +258,24 @@ elseif cmd == 'configure' then
     elseif sub == 'set' then
         FC.send(0x0500, CFG, DAEMON)
     end
+
+elseif cmd == 'listen' then
+    ASR(#arg <= 2)
+    local chain
+    if #arg == 2 then
+        local key, zeros = string.match(arg[2], '([^/]*)/?([^/]*)')
+        zeros = tonumber(zeros)
+        chain = {
+            key   = key,
+            zeros = zeros,
+        }
+    else
+        chain = nil
+    end
+
+    FC.send(0x0600, {
+        chain = chain,
+    }, DAEMON)
 
 elseif cmd == 'daemon' then
     ASR(#arg == 2)
