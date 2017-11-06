@@ -70,7 +70,7 @@ do
         // => HASH
         await UV_Stream_Read_N(&tcp, HASH_BYTES);
         do
-            var[] byte str = [] .. [[ tostring2(@tcp.buffer) ]] .. [0];
+            var[] byte str = [] .. [[ FC.tostring(@tcp.buffer) ]] .. [0];
             _dbg_tcp(3, &&tcp.handle, "client", "=> BLOCK_HASH? : %s", &&str[0]);
         end
         [[
@@ -120,7 +120,7 @@ do
                 PUT_HTOBE64(tcp.buffer, HASH_BYTES, timestamp);
                 PUT_HTOBE64(tcp.buffer, HASH_BYTES+sizeof(u64), nonce);
 
-                var[] byte str = [] .. [[ tostring2(THIS.cur.hash) ]] .. [0];
+                var[] byte str = [] .. [[ FC.tostring(THIS.cur.hash) ]] .. [0];
                 _dbg_tcp(3, &&tcp.handle, "client", "<= BLOCK_HASH : %s", &&str[0]);
                 _dbg_tcp(3, &&tcp.handle, "client", "<= TIMESTAMP/NONCE : %ld %ld", timestamp,nonce);
             end

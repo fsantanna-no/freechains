@@ -30,7 +30,7 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
 //_dbg(3, "server | MESSAGE 50 | %s", &&outer.tcp.buffer[0]);
 [[
     assert(load('msg = '..@outer.tcp.buffer))()
-    print('>>>', tostring2(msg,'plain'))
+    print('>>>', FC.tostring(msg,'plain'))
 
     if msg ~= nil then
         CFG = msg
@@ -41,8 +41,8 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
 var bool is_get = [[ msg==nil ]];
 if is_get then
     // <= CFG
-    //[[ print('RET', tostring2(CFG,'plain')) ]];
-    outer.tcp.buffer = []..[[ tostring2(CFG,'plain') ]];
+    //[[ print('RET', FC.tostring(CFG,'plain')) ]];
+    outer.tcp.buffer = []..[[ FC.tostring(CFG,'plain') ]];
     await UV_Stream_Write_N(&outer.tcp,_);
 end
 

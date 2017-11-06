@@ -1,4 +1,4 @@
-FC = {
+local FC = {
     chains = {
         --[id] = {...}
     },
@@ -27,7 +27,7 @@ function FC.chain_flatten (id)
     local T = {}
     while cur do
         local t = {
-            hash = tostring2(cur.hash),
+            hash = FC.tostring(cur.hash),
             length = cur.length,
             pub = cur.pub and {
                 hash    = cur.pub.hash,
@@ -41,7 +41,7 @@ function FC.chain_flatten (id)
 end
 
 function FC.chain_tostring (id)
-    return tostring2(FC.chain_flatten(id))
+    return FC.tostring(FC.chain_flatten(id))
 end
 
 -------------------------------------------------------------------------------
@@ -49,7 +49,7 @@ end
 function FC.cfg_write ()
     local f = assert(io.open(arg[1],'w'))
     for k,v in pairs(CFG) do
-        f:write(k..' = '..tostring2(v,'plain')..'\n')
+        f:write(k..' = '..FC.tostring(v,'plain')..'\n')
     end
     f:close()
 end
@@ -103,7 +103,7 @@ local socket = require 'socket'
 function FC.send (tp, msg, daemon)
     daemon = daemon or FC.daemon
     local c = assert(socket.connect(daemon.address,daemon.port))
-    msg = tostring2(msg, 'plain')
+    msg = FC.tostring(msg, 'plain')
     local buffer = 'PS'..string.char((tp>>8) & 0xFF)
                        ..string.char(tp      & 0xFF)
     do
@@ -154,22 +154,6 @@ local function string2hex(buf, big)
     return ret
 end
 
-function tostring2 (tbl, mode)
-    if "table" == type(tbl) then
-        return table_show(tbl,nil,nil,mode)
-    elseif "string" == type(tbl) then
-        if mode == 'plain' then
-            return string.format("%q", tbl)
-        elseif is_binary(tbl) then
-            return string2hex(tbl, mode)
-        else
-            return tbl
-        end
-    else
-        return tostring(tbl)
-    end
-end
-
 --[[
    Author: Julio Manuel Fernandez-Diaz
    Date:   January 12, 2007
@@ -199,7 +183,7 @@ end
       name is the name of the table (optional)
       indent is a first indentation (optional).
 --]]
-function table_show(t, name, indent, mode)
+local function table_show(t, name, indent, mode)
    local cart     -- a container
    local autoref  -- for self references
 
@@ -229,8 +213,8 @@ function table_show(t, name, indent, mode)
       elseif type(o) == "number" or type(o) == "boolean" then
          return so
       elseif type(o) == "string" then
-         return tostring2(o,mode)
-         --return string.format("%q", tostring2(o,big))
+         return FC.tostring(o,mode)
+         --return string.format("%q", FC.tostring(o,big))
       else
          return string.format("%q", so)
       end
@@ -296,3 +280,23 @@ function table_show(t, name, indent, mode)
    addtocart(t, name, indent)
    return cart .. autoref
 end
+
+-------------------------------------------------------------------------------
+
+function FC.tostring (tbl, mode)
+    if "table" == type(tbl) then
+        return table_show(tbl,nil,nil,mode)
+    elseif "string" == type(tbl) then
+        if mode == 'plain' then
+            return string.format("%q", tbl)
+        elseif is_binary(tbl) then
+            return string2hex(tbl, mode)
+        else
+            return tbl
+        end
+    else
+        return tostring(tbl)
+    end
+end
+
+return FC

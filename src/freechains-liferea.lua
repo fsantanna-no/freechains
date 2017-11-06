@@ -1,8 +1,6 @@
 #!/usr/bin/env lua5.3
 
---FC_DIR = error 'set absolute path to "<freechains>" repository'
-FC_DIR = '/data/ceu/ceu-libuv/ceu-libuv-freechains'
-dofile(FC_DIR..'/src/common.lua')
+local FC = require 'freechains'
 
 local HASH_BYTES = 32
 
@@ -46,7 +44,7 @@ DAEMON = {
 daemon = DAEMON.address..':'..DAEMON.port
 
 CFG = FC.send(0x0500, nil, DAEMON)
---print('>>>', tostring2(CFG,'plain'))
+--print('>>>', FC.tostring(CFG,'plain'))
 
 -- new
 if not cmd then

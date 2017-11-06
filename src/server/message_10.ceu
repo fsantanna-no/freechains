@@ -35,7 +35,7 @@ do
     ]]
 
     do
-        var[] byte str = [] .. [[ tostring2(THIS.block.hash) ]] .. [0];
+        var[] byte str = [] .. [[ FC.tostring(THIS.block.hash) ]] .. [0];
         _dbg_tcp(3, &&tcp.handle, "server", "=> BLOCK_HASH : %s", &&str[0]);
         _dbg_tcp(3, &&tcp.handle, "server", "=> TIMESTAMP/NONCE : %ld %ld", timestamp,nonce);
     end
@@ -244,7 +244,7 @@ end
 #if 0
 [[
     if DBG_ON then
-        print('>>>', @outer.shared.port, @(ret=={MESSAGE10_HAVE}) and 'NO' or 'YES', tostring2(THIS.chain.head.hash), THIS.chain.head.length, THIS.length, tostring2(THIS.head_hash))
+        print('>>>', @outer.shared.port, @(ret=={MESSAGE10_HAVE}) and 'NO' or 'YES', FC.tostring(THIS.chain.head.hash), THIS.chain.head.length, THIS.length, FC.tostring(THIS.head_hash))
     end
 ]]
 _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
@@ -277,7 +277,7 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
         // <= HASH
         outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.common.hash ]];
         do
-            var[] byte str = [] .. [[ tostring2(@outer.tcp.buffer) ]] .. [0];
+            var[] byte str = [] .. [[ FC.tostring(@outer.tcp.buffer) ]] .. [0];
             _dbg_tcp(3, &&outer.tcp.handle, "server", "<= BLOCK_HASH? : %s", &&str[0]);
         end
         await UV_Stream_Write_N(&outer.tcp, _);
@@ -312,7 +312,7 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
             chain = FC.chain_flatten(THIS.chain.id)
             print('===> '..@outer.shared.port, THIS.length-THIS.common.length)
             print(string.rep('>',79))
-            print(tostring2(chain))
+            print(FC.tostring(chain))
             print(string.rep('>',79))
         ]];
     #endif
@@ -365,7 +365,7 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
             chain = FC.chain_flatten(THIS.chain.id)
             print('===< '..@outer.shared.port)
             print(string.rep('<',79))
-            print(tostring2(chain))
+            print(FC.tostring(chain))
             print(string.rep('<',79))
         ]];
 #endif

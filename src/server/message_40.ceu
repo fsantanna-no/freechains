@@ -40,7 +40,7 @@ outer.tcp.buffer[$outer.tcp.buffer-1] = {' '};
         output = {},
         atom   = {},
     }
-    --print('>>>', tostring2(msg,'plain'))
+    --print('>>>', FC.tostring(msg,'plain'))
 
     OLD = CFG.chains[msg.chain.key]
     if OLD then

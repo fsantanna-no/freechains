@@ -47,7 +47,7 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
 //_dbg(3, "server | MESSAGE 20 | %s", &&outer.tcp.buffer[0]);
 [[
     assert(load('msg = '..@outer.tcp.buffer))()
-    --print('>>>', tostring2(msg,'plain'))
+    --print('>>>', FC.tostring(msg,'plain'))
 
     chain = assert(FC.chains[msg.chain.key][msg.chain.zeros])
     block = chain.head
@@ -90,8 +90,8 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
 ]]
 
 // <= MSG
-//[[ print('RET', tostring2(ret,'plain')) ]];
-outer.tcp.buffer = []..[[ tostring2(ret,'plain') ]];
+//[[ print('RET', FC.tostring(ret,'plain')) ]];
+outer.tcp.buffer = []..[[ FC.tostring(ret,'plain') ]];
 await UV_Stream_Write_N(&outer.tcp,_);
 
 #endif

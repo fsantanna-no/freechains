@@ -486,7 +486,7 @@ do
         var bool found = [[ found ]];
         if not found then
             [[
-                --print('>>>', tostring2(THIS.from.hash), THIS.from.pub.payload)
+                --print('>>>', FC.tostring(THIS.from.hash), THIS.from.pub.payload)
                 assert(THIS.from.chain == THIS.to.first.chain)
                 THIS.block = {
                     timestamp   = 0,    -- TODO: 64-bit timestamp
@@ -872,7 +872,7 @@ code/await Subscribe (none) -> none do
                 _crypto_generichash(&&hash[0],HASH_BYTES, &&id[0],$id, null,0);
 #if 0
                 do
-                    var[] byte str = [] .. [[ tostring2(@hash) ]] .. [0];
+                    var[] byte str = [] .. [[ FC.tostring(@hash) ]] .. [0];
                     _dbg(3, "|| CHAIN_HASH : %s", &&str[0]);
                 end
 #endif
@@ -957,7 +957,7 @@ do
     var bool is_tst_no_daemon = [[ MAIN==nil and CFG.daemon==nil ]];
 
     [[
-        dofile 'src/common.lua'
+        FC = require 'freechains'
 
         FC['Exception.Freechains.Malformed'] = @({CEU_DATA_Exception__dot__Freechains__dot__Malformed} as int)
         FC.MESSAGE10_NOTSUB = @({MESSAGE10_NOTSUB} as int)

@@ -41,7 +41,7 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
 //outer.tcp.buffer = outer.tcp.buffer..[0];
 //_dbg(3, "server | MESSAGE 60 | %s", &&outer.tcp.buffer[0]);
 [[
-    --print('>>>', tostring2(msg,'plain'))
+    --print('>>>', FC.tostring(msg,'plain'))
     THIS = {
         msg = assert(load('return '..@outer.tcp.buffer))()
     }
@@ -86,8 +86,8 @@ loop do
             var bool has_ret = [[ ret~=nil ]];
             if has_ret then
                 // <= MSG
-                //[[ print('RET', tostring2(ret,'plain')) ]];
-                [[ ret = tostring2(ret,'plain') ]];
+                //[[ print('RET', FC.tostring(ret,'plain')) ]];
+                [[ ret = FC.tostring(ret,'plain') ]];
                 outer.tcp.buffer = []..[[ string.len(ret) ]]..[{'\n'}]..[[ ret ]];
                 await UV_Stream_Write_N(&outer.tcp,_);
             end

@@ -6,6 +6,9 @@ main:
 	mv /tmp/main freechains-daemon
 
 install:
+	mkdir -p /usr/local/share/lua/5.3/
+	cp src/common.lua /usr/local/share/lua/5.3/freechains.lua
+	cp src/optparse.lua /usr/local/share/lua/5.3/
 	cp src/freechains.cli.lua /usr/local/bin/freechains
 	cp src/freechains-liferea.lua /usr/local/bin/freechains-liferea
 	cp freechains-daemon /usr/local/bin/

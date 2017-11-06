@@ -1,10 +1,7 @@
 #!/usr/bin/env lua5.3
 
---FC_DIR = error 'set absolute path to "<freechains>" repository'
-FC_DIR = '/data/ceu/ceu-libuv/ceu-libuv-freechains'
-dofile(FC_DIR..'/src/common.lua')
-
-local optparse = dofile 'src/optparse.lua'
+local FC       = require 'freechains'
+local optparse = require 'optparse'
 
 local function ASR (cnd, msg)
     msg = msg or 'malformed command'
@@ -166,7 +163,7 @@ if cmd == 'get' then
             break
         end
     end
-    print(tostring2(ret,'plain'))
+    print(FC.tostring(ret,'plain'))
 
 elseif cmd == 'publish' then
     ASR(#arg == 3)
@@ -235,7 +232,7 @@ elseif cmd == 'configure' then
 
     if sub == 'get' then
         if #arg == 2 then
-            print(tostring2(CFG,'plain'))
+            print(FC.tostring(CFG,'plain'))
         end
     else
         ASR(#arg >= 3)
@@ -282,7 +279,7 @@ elseif cmd == 'configure' then
     end
 
     if sub == 'get' then
-        print(tostring2(get,'plain'))
+        print(FC.tostring(get,'plain'))
     elseif sub == 'set' then
         FC.send(0x0500, CFG, DAEMON)
     end
