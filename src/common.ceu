@@ -973,6 +973,11 @@ do
         CFG.dir = CFG.dir or '/tmp/freechains/'..FC.daemon.port
         os.execute('mkdir -p '..CFG.dir)
     ]]
+
+#ifdef DETERMINISTIC
+    [[ CFG.detetministic = true ]];
+#endif
+
     do
         var[] byte path = []..[[ CFG.dir ]]..[0];
         _dbg(0, "server | persistency in %s", &&path[0]);

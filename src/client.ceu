@@ -281,15 +281,11 @@ do
         chain = ARGS.message.chain
         chain = assert(FC.chains[chain.key][chain.zeros], 'not subscribed to |'..chain.key..'|'..chain.zeros..'|')
 
-#ifdef DETERMINISTIC
-        now = 0
-#else
         if CFG.deterministic then
             now = 0
         else
             now = os.time() * 1000000   -- in ms since the epoch
         end
-#endif
 
         THIS = {
             now = now,
