@@ -66,6 +66,21 @@ Commands:
         '-'         publish from stdin
 
 
+    # REMOVE
+
+    Removes a block from a chain.
+
+    $ freechains remove <chain>/<work> <block-hash>
+
+    Arguments:
+
+        chain       chain to remove the block
+
+        work        chain work with the block
+
+        block-hash  hash of the block to remove
+
+
     # SUBSCRIBE
 
     Subscribes to a chain with a list of peers.
@@ -173,6 +188,19 @@ elseif cmd == 'publish' then
             zeros = ASR(tonumber(zeros)),
         },
         payload = payload,
+    }, DAEMON)
+
+elseif cmd == 'remove' then
+    ASR(#arg == 3)
+
+    local key, zeros = string.match(arg[2], '([^/]*)/([^/]*)')
+
+    FC.send(0x0300, {
+        chain = {
+            key   = key,
+            zeros = ASR(tonumber(zeros)),
+        },
+        removal = arg[3],
     }, DAEMON)
 
 elseif cmd == 'subscribe' then
