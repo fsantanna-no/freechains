@@ -228,60 +228,38 @@ elseif cmd == 'configure' then
     local sub = arg[2]
     ASR(sub=='get' or sub=='set')
 
-    local CFG = FC.send(0x0500, nil, DAEMON)
+    CFG = FC.send(0x0500, nil, DAEMON)
 
-    if sub == 'get' then
-        if #arg == 2 then
-            print(FC.tostring(CFG,'plain'))
-        end
+    if sub=='get' and #arg==2 then
+        print(FC.tostring(CFG,'plain'))
     else
-        ASR(#arg >= 3)
-    end
+        ASR(#arg == 3)
 
-    local get = {}
-    for i=3, #arg do
-        local field, op, value = string.match(arg[i], '([^-+=]*)(-?+?=?)(.*)')
-        --print(arg[i], field, op, value)
-
-        local T = CFG
-        while string.find(field,'.',nil,true) do
-            local head
-            head, field = string.match(field, '([^.]*)%.(.*)')
-            T = T[head]
-        end
+        local field, op, value = string.match(arg[3], '([^-+=]*)(-?+?=?)(.*)')
+        str = 'CFG.'..field
 
         if sub == 'get' then
-            ASR(op=='' and value=='')
-            get[field] = T[field]
+            print(FC.tostring( assert(load('return '..str))() , 'plain' ))
         else
             ASR(op=='=' or op=='+=' or op=='-=')
             ASR(value ~= '')
 
             -- if value evaluates to nil, treat it as a string
             -- handle nil and false as special cases
-            if value == 'nil' then
-                value = nil
-            elseif value == 'false' then
-                value = false
-            else
-                value = ASR(load('return '..value,nil,nil,{}))() or value
+            if value~='nil' and value~='false' then
+                value = value..' or "'..value..'"'
             end
 
             if op == '=' then
-                T[field] = value
+                assert(load(str..' = '..value))()
             elseif op == '+=' then
-                T[field][#T[field]+1] = value
+                assert(load(str..'[#'..str..'+1] = '..value))()
             elseif op == '-=' then
-                ASR(type(value) == 'number')
-                table.remove(T[field], value)
+                assert(load('table.remove('..str..', assert(tonumber('..value..')))'))()
             end
-        end
-    end
 
-    if sub == 'get' then
-        print(FC.tostring(get,'plain'))
-    elseif sub == 'set' then
-        FC.send(0x0500, CFG, DAEMON)
+            FC.send(0x0500, CFG, DAEMON)
+        end
     end
 
 elseif cmd == 'listen' then

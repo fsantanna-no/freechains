@@ -29,8 +29,9 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
 //outer.tcp.buffer = outer.tcp.buffer..[0];
 //_dbg(3, "server | MESSAGE 50 | %s", &&outer.tcp.buffer[0]);
 [[
-    assert(load('msg = '..@outer.tcp.buffer))()
-    print('>>>', FC.tostring(msg,'plain'))
+    --print('###', @outer.tcp.buffer)
+    msg = assert(load('return '..@outer.tcp.buffer))()
+    --print('>>>', FC.tostring(msg,'plain'))
 
     if msg ~= nil then
         CFG = msg
