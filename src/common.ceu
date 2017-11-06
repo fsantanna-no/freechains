@@ -975,7 +975,7 @@ do
     ]]
 
 #ifdef DETERMINISTIC
-    [[ CFG.detetministic = true ]];
+    [[ CFG.deterministic = true ]];
 #endif
 
     do
