@@ -1,0 +1,135 @@
+Freechains: Let's redistribute de Internet!
+
+Freechains is...
+
+# Install
+
+## Software Packages
+
+```
+$ sudo apt-get install git gcc libuv1-dev lua5.3 lua5.3-dev lua-lpeg  # Céu
+$ sudo apt-get install libsodium-dev                                  # Freechains
+$ sudo apt-get install liferea lua-socket zenity pandoc               # GUI
+```
+
+## Source Repositories
+
+```
+$ mkdir ceu
+$ cd ceu/
+$ git clone https://github.com/fsantanna/ceu
+$ git clone https://github.com/fsantanna/ceu-libuv
+$ git clone https://github.com/Freechains/freechains
+
+$ cd ceu/
+$ make
+$ sudo make install
+$ cd ..
+
+$ vi ceu-libuv/Makefile                 # set directories by hand
+$ vi freechains/Makefile                # set directories by hand
+$ vi freechains/util/liferea/cmd.lua    # set directories by hand
+
+$ cd freechains/
+$ make
+$ make tests            # compiles and run tests, takes a lot of time
+$ sudo make install     # /usr/local/bin/{freechains,freechains.daemon,freechains
+$ make tests-cli
+```
+
+# Use
+
+## Command Line
+
+- Start the `freechains` daemon:
+
+```
+$ freechains daemon cfg/config.lua      # blocks the terminal
+```
+
+- Listen for new publications:
+
+```
+$ freechains listen                     # blocks the terminal
+```
+
+- Publish some content:
+
+```
+$ freechains publish /0 +"Hello World"  # publishes on the general chain (`/`) with 0 of work
+```
+
+You should now see output from `freechains listen`.
+
+- Subscribe to a chain:
+
+```
+$ freechains subscribe new/5            # subscribes to "new" and only accept publication with at least 5 of work
+```
+
+- Publish some content to `new`:
+
+```
+$ freechains publish new/0 +"Hello World (little work)"
+$ freechains publish new/5 +"Hello World (enough work)"
+```
+
+Only the second publication should appear on `freechains listen`
+
+
+## Liferea GUI
+
+Liferea is a RSS reader adapted to freechains.
+
+### Setup
+
+- Delete default feeds:
+
+```
+Example Feeds -> Delete
+```
+
+- Intercept links in posts:
+
+```
+Tools -> Preferences -> Browser -> Browser -> Manual -> Manual ->
+    freechains-liferea %s
+```
+
+In some versions, clicking a link still opens the browser.
+Alternativelly, use the command line:
+
+```
+$ gsettings set net.sf.liferea browser 'freechains-liferea %s'
+```
+
+- Add the `general` chain:
+
+```
++ New Subscription -> Advanced -> Command -> Source
+    freechains-liferea freechains://localhost:8330//?cmd=atom
+```
+
+- Add the `new` chain:
+
+```
++ New Subscription -> Advanced -> Command -> Source
+    freechains-liferea freechains://localhost:8330/new/?cmd=atom
+```
+
+You should see the posts published from the command line above.
+
+### GUI
+
+You can operate the chains from the Liferea GUI itself.
+
+The first post of chain is a `Menu` with some options:
+
+- *New Chain*:           creates a new chain (only available in the `general` chain)
+- *Change Minimum Work*: only receive posts with at least the provided work
+- *Publish*:             publish to the chain
+
+Each post also provides some options:
+
+- *Republish Contents*:     republishes to the same or another chain, possibly employing more work
+- *Inappropriate Contents*: remove the publication from the chain
