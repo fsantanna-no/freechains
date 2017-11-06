@@ -8,19 +8,17 @@ do
     var int msg = 0;
     var int ret = 0;
 
-    var Exception.Uv? e1;
-
-    par/or do
-        var int timeout = [[ CFG.daemon.timeout or 0 ]];
-        if timeout == 0 then
-            await FOREVER;
-        else
-            await (timeout)s;
-        end
-        emit shared.err_server(msg, {MESSAGE10_TIMEOUT});
-    with
-        var Exception.Freechains? e2;
-        catch e1,e2 do
+    var Exception? e;
+    catch e do
+        par/or do
+            var int timeout = [[ CFG.daemon.timeout or 0 ]];
+            if timeout == 0 then
+                await FOREVER;
+            else
+                await (timeout)s;
+            end
+            emit shared.err_server(msg, {MESSAGE10_TIMEOUT});
+        with
             // => MESSAGE
             await UV_Stream_Read_N(&tcp, MESSAGE_BYTES);
 
@@ -119,17 +117,13 @@ do
                     end
                 end
             else
-                var Exception.Freechains.Unsupported e = val Exception.Freechains.Unsupported(_);
-                throw e;
+                var Exception.Freechains.Unsupported e_ = val Exception.Freechains.Unsupported(_);
+                throw e_;
             end
         end
-
-        if e1? then
-            [[ FC.errs[#FC.errs+1] = @(e1! as int) ]];
-            emit shared.err_server(msg, e1! as int);
-        else/if e2? then
-            [[ FC.errs[#FC.errs+1] = @(e2! as int) ]];
-            emit shared.err_server(msg, e2! as int);
+        if e? then
+            [[ FC.errs[#FC.errs+1] = @(e! as int) ]];
+            emit shared.err_server(msg, e! as int);
         else
             if ret != {MESSAGE10_OK} then
 //[[ print('ERR', @ret) ]]

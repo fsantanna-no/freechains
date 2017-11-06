@@ -46,7 +46,7 @@ DAEMON = {
 daemon = DAEMON.address..':'..DAEMON.port
 
 CFG = FC.send(0x0500, nil, DAEMON)
---print('>>>', FC.cfg_chain(''))
+--print('>>>', tostring2(CFG,'plain'))
 
 -- new
 if not cmd then

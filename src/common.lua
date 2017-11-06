@@ -121,16 +121,15 @@ function FC.send (tp, msg, daemon)
         while true do
             local n = c:receive('*l')
             local ret = c:receive(assert(tonumber(n)))
+            print(n)
             print(ret)
         end
     else
         local ret = c:receive('*a')
+        --print('<<<', string.format('%q',ret))
+        c:close()
+        return assert(load('return '..tostring(ret)))()
     end
-    c:close()
-
-    --print('>>>', ret)
-    --print('<<<', string.format('%q',ret))
-    return assert(load('return '..tostring(ret)))()
 end
 
 -------------------------------------------------------------------------------
