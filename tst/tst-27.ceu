@@ -72,7 +72,7 @@ do
             await FS_write_10();
         end
         _fprintf(_stderr, "[%d] uv-error: %s\n", e!.number, e!.message);
-        _ceu_sys_assert(e!.number == -{EACCESS}, "bug");
+        _ceu_sys_assert(e!.number == -{EACCES}, "bug");
     end
 end
 

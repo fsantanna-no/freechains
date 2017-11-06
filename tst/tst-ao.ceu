@@ -26,7 +26,7 @@ par/and do
             CFG = {
                 not_persistency = true,
                 chains = {
-                    [1] = {
+                    [''] = {
                         key   = '',
                         zeros = 0,
                         peers = {
@@ -112,7 +112,7 @@ with
                 },
                 not_persistency = true,
                 chains = {
-                    [1] = {
+                    [''] = {
                         key   = '',
                         zeros = 0,
                         peers = {
@@ -188,7 +188,7 @@ with
                 },
                 not_persistency = true,
                 chains = {
-                    [1] = {
+                    [''] = {
                         key   = '',
                         zeros = 0,
                     },

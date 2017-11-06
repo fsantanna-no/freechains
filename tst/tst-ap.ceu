@@ -66,7 +66,7 @@ par/and do
         await Client(&init.shared);
 
         [[
-            CFG.chains[1].peers = {
+            CFG.chains[''].peers = {
                 {
                     address = '127.0.0.1',
                     port    = '8341'

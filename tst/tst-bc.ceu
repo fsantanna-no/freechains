@@ -48,7 +48,7 @@ with
                 },
                 chains = {
                     zeros_raise = TODO,     -- global and per-chain
-                    [1] = {
+                    ['tst-25'] = {
                         key   = 'tst-25',
                         zeros = 0,
                         peers = {
