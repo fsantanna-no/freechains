@@ -50,6 +50,7 @@ tests-cli:
 	sleep 0.5
 	diff /tmp/freechains-tests-cli.out  tst/freechains-tests-cli.out
 	diff /tmp/freechains-tests-cli.atom tst/freechains-tests-cli.atom
+	diff /tmp/freechains/8400/          tst/freechains-tests-cli/
 
 tests:
 	for i in tst/tst-[0-2]*.ceu tst/tst-[a-b]*.ceu tst/tst-3[0-3].ceu ; do \

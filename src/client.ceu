@@ -224,6 +224,7 @@ end
 end
 
 code/await Client_10 (var& UV_TCP_Server_Data shared) -> none
+    throws Exception.Freechains
     // [[ ARGS = { chain={...} } ]]
 do
     [[
@@ -232,6 +233,14 @@ do
             peers = CFG.chains[ARGS.chain.key].peers
         }
     ]];
+
+    [[ ARGS = { chain=THIS.chain } ]]
+    var bool should_write = [[ not CFG.not_persistency ]];
+    if should_write then
+        await FS_write_10();
+    end
+
+    [[ ARGS = { chain=THIS.chain } ]]
     CHAIN_LOCK(l, shared, "lock_send");
 
     var int ps = [[ (THIS.peers and #THIS.peers) or 0 ]];
@@ -264,7 +273,7 @@ end
 
 code/await Client (var& UV_TCP_Server_Data shared) -> none
     // [[ ARGS = { message={...} } ]]
-    throws Exception.Freechains.Unsupported
+    throws Exception.Freechains
 do
     // client mode: terminates
 
