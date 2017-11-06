@@ -89,10 +89,10 @@ par/and do
             chain0 = FC.chain_flatten('||0|')
             print('===> 0, #'..#chain0)
             print('>'..string.rep('=',78))
-            print(tostring2(chain0))
+            print(FC.tostring(chain0))
             print('<'..string.rep('=',78))
         ]];
-        chain0 = []..[[tostring2(chain0)]];
+        chain0 = []..[[FC.tostring(chain0)]];
         chain0_len = [[#chain0]];
     end
 with
@@ -161,13 +161,13 @@ with
             chain1 = FC.chain_flatten('||0|')
             print('===> 1, #'..#chain1)
             print('>'..string.rep('=',78))
-            print(tostring2(chain1))
+            print(FC.tostring(chain1))
             print('<'..string.rep('=',78))
             assert(chain1[2] and chain1[2].pub == nil, #chain1)
             assert(chain1[5] and chain1[5].pub.payload == '2.1', #chain1)
             assert(chain1[6] and chain1[6].pub.payload == '2.2', #chain1)
         ]];
-        chain1 = []..[[tostring2(chain1)]];
+        chain1 = []..[[FC.tostring(chain1)]];
         chain1_len = [[#chain1]];
     end
 with
@@ -203,13 +203,13 @@ await 2s;
             chain2 = FC.chain_flatten('||0|')
             print('===> 3, #'..#chain2)
             print('>'..string.rep('=',78))
-            print(tostring2(chain2))
+            print(FC.tostring(chain2))
             print('<'..string.rep('=',78))
             assert(chain2[2] and chain2[2].pub == nil, #chain2)
             assert(chain2[5] and chain2[5].pub.payload == '2.1', #chain2)
             assert(chain2[6] and chain2[6].pub.payload == '2.2', #chain2)
         ]];
-        chain2 = []..[[tostring2(chain2)]];
+        chain2 = []..[[FC.tostring(chain2)]];
         chain2_len = [[#chain2]];
     end
 end

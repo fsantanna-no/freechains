@@ -46,7 +46,7 @@ end
 
 spawn do
     every 1s do
-        //[[ print('>>>', @shared.port, APP.chains['||0|'].head.length, tostring2(APP.chains['||0|'].head.hash)) ]];
+        //[[ print('>>>', @shared.port, APP.chains['||0|'].head.length, FC.tostring(APP.chains['||0|'].head.hash)) ]];
     end
 end
         do

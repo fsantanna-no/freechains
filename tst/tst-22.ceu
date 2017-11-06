@@ -69,7 +69,7 @@ par/and do
             print(FC.chain_tostring('||22|'))
             print('<'..string.rep('=',78))
         ]];
-        chain0 = []..[[tostring2(CHAIN0)]];
+        chain0 = []..[[FC.tostring(CHAIN0)]];
         [[
             print'OK 1/3!'
         ]];
@@ -111,7 +111,7 @@ with
             print('<'..string.rep('=',78))
             --assert(#FC.errs==0)
         ]];
-        chain1 = []..[[tostring2(CHAIN1)]];
+        chain1 = []..[[FC.tostring(CHAIN1)]];
         [[
             assert(#CHAIN1==3 and CHAIN1[3].pub.payload=='22.2')
             print'OK 2/3!'

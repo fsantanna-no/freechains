@@ -68,7 +68,7 @@
             chain0 = FC.chain_flatten('||0|')
             print('===> 0, #'..#chain0)
             print('>'..string.rep('=',78))
-            print(tostring2(chain0))
+            print(FC.tostring(chain0))
             print('<'..string.rep('=',78))
 
             assert(FC.chains[''][0].base.nxt.payload == nil)

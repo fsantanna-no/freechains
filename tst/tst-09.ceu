@@ -22,7 +22,6 @@ par/and do
             CFG = {
                 not_persistency = true,
                 chains = {
-                    zeros_raise = TODO,     -- global and per-chain
                     [''] = {
                         key   = '',
                         zeros = 0,
@@ -107,7 +106,6 @@ with
             CFG = {
                 not_persistency = true,
                 chains = {
-                    zeros_raise = TODO,     -- global and per-chain
                     [''] = {
                         key   = '',
                         zeros = 0,

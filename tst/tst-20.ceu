@@ -57,7 +57,7 @@ Ola Mundo!
             print(FC.chain_tostring('|hello|0|'))
             print('<'..string.rep('=',78))
         ]];
-        chain1 = []..[[tostring2(chain1)]];
+        chain1 = []..[[FC.tostring(chain1)]];
     end
 
 with
@@ -94,7 +94,7 @@ with
             print(FC.chain_tostring('|hello|0|'))
             print('<'..string.rep('=',78))
         ]];
-        chain2 = []..[[tostring2(chain2)]];
+        chain2 = []..[[FC.tostring(chain2)]];
     end
 
 end

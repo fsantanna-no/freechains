@@ -86,7 +86,7 @@ with
 #if 0
 spawn do
     every 1s do
-        [[ print('>>>', @shared.port, FC.chains[''][0].head.length, tostring2(FC.chains[''][0].head.hash)) ]];
+        [[ print('>>>', @shared.port, FC.chains[''][0].head.length, FC.tostring(FC.chains[''][0].head.hash)) ]];
     end
 end
 #endif

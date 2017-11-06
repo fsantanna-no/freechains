@@ -23,11 +23,11 @@ await init.ok;
 
 [[
     chain = FC.chain_flatten('|tst-aq|0|')
-    print('>>>', tostring2(chain))
+    print('>>>', FC.tostring(chain))
     assert(not chain[2].pub)
-    assert(chain[2].hash == tostring2(FC.chains['tst-aq'][0].head.pub.removal.hash))
+    assert(chain[2].hash == FC.tostring(FC.chains['tst-aq'][0].head.pub.removal.hash))
     assert(chain[3].pub.payload == '1.2')
-    print('>>>', tostring2(chain))
+    print('>>>', FC.tostring(chain))
     print 'OK!'
 ]]
 

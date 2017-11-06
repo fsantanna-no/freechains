@@ -49,7 +49,7 @@ end
 ]]
 await Publication_New();
 [[
-    --print('>>>', THIS.pub.timestamp, THIS.pub.nonce, tostring2(THIS.pub.hash,true))
+    --print('>>>', THIS.pub.timestamp, THIS.pub.nonce, FC.tostring(THIS.pub.hash,true))
     assert(THIS.pub.hash == '\x04\x9A\x59\xFB\x55\x8E\x02\xD4\xA3\xFC\xC5\x6E\xA6\xF7\x90\xA4\xBF\x50\x34\xCB\xC7\xB1\x1B\x70\x2B\xE9\x6B\x5C\x2E\xDD\xEB\xBA')
     assert(THIS.pub.timestamp == 0)
     assert(THIS.pub.nonce == 0)
@@ -90,7 +90,7 @@ end
 ]]
 await Block_Hash_Link();
 [[
-    --print('>>>', THIS.block.timestamp, THIS.block.nonce, tostring2(THIS.block.hash,true))
+    --print('>>>', THIS.block.timestamp, THIS.block.nonce, FC.tostring(THIS.block.hash,true))
     assert(THIS.block.hash == '\x5C\xC2\x3B\x48\x4D\xB2\xDA\xC8\xC5\xED\x28\x93\xBA\xFE\xB0\x64\xCC\x63\xA9\x57\xBC\x5A\x63\xB6\xEC\x2A\xE7\x93\xBB\x05\x71\xF7')
     assert(THIS.block.timestamp == 0)
     assert(THIS.block.nonce == 0)
