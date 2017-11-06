@@ -1,0 +1,91 @@
+            <feed xmlns="http://www.w3.org/2005/Atom">
+                <title>/</title>
+                <id>
+                    freechains://
+                </id>
+                        <entry>
+                <title>[0] Removed publication: F989AA3AED4CD364E537AACEEDDDCFC9033B4B98113ABFF4AE4373D38D4992D9</title>
+                <id>
+                    freechains://0/075BC11717F327A0EBAE9D8E478EA6EDEB6106CFDFB02C7B13FB2CCB159D52C3/
+                </id>
+                <published>1970-01-01T00:00:00Z</published>
+                <content type="html">&lt;p&gt;Removed publication: F989AA3AED4CD364E537AACEEDDDCFC9033B4B98113ABFF4AE4373D38D4992D9&lt;&#47;p&gt;
+</content>
+            </entry>
+        
+            <entry>
+                <title>[0] Hello World! (again)</title>
+                <id>
+                    freechains://0/E56E43DA423749CB552D710B6326FB1093A866F44274ADC7D3D83B5046D2988C/
+                </id>
+                <published>1970-01-01T00:00:00Z</published>
+                <content type="html">&lt;p&gt;Hello World! (again)&lt;&#47;p&gt;
+&lt;hr &#47;&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;freechains:&#47;&#47;localhost:8400&#47;&#47;0&#47;E1C8C103DC73088B947D51A0412A8AF4B9FE41A8B9545DA9990CB6FDDEFF6C4D&#47;?cmd=republish&quot;&gt;X&lt;&#47;a&gt; Republish Contents&lt;&#47;li&gt;
+&lt;li&gt;&lt;a href=&quot;freechains:&#47;&#47;localhost:8400&#47;&#47;0&#47;E56E43DA423749CB552D710B6326FB1093A866F44274ADC7D3D83B5046D2988C&#47;?cmd=removal&quot;&gt;X&lt;&#47;a&gt; Inappropriate Contents&lt;&#47;li&gt;
+&lt;&#47;ul&gt;
+</content>
+            </entry>
+        
+            <entry>
+                <title>[0] Hello World!</title>
+                <id>
+                    freechains://0/2AC5907B2F01FB4FF345FC836C19B9554F8630FC5B881E6AE72E1C192166749D/
+                </id>
+                <published>1970-01-01T00:00:00Z</published>
+                <content type="html">&lt;p&gt;Hello World!&lt;&#47;p&gt;
+&lt;hr &#47;&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;freechains:&#47;&#47;localhost:8400&#47;&#47;0&#47;0CBDD18B16EC73E227DBB9A66DAD5FAF58257B05B5A644EB83873E7EFEBC1F3A&#47;?cmd=republish&quot;&gt;X&lt;&#47;a&gt; Republish Contents&lt;&#47;li&gt;
+&lt;li&gt;&lt;a href=&quot;freechains:&#47;&#47;localhost:8400&#47;&#47;0&#47;2AC5907B2F01FB4FF345FC836C19B9554F8630FC5B881E6AE72E1C192166749D&#47;?cmd=removal&quot;&gt;X&lt;&#47;a&gt; Inappropriate Contents&lt;&#47;li&gt;
+&lt;&#47;ul&gt;
+</content>
+            </entry>
+        
+            <entry>
+                <title>[0] NOT SEEN BY LISTEN (seen by liferea)</title>
+                <id>
+                    freechains://0/E1CE47BC7247E6CF064E5EFE3B87E4926568655A6A407B4B8D07256914A3D999/
+                </id>
+                <published>1970-01-01T00:00:00Z</published>
+                <content type="html">&lt;p&gt;NOT SEEN BY LISTEN (seen by liferea)&lt;&#47;p&gt;
+&lt;hr &#47;&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;freechains:&#47;&#47;localhost:8400&#47;&#47;0&#47;A5754F9ED8E7639ECF4C183A8260A6AE7A55A2F60FF9058EBF4222C64C09ACD2&#47;?cmd=republish&quot;&gt;X&lt;&#47;a&gt; Republish Contents&lt;&#47;li&gt;
+&lt;li&gt;&lt;a href=&quot;freechains:&#47;&#47;localhost:8400&#47;&#47;0&#47;E1CE47BC7247E6CF064E5EFE3B87E4926568655A6A407B4B8D07256914A3D999&#47;?cmd=removal&quot;&gt;X&lt;&#47;a&gt; Inappropriate Contents&lt;&#47;li&gt;
+&lt;&#47;ul&gt;
+</content>
+            </entry>
+        
+            <entry>
+                <title>[5] work = 5</title>
+                <id>
+                    freechains://5/050B800524C7D1E1FD2E9F09A70F28C70D8C1B9057F8D85E3169F84A6539BA33/
+                </id>
+                <published>1970-01-01T00:00:00Z</published>
+                <content type="html">&lt;p&gt;work = 5&lt;&#47;p&gt;
+&lt;hr &#47;&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;freechains:&#47;&#47;localhost:8400&#47;&#47;5&#47;0016B3907438D11245761B58B4EFABFA7D068ED8667627E0D5697065D36E53AD&#47;?cmd=republish&quot;&gt;X&lt;&#47;a&gt; Republish Contents&lt;&#47;li&gt;
+&lt;li&gt;&lt;a href=&quot;freechains:&#47;&#47;localhost:8400&#47;&#47;5&#47;050B800524C7D1E1FD2E9F09A70F28C70D8C1B9057F8D85E3169F84A6539BA33&#47;?cmd=removal&quot;&gt;X&lt;&#47;a&gt; Inappropriate Contents&lt;&#47;li&gt;
+&lt;&#47;ul&gt;
+</content>
+            </entry>
+        
+            <entry>
+                <title>Menu</title>
+                <id>
+                    freechains://0000000000000000000000000000000000000000000000000000000000000000/
+                </id>
+                <published>1970-01-01T06:56:40Z</published>
+                <content type="html">&lt;ul&gt;
+&lt;li&gt; &lt;a href=&quot;freechains:&#47;&#47;localhost:8400&#47;?cmd=new&quot;&gt;[X]&lt;&#47;a&gt; New Chain
+&lt;li&gt; &lt;a href=&quot;freechains:&#47;&#47;localhost:8400&#47;&#47;?cmd=subscribe&quot;&gt;[X]&lt;&#47;a&gt; Change Minimum Work for &quot;&quot;
+&lt;li&gt; &lt;a href=&quot;freechains:&#47;&#47;localhost:8400&#47;&#47;?cmd=publish&quot;&gt;[X]&lt;&#47;a&gt; Publish to &quot;&quot;
+&lt;&#47;ul&gt;
+</content>
+            </entry>
+        
+            </feed>
+        

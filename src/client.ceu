@@ -275,7 +275,11 @@ do
 #ifdef DETERMINISTIC
         now = 0
 #else
-        now = os.time() * 1000000   -- in ms since the epoch
+        if CFG.deterministic then
+            now = 0
+        else
+            now = os.time() * 1000000   -- in ms since the epoch
+        end
 #endif
 
         THIS = {

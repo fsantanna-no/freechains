@@ -1,6 +1,5 @@
 CEU_DIR    = $(error set absolute path to "<ceu>" repository)
 CEU_UV_DIR = $(error set absolute path to "<ceu-libuv>" repository)
-CEU_FC_DIR = $(error set absolute path to "<ceu-libuv>" repository)
 
 main:
 	make CEU_SRC=src/main.ceu one
@@ -25,83 +24,29 @@ one:
 	    --cc --cc-args="-lm -llua5.3 -luv -lsodium -g"                         \
 			 --cc-output=/tmp/$$(basename $(CEU_SRC) .ceu);
 
-tst-cmds-set:
+tests-cli:
+	-killall liferea
+	-killall freechains-daemon
 	rm -Rf /tmp/freechains/8400/
-	cp cfg/config-8400.lua.bak cfg/config-8400.lua
-	./freechains $(CEU_FC_DIR)/cfg/config-8400.lua
-
-tst-cmds-go:
-	echo 38             > /tmp/freechains/8400/fifo.in
-	cat tst/atom.lua    > /tmp/freechains/8400/fifo.in
-	echo 185            > /tmp/freechains/8400/fifo.in
-	cat tst/pub.lua     > /tmp/freechains/8400/fifo.in
-	echo 242            > /tmp/freechains/8400/fifo.in
-	cat tst/pub-sub.lua > /tmp/freechains/8400/fifo.in
-	echo 182            > /tmp/freechains/8400/fifo.in
-	cat tst/pub-add.lua > /tmp/freechains/8400/fifo.in
-	echo 177            > /tmp/freechains/8400/fifo.in
-	cat tst/pub-5.lua   > /tmp/freechains/8400/fifo.in
-	echo 187            > /tmp/freechains/8400/fifo.in
-	cat tst/sub.lua     > /tmp/freechains/8400/fifo.in
-	#echo 297            > /tmp/freechains/8400/fifo.in
-	#cat tst/pub-rem.lua > /tmp/freechains/8400/fifo.in
-	echo 189            > /tmp/freechains/8400/fifo.in
-	cat tst/pub-new.lua > /tmp/freechains/8400/fifo.in
-
-tst-cmds-go-net:
-	#/bin/echo -n PS                    >  /tmp/msg.txt
-	#/bin/echo -n -e '\xF0\x00'         >> /tmp/msg.txt
-	#/bin/echo -n -e '\x00\x00\x00\xB9' >> /tmp/msg.txt
-	#cat tst/pub.lua                    >> /tmp/msg.txt
-	#cat /tmp/msg.txt | nc localhost 8400
-	#
-	#/bin/echo -n PS                    >  /tmp/msg.txt
-	#/bin/echo -n -e '\xF0\x00'         >> /tmp/msg.txt
-	#/bin/echo -n -e '\x00\x00\x00\xF5' >> /tmp/msg.txt
-	#cat tst/pub-sub.lua                >> /tmp/msg.txt
-	#cat /tmp/msg.txt | nc localhost 8400
-	#
-	#/bin/echo -n PS                    >  /tmp/msg.txt
-	#/bin/echo -n -e '\xF0\x00'         >> /tmp/msg.txt
-	#/bin/echo -n -e '\x00\x00\x00\xB6' >> /tmp/msg.txt
-	#cat tst/pub-add.lua                >> /tmp/msg.txt
-	#cat /tmp/msg.txt | nc localhost 8400
-	#
-	#/bin/echo -n PS                    >  /tmp/msg.txt
-	#/bin/echo -n -e '\xF0\x00'         >> /tmp/msg.txt
-	#/bin/echo -n -e '\x00\x00\x00\xB1' >> /tmp/msg.txt
-	#cat tst/pub-5.lua                  >> /tmp/msg.txt
-	#cat /tmp/msg.txt | nc localhost 8400
-	#
-	#/bin/echo -n PS                    >  /tmp/msg.txt
-	#/bin/echo -n -e '\xF0\x00'         >> /tmp/msg.txt
-	#/bin/echo -n -e '\x00\x00\x00\xBB' >> /tmp/msg.txt
-	#cat tst/sub.lua                    >> /tmp/msg.txt
-	#cat /tmp/msg.txt | nc localhost 8400
-	#
-	# REQUIRES DETERMINISTIC
-	#/bin/echo -n PS                    >  /tmp/msg.txt
-	#/bin/echo -n -e '\xF0\x00'         >> /tmp/msg.txt
-	#/bin/echo -n -e '\x00\x00\x01\x29' >> /tmp/msg.txt
-	#cat tst/pub-rem.lua                >> /tmp/msg.txt
-	#cat /tmp/msg.txt | nc localhost 8400
-	#
-	#/bin/echo -n PS                    >  /tmp/msg.txt
-	#/bin/echo -n -e '\xF0\x00'         >> /tmp/msg.txt
-	#/bin/echo -n -e '\x00\x00\x00\xBD' >> /tmp/msg.txt
-	#cat tst/pub-new.lua                >> /tmp/msg.txt
-	#cat /tmp/msg.txt | nc localhost 8400
-	#
-	/bin/echo -n PS                    >  /tmp/msg.txt
-	/bin/echo -n -e '\xF0\x00'         >> /tmp/msg.txt
-	/bin/echo -n -e '\x00\x00\x00\x26' >> /tmp/msg.txt
-	cat tst/atom.lua                   >> /tmp/msg.txt
-	cat /tmp/msg.txt | nc localhost 8400
-	#
-	#echo 38             > /tmp/freechains/8400/fifo.in
-	#cat tst/atom.lua    > /tmp/freechains/8400/fifo.in
-	#echo 189            > /tmp/freechains/8400/fifo.in
-	#cat tst/pub-new.lua > /tmp/freechains/8400/fifo.in
+	cp cfg/config-tests.lua.bak cfg/config-tests.lua
+	freechains --port=8400 daemon cfg/config-tests.lua 2>&1 > /tmp/freechains-tests-cli.err &
+	sleep 0.5
+	freechains --port=8400 configure set deterministic=true
+	freechains --port=8400 publish /0 +"NOT SEEN BY LISTEN (seen by liferea)"
+	freechains --port=8400 listen > /tmp/freechains-tests-cli.out &
+	sleep 0.5
+	freechains --port=8400 publish /0 +"Hello World!"
+	freechains --port=8400 publish /0 +"to be removed"
+	freechains --port=8400 publish /0 +"Hello World! (again)"
+	freechains --port=8400 remove /0 F989AA3AED4CD364E537AACEEDDDCFC9033B4B98113ABFF4AE4373D38D4992D9
+	freechains --port=8400 publish /5 +"work = 5"
+	freechains-liferea freechains://localhost:8400//?cmd=atom | grep -v "<updated>" > /tmp/freechains-tests-cli.atom
+	freechains --port=8400 subscribe new/10
+	freechains --port=8400 publish new/0 +"NOT SEEN"
+	freechains --port=8400 publish new/10 +"new = 10"
+	sleep 0.5
+	diff /tmp/freechains-tests-cli.out  tst/freechains-tests-cli.out
+	diff /tmp/freechains-tests-cli.atom tst/freechains-tests-cli.atom
 
 tests:
 	for i in tst/tst-[0-2]*.ceu tst/tst-[a-b]*.ceu tst/tst-3[0-3].ceu ; do \
