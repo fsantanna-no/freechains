@@ -123,7 +123,7 @@ do
 //[[ print('ERR', @ret) ]]
                 [[ FC.errs[#FC.errs+1] = @ret ]];
             end
-            // input: { ARGS={chain={...}} }
+            [[ ARGS = { chain = THIS.chain } ]];
             emit shared.ok_server(msg, ret);
         end
     end

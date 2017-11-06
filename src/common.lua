@@ -120,8 +120,8 @@ function FC.send (tp, msg, daemon)
     if tp == 0x0600 then
         while true do
             local n = c:receive('*l')
-            local ret = c:receive(assert(tonumber(n)))
             print(n)
+            local ret = c:receive(assert(tonumber(n)))
             print(ret)
         end
     else
