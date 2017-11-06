@@ -33,7 +33,7 @@ $ vi freechains/util/liferea/cmd.lua    # set directories by hand
 $ cd freechains/
 $ make
 $ make tests            # compiles and run tests, takes a lot of time
-$ sudo make install     # /usr/local/bin/{freechains,freechains.daemon,freechains
+$ sudo make install     # /usr/local/bin/{freechains,freechains.daemon,freechains}
 $ make tests-cli
 ```
 
@@ -76,6 +76,29 @@ $ freechains publish new/5 +"Hello World (enough work)"
 
 Only the second publication should appear on `freechains listen`
 
+- Communicate with other peers:
+
+```
+# Setup configuration files:
+$ cp cfg/config.lua.bak /tmp/config-8331.lua
+$ cp cfg/config.lua.bak /tmp/config-8332.lua
+
+# Start two new nodes:
+$ freechains --port=8331 daemon /tmp/config-8331.lua &
+$ freechains --port=8332 daemon /tmp/config-8332.lua &
+
+# Connect, in both directions, 8330 with 8331 and 8331 with 8332:
+$ freechains --port=8330 configure set "chains[''].peers"+="{address='127.0.0.1',port=8331}"
+$ freechains --port=8331 configure set "chains[''].peers"+="{address='127.0.0.1',port=8330}"
+$ freechains --port=8331 configure set "chains[''].peers"+="{address='127.0.0.1',port=8332}"
+$ freechains --port=8332 configure set "chains[''].peers"+="{address='127.0.0.1',port=8331}"
+
+$ freechains --port=8332 publish /0 +"Hello World (from 8332)"
+```
+
+This creates a peer-to-peer mesh with the form `8330 <-> 8331 <-> 8332`,
+allowing nodes `8330` and `8332` to communicate even though they are not
+directly connected.
 
 ## Liferea GUI
 
