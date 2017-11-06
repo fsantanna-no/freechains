@@ -22,7 +22,7 @@ par/and do
         [[
             dofile 'src/common.lua'
             CFG = {
-                not_persistency = true,
+                no_persistency = true,
                 chains = {
                     [''] = {
                         key   = '',
@@ -93,7 +93,7 @@ with
                     address = '127.0.0.1',
                     port    = '8341'
                 },
-                not_persistency = true,
+                no_persistency = true,
                 chains = {
                     [''] = {
                         key   = '',
@@ -166,7 +166,7 @@ with
                     port    = '8342',
                     backlog = 128,
                 },
-                not_persistency = true,
+                no_persistency = true,
                 chains = {
                     [''] = {
                         key   = '',

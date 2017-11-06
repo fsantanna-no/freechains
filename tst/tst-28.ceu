@@ -81,7 +81,7 @@ with
                     port    = '8341',
                     backlog = 128,
                 },
-                not_persistency = true,
+                no_persistency = true,
                 chains = {
                     ['tst-25'] = {
                         key   = 'tst-25',

@@ -18,7 +18,7 @@ par/and do
         [[
             dofile 'src/common.lua'
             CFG = {
-                not_persistency = true,
+                no_persistency = true,
                 chains = {
                     zeros_raise = TODO,     -- global and per-chain
                     [''] = {
@@ -91,7 +91,7 @@ with
                     port    = '8342',
                     backlog = 128,
                 },
-                not_persistency = true,
+                no_persistency = true,
                 chains = {
                     [''] = {
                         key   = '',

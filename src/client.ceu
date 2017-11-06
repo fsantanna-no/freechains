@@ -235,7 +235,7 @@ do
     ]];
 
     [[ ARGS = { chain=THIS.chain } ]]
-    var bool should_write = [[ not CFG.not_persistency ]];
+    var bool should_write = [[ not CFG.no_persistency ]];
     if should_write then
         await FS_write_10();
     end

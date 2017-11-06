@@ -891,7 +891,7 @@ code/await Subscribe (none) -> none do
 
             // try to load from file
             // no problem if it fails
-            var bool should_read = [[ not CFG.not_persistency ]];
+            var bool should_read = [[ not CFG.no_persistency ]];
             if should_read then
                 var Exception? e;
                 catch e do
@@ -1011,7 +1011,7 @@ do
     end
 
     await Subscribe();
-    await async do end; // with "not_persistency", no files are loaded and no awaits happen until here
+    await async do end; // with "no_persistency", no files are loaded and no awaits happen until here
     emit ok;
 
     await Broadcast(&shared);

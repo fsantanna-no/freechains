@@ -22,7 +22,7 @@ do
                     address = '127.0.0.1',
                     port    = @local,
                 },
-                not_persistency = true,
+                no_persistency = true,
                 chains = {
                     ['tst-33'] = {
                         key   = 'tst-33',

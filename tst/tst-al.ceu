@@ -10,7 +10,7 @@
 [[
     dofile 'src/common.lua'
     CFG = {
-        not_persistency = true,
+        no_persistency = true,
         chains = {
             ['tst-al'] = {
                 key   = 'tst-al',
