@@ -910,6 +910,8 @@ end
 
 #include "client.ceu"
 
+// TODO: offer Chain_Broadcast
+
 code/await Broadcast (var& UV_TCP_Server_Data shared) -> none
     throws Exception.Freechains
 do
@@ -1009,6 +1011,18 @@ do
         var   int  backlog = [[ CFG.daemon.backlog or 128 ]];
         _dbg(0, "server | listening in %s:%d", &&ip[0], port);
         spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared) in server;
+    end
+
+    // TODO: broadcast everything on any change -- could be broadcast chain on peer set
+    pool[] Broadcast broadcasts;
+    spawn do
+        var int msg;
+        var int ret;
+        every (msg,ret) in shared.ok_server do
+            if msg == {MESSAGE50} then
+                spawn Broadcast(&shared) in broadcasts;
+            end
+        end
     end
 
     await Subscribe();
