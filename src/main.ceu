@@ -26,5 +26,9 @@ loop do
                 os.execute(CFG.execute)
             ]];
         end
+    else/if msg == {MESSAGE70} then
+        break;
     end
 end
+
+escape 0;

@@ -43,19 +43,19 @@ $ make tests-full       # (optional, takes a lot of time)
 - Start the `freechains` daemon:
 
 ```
-$ freechains daemon cfg/config.lua      # blocks the terminal
+$ freechains start daemon cfg/config.lua    # blocks the terminal
 ```
 
 - Listen for new publications:
 
 ```
-$ freechains listen                     # blocks the terminal
+$ freechains listen                         # blocks the terminal
 ```
 
 - Publish some content:
 
 ```
-$ freechains publish /0 +"Hello World"  # publishes on the general chain (`/`) with 0 of work
+$ freechains publish /0 +"Hello World"      # publishes on the general chain (`/`) with 0 of work
 ```
 
 You should now see output from `freechains listen`.
@@ -63,7 +63,7 @@ You should now see output from `freechains listen`.
 - Subscribe to a chain:
 
 ```
-$ freechains subscribe new/5            # subscribes to "new" and only accept publication with at least 5 of work
+$ freechains subscribe new/5                # subscribes to "new" and only accept publication with at least 5 of work
 ```
 
 - Publish some content to `new`:

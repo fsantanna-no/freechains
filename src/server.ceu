@@ -109,6 +109,9 @@ do
                     do ()
                         #include "server/message_60.ceu"
                     end
+                else/if msg=={MESSAGE70} then
+                    _dbg(3, "server | MESSAGE 70");
+                    // nothing, main.ceu will terminate
                 end
             else
                 var Exception.Freechains.Unsupported e_ = val Exception.Freechains.Unsupported(_);
@@ -123,7 +126,7 @@ do
 //[[ print('ERR', @ret) ]]
                 [[ FC.errs[#FC.errs+1] = @ret ]];
             end
-            [[ ARGS = { chain = THIS.chain } ]];
+            [[ ARGS = { chain = THIS and THIS.chain } ]];
             emit shared.ok_server(msg, ret);
         end
     end

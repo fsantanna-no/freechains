@@ -21,9 +21,10 @@ Commands:
 
     # DAEMON
 
-    Starts a freechain daemon.
+    Starts and stops a freechain daemon.
 
-    $ freechains daemon <config>
+    $ freechains daemon start <config>
+    $ freechains daemon stop
 
     Arguments:
 
@@ -100,6 +101,8 @@ Commands:
 
     $ freechains configure get {<field>}
     $ freechains configure set {<field> (=|+=|-=) <value>}
+
+    Arguments:
 
         field       field to configure
         value       value to set
@@ -281,8 +284,15 @@ elseif cmd == 'listen' then
     }, DAEMON)
 
 elseif cmd == 'daemon' then
-    ASR(#arg == 2)
-    os.execute('freechains-daemon '..arg[2]..' '..DAEMON.address..' '..DAEMON.port)
+    ASR(#arg >= 2)
+    local _, sub, cfg = table.unpack(arg)
+    if sub == 'start' then
+        ASR(#arg == 3)
+        os.execute('freechains-daemon '..cfg..' '..DAEMON.address..' '..DAEMON.port)
+    else
+        ASR(sub == 'stop')
+        FC.send(0x0700, '', DAEMON)
+    end
 
 else
     ASR(false)
