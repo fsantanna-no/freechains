@@ -27,6 +27,9 @@ one:
 	    --cc --cc-args="-lm -llua5.3 -luv -lsodium -g"                         \
 			 --cc-output=/tmp/$$(basename $(CEU_SRC) .ceu);
 
+tests: tests-cli
+	# empty
+
 tests-cli:
 	-killall liferea
 	-killall freechains-daemon
@@ -52,7 +55,7 @@ tests-cli:
 	diff /tmp/freechains-tests-cli.atom tst/freechains-tests-cli.atom
 	diff /tmp/freechains/8400/          tst/freechains-tests-cli/
 
-tests:
+tests-full:
 	for i in tst/tst-[0-2]*.ceu tst/tst-[a-b]*.ceu tst/tst-3[0-3].ceu ; do \
 		echo;                                            \
 		echo "#####################################";    \
@@ -61,7 +64,7 @@ tests:
 		make CEU_SRC=$$i one && /tmp/$$(basename $$i .ceu) || exit 1; \
 	done
 
-tests-run:
+tests-full-run:
 	for i in tst/tst-[0-2]*.ceu tst/tst-[a-b]*.ceu tst/tst-3[0-3].ceu ; do \
 		echo;                                            \
 		echo "#####################################";    \

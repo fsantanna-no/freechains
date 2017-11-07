@@ -28,13 +28,12 @@ $ cd ..
 
 $ vi ceu-libuv/Makefile                 # set directories by hand
 $ vi freechains/Makefile                # set directories by hand
-$ vi freechains/util/liferea/cmd.lua    # set directories by hand
 
 $ cd freechains/
 $ make
-$ make tests            # compiles and run tests, takes a lot of time
 $ sudo make install     # /usr/local/bin/{freechains,freechains.daemon,freechains}
-$ make tests-cli
+$ make tests
+$ make tests-full       # (optional, takes a lot of time)
 ```
 
 # Use
