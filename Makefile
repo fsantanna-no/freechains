@@ -27,15 +27,15 @@ one:
 	    --cc --cc-args="-lm -llua5.3 -luv -lsodium -g"                         \
 			 --cc-output=/tmp/$$(basename $(CEU_SRC) .ceu);
 
-tests: tests-cli
-	# empty
+tests: tests-cli tests-p2p
+	# OK
 
 tests-cli:
 	-killall liferea
 	-killall freechains-daemon
 	rm -Rf /tmp/freechains/8400/
 	cp cfg/config-tests.lua.bak cfg/config-tests.lua
-	freechains --port=8400 daemon cfg/config-tests.lua 2>&1 > /tmp/freechains-tests-cli.err &
+	freechains --port=8400 daemon start cfg/config-tests.lua 2>&1 > /tmp/freechains-tests-cli.err &
 	sleep 0.5
 	freechains --port=8400 configure set deterministic=true
 	freechains --port=8400 publish /0 +"NOT SEEN BY LISTEN (seen by liferea)"
@@ -54,6 +54,69 @@ tests-cli:
 	diff /tmp/freechains-tests-cli.out  tst/freechains-tests-cli.out
 	diff /tmp/freechains-tests-cli.atom tst/freechains-tests-cli.atom
 	diff /tmp/freechains/8400/          tst/freechains-tests-cli/
+	freechains --port=8400 daemon stop
+
+tests-p2p:
+	rm -Rf /tmp/freechains/84*
+	
+	# Setup configuration files:
+	cp cfg/config.lua.bak /tmp/config-8400.lua
+	cp cfg/config.lua.bak /tmp/config-8401.lua
+	cp cfg/config.lua.bak /tmp/config-8402.lua
+	
+	# Start three nodes:
+	freechains --port=8400 daemon start /tmp/config-8400.lua &
+	freechains --port=8401 daemon start /tmp/config-8401.lua &
+	freechains --port=8402 daemon start /tmp/config-8402.lua &
+	sleep 0.1
+	
+	# Connect 8400 <-> 8401 <-> 8402:
+	freechains --port=8400 configure set "chains[''].peers"+="{address='127.0.0.1',port=8401}"
+	freechains --port=8401 configure set "chains[''].peers"+="{address='127.0.0.1',port=8400}"
+	freechains --port=8401 configure set "chains[''].peers"+="{address='127.0.0.1',port=8402}"
+	freechains --port=8402 configure set "chains[''].peers"+="{address='127.0.0.1',port=8401}"
+	
+	# Publish to /0
+	freechains --port=8402 publish /0 +"Hello World (from 8402)"  # 8402->8401->8400
+	sleep 0.5
+	freechains --port=8400 publish /0 +"Hello World (from 8400)"  # 8400->8401->8402
+	sleep 0.5
+	
+	# Check consensus 1
+	grep -q "from 8402" /tmp/freechains/8400/\|\|0\|.chain
+	grep -q "from 8400" /tmp/freechains/8400/\|\|0\|.chain
+	#grep -q "from 8402.*from 8400" /tmp/freechains/8400/\|\|0\|.chain
+	cat -v /tmp/freechains/8400/\|\|0\|.chain | tr '\n' ' ' | grep -q "from 8402.*from 8400"
+	diff /tmp/freechains/8400 /tmp/freechains/8401
+	diff /tmp/freechains/8400 /tmp/freechains/8402
+	
+	###
+	
+	# Start fourth node, 8400 <-> 8401 <-> 8402 <-> 8403:
+	cp cfg/config.lua.bak /tmp/config-8403.lua
+	freechains --port=8403 daemon start /tmp/config-8403.lua &
+	sleep 0.1
+	freechains --port=8402 configure set "chains[''].peers"+="{address='127.0.0.1',port=8403}"
+	freechains --port=8403 configure set "chains[''].peers"+="{address='127.0.0.1',port=8402}"
+	sleep 0.5
+	# (it should receive both messages)
+	
+	# Check consensus 2
+	diff /tmp/freechains/8400 /tmp/freechains/8403
+	
+	###
+	
+	# Start fifth node alone
+	# Publish to reach longest chain
+	# Connect with 1/2
+	# Check consensus
+	# Check first messages appear last
+	
+	# Cleanup
+	freechains --port=8400 daemon stop
+	freechains --port=8401 daemon stop
+	freechains --port=8402 daemon stop
+	freechains --port=8403 daemon stop
 
 tests-full:
 	for i in tst/tst-[0-2]*.ceu tst/tst-[a-b]*.ceu tst/tst-3[0-3].ceu ; do \
