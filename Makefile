@@ -32,9 +32,10 @@ tests: tests-cli tests-p2p
 
 tests-cli:
 	-killall liferea
-	-killall freechains-daemon
+	-freechains --port=8400 daemon stop
 	rm -Rf /tmp/freechains/8400/
 	cp cfg/config-tests.lua.bak cfg/config-tests.lua
+	
 	freechains --port=8400 daemon start cfg/config-tests.lua 2>&1 > /tmp/freechains-tests-cli.err &
 	sleep 0.5
 	freechains --port=8400 configure set deterministic=true
@@ -57,6 +58,11 @@ tests-cli:
 	freechains --port=8400 daemon stop
 
 tests-p2p:
+	-freechains --port=8400 daemon stop
+	-freechains --port=8401 daemon stop
+	-freechains --port=8402 daemon stop
+	-freechains --port=8403 daemon stop
+	-freechains --port=8404 daemon stop
 	rm -Rf /tmp/freechains/84*
 	
 	# Setup configuration files:
@@ -107,10 +113,39 @@ tests-p2p:
 	###
 	
 	# Start fifth node alone
+	cp cfg/config.lua.bak /tmp/config-8403.lua
+	freechains --port=8404 daemon start /tmp/config-8403.lua &
+	sleep 0.1
+	
 	# Publish to reach longest chain
+	freechains --port=8404 publish /0 +"Hello World (from 8404 1/3)"
+	freechains --port=8404 publish /0 +"Hello World (from 8404 2/3)"
+	freechains --port=8404 publish /0 +"Hello World (from 8404 3/3)"
+	sleep 0.1
+	
 	# Connect with 1/2
-	# Check consensus
-	# Check first messages appear last
+	#			  /-8404-\
+	# 8400 <-> 8401 <--> 8402 <-> 8403:
+	freechains --port=8404 configure set "chains[''].peers"+="{address='127.0.0.1',port=8401}"
+	freechains --port=8401 configure set "chains[''].peers"+="{address='127.0.0.1',port=8404}"
+	freechains --port=8404 configure set "chains[''].peers"+="{address='127.0.0.1',port=8402}"
+	freechains --port=8402 configure set "chains[''].peers"+="{address='127.0.0.1',port=8404}"
+	sleep 1
+	
+	# Check consensus 3
+	# (8404 wins, so his messages should appear first)
+	diff /tmp/freechains/8400 /tmp/freechains/8401
+	diff /tmp/freechains/8400 /tmp/freechains/8402
+	diff /tmp/freechains/8400 /tmp/freechains/8403
+	diff /tmp/freechains/8400 /tmp/freechains/8404
+	cat -v /tmp/freechains/8400/\|\|0\|.chain | tr '\n' ' ' | grep -q "from 8404.*from 8402.*from 8400"
+	
+	###
+	
+	# TODO: stop node, publish, restart
+	# TODO: big messages
+	
+	###
 	
 	# Cleanup
 	freechains --port=8400 daemon stop
