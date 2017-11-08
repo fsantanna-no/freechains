@@ -1,7 +1,7 @@
 #include "common.ceu"
 
 [[
-    dofile 'src/common.lua'
+    FC = require 'freechains'
     key = ''
     zeros = 0
     FC.chains[key] = FC.chains[key] or { pubs={} }

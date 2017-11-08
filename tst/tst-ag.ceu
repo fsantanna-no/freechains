@@ -21,7 +21,7 @@ par/and do
 
     lua[] do
         [[
-            dofile 'src/common.lua'
+            FC = require 'freechains'
             CFG = {
                 no_persistency = true,
                 chains = {
@@ -86,7 +86,7 @@ with
 
     lua[] do
         [[
-            dofile 'src/common.lua'
+            FC = require 'freechains'
             CFG = {
                 daemon = {
                     address = '127.0.0.1',
@@ -161,7 +161,7 @@ with
 
     lua[] do
         [[
-            dofile 'src/common.lua'
+            FC = require 'freechains'
             CFG = {
                 daemon = {
                     address = '127.0.0.1',

@@ -17,7 +17,7 @@ par/and do
 
     lua[] do
         [[
-            dofile 'src/common.lua'
+            FC = require 'freechains'
 
             CFG = {
                 daemon = {
@@ -69,7 +69,7 @@ with
     lua[] do
         await ok;
         [[
-            dofile 'src/common.lua'
+            FC = require 'freechains'
 
             CFG = {
                 daemon = {

@@ -8,7 +8,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 [[
-    dofile 'src/common.lua'
+    FC = require 'freechains'
     CFG = {
         no_persistency = true,
         chains = {

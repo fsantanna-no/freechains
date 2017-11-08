@@ -9,7 +9,7 @@
 
     lua[] do
         [[
-            dofile 'src/common.lua'
+            FC = require 'freechains'
             CFG = {
                 chains = {
                     ['tst-aq'] = {
