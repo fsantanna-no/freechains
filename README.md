@@ -43,7 +43,7 @@ $ make tests-full       # (optional, takes a lot of time)
 - Start the `freechains` daemon:
 
 ```
-$ freechains start daemon cfg/config.lua    # blocks the terminal
+$ freechains daemon start cfg/config.lua    # blocks the terminal
 ```
 
 - Listen for new publications:
@@ -83,8 +83,8 @@ $ cp cfg/config.lua.bak /tmp/config-8331.lua
 $ cp cfg/config.lua.bak /tmp/config-8332.lua
 
 # Start two new nodes:
-$ freechains --port=8331 daemon /tmp/config-8331.lua &
-$ freechains --port=8332 daemon /tmp/config-8332.lua &
+$ freechains --port=8331 daemon start /tmp/config-8331.lua &
+$ freechains --port=8332 daemon start /tmp/config-8332.lua &
 
 # Connect, in both directions, 8330 with 8331 and 8331 with 8332:
 $ freechains --port=8330 configure set "chains[''].peers"+="{address='127.0.0.1',port=8331}"
