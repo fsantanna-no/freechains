@@ -9,6 +9,22 @@ do
     var int ret = 0;
 
     var Exception? e;
+
+    do finalize with
+        if e? then
+            [[ FC.errs[#FC.errs+1] = @(e! as int) ]];
+            //_printf("EXCEPTION %s\n", e!.message);
+            emit shared.err_server(msg, e! as int);
+        else
+            if ret != {MESSAGE10_OK} then
+                //[[ print('ERR', @ret) ]]
+                [[ FC.errs[#FC.errs+1] = @ret ]];
+            end
+            [[ ARGS = { chain = THIS and THIS.chain } ]];
+            emit shared.ok_server(msg, ret);
+        end
+    end
+
     catch e do
         par/or do
             var int timeout = [[ CFG.daemon.timeout or 0 ]];
@@ -39,13 +55,15 @@ do
                     do (tcp)
                         var int out;
                         out = do/out
-                            #include "server/message_10.ceu"
+                            var int ret = await Recv_10(&outer.shared, &tcp);
+                            [[ THIS = {chain=ARGS.chain} ]];
+                            escape/out ret;
                             // output: { ARGS={chain={...}} }
                         end;
 
                         if out == {MESSAGE10_OK} then
                             // broadcast new received head
-                            await Client_10(&outer.shared);
+                            //await Client_10(&outer.shared);
                         else/if out == {MESSAGE10_HAVE} then
                             var bool me_greater = [[ ARGS.me_greater ]];
                             var u16  port       = [[ (ARGS.me_greater and ARGS.port) or 0 ]];
@@ -56,7 +74,8 @@ do
                                 // TODO: should send only to peer, but don't know his server port
                                 await Client_10(&outer.shared);
 #else
-                                CHAIN_LOCK(l, outer.shared, "lock_send");
+                                //CHAIN_LOCK(l, outer.shared, "lock_send");
+#if 0 // NEED-PUBLIC
                                 {
                                     struct sockaddr_in name;
                                     int namelen = sizeof(name);
@@ -77,7 +96,13 @@ do
                                         },
                                     }
                                 ]]
-                                await Peer_10();
+                                await Peer_10(&outer.shared);
+#else
+#ifndef NO_PIGGYBACK
+                                [[ ARGS = { chain = THIS.chain } ]]
+                                await Send_10(&tcp);
+#endif
+#endif
 #endif
                             end
                         end
@@ -118,17 +143,6 @@ do
                 throw e_;
             end
         end
-    end
-    if e? then
-        [[ FC.errs[#FC.errs+1] = @(e! as int) ]];
-        emit shared.err_server(msg, e! as int);
-    else
-        if ret != {MESSAGE10_OK} then
-//[[ print('ERR', @ret) ]]
-            [[ FC.errs[#FC.errs+1] = @ret ]];
-        end
-        [[ ARGS = { chain = THIS and THIS.chain } ]];
-        emit shared.ok_server(msg, ret);
     end
 end
 

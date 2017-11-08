@@ -1,18 +1,24 @@
+/*
+SIMILAR to tst-13 (but w/o piggyback)
+12 um fork grande que acumula o passado em um unico bloco
+*/
+
 #define DETERMINISTIC
+#define NO_PIGGYBACK
 #include "common.ceu"
 
 ///////////////////////////////////////////////////////////////////////////////
 // 0->1<-2
-//  - different blocks
-//      - 0 sends xxx
-//      - 2 sends 2.1+xxx+2.2
-//  - 2.1+xxx+2.2 -> ''
+//  - 0 sends 0.1
+//  - 0 sends 0.2
+//  - ...     0.8
+//  - 2 sends 2.1,2.2,...,2.9
+//  - (2.1,...,2.9) -> (0.1,...,0.8) -> ''
 ///////////////////////////////////////////////////////////////////////////////
 
 event none e;
-event none ok;
 
-par/and do
+par/or do
 
 ///////////////////////////////////////////////////////////////////////////////
 // 0
@@ -34,11 +40,13 @@ par/and do
                     },
                 },
             }
-        ]]
+        ]];
 
-        par/and do
-            var& Init init = spawn Init();
-            await 100ms;
+        var& Init init = spawn Init();
+        await 100ms;
+
+        var int i;
+        loop i in [1 -> 8] do
             [[
                 ARGS = {
                     message = {
@@ -47,24 +55,14 @@ par/and do
                             key   = '',
                             zeros = 0,
                         },
-                        payload = 'xxx',
+                        payload = '0.'..@i
                     }
                 }
             ]];
             await Client(&init.shared);
-            emit e;
-            emit ok;
-        with
-            await ok;
-            await ok;
-            await ok;
         end
-        [[
-            print'===> 000'
-            print('>'..string.rep('=',78))
-            print(FC.chain_tostring('||0|'))
-            print('<'..string.rep('=',78))
-        ]];
+        emit e;
+        await FOREVER;
     end
 
 with
@@ -93,11 +91,8 @@ with
         ]];
 
         var& Init init = spawn Init();
-        await ok;
-        await ok;
-        AWAIT_CHAIN_LENGTH(init.shared, '', 0, 3);
-        await async do end;
-        emit ok;
+        AWAIT_CHAIN_LENGTH(init.shared, '', 0, 17);
+
         [[
             CHAIN1 = FC.chain_flatten('||0|')
             print'===> SERVER'
@@ -106,8 +101,9 @@ with
             print('<'..string.rep('=',78))
         ]];
         [=[
-            assert( #CHAIN1==4 and
-                    CHAIN1[4].pub.payload==[[2.2]])
+            assert( #CHAIN1==18 and
+                    CHAIN1[2].pub.payload==[[2.1]] and
+                    CHAIN1[18].pub.payload==[[0.8]], #CHAIN1)
             print'OK!'
         ]=];
     end
@@ -134,12 +130,13 @@ with
                     },
                 },
             }
-        ]]
+        ]];
 
-        par/and do
-            var& Init init = spawn Init();
-            await e;
+        var& Init init = spawn Init();
+        await e;
 
+        var int i;
+        loop i in [1 -> 9] do
             [[
                 ARGS = {
                     message = {
@@ -148,50 +145,13 @@ with
                             key   = '',
                             zeros = 0,
                         },
-                        payload = '2.1',
-                    }
-                }
-            ]]
-            await Client(&init.shared);
-            [[
-                ARGS = {
-                    message = {
-                        version = '1.0',
-                        chain = {
-                            key   = '',
-                            zeros = 0,
-                        },
-                        payload = 'xxx',
-                    }
-                }
-            ]]
-            await Client(&init.shared);
-            [[
-                ARGS = {
-                    message = {
-                        version = '1.0',
-                        chain = {
-                            key   = '',
-                            zeros = 0,
-                        },
-                        payload = '2.2',
+                        payload = '2.'..@i
                     }
                 }
             ]];
             await Client(&init.shared);
-            emit ok;
-        with
-            await ok;
-            await ok;
-            await ok;
         end
-
-        [[
-            print'===> 222'
-            print('>'..string.rep('=',78))
-            print(FC.chain_tostring('||0|'))
-            print('<'..string.rep('=',78))
-        ]];
+        await FOREVER;
     end
 
 end

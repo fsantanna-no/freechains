@@ -25,9 +25,9 @@ do
     // => TIMESTAMP + NONCE
 
     await UV_Stream_Read_N(&tcp, 2*sizeof(u64));
-    var u64 timestamp = GET_BE64TOH(outer.tcp.buffer,0);
+    var u64 timestamp = GET_BE64TOH(tcp.buffer,0);
     $tcp.buffer = $tcp.buffer - sizeof(u64);
-    var u64 nonce = GET_BE64TOH(outer.tcp.buffer,0);
+    var u64 nonce = GET_BE64TOH(tcp.buffer,0);
     $tcp.buffer = $tcp.buffer - sizeof(u64);
     [[
         THIS.block.timestamp = @timestamp
@@ -82,8 +82,8 @@ do
             escape {MESSAGE10_OK};
         end
     end;
-    outer.tcp.buffer = [ret];
-    await UV_Stream_Write_N(&outer.tcp,_);
+    tcp.buffer = [ret];
+    await UV_Stream_Write_N(&tcp,_);
 
     if not has_pub then
         // => TIMESTAMP + NONCE + LEN
@@ -141,6 +141,10 @@ do
     end
 end
 
+code/await Recv_10 (var& UV_TCP_Server_Data shared, var& UV_Stream tcp) -> int
+    throws Exception.Uv
+do
+
 ///////////////////////////////////////////////////////////////////////////
 // HEADER
 ///////////////////////////////////////////////////////////////////////////
@@ -153,40 +157,40 @@ end
 // => CHAIN_HEAD_HASH
 do
     // port
-    await UV_Stream_Read_N(&outer.tcp, sizeof(u16));
-    var u16 port = GET_BE16TOH(outer.tcp.buffer,0);
-    $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u16);
-    _dbg_tcp(2, &&outer.tcp.handle, "server", "SERVER_PORT = %d", port);
+    await UV_Stream_Read_N(&tcp, sizeof(u16));
+    var u16 port = GET_BE16TOH(tcp.buffer,0);
+    $tcp.buffer = $tcp.buffer - sizeof(u16);
+    _dbg_tcp(2, &&tcp.handle, "server", "SERVER_PORT = %d", port);
 
     // key_len
-    await UV_Stream_Read_N(&outer.tcp, 1);
-    var byte key_len = outer.tcp.buffer[0];
-    $outer.tcp.buffer = $outer.tcp.buffer - 1;
-    _dbg_tcp(2, &&outer.tcp.handle, "server", "CHAIN_KEY_LEN = %d", key_len);
+    await UV_Stream_Read_N(&tcp, 1);
+    var byte key_len = tcp.buffer[0];
+    $tcp.buffer = $tcp.buffer - 1;
+    _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_KEY_LEN = %d", key_len);
 
     // key_str
-    await UV_Stream_Read_N(&outer.tcp, (key_len as usize));
-    var[256] byte key_str = []..outer.tcp.buffer;
-    _dbg_tcp(2, &&outer.tcp.handle, "server", "CHAIN_KEY_STR = %s", &&key_str[0]);
-    $outer.tcp.buffer = $outer.tcp.buffer - (key_len as usize);
+    await UV_Stream_Read_N(&tcp, (key_len as usize));
+    var[256] byte key_str = []..tcp.buffer;
+    _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_KEY_STR = %s", &&key_str[0]);
+    $tcp.buffer = $tcp.buffer - (key_len as usize);
 
     // zeros
-    await UV_Stream_Read_N(&outer.tcp, 1);
-    var byte zeros = outer.tcp.buffer[0];
-    _dbg_tcp(2, &&outer.tcp.handle, "server", "CHAIN_ZEROS   = %d", zeros);
-    $outer.tcp.buffer = $outer.tcp.buffer - 1;
+    await UV_Stream_Read_N(&tcp, 1);
+    var byte zeros = tcp.buffer[0];
+    _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_ZEROS   = %d", zeros);
+    $tcp.buffer = $tcp.buffer - 1;
 
     // length
-    await UV_Stream_Read_N(&outer.tcp, sizeof(u64));
-    var u64 length = GET_BE64TOH(outer.tcp.buffer,0);
-    _dbg_tcp(2, &&outer.tcp.handle, "server", "CHAIN_LENGTH  = %ld", length);
-    $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
+    await UV_Stream_Read_N(&tcp, sizeof(u64));
+    var u64 length = GET_BE64TOH(tcp.buffer,0);
+    _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_LENGTH  = %ld", length);
+    $tcp.buffer = $tcp.buffer - sizeof(u64);
 
     // head_hash
-    await UV_Stream_Read_N(&outer.tcp, HASH_BYTES);
+    await UV_Stream_Read_N(&tcp, HASH_BYTES);
     var[HASH_BYTES] byte head_hash;
-    _ceu_vector_copy(&&head_hash,0, &&outer.tcp.buffer,0, HASH_BYTES);
-    $outer.tcp.buffer = $outer.tcp.buffer - HASH_BYTES;
+    _ceu_vector_copy(&&head_hash,0, &&tcp.buffer,0, HASH_BYTES);
+    $tcp.buffer = $tcp.buffer - HASH_BYTES;
 
     [[
         key   = @key_str
@@ -200,17 +204,18 @@ do
     ]];
 end
 
-do
+do/_
     var bool is_sub = [[ THIS.chain ~= nil ]];
-    _dbg_tcp(2, &&outer.tcp.handle, "server", "is_sub      = %d", is_sub);
+    _dbg_tcp(2, &&tcp.handle, "server", "is_sub      = %d", is_sub);
     if not is_sub then
-        outer.tcp.buffer = [{MESSAGE10_NOTSUB}];
-        await UV_Stream_Write_N(&outer.tcp,_);
-        escape/out {MESSAGE10_NOTSUB};
+        tcp.buffer = [{MESSAGE10_NOTSUB}];
+        await UV_Stream_Write_N(&tcp,_);
+        [[ ARGS = THIS ]]
+        escape {MESSAGE10_NOTSUB};
     end
 
     [[ ARGS = THIS ]];
-    CHAIN_LOCK(l, outer.shared, "lock_write");
+    CHAIN_LOCK(l, shared, "lock_write");
 #if 0
 [[ THIS.old = os.time() ]];
 spawn do
@@ -222,7 +227,7 @@ end
     var int ret = do
         var bool me_longest = [[ THIS.chain.head.length > THIS.length ]];
         if me_longest then
-            [[ ARGS = { port=THIS.port, me_greater=true } ]]
+            [[ THIS.me_greater = true ]]
             escape {MESSAGE10_HAVE};
         end
 
@@ -230,7 +235,7 @@ end
         if me_same then
             var bool me_same_or_greater = [[ THIS.chain.head.hash >= THIS.head_hash ]];
             if me_same_or_greater then
-                [[ ARGS = { port=THIS.port, me_greater=(THIS.chain.head.hash>THIS.head_hash) } ]]
+                [[ THIS.me_greater = (THIS.chain.head.hash>THIS.head_hash) ]]
                 escape {MESSAGE10_HAVE};
             end
         end
@@ -238,20 +243,21 @@ end
         escape {MESSAGE10_OK};
     end;
 
-    outer.tcp.buffer = [ret];
-    await UV_Stream_Write_N(&outer.tcp,_);
+    tcp.buffer = [ret];
+    await UV_Stream_Write_N(&tcp,_);
 
 #if 0
 [[
     if DBG_ON then
-        print('>>>', @outer.shared.port, @(ret=={MESSAGE10_HAVE}) and 'NO' or 'YES', FC.tostring(THIS.chain.head.hash), THIS.chain.head.length, THIS.length, FC.tostring(THIS.head_hash))
+        print('>>>', @shared.port, @(ret=={MESSAGE10_HAVE}) and 'NO' or 'YES', FC.tostring(THIS.chain.head.hash), THIS.chain.head.length, THIS.length, FC.tostring(THIS.head_hash))
     end
 ]]
 _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
 #endif
 
     if ret=={MESSAGE10_NOTSUB} or ret=={MESSAGE10_HAVE} then
-        escape/out ret;     // terminate if not subcribed or local is longest
+        [[ ARGS = THIS ]]
+        escape ret;     // terminate if not subcribed or local is longest
     end
 
     {SERVERS_ALIVE++;}
@@ -275,17 +281,17 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
         end
 
         // <= HASH
-        outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.common.hash ]];
+        tcp.buffer = tcp.buffer .. [[ THIS.common.hash ]];
         do
-            var[] byte str = [] .. [[ FC.tostring(@outer.tcp.buffer) ]] .. [0];
-            _dbg_tcp(3, &&outer.tcp.handle, "server", "<= BLOCK_HASH? : %s", &&str[0]);
+            var[] byte str = [] .. [[ FC.tostring(@tcp.buffer) ]] .. [0];
+            _dbg_tcp(3, &&tcp.handle, "server", "<= BLOCK_HASH? : %s", &&str[0]);
         end
-        await UV_Stream_Write_N(&outer.tcp, _);
+        await UV_Stream_Write_N(&tcp, _);
 
         // => ACK-HASH
-        await UV_Stream_Read_N(&outer.tcp, 1);
-        var byte ret = outer.tcp.buffer[0];
-        $outer.tcp.buffer = $outer.tcp.buffer - 1;
+        await UV_Stream_Read_N(&tcp, 1);
+        var byte ret = tcp.buffer[0];
+        $tcp.buffer = $tcp.buffer - 1;
         if ret == {MESSAGE10_HAVE} then
             break;
         else/if ret == {MESSAGE10_OK} then
@@ -310,7 +316,7 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
     #if 0
         [[
             chain = FC.chain_flatten(THIS.chain.id)
-            print('===> '..@outer.shared.port, THIS.length-THIS.common.length)
+            print('===> '..@shared.port, THIS.length-THIS.common.length)
             print(string.rep('>',79))
             print(FC.tostring(chain))
             print(string.rep('>',79))
@@ -336,7 +342,7 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
         ]];
 
         [[ ARGS = THIS ]]
-        await Message10_recv(&outer.tcp);
+        await Message10_recv(&tcp);
         var bool is_removed = [[ THIS.block.pub==true ]];
         if not is_removed then
             [[ ARGS = THIS ]]
@@ -348,6 +354,11 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
             end
             THIS.block.prv.nxt = THIS.block
         ]];
+    end
+
+    do finalize with
+        [[ ARGS = { chain=THIS.chain } ]];
+        emit shared.chain_has_changed;
     end
 
     // RECHAIN FORK
@@ -363,7 +374,7 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
 #if 0
         [[
             chain = FC.chain_flatten(THIS.chain.id)
-            print('===< '..@outer.shared.port)
+            print('===< '..@shared.port)
             print(string.rep('<',79))
             print(FC.tostring(chain))
             print(string.rep('<',79))
@@ -377,7 +388,9 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
     ]]
 end
 
-[[ ARGS = { chain=THIS.chain } ]]
-escape/out {MESSAGE10_OK};
+[[ ARGS = THIS ]]
+escape {MESSAGE10_OK};
+
+end
 
 #endif

@@ -1,3 +1,4 @@
+#define NO_PIGGYBACK
 #include "common.ceu"
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -74,15 +75,7 @@ par/and do
 
         par/and do
             AWAIT_CHAIN_LENGTH(init.shared, '', 0, 4);
-#if 0
-            loop do
-                var bool ok = [[ FC.chains[''][0].head.length == 4 ]];
-                if ok then
-                    break;
-                end
-                await shared.ok;
-            end
-#endif
+            await async do end;
             emit ok;
         with
             await ok;
@@ -130,6 +123,7 @@ with
 
         var& Init init = spawn Init();
         AWAIT_CHAIN_LENGTH(init.shared, '', 0, 1);
+        await async do end;
 
         spawn do
             [[
@@ -162,6 +156,7 @@ with
 
         par/and do
             AWAIT_CHAIN_LENGTH(init.shared, '', 0, 4);
+            await async do end;
 #if 0
             loop do
                 var bool ok = [[ FC.chains[''][0].head.length == 4 ]];

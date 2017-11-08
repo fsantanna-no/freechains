@@ -48,7 +48,7 @@ par/and do
         ]]
         await Subscribe();
         spawn Broadcast(&init.shared);
-        await init.shared.ok_server;
+        AWAIT_CHAIN_LENGTH(init.shared,"tst-25",0,4);
         emit ok;
         [[
             chain1 = FC.chain_tostring('|tst-25|0|')
@@ -91,12 +91,9 @@ with
                 },
             }
         ]];
-        [[ os.execute('cp tst/\\|tst-25\\|0\\|.chain /tmp/freechains/8341/chains') ]]
+        [[ os.execute('cp tst/\\|tst-25\\|0\\|.chain /tmp/freechains/8341/') ]]
         var& Init init = spawn Init();
-        await init.ok;
-        await init.ok;
-        emit ok;
-        await ok;
+        AWAIT_CHAIN_LENGTH(init.shared,"tst-25",0,4);
 
         [[
             chain2 = FC.chain_tostring('|tst-25|0|')
@@ -106,6 +103,11 @@ with
             print('<'..string.rep('=',78))
         ]];
         chain2 = []..[[chain2]];
+        par/and do
+            emit ok;
+        with
+            await ok;
+        end
     end
 
 end

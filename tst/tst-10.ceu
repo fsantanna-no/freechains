@@ -114,7 +114,7 @@ with
             print('<'..string.rep('=',78))
         ]];
         [=[
-            assert( #CHAIN1==3 and
+            assert( #CHAIN1>=3 and
                     CHAIN1[2].pub.payload==[[2.1]] and
                     CHAIN1[3].pub.payload==[[0.1]] )
             print'OK!'

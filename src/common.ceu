@@ -131,7 +131,12 @@ data UV_TCP_Server_Data with
     event (int,int) err_client;
     event (int,int) ok_server;
     event (int,int) err_server;
+    event none ok;
     event none unlock;
+
+    event none chain_has_changed;           // [[ ARGS={chain={...}} ]]
+    event none chain_has_been_transmitted;  // [[ ARGS={chain={...}} ]]
+
 #if 0
     var int port;   // only for debug
 #endif
@@ -144,11 +149,7 @@ end
         if len_ == (len) then                                   \
             break;                                              \
         end                                                     \
-        par/or do                                               \
-            await shared.ok_client;                             \
-        with                                                    \
-            await shared.ok_server;                             \
-        end                                                     \
+        await shared.chain_has_changed;                         \
     end
 
 #define CHAIN_LOCK(var_id,shared,lock_id)                       \
@@ -171,12 +172,12 @@ do
     is_locked = [[ THIS.chain[THIS.id] ]];
     if is_locked then
         loop do
-spawn do
-    await 30s;
-    //{ceu_trace(((tceu_trace){&_ceu_mem->trace, __FILE__, __LINE__}),"alo");};
-    [[ error 'locked for too long' ]];
-    [[ print 'locked for too long' ]];
-end
+#if 1
+            spawn do
+                await 30s;
+                [[ error('locked for too long '..THIS.id) ]];
+            end
+#endif
             await shared.unlock;
             is_locked = [[ THIS.chain[THIS.id] ]];
             if not is_locked then
@@ -908,6 +909,7 @@ code/await Subscribe (none) -> none do
     end
 end
 
+#include "server/message_10.ceu"
 #include "client.ceu"
 
 // TODO: offer Chain_Broadcast
@@ -944,7 +946,7 @@ do
             var bool has = [[ has ]];
 // TODO: how not to send all chains in all levels? Even if head=base? (I don't really know if they are empty in other peers.)
             //if has then
-                await Client_10(&shared);
+                emit shared.chain_has_changed;
             //end
         end
     end
@@ -991,6 +993,7 @@ do
         var int  ret;
         every (msg,ret) in shared.err_server do
             _dbg(0, "error | %d %d", msg, ret);
+//_ceu_assert(0, "ERROR");
         end
     end
 #if 0
@@ -1013,6 +1016,30 @@ do
         spawn UV_TCP_Server(&&ip[0], port, backlog, _, &shared) in server;
     end
 
+    spawn do
+        await shared.chain_has_changed;             // [[ ARGS={chain=...} ]]
+        loop do
+            watching shared.chain_has_changed do    // [[ ARGS={chain=...} ]]
+                [[ THIS = { chain=ARGS.chain } ]]
+
+                var bool should_write = [[ not CFG.no_persistency ]];
+                if should_write then
+                    [[ ARGS = { chain=THIS.chain } ]]
+                    await FS_write_10();
+                end
+
+                [[ ARGS = { chain=THIS.chain } ]]
+                emit shared.ok;
+
+                await Client_10(&shared);
+                [[ ARGS = { chain=THIS.chain } ]]
+                emit shared.chain_has_been_transmitted;
+                await FOREVER;
+            end
+        end
+    end
+
+
     // TODO: broadcast everything on any change -- could be broadcast chain on peer set
     pool[] Broadcast broadcasts;
     spawn do
@@ -1020,6 +1047,7 @@ do
         var int ret;
         every (msg,ret) in shared.ok_server do
             if msg == {MESSAGE50} then
+//[[error'mudar p/ emit chain_has_changed']]
                 spawn Broadcast(&shared) in broadcasts;
             end
         end

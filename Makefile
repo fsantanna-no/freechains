@@ -17,7 +17,7 @@ one:
 	ceu --pre --pre-args="-I$(CEU_DIR)/include -I$(CEU_UV_DIR)/include -Isrc/" \
 	          --pre-input=$(CEU_SRC)                                           \
 	    --ceu --ceu-features-lua=true --ceu-features-thread=true               \
-		      --ceu-features-trace=true --ceu-features-exception=true          \
+	          --ceu-features-trace=true --ceu-features-exception=true          \
 	          --ceu-err-uncaught-exception-main=pass --ceu-err-uncaught-exception-lua=pass \
 	          --ceu-err-unused=pass --ceu-err-uninitialized=pass               \
 	          --ceu-line-directives=true \
@@ -25,14 +25,14 @@ one:
 	          --env-threads=$(CEU_UV_DIR)/env/threads.h                        \
 	          --env-main=$(CEU_DIR)/env/main.c                                 \
 	    --cc --cc-args="-lm -llua5.3 -luv -lsodium -g"                         \
-			 --cc-output=/tmp/$$(basename $(CEU_SRC) .ceu);
+	         --cc-output=/tmp/$$(basename $(CEU_SRC) .ceu);
 
-tests: tests-cli tests-p2p
+tests: tests-cli tests-nat tests-p2p
 	# OK
 
 tests-cli:
-	-killall liferea
-	-freechains --port=8400 daemon stop
+	-killall liferea 2>/dev/null
+	-freechains --port=8400 daemon stop 2>/dev/null
 	rm -Rf /tmp/freechains/8400/
 	cp cfg/config-tests.lua.bak cfg/config-tests.lua
 	
@@ -40,7 +40,7 @@ tests-cli:
 	sleep 0.5
 	freechains --port=8400 configure set deterministic=true
 	freechains --port=8400 publish /0 +"NOT SEEN BY LISTEN (seen by liferea)"
-	freechains --port=8400 listen > /tmp/freechains-tests-cli.out &
+	freechains --port=8400 listen 2>/dev/null > /tmp/freechains-tests-cli.out &
 	sleep 0.5
 	freechains --port=8400 publish /0 +"Hello World!"
 	freechains --port=8400 publish /0 +"to be removed"
@@ -55,20 +55,38 @@ tests-cli:
 	diff /tmp/freechains-tests-cli.out  tst/freechains-tests-cli.out
 	diff /tmp/freechains-tests-cli.atom tst/freechains-tests-cli.atom
 	diff /tmp/freechains/8400/          tst/freechains-tests-cli/
+	freechains --port=8400 subscribe aaa/10
+	freechains --port=8400 subscribe bbb/10
+	freechains --port=8400 configure get
 	freechains --port=8400 daemon stop
 
+tests-nat:
+	rm -Rf /tmp/freechains/840[0-1]/
+	cp cfg/config-tests.lua.bak /tmp/config-8400.lua
+	cp cfg/config-tests.lua.bak /tmp/config-8401.lua
+	freechains --port=8401 daemon start /tmp/config-8401.lua &
+	sleep 0.5
+	freechains --port=8401 publish /0 +"Hello World (from 8401)"
+	sleep 0.5
+	freechains --port=8400 daemon start /tmp/config-8400.lua &
+	sleep 0.5
+	freechains --port=8400 configure set "chains[''].peers"+="{address='127.0.0.1',port=8401}"
+	sleep 0.5
+	grep -q "from 8401" /tmp/freechains/8400/\|\|0\|.chain
+	diff /tmp/freechains/8400 /tmp/freechains/8401
+
 tests-p2p:
-	-freechains --port=8400 daemon stop
-	-freechains --port=8401 daemon stop
-	-freechains --port=8402 daemon stop
-	-freechains --port=8403 daemon stop
-	-freechains --port=8404 daemon stop
+	-freechains --port=8400 daemon stop 2>/dev/null
+	-freechains --port=8401 daemon stop 2>/dev/null
+	-freechains --port=8402 daemon stop 2>/dev/null
+	-freechains --port=8403 daemon stop 2>/dev/null
+	-freechains --port=8404 daemon stop 2>/dev/null
 	rm -Rf /tmp/freechains/84*
 	
 	# Setup configuration files:
-	cp cfg/config.lua.bak /tmp/config-8400.lua
-	cp cfg/config.lua.bak /tmp/config-8401.lua
-	cp cfg/config.lua.bak /tmp/config-8402.lua
+	cp cfg/config-tests.lua.bak /tmp/config-8400.lua
+	cp cfg/config-tests.lua.bak /tmp/config-8401.lua
+	cp cfg/config-tests.lua.bak /tmp/config-8402.lua
 	
 	# Start three nodes:
 	freechains --port=8400 daemon start /tmp/config-8400.lua &
@@ -99,7 +117,7 @@ tests-p2p:
 	###
 	
 	# Start fourth node, 8400 <-> 8401 <-> 8402 <-> 8403:
-	cp cfg/config.lua.bak /tmp/config-8403.lua
+	cp cfg/config-tests.lua.bak /tmp/config-8403.lua
 	freechains --port=8403 daemon start /tmp/config-8403.lua &
 	sleep 0.1
 	freechains --port=8402 configure set "chains[''].peers"+="{address='127.0.0.1',port=8403}"
@@ -113,7 +131,7 @@ tests-p2p:
 	###
 	
 	# Start fifth node alone
-	cp cfg/config.lua.bak /tmp/config-8403.lua
+	cp cfg/config-tests.lua.bak /tmp/config-8403.lua
 	freechains --port=8404 daemon start /tmp/config-8403.lua &
 	sleep 0.1
 	
@@ -124,8 +142,8 @@ tests-p2p:
 	sleep 0.1
 	
 	# Connect with 1/2
-	#			  /-8404-\
-	# 8400 <-> 8401 <--> 8402 <-> 8403:
+	#             /-8404-\
+	# 8400 <-> 8401 <-> 8402 <-> 8403:
 	freechains --port=8404 configure set "chains[''].peers"+="{address='127.0.0.1',port=8401}"
 	freechains --port=8401 configure set "chains[''].peers"+="{address='127.0.0.1',port=8404}"
 	freechains --port=8404 configure set "chains[''].peers"+="{address='127.0.0.1',port=8402}"
@@ -152,21 +170,22 @@ tests-p2p:
 	freechains --port=8401 daemon stop
 	freechains --port=8402 daemon stop
 	freechains --port=8403 daemon stop
+	freechains --port=8404 daemon stop
 
 tests-full:
 	for i in tst/tst-[0-2]*.ceu tst/tst-[a-b]*.ceu tst/tst-3[0-3].ceu ; do \
-		echo;                                            \
-		echo "#####################################";    \
-		echo File: "$$i";                                \
-		echo "#####################################";    \
-		make CEU_SRC=$$i one && /tmp/$$(basename $$i .ceu) || exit 1; \
+	    echo;                                            \
+	    echo "#####################################";    \
+	    echo File: "$$i";                                \
+	    echo "#####################################";    \
+	    make CEU_SRC=$$i one && /tmp/$$(basename $$i .ceu) || exit 1; \
 	done
 
 tests-full-run:
 	for i in tst/tst-[0-2]*.ceu tst/tst-[a-b]*.ceu tst/tst-3[0-3].ceu ; do \
-		echo;                                            \
-		echo "#####################################";    \
-		echo File: "$$i";                                \
-		echo "#####################################";    \
-		/tmp/$$(basename $$i .ceu) || exit 1;            \
+	    echo;                                            \
+	    echo "#####################################";    \
+	    echo File: "$$i";                                \
+	    echo "#####################################";    \
+	    /tmp/$$(basename $$i .ceu) || exit 1;            \
 	done
