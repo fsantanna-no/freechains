@@ -118,17 +118,17 @@ do
                 throw e_;
             end
         end
-        if e? then
-            [[ FC.errs[#FC.errs+1] = @(e! as int) ]];
-            emit shared.err_server(msg, e! as int);
-        else
-            if ret != {MESSAGE10_OK} then
+    end
+    if e? then
+        [[ FC.errs[#FC.errs+1] = @(e! as int) ]];
+        emit shared.err_server(msg, e! as int);
+    else
+        if ret != {MESSAGE10_OK} then
 //[[ print('ERR', @ret) ]]
-                [[ FC.errs[#FC.errs+1] = @ret ]];
-            end
-            [[ ARGS = { chain = THIS and THIS.chain } ]];
-            emit shared.ok_server(msg, ret);
+            [[ FC.errs[#FC.errs+1] = @ret ]];
         end
+        [[ ARGS = { chain = THIS and THIS.chain } ]];
+        emit shared.ok_server(msg, ret);
     end
 end
 
