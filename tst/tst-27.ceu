@@ -69,6 +69,19 @@ do
                     chain = FC.chains['tst-27'][0]
                 }
             ]]
+            [[
+                ARGS = {
+                    message = {
+                        version = '1.0',
+                        chain = {
+                            key   = 'tst-27',
+                            zeros = 0,
+                        },
+                        payload = 'Ola Mundo!',
+                    }
+                }
+            ]]
+        await Client(&init.shared);
             await FS_write_10();
         end
         _fprintf(_stderr, "[%d] uv-error: %s\n", e!.number, e!.message);
