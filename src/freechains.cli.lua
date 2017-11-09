@@ -153,7 +153,8 @@ if cmd == 'get' then
     local hash = arg[3]
 
     local ret
-    for i=(zeros or 255), (zeros or 0), -1 do
+    --for i=(zeros or 255), (zeros or 0), -1 do
+for i=(zeros or 30), (zeros or 0), -1 do
         ret = FC.send(0x0200, {
             chain = {
                 key   = key,

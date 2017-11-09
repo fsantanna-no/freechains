@@ -13,7 +13,7 @@ do
     do finalize with
         if e? then
             [[ FC.errs[#FC.errs+1] = @(e! as int) ]];
-            //_printf("EXCEPTION %s\n", e!.message);
+            _printf("EXCEPTION %s\n", e!.message);
             emit shared.err_server(msg, e! as int);
         else
             if ret != {MESSAGE10_OK} then
