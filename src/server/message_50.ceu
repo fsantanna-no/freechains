@@ -45,6 +45,45 @@ if is_get then
     //[[ print('RET', FC.tostring(CFG,'plain')) ]];
     outer.tcp.buffer = []..[[ FC.tostring(CFG,'plain') ]];
     await UV_Stream_Write_N(&outer.tcp,_);
+
+else
+    // TODO: broadcasts everything if anything at all changes
+    // could broadcast only a chain with changing peers
+
+    // broadcast all chains to all peers
+    [[
+        THIS = {
+            chains = {},
+        }
+        for _, chain in pairs(CFG.chains) do
+            THIS.chains[#THIS.chains+1] = chain
+        end
+    ]]
+    var int n = [[ #THIS.chains ]];
+    var int i;
+    loop i in [1 -> n] do
+        [[
+            cfg = THIS.chains[@i]
+        ]]
+        var int zeros = [[cfg.zeros]];
+        var int j;
+        //loop j in [zeros -> 255] do
+        loop j in [zeros -> 0] do
+            [[
+                chain = assert(FC.chains[cfg.key][@j])
+                has = (chain.head ~= chain.base)
+                ARGS = {
+                    chain = chain,
+                }
+            ]]
+            var bool has = [[ has ]];
+// TODO: how not to send all chains in all levels? Even if head=base? (I don't really know if they are empty in other peers.)
+            //if has then
+                emit outer.shared.chain_has_changed;
+            //end
+        end
+    end
+
 end
 
 #endif

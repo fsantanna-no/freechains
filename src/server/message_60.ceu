@@ -47,16 +47,16 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
     }
 ]]
 
-var int msg;
-var int ret;
+// TODO: may loose messages if they arrive while on Write below
+    // one trail writes to buffer
+    // anoter trail calls Write (must awake after first from chain_has_changed)
 loop do
-    par/or do
-        (msg,ret) = await outer.shared.ok_server;
-    with
-        (msg,ret) = await outer.shared.ok_client;
-    end
-    if msg == {MESSAGE10} then
-        if ret == {MESSAGE10_OK} then
+    await outer.shared.chain_has_changed;
+            var bool is_base = [[ ARGS.chain.head == ARGS.chain.base ]];
+            if is_base then
+                continue;         // do not output genesis
+            end
+
             [[
                 listen = THIS.msg.chain
                 received = ARGS.chain
@@ -91,8 +91,6 @@ loop do
                 outer.tcp.buffer = []..[[ string.len(ret) ]]..[{'\n'}]..[[ ret ]];
                 await UV_Stream_Write_N(&outer.tcp,_);
             end
-        end
-    end
 end
 
 #endif

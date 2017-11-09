@@ -47,7 +47,7 @@ tests-cli:
 	freechains --port=8400 publish /0 +"Hello World! (again)"
 	freechains --port=8400 remove /0 F989AA3AED4CD364E537AACEEDDDCFC9033B4B98113ABFF4AE4373D38D4992D9
 	freechains --port=8400 publish /5 +"work = 5"
-	freechains-liferea freechains://localhost:8400//?cmd=atom | grep -v "<updated>" > /tmp/freechains-tests-cli.atom
+	#freechains-liferea freechains://localhost:8400//?cmd=atom | grep -v "<updated>" > /tmp/freechains-tests-cli.atom
 	freechains --port=8400 subscribe new/10
 	freechains --port=8400 publish new/0 +"NOT SEEN"
 	freechains --port=8400 publish new/10 +"new = 10"
@@ -57,7 +57,7 @@ tests-cli:
 	diff /tmp/freechains/8400/          tst/freechains-tests-cli/
 	freechains --port=8400 subscribe aaa/10
 	freechains --port=8400 subscribe bbb/10
-	freechains --port=8400 configure get
+	freechains --port=8400 configure get > /dev/null
 	freechains --port=8400 daemon stop
 
 tests-nat:
@@ -148,7 +148,7 @@ tests-p2p:
 	freechains --port=8401 configure set "chains[''].peers"+="{address='127.0.0.1',port=8404}"
 	freechains --port=8404 configure set "chains[''].peers"+="{address='127.0.0.1',port=8402}"
 	freechains --port=8402 configure set "chains[''].peers"+="{address='127.0.0.1',port=8404}"
-	sleep 1
+	sleep 0.5
 	
 	# Check consensus 3
 	# (8404 wins, so his messages should appear first)

@@ -31,7 +31,6 @@ par/and do
         ]];
         var& Init init = spawn Init();
         await init.ok;
-        await init.ok;
         emit ok;
         await ok;
         [[
@@ -46,8 +45,7 @@ par/and do
                 },
             }
         ]]
-        await Subscribe();
-        spawn Broadcast(&init.shared);
+        spawn Subscribe(&init.shared);
         AWAIT_CHAIN_LENGTH(init.shared,"tst-25",0,4);
         emit ok;
         [[

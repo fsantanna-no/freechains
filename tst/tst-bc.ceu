@@ -64,7 +64,6 @@ with
         [[ os.execute('cp tst/\\|tst-25\\|0\\|.chain /tmp/freechains/8341/chains') ]]
         var& Init init = spawn Init();
         await init.ok;
-        await init.ok;
         emit ok;
     end
 

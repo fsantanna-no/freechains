@@ -65,7 +65,6 @@ outer.tcp.buffer[$outer.tcp.buffer-1] = {' '};
     end
     FC.cfg_write()
 ]]
-await Subscribe();
-await Broadcast(&outer.shared);
+await Subscribe(&outer.shared);
 
 #endif

@@ -92,7 +92,6 @@ with
         ]];
 
         var& Init init = spawn Init();
-        await init.ok;
         AWAIT_CHAIN_LENGTH(init.shared, 'tst-25', 0, 5);
         [[
             CHAIN1 = FC.chain_flatten('|tst-25|0|')

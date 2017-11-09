@@ -30,7 +30,7 @@ par/and do
         ]];
 
         var& Init init = spawn Init();
-        await 100ms;
+        await 200ms;
 
         par/and do
             [[
@@ -96,7 +96,7 @@ with
             print('>'..string.rep('=',78))
             print(FC.chain_tostring('||22|'))
             print('<'..string.rep('=',78))
-            assert(#FC.errs==2 and FC.errs[2]==FC['Exception.Freechains.Malformed'], #FC.errs)
+            assert(#FC.errs==1 and FC.errs[1]==FC['Exception.Freechains.Malformed'], #FC.errs)
         ]];
         [[
             assert(#CHAIN1==1)

@@ -52,6 +52,7 @@ par/and do
             }
         ]]
         await Client(&init.shared);
+        AWAIT_CHAIN_LENGTH(init.shared,"",0,1);
         par/and do
             emit ok;
         with
@@ -98,7 +99,6 @@ with
             }
         ]];
         var& Init init = spawn Init();
-        await init.shared.ok;
         await init.shared.ok;
         emit ok;
         [[

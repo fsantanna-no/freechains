@@ -42,7 +42,7 @@ par/and do
         ]];
 
         var& Init init = spawn Init();
-        await 100ms;
+        await 200ms;
 
         [[
             ARGS = {
@@ -137,7 +137,6 @@ with
         ]];
 
         var& Init init = spawn Init();
-        await init.ok;
         AWAIT_CHAIN_LENGTH(init.shared, '', 22, 2);
         [[
             CHAIN1_2 = FC.chain_flatten('||22|')
@@ -189,7 +188,7 @@ with
             print(FC.chain_tostring('||22|'))
             print('<'..string.rep('=',78))
             print('>>>', #FC.errs, FC.errs[1], FC.MESSAGE10_NOTSUB)
-            assert(#FC.errs==2 and FC.errs[1]==FC.MESSAGE10_NOTSUB)
+            assert(#FC.errs==1 and FC.errs[1]==FC.MESSAGE10_NOTSUB)
         ]];
         chain2_2 = []..[[FC.tostring(CHAIN2_2)]];
     end

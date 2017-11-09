@@ -704,6 +704,11 @@ do
         os.execute('mkdir -p '..CFG.dir)
     ]];
 
+    var bool is_base = [[ THIS.chain.head == THIS.chain.base ]];
+    if is_base then
+        escape;         // do not persist empty chains
+    end
+
     var[] byte path = []..[[CFG.dir..'/'..THIS.chain.id..'.chain']]..[0];
 
     // create/truncate file
@@ -820,7 +825,7 @@ spawn do
 end
 #endif
 
-code/await Subscribe (none) -> none do
+code/await Subscribe (var& UV_TCP_Server_Data shared) -> none do
     [[
         THIS = {
             chains = {},
@@ -843,8 +848,8 @@ code/await Subscribe (none) -> none do
         ]]
         var int zeros = [[cfg.zeros]];
         var int j;
-        loop j in [zeros -> 255] do
-//loop j in [zeros -> 30] do
+        //loop j in [zeros -> 255] do
+loop j in [zeros -> 30] do
             [[
                 j = @j
                 has = FC.chains[cfg.key][j]
@@ -905,52 +910,18 @@ code/await Subscribe (none) -> none do
                     await FS_read_10();
                 end
             end
+
+            // TODO: how not to send all chains in all levels?
+            // Even if head=base, I don't really know if they are empty in other peers.
+            // So, I want to broadcast it so that the peers send me updates as well
+            [[ ARGS = { chain=THIS.sub } ]];
+            emit shared.chain_has_changed;
         end
     end
 end
 
 #include "server/message_10.ceu"
 #include "client.ceu"
-
-// TODO: offer Chain_Broadcast
-
-code/await Broadcast (var& UV_TCP_Server_Data shared) -> none
-    throws Exception.Freechains
-do
-    // broadcast all chains to all peers
-    [[
-        THIS = {
-            chains = {},
-        }
-        for _, chain in pairs(CFG.chains) do
-            THIS.chains[#THIS.chains+1] = chain
-        end
-    ]]
-    var int n = [[ #THIS.chains ]];
-    var int i;
-    loop i in [1 -> n] do
-        [[
-            cfg = THIS.chains[@i]
-        ]]
-        var int zeros = [[cfg.zeros]];
-        var int j;
-        //loop j in [zeros -> 255] do
-        loop j in [zeros -> 0] do
-            [[
-                chain = assert(FC.chains[cfg.key][@j])
-                has = (chain.head ~= chain.base)
-                ARGS = {
-                    chain = chain,
-                }
-            ]]
-            var bool has = [[ has ]];
-// TODO: how not to send all chains in all levels? Even if head=base? (I don't really know if they are empty in other peers.)
-            //if has then
-                emit shared.chain_has_changed;
-            //end
-        end
-    end
-end
 
 #include "server.ceu"
 #include "uv/tcp-server.ceu"
@@ -1017,47 +988,51 @@ do
     end
 
     spawn do
-        await shared.chain_has_changed;             // [[ ARGS={chain=...} ]]
-        loop do
-            watching shared.chain_has_changed do    // [[ ARGS={chain=...} ]]
-                [[ THIS = { chain=ARGS.chain } ]]
-
-                var bool should_write = [[ not CFG.no_persistency ]];
-                if should_write then
+        code/await Chain_Client (none) -> NEVER
+            throws Exception.Uv
+        do
+            [[ THIS = { chain=ARGS.chain } ]];
+            loop do
+                par/or do
+                    loop do
+                        await outer.shared.chain_has_changed;  // [[ ARGS={chain=...} ]]
+                        var bool same = [[ ARGS.chain == THIS.chain ]];
+                        if same then
+                            break;
+                        end
+                    end
+                    var bool should_write = [[ not CFG.no_persistency ]];
+                    if should_write then
+                        [[ ARGS = { chain=THIS.chain } ]]
+                        await FS_write_10();
+                    end
+                with
                     [[ ARGS = { chain=THIS.chain } ]]
-                    await FS_write_10();
+                    emit outer.shared.ok;
+
+                    [[ ARGS = { chain=THIS.chain } ]]
+                    await Client_10(&outer.shared);
+
+                    [[ ARGS = { chain=THIS.chain } ]]
+                    emit outer.shared.chain_has_been_transmitted;
+                    await FOREVER;
                 end
+            end
+        end
+        pool[] Chain_Client clients;
 
-                [[ ARGS = { chain=THIS.chain } ]]
-                emit shared.ok;
-
-                await Client_10(&shared);
-                [[ ARGS = { chain=THIS.chain } ]]
-                emit shared.chain_has_been_transmitted;
-                await FOREVER;
+        every shared.chain_has_changed do
+            // [[ ARGS={chain=...} ]]
+            var bool has_client = [[ ARGS.chain.has_client ]];
+            if not has_client then
+                [[ ARGS.chain.has_client = true ]];
+                spawn Chain_Client() in clients;
             end
         end
     end
 
-
-    // TODO: broadcast everything on any change -- could be broadcast chain on peer set
-    pool[] Broadcast broadcasts;
-    spawn do
-        var int msg;
-        var int ret;
-        every (msg,ret) in shared.ok_server do
-            if msg == {MESSAGE50} then
-//[[error'mudar p/ emit chain_has_changed']]
-                spawn Broadcast(&shared) in broadcasts;
-            end
-        end
-    end
-
-    await Subscribe();
+    await Subscribe(&shared);
     await async do end; // with "no_persistency", no files are loaded and no awaits happen until here
-    emit ok;
-
-    await Broadcast(&shared);
     emit ok;
 
     await FOREVER;
