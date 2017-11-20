@@ -148,8 +148,8 @@ print('>>> BS', h)
     print'<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'
 end
 
-function head (label)
-    return { G, tp='head', height=-1, label=label }
+function head (label, H)
+    return { (H or G), tp='head', height=-1, label=label }
 end
 
 function pub (H, label)
@@ -159,7 +159,7 @@ end
 
 -------------------------------------------------------------------------------
 
-if false then
+if true then
 
     A = head('A')
     pub(A, 'a1')
@@ -188,7 +188,11 @@ if false then
     pub(A, 'a3')
     join(A,C)
 
-    dot(A) dot(B) dot(C)
+    D = head('D', B[1])
+    pub(D, 'd1')
+    join(D,C)
+
+    dot(A) dot(B) dot(C) dot(D)
 
 else
 
