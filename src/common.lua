@@ -9,8 +9,13 @@ local FC = {
 
 -------------------------------------------------------------------------------
 
+function FC.cache (a)
+    a.chain.cache[a] = true
+    return a
+end
+
 function FC.genesis (chain, hash)
-    return {
+    return FC.cache {
         tp     = 'genesis',
         height = 0,
         chain  = chain,

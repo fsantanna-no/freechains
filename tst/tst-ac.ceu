@@ -9,6 +9,7 @@
     assert(not FC.chains[key][zeros])
     local id = '|'..key..'|'..zeros..'|'
     local new = {
+        cache = {},
         key   = key,
         zeros = zeros,
         id    = id,
