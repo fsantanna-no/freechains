@@ -14,7 +14,6 @@
         up    = FC.chains[key],
         cfg   = nil,
         head  = nil,
-        base  = nil,
     }
     FC.chains[key][zeros] = new
 ]]
@@ -25,11 +24,7 @@ do
     var[] byte chain_id = [] .. [[ FC.chains[''][0].id ]];
     _crypto_generichash(&&chain_hash[0],HASH_BYTES, &&chain_id[0],$chain_id, null,0);
     [[
-        FC.chains[''][0].base = {
-            hash = @chain_hash,
-            length = 0,
-        }
-        FC.chains[''][0].head = FC.chains[''][0].base
+        FC.chains[''][0].head = FC.genesis(FC.chains[''][0], @chain_hash)
     ]]
 end
 
@@ -74,35 +69,25 @@ end
 // BLOCK //
 
 [[
-    THIS.block = {
-        version = '1.0',
-        timestamp   = 0,
-        nonce       = 0,
-        chain       = THIS.pub.chain,
-        pub = THIS.pub,
-        hash        = nil,
-        prv         = nil,
-        nxt         = nil,
-        length      = nil,
-    }
+    THIS.block = FC.pub(FC.chains[''][0].head, THIS.pub)
+    FC.chains[''][0].head = THIS.block
+    THIS.block.timestamp = 0
+    THIS.block.nonce = 0
     FIRST = THIS.block
     ARGS = THIS
 ]]
-await Block_Hash_Link();
+await Block_Hash();
 [[
     --print('>>>', THIS.block.timestamp, THIS.block.nonce, FC.tostring(THIS.block.hash,true))
     assert(THIS.block.hash == '\x5C\xC2\x3B\x48\x4D\xB2\xDA\xC8\xC5\xED\x28\x93\xBA\xFE\xB0\x64\xCC\x63\xA9\x57\xBC\x5A\x63\xB6\xEC\x2A\xE7\x93\xBB\x05\x71\xF7')
-    assert(THIS.block.timestamp == 0)
-    assert(THIS.block.nonce == 0)
-    assert(THIS.block.prv.prv == nil)
-    assert(THIS.block.nxt == nil)
+    assert(THIS.block[1][1] == nil)
     assert(THIS.block.chain.head == THIS.block)
 ]]
 
 do
     [[
-        prv = THIS.block.prv
-        THIS.block.prv = THIS.block
+        prv = THIS.block[1]
+        THIS.block[1] = THIS.block
     ]]
     var Exception.Freechains.Malformed? e;
     catch e do
@@ -112,7 +97,7 @@ do
     _ceu_assert(e?, "bug found");
 
     [[
-        THIS.block.prv = prv
+        THIS.block[1] = prv
     ]]
     var Exception.Freechains.Malformed? f;
     catch f do
@@ -161,26 +146,22 @@ loop i in [1 -> ms] do
         ARGS = THIS
     ]]
     await Publication_New();
+
     [[
-        THIS.block = {
-            version = '1.0',
-            timestamp   = 0,    -- TODO: 64-bit timestamp
-            nonce       = 0,
-            chain       = THIS.pub.chain,
-            pub = THIS.pub,
-            hash        = nil,
-            prv         = nil,
-            nxt         = nil,
-        }
+        THIS.block = FC.pub(FC.chains[''][0].head, THIS.pub)
+        FC.chains[''][0].head = THIS.block
+        THIS.block.timestamp = 0
+        THIS.block.nonce     = 0
         ARGS = THIS
     ]]
-    await Block_Hash_Link();
+    await Block_Hash();
 end
 
 [[
-    assert(FIRST.pub.payload == '111')
-    assert(FIRST.nxt.pub.payload == '222')
-    assert(FIRST.nxt.nxt.pub.payload == '333')
+    head = FC.chains[''][0].head
+    assert(head.pub.payload == '333')
+    assert(head[1].pub.payload == '222')
+    assert(head[1][1].pub.payload == '111')
     print 'OK!'
 ]]
 

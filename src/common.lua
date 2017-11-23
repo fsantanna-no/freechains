@@ -9,6 +9,17 @@ local FC = {
 
 -------------------------------------------------------------------------------
 
+function FC.genesis (chain, hash)
+    return { tp='genesis', height=0, chain=chain, hash=hash }
+end
+
+function FC.pub (head, pub)
+print('>>>', head)
+    return { head, tp='pub', height=(head.height+1), chain=head.chain, pub=pub }
+end
+
+-------------------------------------------------------------------------------
+
 function FC.chain_block_get (chain, hash)
     local cur = chain.head
     while cur do
