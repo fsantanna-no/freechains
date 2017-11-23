@@ -10,12 +10,80 @@ local FC = {
 -------------------------------------------------------------------------------
 
 function FC.genesis (chain, hash)
-    return { tp='genesis', height=0, chain=chain, hash=hash }
+    return {
+        tp     = 'genesis',
+        height = 0,
+        chain  = chain,
+        hash   = hash,
+    }
 end
 
 function FC.pub (head, pub)
-print('>>>', head)
-    return { head, tp='pub', height=(head.height+1), chain=head.chain, pub=pub }
+    return { head,
+        tp     = 'pub',
+        height = head.height + 1,
+        chain  = head.chain,
+        pub    = pub,
+    }
+end
+
+local function max (a, b)
+    return a>b and a or b
+end
+
+function FC.join (a, b)
+    assert(a.chain == b.chain)
+    return { a, b,
+        tp     = 'join',
+        height = max(a.height,b.height) + 1,
+        chain  = a.chain,
+    }
+end
+
+local SHAPE = {
+    genesis = 'invtriangle',
+    pub     = 'circle',
+    join    = 'diamond',
+    head    = 'point',
+}
+
+local function dot_aux (A, t)
+    if t.cache[A] then
+        return
+    else
+        t.cache[A] = 'n_'..t.n
+        t.n = t.n + 1
+    end
+
+    for _, a in ipairs(A) do
+        dot_aux(a, t)
+        t.conns[#t.conns+1] = t.cache[A]..' -> '..t.cache[a]
+    end
+
+    local label = A.label or (A.pub and A.pub.payload) or t.cache[A]
+    t.nodes[#t.nodes+1] = t.cache[A]..'[label="'..label..'/'..A.height..'", shape='..SHAPE[A.tp]..'];'
+end
+
+function FC.dot (A, path)
+    local t = { n=0, cache={}, nodes={}, conns={} }
+    dot_aux(A, t)
+
+    local f = (path and assert(io.open(path,'w'))) or io.stdout
+    f:write([[
+    digraph graphname {
+        //rankdir=LR;  // Rank Direction Left to Right
+
+        nodesep=1.0 // increases the separation between nodes
+        edge [];
+        //splines = true;
+
+        ]]..table.concat(t.nodes,'\n')..[[
+
+        ]]..table.concat(t.conns,'\n')..[[
+
+    }
+    ]])
+    f:close()
 end
 
 -------------------------------------------------------------------------------

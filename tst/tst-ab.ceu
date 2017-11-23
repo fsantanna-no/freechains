@@ -14,7 +14,6 @@
         up    = FC.chains[key],
         cfg   = nil,
         head  = nil,
-        base  = nil,
     }
     FC.chains[key][zeros] = new
 ]]
@@ -25,11 +24,7 @@ do
     var[] byte chain_id = [] .. [[ FC.chains[''][1].id ]];
     _crypto_generichash(&&chain_hash[0],HASH_BYTES, &&chain_id[0],$chain_id, null,0);
     [[
-        FC.chains[''][1].base = {
-            hash = @chain_hash,
-            length = 0,
-        }
-        FC.chains[''][1].head = FC.chains[''][1].base
+        FC.chains[''][1].head = FC.genesis(FC.chains[''][1], @chain_hash)
     ]]
 end
 
@@ -74,34 +69,26 @@ end
 // BLOCK //
 
 [[
-    THIS.block = {
-        version = '1.0',
-        timestamp   = 0,
-        nonce       = 0,
-        chain       = THIS.pub.chain,
-        pub = THIS.pub,
-        hash        = nil,
-        prv         = nil,
-        nxt         = nil,
-    }
-    FIRST = THIS.block
+    FC.chains[''][1].head = FC.pub(FC.chains[''][1].head, THIS.pub)
+    THIS.block = FC.chains[''][1].head
+    THIS.block.timestamp = 0
+    THIS.block.nonce = 0
     ARGS = THIS
 ]]
-await Block_Hash_Link();
+await Block_Hash();
 [[
     --print('>>>', THIS.block.timestamp, THIS.block.nonce, FC.tostring(THIS.block.hash,true))
     assert(THIS.block.hash == '\x6F\xD2\xCC\xE9\x82\xAF\x49\xAB\xB5\xDD\x6B\x6A\x06\x76\x83\x57\x1C\x9E\xB0\x83\x37\x98\x87\xC6\xC4\x91\xB0\xA7\x24\x36\x7C\x91')
-    assert(THIS.block.timestamp == 0)
-    assert(THIS.block.nonce == 2)
-    assert(THIS.block.prv.prv == nil)
-    assert(THIS.block.nxt == nil)
-    assert(THIS.block.chain.head == THIS.block)
+    assert(THIS.block.timestamp == 0, 2)
+    assert(THIS.block.nonce == 2, 3)
+    assert(THIS.block[1][1] == nil, 4)
+    assert(THIS.block.chain.head == THIS.block, 5)
 ]]
 
 do
     [[
-        prv = THIS.block.prv
-        THIS.block.prv = THIS.block
+        prv = THIS.block[1]
+        THIS.block[1] = THIS.block
     ]]
     var Exception.Freechains.Malformed? e;
     catch e do
@@ -111,7 +98,7 @@ do
     _ceu_assert(e?, "bug found");
 
     [[
-        THIS.block.prv = prv
+        THIS.block[1] = prv
     ]]
     var Exception.Freechains.Malformed? f;
     catch f do
@@ -161,25 +148,20 @@ loop i in [1 -> ms] do
     ]]
     await Publication_New();
     [[
-        THIS.block = {
-            version = '1.0',
-            timestamp   = 0,    -- TODO: 64-bit timestamp
-            nonce       = 0,
-            chain       = THIS.pub.chain,
-            pub = THIS.pub,
-            hash        = nil,
-            prv         = nil,
-            nxt         = nil,
-        }
+        FC.chains[''][1].head = FC.pub(FC.chains[''][1].head, THIS.pub)
+        THIS.block = FC.chains[''][1].head
+        THIS.block.timestamp = 0
+        THIS.block.nonce = 0
         ARGS = THIS
     ]]
-    await Block_Hash_Link();
+    await Block_Hash();
 end
 
 [[
-    assert(FIRST.pub.payload == '111')
-    assert(FIRST.nxt.pub.payload == '222')
-    assert(FIRST.nxt.nxt.pub.payload == '333')
+    head = FC.chains[''][1].head
+    assert(head.pub.payload == '333')
+    assert(head[1].pub.payload == '222')
+    assert(head[1][1].pub.payload == '111')
     print 'OK!'
 ]]
 

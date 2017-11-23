@@ -337,8 +337,8 @@ do
                      [[ THIS.block.pub.hash ]] ..
                      [[ THIS.block[1].hash ]];
 
-    var bool is_join_fork = [[ THIS.block.tp == 'join_fork' ]];
-    if is_join_fork then
+    var bool is_join = [[ THIS.block.tp == 'join' ]];
+    if is_join then
         pln = pln .. [[ THIS.block[2].hash ]];
     end
 
@@ -414,8 +414,8 @@ do
                      [[ THIS.block.pub.hash ]] ..
                      [[ THIS.block[1].hash ]];
 
-    var bool is_join_fork = [[ THIS.block.tp == 'join_fork' ]];
-    if is_join_fork then
+    var bool is_join = [[ THIS.block.tp == 'join' ]];
+    if is_join then
         pln = pln .. [[ THIS.block[2].hash ]];
     end
 
