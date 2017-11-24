@@ -23,11 +23,11 @@ function FC.genesis (chain, hash)
     }
 end
 
-function FC.pub (head, t)
-    return { head,
+function FC.pub (t)
+    return { t[1],
         tp        = 'pub',
-        height    = head.height + 1,
-        chain     = head.chain,
+        height    = t[1].height + 1,
+        chain     = t[1].chain,
         timestamp = t.timestamp,
         nonce     = t.nonce,
         pub       = t.pub,

@@ -70,11 +70,11 @@ end
 // BLOCK //
 
 [[
-    THIS.block = FC.pub(FC.chains[''][0].head, {
-                        timestamp = 0,
-                        nonce     = 0,
-                        pub       = THIS.pub,
-                 })
+    THIS.block = FC.pub { FC.chains[''][0].head,
+                    timestamp = 0,
+                    nonce     = 0,
+                    pub       = THIS.pub,
+                 }
     FC.chains[''][0].head = THIS.block
     FIRST = THIS.block
     ARGS = THIS
@@ -151,11 +151,11 @@ loop i in [1 -> ms] do
     await Publication_New();
 
     [[
-        THIS.block = FC.pub(FC.chains[''][0].head, { 
+        THIS.block = FC.pub { FC.chains[''][0].head,
                         timestamp = 0,
                         nonce     = 0,
                         pub       = THIS.pub,
-                     })
+                     }
         FC.chains[''][0].head = THIS.block
         THIS.block.timestamp = 0
         THIS.block.nonce     = 0
