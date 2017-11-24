@@ -10,7 +10,7 @@ local FC = {
 -------------------------------------------------------------------------------
 
 function FC.cache (a)
-    a.chain.cache[a] = true
+    a.chain.cache[a.hash] = true
     return a
 end
 
@@ -23,12 +23,14 @@ function FC.genesis (chain, hash)
     }
 end
 
-function FC.pub (head, pub)
+function FC.pub (head, t)
     return { head,
-        tp     = 'pub',
-        height = head.height + 1,
-        chain  = head.chain,
-        pub    = pub,
+        tp        = 'pub',
+        height    = head.height + 1,
+        chain     = head.chain,
+        timestamp = t.timestamp,
+        nonce     = t.nonce,
+        pub       = t.pub,
     }
 end
 

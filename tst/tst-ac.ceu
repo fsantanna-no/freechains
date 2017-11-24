@@ -72,10 +72,12 @@ end
 // BLOCK //
 
 [[
-    FC.chains[''][0].head = FC.pub(FC.chains[''][0].head, THIS.pub)
+    FC.chains[''][0].head = FC.pub(FC.chains[''][0].head, {
+                                timestamp = 0,
+                                nonce     = 0,
+                                pub       = THIS.pub,
+                            })
     THIS.block = FC.chains[''][0].head
-    THIS.block.timestamp = 0
-    THIS.block.nonce = 0
     ARGS = THIS
 ]]
 await Block_Hash();
@@ -150,10 +152,12 @@ loop i in [1 -> ms] do
     ]]
     await Publication_New();
     [[
-        FC.chains[''][0].head = FC.pub(FC.chains[''][0].head, THIS.pub)
+        FC.chains[''][0].head = FC.pub(FC.chains[''][0].head, {
+                                    timestamp = 0,
+                                    nonce     = 0,
+                                    pub       = THIS.pub,
+                                })
         THIS.block = FC.chains[''][0].head
-        THIS.block.timestamp = 0
-        THIS.block.nonce = 0
         ARGS = THIS
     ]]
     await Block_Hash();
@@ -227,9 +231,11 @@ loop i in [1 -> ms] do
     ]]
     await Publication_New();
     [[
-        THIS.block = FC.pub(THIS.block or GENESIS, THIS.pub)
-        THIS.block.timestamp = 0
-        THIS.block.nonce = 0
+        THIS.block = FC.pub(THIS.block or GENESIS, {
+                        timestamp = 0,
+                        nonce     = 0,
+                        pub       = THIS.pub,
+                     })
         ARGS = THIS
     ]]
     await Block_Hash();
@@ -299,9 +305,11 @@ loop i in [1 -> ms] do
     ]]
     await Publication_New();
     [[
-        THIS.block = FC.pub(THIS.block, THIS.pub)
-        THIS.block.timestamp = 0
-        THIS.block.nonce = 0
+        THIS.block = FC.pub(THIS.block, {
+                        timestamp = 0,
+                        nonce     = 0,
+                        pub       = THIS.pub,
+                     })
         ARGS = THIS
     ]]
     await Block_Hash();
