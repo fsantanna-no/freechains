@@ -5,20 +5,20 @@
         edge [];
         //splines = true;
 
-        n_5[label="n_5/0", shape=invtriangle];
-n_4[label="111/1", shape=circle];
-n_3[label="222/2", shape=circle];
-n_2[label="333/3", shape=circle];
-n_9[label="aaa/1", shape=circle];
-n_8[label="bbb/2", shape=circle];
-n_7[label="ccc/3", shape=circle];
-n_6[label="ddd/4", shape=circle];
-n_1[label="n_1/5", shape=diamond];
-n_13[label="eee/5", shape=circle];
-n_12[label="fff/6", shape=circle];
-n_11[label="ggg/7", shape=circle];
-n_10[label="hhh/8", shape=circle];
-n_0[label="n_0/9", shape=diamond];
+        n_5[label="99 4C A2 08/0"];
+n_4[label="111/1"];
+n_3[label="222/2"];
+n_2[label="333/3"];
+n_9[label="aaa/1"];
+n_8[label="bbb/2"];
+n_7[label="ccc/3"];
+n_6[label="ddd/4"];
+n_1[label="xxx/5"];
+n_13[label="eee/5"];
+n_12[label="fff/6"];
+n_11[label="ggg/7"];
+n_10[label="hhh/8"];
+n_0[label="yyy/9"];
         n_4 -> n_5
 n_3 -> n_4
 n_2 -> n_3

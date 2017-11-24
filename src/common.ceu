@@ -391,7 +391,7 @@ do
         THIS.block.timestamp = @timestamp
         THIS.block.nonce     = @nonce
         THIS.block.hash      = @hash
-        FC.cache(THIS.block)
+        FC.node(THIS.block)
     ]];
 end
 
@@ -441,7 +441,7 @@ do
     end
 
     [[
-        FC.cache(THIS.block)
+        FC.node(THIS.block)
     ]]
 end
 

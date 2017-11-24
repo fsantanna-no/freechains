@@ -25,7 +25,7 @@ do
     var[] byte chain_id = [] .. [[ FC.chains[''][1].id ]];
     _crypto_generichash(&&chain_hash[0],HASH_BYTES, &&chain_id[0],$chain_id, null,0);
     [[
-        FC.chains[''][1].head = FC.genesis(FC.chains[''][1], @chain_hash)
+        FC.chains[''][1].head = FC.node{ chain=FC.chains[''][1], hash=@chain_hash }
     ]]
 end
 
@@ -70,11 +70,13 @@ end
 // BLOCK //
 
 [[
-    FC.chains[''][1].head = FC.pub { FC.chains[''][1].head,
-                                timestamp = 0,
-                                nonce     = 0,
-                                pub       = THIS.pub,
-                            }
+    FC.chains[''][1].head = {
+        FC.chains[''][1].head,
+        chain     = FC.chains[''][1],
+        timestamp = 0,
+        nonce     = 0,
+        pub       = THIS.pub,
+    }
     THIS.block = FC.chains[''][1].head
     ARGS = THIS
 ]]
@@ -151,11 +153,13 @@ loop i in [1 -> ms] do
     ]]
     await Publication_New();
     [[
-        FC.chains[''][1].head = FC.pub { FC.chains[''][1].head,
-                                    timestamp = 0,
-                                    nonce     = 0,
-                                    pub       = THIS.pub,
-                                }
+        FC.chains[''][1].head = {
+            FC.chains[''][1].head,
+            chain     = FC.chains[''][1],
+            timestamp = 0,
+            nonce     = 0,
+            pub       = THIS.pub,
+        }
         THIS.block = FC.chains[''][1].head
         ARGS = THIS
     ]]

@@ -5,15 +5,15 @@
         edge [];
         //splines = true;
 
-        n_4[label="n_4/0", shape=invtriangle];
-n_3[label="111/1", shape=circle];
-n_2[label="222/2", shape=circle];
-n_1[label="333/3", shape=circle];
-n_8[label="aaa/1", shape=circle];
-n_7[label="bbb/2", shape=circle];
-n_6[label="ccc/3", shape=circle];
-n_5[label="ddd/4", shape=circle];
-n_0[label="n_0/5", shape=diamond];
+        n_4[label="99 4C A2 08/0"];
+n_3[label="111/1"];
+n_2[label="222/2"];
+n_1[label="333/3"];
+n_8[label="aaa/1"];
+n_7[label="bbb/2"];
+n_6[label="ccc/3"];
+n_5[label="ddd/4"];
+n_0[label="xxx/5"];
         n_3 -> n_4
 n_2 -> n_3
 n_1 -> n_2

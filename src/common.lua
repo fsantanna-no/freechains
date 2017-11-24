@@ -9,51 +9,21 @@ local FC = {
 
 -------------------------------------------------------------------------------
 
-function FC.cache (a)
-    a.chain.cache[a.hash] = a
-    return a
-end
-
-function FC.genesis (chain, hash)
-    return FC.cache {
-        tp     = 'genesis',
-        height = 0,
-        chain  = chain,
-        hash   = hash,
-    }
-end
-
-function FC.pub (t)
-    return { t[1],
-        tp        = 'pub',
-        height    = t[1].height + 1,
-        chain     = t[1].chain,
-        timestamp = t.timestamp,
-        nonce     = t.nonce,
-        pub       = t.pub,
-        hash      = t.hash,
-    }
-end
-
 local function max (a, b)
     return a>b and a or b
 end
 
-function FC.join (a, b)
-    assert(a.chain == b.chain)
-    return { a, b,
-        tp     = 'join',
-        height = max(a.height,b.height) + 1,
-        chain  = a.chain,
-    }
+function FC.node (t)
+    t.height = -1
+    for _, a in ipairs(t) do
+        assert(a.chain == t[1].chain)
+        t.height = max(t.height, a.height)
+    end
+    t.height = t.height + 1
+    t.chain = assert(t.chain or (t[1] and t[1].chain))
+    t.chain.cache[assert(t.hash,'missing hash')] = t
+    return t
 end
-
-local SHAPE = {
-    genesis = 'invtriangle',
-    pub     = 'circle',
-    join    = 'diamond',
-    head    = 'point',
-}
 
 local function dot_aux (A, t)
     if t.cache[A] then
@@ -68,8 +38,9 @@ local function dot_aux (A, t)
         t.conns[#t.conns+1] = t.cache[A]..' -> '..t.cache[a]
     end
 
-    local label = A.label or (A.pub and A.pub.payload) or t.cache[A]
-    t.nodes[#t.nodes+1] = t.cache[A]..'[label="'..label..'/'..A.height..'", shape='..SHAPE[A.tp]..'];'
+    local label = A.label or (A.pub and A.pub.payload) or (A.hash and FC.tostring(A.hash)) or t.cache[A]
+    --t.nodes[#t.nodes+1] = t.cache[A]..'[label="'..label..'/'..A.height..'", shape='..SHAPE[A.tp]..'];'
+    t.nodes[#t.nodes+1] = t.cache[A]..'[label="'..label..'/'..A.height..'"];'
 end
 
 function FC.dot (A, path)
