@@ -1,7 +1,7 @@
 #ifndef _COMMON_CEU
 #define _COMMON_CEU
 
-#define DBG 0
+#define DBG 9
 
 #include "c.ceu"
 #include "uv/uv.ceu"
@@ -54,6 +54,11 @@ end
 #endif
 
 native/pre do
+    enum {
+        NODE_JOIN = 0,
+        NODE_PUB,
+    };
+
     enum {
         MESSAGE10 = 0x0100,     // broadcast chain
         MESSAGE20 = 0x0200,     // GET a chain state
@@ -143,8 +148,8 @@ end
 
 #define AWAIT_CHAIN_LENGTH(shared,key,zeros,len)                \
     loop do                                                     \
-        var int len_ = [[ FC.chains[key][zeros].head.length ]]; \
-        [[ --print('>>>', FC.chains[key][zeros].head.length, @(len)) ]]; \
+        var int len_ = [[ FC.chains[key][zeros].head.height ]]; \
+        [[ --print('>>>', FC.chains[key][zeros].head.height, @(len)) ]]; \
         if len_ == (len) then                                   \
             break;                                              \
         end                                                     \
@@ -381,10 +386,12 @@ do
         end;
         _dbg(3, "client: POW rounds: %d\n", n);
     end
+
     [[
         THIS.block.timestamp = @timestamp
         THIS.block.nonce     = @nonce
         THIS.block.hash      = @hash
+        FC.cache(THIS.block)
     ]];
 end
 
@@ -432,6 +439,10 @@ do
         var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
         throw e;
     end
+
+    [[
+        FC.cache(THIS.block)
+    ]]
 end
 
 code/await Chain_Fork (none) -> none
@@ -529,7 +540,7 @@ code/await Subscribe (var& UV_TCP_Server_Data shared) -> none do
         var int zeros = [[cfg.zeros]];
         var int j;
         //loop j in [zeros -> 255] do
-loop j in [zeros -> 30] do
+loop j in [zeros -> 0] do
             [[
                 j = @j
                 has = FC.chains[cfg.key][j]
@@ -537,6 +548,7 @@ loop j in [zeros -> 30] do
                     assert(not FC.chains[cfg.key][j])
                     local id = '|'..cfg.key..'|'..j..'|'
                     THIS.sub = {
+                        cache = {},
                         key   = cfg.key,
                         zeros = j,
                         id    = id,
@@ -563,7 +575,7 @@ loop j in [zeros -> 30] do
                 end
 #endif
                 [[
-                    THIS.sub.head = FC.genesis(@hash)
+                    THIS.sub.head = FC.genesis(THIS.sub, @hash)
                 ]]
             end
 

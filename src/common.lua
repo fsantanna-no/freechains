@@ -10,7 +10,7 @@ local FC = {
 -------------------------------------------------------------------------------
 
 function FC.cache (a)
-    a.chain.cache[a.hash] = true
+    a.chain.cache[a.hash] = a
     return a
 end
 
@@ -31,6 +31,7 @@ function FC.pub (t)
         timestamp = t.timestamp,
         nonce     = t.nonce,
         pub       = t.pub,
+        hash      = t.hash,
     }
 end
 

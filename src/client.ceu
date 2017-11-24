@@ -16,169 +16,177 @@ do
     ///////////////////////////////////////////////////////////////////////////
 
     // <= MESSAGE
-    // <= SERVER_PORT
     // <= CHAIN_KEY_LEN
     // <= CHAIN_KEY_STR
     // <= CHAIN_ZEROS
-    // <= CHAIN_LENGTH
-    // <= CHAIN_HEAD_HASH
-    do/_
+    do
         tcp.buffer = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 0x01, 0x00];
-        do
-            var u16    port    = [[ FC.daemon.port ]];
-            var u8     key_len = [[ string.len(THIS.chain.key) ]];
-            var[] byte key_str = [] .. [[ THIS.chain.key ]];
-            var u8     zeros   = [[ THIS.chain.zeros ]];
-            var u64    length  = [[ THIS.chain.head.length ]];
-            _ceu_assert(key_len<CHAIN_KEY_BYTES, "bug found");
-            tcp.buffer = tcp.buffer .. [0,0] .. [key_len as byte] .. key_str .. [zeros as byte] .. [0,0,0,0,0,0,0,0];
-            PUT_HTOBE16(tcp.buffer, 4, port);
-            PUT_HTOBE64(tcp.buffer, $tcp.buffer-sizeof(u64), length);
-        end
-        tcp.buffer = tcp.buffer .. [[ THIS.chain.head.hash ]];
-
+        var u8     key_len = [[ string.len(THIS.chain.key) ]];
+        var[] byte key_str = [] .. [[ THIS.chain.key ]];
+        var u8     zeros   = [[ THIS.chain.zeros ]];
+        _ceu_assert(key_len<CHAIN_KEY_BYTES, "bug found");
+        tcp.buffer = tcp.buffer .. [key_len as byte] .. key_str .. [zeros as byte];
         await UV_Stream_Write_N(&tcp,_);
-
-        // => ACK-header
-        do/_
-            await UV_Stream_Read_N(&tcp, 1);
-            var byte ret = tcp.buffer[0];
-            $tcp.buffer = $tcp.buffer - 1;
-
-            _dbg_tcp(3, &&tcp.handle, "client", "=> ACK-header = %d", ret);
-
-            if ret == {MESSAGE10_OK} then
-                // OK: proceed to BLOCKS
-            else/if ret=={MESSAGE10_NOTSUB} or ret=={MESSAGE10_HAVE} then
-                escape;
-            else
-                var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
-                throw e;
-            end
-        end
     end
 
     ///////////////////////////////////////////////////////////////////////////
     // BLOCKS
-    // - first, reads hashes from head -> genesis until finds common block
-    // - then, writes from common.nxt -> head
     ///////////////////////////////////////////////////////////////////////////
 
     // TODO: PoS: before/after each block? once per block?
+    [[
+        THIS.toask = { THIS.chain.head }
+        THIS.asked = { }
+        THIS.togo  = { }
+    ]]
 
-    loop do
-        // => HASH
-        await UV_Stream_Read_N(&tcp, HASH_BYTES);
-        do
-            var[] byte str = [] .. [[ FC.tostring(@tcp.buffer) ]] .. [0];
-            _dbg_tcp(3, &&tcp.handle, "client", "=> BLOCK_HASH? : %s", &&str[0]);
-        end
-        [[
-            THIS.cur = FC.chain_block_get(THIS.chain,@tcp.buffer)
-        ]]
-        var bool has = [[ THIS.cur~=nil ]];
-        var int ret = do
-            if has then
-                escape {MESSAGE10_HAVE};
-            else
-                escape {MESSAGE10_OK};
-            end
-        end;
-        tcp.buffer = [ret];
-        // <= ACK-HASH
-        _dbg_tcp(3, &&tcp.handle, "client", "<= ACK-BLOCK_HASH? : %d", ret);
-        await UV_Stream_Write_N(&tcp,_);
-        if has then
+    code/await Go (none) -> none
+        throws Exception.Uv
+    do
+        [[ THIS = { togo=ARGS.togo } ]];
+        loop do
             [[
-                THIS.common = THIS.cur
+                THIS.cur = THIS.togo[#THIS.togo]
             ]]
-            break;
+            var bool has = [[ THIS.cur~=nil ]];
+            if not has then
+                outer.tcp.buffer = [0];
+                await UV_Stream_Write_N(&outer.tcp,_);
+                escape;
+            end
+
+            var bool is_ready = [[ #THIS.cur == THIS.togo[THIS.cur] ]];
+            if is_ready then
+                [[
+                    table.remove(THIS.togo)
+                ]]
+            else
+                [[
+                    THIS.togo[THIS.cur] = THIS.togo[THIS.cur] + 1
+                ]]
+                outer.tcp.buffer = [0];
+                await UV_Stream_Write_N(&outer.tcp,_);
+                escape;
+            end
+
+            outer.tcp.buffer = [1];
+            await UV_Stream_Write_N(&outer.tcp,_);
+
+            // <= BLOCK_HASH
+            // <= TIMESTAMP + NONCE
+            // <= TP: 0=join, 1=pub, 2=removed
+            // <= JOIN
+            // <=   BLOCK[1].hash
+            // <=   BLOCK[2].hash
+            // <= PUB
+            // <=   BLOCK[1].hash
+            // <=   PUB_HASH?
+            // =>   PUB_HASH ACK!
+            // <=   PUB
+            // <=       TIMESTAMP + NONCE
+            // <=       LEN
+            // <=       PAYLOAD
+            // <= REMOVED
+            // <=   BLOCK[1].hash
+            do
+                var[] byte str = [] .. [[ FC.tostring(THIS.cur.hash) ]] .. [0];
+                _dbg_tcp(3, &&outer.tcp.handle, "client", "<= BLOCK_HASH : %s", &&str[0]);
+                outer.tcp.buffer = [] .. [[ THIS.cur.hash ]]
+                                      ..  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+                do
+                    var u64 timestamp = [[ THIS.cur.timestamp ]];
+                    var u64 nonce     = [[ THIS.cur.nonce     ]];
+                    PUT_HTOBE64(outer.tcp.buffer, HASH_BYTES, timestamp);
+                    PUT_HTOBE64(outer.tcp.buffer, HASH_BYTES+sizeof(u64), nonce);
+                end
+
+                var bool is_join = [[ THIS.cur.tp=='join' ]];
+                if is_join then
+                    outer.tcp.buffer = outer.tcp.buffer .. [ {NODE_JOIN} ];
+                    outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.cur[1].hash ]];
+                    outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.cur[2].hash ]];
+                else
+                    outer.tcp.buffer = outer.tcp.buffer .. [ {NODE_PUB} ];
+
+                    // <= BLOCK[1].hash
+                    var[] byte str = [] .. [[ FC.tostring(THIS.cur[1].hash) ]] .. [0];
+                    _dbg_tcp(3, &&outer.tcp.handle, "client", "<= BLOCK_HASH[1] : %s", &&str[0]);
+                    outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.cur[1].hash ]];
+
+                    // <= PUB
+                    do
+                        // <= PUB_HASH?
+                        outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.cur.pub.hash ]];
+                        await UV_Stream_Write_N(&outer.tcp,_);
+
+                        // => PUB_HASH_ACK!
+                        await UV_Stream_Read_N(&outer.tcp, 1);
+                        var int ret = outer.tcp.buffer[0];
+                        $outer.tcp.buffer = $outer.tcp.buffer - 1;
+                        if ret == {MESSAGE10_HAVE} then
+                            continue;
+                        end
+
+                        // <= PUB: TIMESTAMP+NONCE+LEN+PAYLOAD
+                        do
+                            outer.tcp.buffer = [] .. [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+                                                  .. [0,0,0,0]
+                                                  .. [[ THIS.cur.pub.payload ]];
+
+                            var u64 timestamp   = [[ THIS.cur.pub.timestamp           ]];
+                            var u64 nonce       = [[ THIS.cur.pub.nonce               ]];
+                            var u32 payload_len = [[ string.len(THIS.cur.pub.payload) ]];
+                            PUT_HTOBE64(outer.tcp.buffer, 0, timestamp);
+                            PUT_HTOBE64(outer.tcp.buffer, sizeof(u64), nonce);
+                            PUT_HTOBE32(outer.tcp.buffer, 2*sizeof(u64), payload_len);
+                            await UV_Stream_Write_N(&outer.tcp,_);
+                        end
+                    end
+                end
+            end
         end
     end
 
-    [[ THIS.cur = THIS.common.nxt ]];
-
-    var int i;
-    loop i do
-        var bool should_stop = [[ THIS.cur==nil ]];
-        if should_stop then
+    loop do
+        var bool has_ask = [[ #THIS.toask > 0 ]];
+        if not has_ask then
+            tcp.buffer = [0];
+            await UV_Stream_Write_N(&tcp,_);
             break;
         end
 
-        // <= BLOCK_HASH
-        // <= TIMESTAMP + NONCE
-        // <= PUBLICATION_HASH (maybe removed)
-        // <= PRV_HASH
-        do
-            tcp.buffer = [] .. [[ THIS.cur.hash ]] .. 
-                               [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                               [[ (THIS.cur.pub and THIS.cur.pub.hash) or string.rep('\0',@HASH_BYTES) ]] ..
-                               [[ THIS.cur.prv.hash ]];
-            do
-                var u64 timestamp = [[ THIS.cur.timestamp ]];
-                var u64 nonce     = [[ THIS.cur.nonce     ]];
-                PUT_HTOBE64(tcp.buffer, HASH_BYTES, timestamp);
-                PUT_HTOBE64(tcp.buffer, HASH_BYTES+sizeof(u64), nonce);
+        [[
+            THIS.cur = table.remove(THIS.toask)
+            THIS.asked[THIS.cur] = true
+        ]]
 
-                var[] byte str = [] .. [[ FC.tostring(THIS.cur.hash) ]] .. [0];
-                _dbg_tcp(3, &&tcp.handle, "client", "<= BLOCK_HASH : %s", &&str[0]);
-                _dbg_tcp(3, &&tcp.handle, "client", "<= TIMESTAMP/NONCE : %ld %ld", timestamp,nonce);
-            end
+        // <= HASH
+        tcp.buffer = [1] .. [[ THIS.cur.hash ]];
+        await UV_Stream_Write_N(&tcp,_);
 
-            await UV_Stream_Write_N(&tcp,_);
+        // => ACK-HASH
+        await UV_Stream_Read_N(&tcp, 1);
+        var byte ret = tcp.buffer[0];
+        $tcp.buffer = $tcp.buffer - 1;
+        if ret == {MESSAGE10_HAVE} then
+            [[ ARGS = { togo=THIS.togo } ]];
+            await Go();
+        else/if ret == {MESSAGE10_OK} then
+            [[
+                THIS.togo[#THIS.togo+1] = THIS.cur
+                THIS.togo[THIS.cur] = 1
+                for _, a in ipairs(THIS.cur) do
+                    if not THIS.asked[a] then
+                        THIS.toask[#THIS.toask+1] = a
+                    end
+                end
+            ]]
+        else/if ret == {MESSAGE10_NOTSUB} then
+            escape;     // possible in the first ACK
+        else
+            var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+            throw e;
         end
-
-        // => ACK-PUBLICATION-HASH
-        var bool send_pub = do
-            await UV_Stream_Read_N(&tcp, 1);
-            var byte ret = tcp.buffer[0];
-            if ret == {MESSAGE10_HAVE} then
-                escape false;
-            else/if ret == {MESSAGE10_OK} then
-                escape true;
-            else
-                var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
-                throw e;
-            end
-        end;
-        if send_pub then
-            tcp.buffer = [] .. [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                               [0,0,0,0];
-
-            var bool is_removal = [[ THIS.cur.pub.removal~=nil ]];
-            if is_removal then
-                tcp.buffer = tcp.buffer .. [[ THIS.cur.pub.removal.hash ]];
-            else
-                tcp.buffer = tcp.buffer .. [[ THIS.cur.pub.payload ]];
-            end
-
-            var u64 timestamp   = [[ THIS.cur.pub.timestamp ]];
-            var u64 nonce       = [[ THIS.cur.pub.nonce     ]];
-            var u32 payload_len = [[ (@(is_removal) and 0) or string.len(THIS.cur.pub.payload) ]];
-            PUT_HTOBE64(tcp.buffer, 0, timestamp);
-            PUT_HTOBE64(tcp.buffer, sizeof(u64), nonce);
-            PUT_HTOBE32(tcp.buffer, 2*sizeof(u64), payload_len);
-
-            await UV_Stream_Write_N(&tcp,_);
-        end
-
-/*
-        // => ACK-BLOCK
-        // TODO: good place for PoS
-        do
-            await UV_Stream_Read_N(&tcp, 1);
-            var byte ret = tcp.buffer[0];
-            $tcp.buffer = $tcp.buffer - 1;
-
-            //_printf("[client] => ACK-tx = %d\n", ret);
-            if ret != {MESSAGE10_OK} then
-                var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
-                throw e;
-            end
-        end
-*/
-
-        [[ THIS.cur = THIS.cur.nxt ]];
     end
 end
 
@@ -308,19 +316,16 @@ do
         [[ ARGS = { chain=THIS.pub.chain } ]]
         CHAIN_LOCK(l, shared, "lock_write");
         [[
-            THIS.block = {
-                timestamp   = THIS.now,
-                nonce       = 0,
-                chain       = THIS.pub.chain,
-                pub         = THIS.pub,
-                hash        = nil,
-                prv         = nil,
-                nxt         = nil,
-                length      = nil,
+            THIS.block = FC.pub { FC.chains[''][0].head,
+                timestamp = THIS.now,
+                nonce     = 0,
+                pub       = THIS.pub,
             }
+            FC.chains[''][0].head = THIS.block
+
             ARGS = THIS
         ]]
-        await Block_Hash_Link();
+        await Block_Hash();
     end
     par/and do
         loop do
