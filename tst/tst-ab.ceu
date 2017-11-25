@@ -77,38 +77,38 @@ end
         nonce     = 0,
         pub       = THIS.pub,
     }
-    THIS.block = FC.chains[''][1].head
+    THIS.node = FC.chains[''][1].head
     ARGS = THIS
 ]]
-await Block_Hash();
+await Node_Hash();
 [[
-    --print('>>>', THIS.block.timestamp, THIS.block.nonce, FC.tostring(THIS.block.hash,true))
-    assert(THIS.block.hash == '\x6F\xD2\xCC\xE9\x82\xAF\x49\xAB\xB5\xDD\x6B\x6A\x06\x76\x83\x57\x1C\x9E\xB0\x83\x37\x98\x87\xC6\xC4\x91\xB0\xA7\x24\x36\x7C\x91')
-    assert(THIS.block.timestamp == 0, 2)
-    assert(THIS.block.nonce == 2, 3)
-    assert(THIS.block[1][1] == nil, 4)
-    assert(THIS.block.chain.head == THIS.block, 5)
+    --print('>>>', THIS.node.timestamp, THIS.node.nonce, FC.tostring(THIS.node.hash,true))
+    assert(THIS.node.hash == '\x6F\xD2\xCC\xE9\x82\xAF\x49\xAB\xB5\xDD\x6B\x6A\x06\x76\x83\x57\x1C\x9E\xB0\x83\x37\x98\x87\xC6\xC4\x91\xB0\xA7\x24\x36\x7C\x91')
+    assert(THIS.node.timestamp == 0, 2)
+    assert(THIS.node.nonce == 2, 3)
+    assert(THIS.node[1][1] == nil, 4)
+    assert(THIS.node.chain.head == THIS.node, 5)
 ]]
 
 do
     [[
-        prv = THIS.block[1]
-        THIS.block[1] = THIS.block
+        prv = THIS.node[1]
+        THIS.node[1] = THIS.node
     ]]
     var Exception.Freechains.Malformed? e;
     catch e do
         [[ ARGS = THIS ]]
-        await Block_Check();
+        await Node_Check();
     end
     _ceu_assert(e?, "bug found");
 
     [[
-        THIS.block[1] = prv
+        THIS.node[1] = prv
     ]]
     var Exception.Freechains.Malformed? f;
     catch f do
         [[ ARGS = THIS ]]
-        await Block_Check();
+        await Node_Check();
     end
     _ceu_assert(not f?, "bug found");
 end
@@ -160,10 +160,10 @@ loop i in [1 -> ms] do
             nonce     = 0,
             pub       = THIS.pub,
         }
-        THIS.block = FC.chains[''][1].head
+        THIS.node = FC.chains[''][1].head
         ARGS = THIS
     ]]
-    await Block_Hash();
+    await Node_Hash();
 end
 
 [[

@@ -31,11 +31,11 @@ function FC.children (t, head)
     end
 end
 
-function FC.head_new (block)
-    block.chain.n = block.chain.n + 1
-    block.chain.head[block.hash] = block
-    for _,v in ipairs(block) do
-        block.chain.head[v.hash] = nil
+function FC.head_new (node)
+    node.chain.n = node.chain.n + 1
+    node.chain.head[node.hash] = node
+    for _,v in ipairs(node) do
+        node.chain.head[v.hash] = nil
     end
 end
 

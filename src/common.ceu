@@ -29,8 +29,11 @@ end
 data Exception.Freechains.Malformed with
     var _char&& message = "malformed message";
 end
-data Exception.Freechains.Fork_Lengthy with
-    var _char&& message = "fork is too lengthy";
+data Exception.Freechains.Not_Subscribed with
+    var _char&& message = "not subscribed";
+end
+data Exception.Freechains.Timeout with
+    var _char&& message = "timeout";
 end
 
 #if 0
@@ -65,16 +68,8 @@ native/pre do
         MESSAGE30 = 0x0300,     // PUBLISH to a chain
         MESSAGE40 = 0x0400,     // SUBSCRIBE to a chain
         MESSAGE50 = 0x0500,     // CONFIGURE freechains
-        MESSAGE60 = 0x0600,     // LISTEN for new blocks
+        MESSAGE60 = 0x0600,     // LISTEN for new nodes
         MESSAGE70 = 0x0700,     // STOP freechains
-    };
-
-    enum {
-        MESSAGE10_OK = 0,
-        MESSAGE10_NOTSUB,   // [ok ACK] not subscribed to this chain
-        MESSAGE10_HAVE,     // [ok ACK] already has it
-        MESSAGE10_TIMEOUT,
-        //MESSAGE10_ABORTED,  // [?? ???] aborted from external retransmit
     };
 
     void __dbg (int level, const char* fmt, ...) {
@@ -323,28 +318,28 @@ do
     ]]
 end
 
-code/await Block_Hash (none) -> none
-    // input:  [[ ARGS={block={TODO}} ]]
-    // effect: [[ ARGS={block={DONE}} ]]
+code/await Node_Hash (none) -> none
+    // input:  [[ ARGS={node={TODO}} ]]
+    // effect: [[ ARGS={node={DONE}} ]]
 do
     [[
         THIS = {
-            block = ARGS.block,
+            node = ARGS.node,
         }
     ]];
 
     var[HASH_BYTES] byte hash;
     _ceu_vector_setlen(&&hash, HASH_BYTES, 1);
 
-    var u8 zeros = [[ THIS.block.chain.zeros ]];
+    var u8 zeros = [[ THIS.node.chain.zeros ]];
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                     [[ THIS.block.pub.hash ]] ..
-                     [[ THIS.block[1].hash ]];
+                     [[ THIS.node.pub.hash ]] ..
+                     [[ THIS.node[1].hash ]];
 
-    var bool is_join = [[ THIS.block.tp == 'join' ]];
+    var bool is_join = [[ THIS.node.tp == 'join' ]];
     if is_join then
-        pln = pln .. [[ THIS.block[2].hash ]];
+        pln = pln .. [[ THIS.node[2].hash ]];
     end
 
     // show async/thread progress
@@ -359,8 +354,8 @@ do
     end
 #endif
 
-    var u64 timestamp = [[ THIS.block.timestamp ]];
-    var u64 nonce     = [[ THIS.block.nonce     ]];
+    var u64 timestamp = [[ THIS.node.timestamp ]];
+    var u64 nonce     = [[ THIS.node.nonce     ]];
 #if 1
     await async/thread (zeros,pln,hash, timestamp,nonce)
 #endif
@@ -388,10 +383,10 @@ do
     end
 
     [[
-        THIS.block.timestamp = @timestamp
-        THIS.block.nonce     = @nonce
-        THIS.block.hash      = @hash
-        FC.node(THIS.block)
+        THIS.node.timestamp = @timestamp
+        THIS.node.nonce     = @nonce
+        THIS.node.hash      = @hash
+        FC.node(THIS.node)
     ]];
 end
 
@@ -399,49 +394,49 @@ end
  * Verifies if the hash has the expected leading zeros and if the pub
  * hash and back hash match the hash.
  */
-code/await Block_Check (none) -> none
-    // input: [[ ARGS={block={DONE}} ]]
+code/await Node_Check (none) -> none
+    // input: [[ ARGS={node={DONE}} ]]
     throws Exception.Freechains.Malformed
 do
     [[
         THIS = {
-            block = ARGS.block,
+            node = ARGS.node,
         }
     ]];
 
-    var[HASH_BYTES] byte hash = [] .. [[ THIS.block.hash ]];
+    var[HASH_BYTES] byte hash = [] .. [[ THIS.node.hash ]];
 
-    var u8 zeros = [[ THIS.block.chain.zeros ]];
+    var u8 zeros = [[ THIS.node.chain.zeros ]];
     if zeros > _leading_zeros(&&hash[0],HASH_BYTES) then
         var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
         throw e;
     end
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                     [[ THIS.block.pub.hash ]] ..
-                     [[ THIS.block[1].hash ]];
+                     [[ THIS.node.pub.hash ]] ..
+                     [[ THIS.node[1].hash ]];
 
-    var bool is_join = [[ THIS.block.tp == 'join' ]];
+    var bool is_join = [[ THIS.node.tp == 'join' ]];
     if is_join then
-        pln = pln .. [[ THIS.block[2].hash ]];
+        pln = pln .. [[ THIS.node[2].hash ]];
     end
 
     do
-        var u64 timestamp = [[ THIS.block.timestamp ]];
-        var u64 nonce     = [[ THIS.block.nonce     ]];
+        var u64 timestamp = [[ THIS.node.timestamp ]];
+        var u64 nonce     = [[ THIS.node.nonce     ]];
         PUT_HTOBE64(pln, 0, timestamp);
         PUT_HTOBE64(pln, sizeof(u64), nonce);
     end
 
     _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
-    var bool ok = [[ THIS.block.hash == @hash ]];
+    var bool ok = [[ THIS.node.hash == @hash ]];
     if not ok then
         var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
         throw e;
     end
 
     [[
-        FC.node(THIS.block)
+        FC.node(THIS.node)
     ]]
 end
 
@@ -479,7 +474,7 @@ do
             [[
                 --print('>>>', FC.tostring(THIS.from.hash), THIS.from.pub.payload)
                 assert(THIS.from.chain == THIS.to.first.chain)
-                THIS.block = {
+                THIS.node = {
                     timestamp   = 0,    -- TODO: 64-bit timestamp
                     nonce       = 0,
                     chain       = THIS.from.chain,
@@ -491,7 +486,7 @@ do
                 }
                 ARGS = THIS
             ]]
-            //await Block_Hash_Link();
+            //await Node_Hash_Link();
         end
 
         [[ THIS.from = THIS.from.nxt ]]
@@ -499,22 +494,6 @@ do
 end
 
 #include "fs.ceu"
-
-native/pre do
-    int SERVERS_ALIVE    = 0;
-    int CLIENTS_ALIVE    = 0;
-    int BLOCKS_RECEIVED  = 0;
-    int BLOCKS_RECREATED = 0;
-    int TXS_RECREATED = 0;
-end
-#if 0
-spawn do
-    every 10s do
-        _printf("SERVERS_ALIVE = %d\n", {SERVERS_ALIVE});
-        _printf("CLIENTS_ALIVE = %d\n", {CLIENTS_ALIVE});
-    end
-end
-#endif
 
 code/await Subscribe (var& UV_TCP_Server_Data shared) -> none do
     [[
@@ -621,8 +600,8 @@ do
     [[
         FC = require 'freechains'
 
-        FC['Exception.Freechains.Malformed'] = @({CEU_DATA_Exception__dot__Freechains__dot__Malformed} as int)
-        FC.MESSAGE10_NOTSUB = @({MESSAGE10_NOTSUB} as int)
+        --FC['Exception.Freechains.Malformed'] = @@({CEU_DATA_Exception__dot__Freechains__dot__Malformed} as int)
+        --FC.MESSAGE10_NOTSUB = @@({MESSAGE10_NOTSUB} as int)
 
         CFG.daemon = CFG.daemon or {}
 

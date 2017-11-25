@@ -1,249 +1,221 @@
 #ifndef _MESSAGE10_CEU
 #define _MESSAGE10_CEU
 
-code/await Recv_10 (var& UV_TCP_Server_Data shared, var& UV_Stream tcp) -> int
-    throws Exception.Uv
+code/await Recv_10_Header (var& UV_Stream tcp) -> none
+    throws Exception.Uv, Exception.Freechains
 do
-
-    ///////////////////////////////////////////////////////////////////////////
-    // HEADER
-    ///////////////////////////////////////////////////////////////////////////
-
     // => CHAIN_KEY_LEN
     // => CHAIN_KEY_STR
     // => CHAIN_ZEROS
-    do/_
-        // key_len
-        await UV_Stream_Read_N(&tcp, 1);
-        var byte key_len = tcp.buffer[0];
-        $tcp.buffer = $tcp.buffer - 1;
-        _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_KEY_LEN = %d", key_len);
 
-        // key_str
-        await UV_Stream_Read_N(&tcp, (key_len as usize));
-        var[256] byte key_str = []..tcp.buffer;
-        _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_KEY_STR = %s", &&key_str[0]);
-        $tcp.buffer = $tcp.buffer - (key_len as usize);
+    // key_len
+    await UV_Stream_Read_N(&tcp, 1);
+    var byte key_len = tcp.buffer[0];
+    $tcp.buffer = $tcp.buffer - 1;
+    _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_KEY_LEN = %d", key_len);
 
-        // zeros
-        await UV_Stream_Read_N(&tcp, 1);
-        var byte zeros = tcp.buffer[0];
-        _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_ZEROS   = %d", zeros);
-        $tcp.buffer = $tcp.buffer - 1;
+    // key_str
+    await UV_Stream_Read_N(&tcp, (key_len as usize));
+    var[256] byte key_str = []..tcp.buffer;
+    _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_KEY_STR = %s", &&key_str[0]);
+    $tcp.buffer = $tcp.buffer - (key_len as usize);
 
-        [[
-            key   = @key_str
-            zeros = @zeros
-            THIS  = {
-                chain = FC.chains[key] and CFG.chains[key].zeros<=zeros and FC.chains[key][zeros] or nil
-            }
-        ]];
+    // zeros
+    await UV_Stream_Read_N(&tcp, 1);
+    var byte zeros = tcp.buffer[0];
+    _dbg_tcp(2, &&tcp.handle, "server", "CHAIN_ZEROS   = %d", zeros);
+    $tcp.buffer = $tcp.buffer - 1;
 
-        var bool is_sub = [[ THIS.chain ~= nil ]];
-        _dbg_tcp(2, &&tcp.handle, "server", "is_sub      = %d", is_sub);
-        if not is_sub then
-            tcp.buffer = [{MESSAGE10_NOTSUB}];
-            await UV_Stream_Write_N(&tcp,_);
-            [[ ARGS = THIS ]]
-            escape {MESSAGE10_NOTSUB};
-        end
+    [[
+        key   = @key_str
+        zeros = @zeros
+        ARGS  = {
+            chain = FC.chains[key] and CFG.chains[key].zeros<=zeros and FC.chains[key][zeros] or nil
+        }
+    ]];
+
+    var bool is_sub = [[ ARGS.chain ~= nil ]];
+    _dbg_tcp(2, &&tcp.handle, "server", "is_sub      = %d", is_sub);
+    if not is_sub then
+        var Exception.Freechains.Not_Subscribed e = val Exception.Freechains.Not_Subscribed(_);
+        throw e;
     end
+end
 
-    do/_
-        [[ ARGS = THIS ]];
-        CHAIN_LOCK(l, shared, "lock_write");
+code/await Recv_10_Nodes (var& UV_TCP_Server_Data shared, var& UV_Stream tcp) -> none
+    throws Exception.Uv
+do
+    [[ THIS = { chain=ARGS.chain } ]];
 
-        ///////////////////////////////////////////////////////////////////////////
-        // BLOCKS
-        ///////////////////////////////////////////////////////////////////////////
+    CHAIN_LOCK(l, shared, "lock_write");
 
-        code/await Go (none) -> none
-            throws Exception.Uv
-        do
-            loop do
-                // => n
-                await UV_Stream_Read_N(&outer.tcp, 1);
-                var int n = outer.tcp.buffer[0];
-                $outer.tcp.buffer = $outer.tcp.buffer - 1;
-
-                if n == 0 then
-                    [[ ARGS = { block=THIS.block } ]];
-                    break;
-                end
-
-                [[
-                    THIS = {
-                        chain = ARGS.chain,
-                        block = {
-                            chain = ARGS.chain,
-                        },
-                    }
-                ]];
-
-                // => BLOCK_HASH
-                do
-                    await UV_Stream_Read_N(&outer.tcp, HASH_BYTES);
-                    var[HASH_BYTES] byte hash;
-                    _ceu_vector_copy(&&hash,0, &&outer.tcp.buffer,0, HASH_BYTES);
-                    [[
-                        THIS.block.hash = @hash;
-                    ]];
-                    $outer.tcp.buffer = $outer.tcp.buffer - HASH_BYTES;
-
-                    var[] byte str = [] .. [[ FC.tostring(THIS.block.hash) ]] .. [0];
-                    _dbg_tcp(3, &&outer.tcp.handle, "server", "=> BLOCK_HASH : %s", &&str[0]);
-                end
-
-                // => BLOCK[1].hash
-                // => ...
-                // => BLOCK[n].hash
-                var int i;
-                loop i in [1 -> n] do
-                    await UV_Stream_Read_N(&outer.tcp, HASH_BYTES);
-                    var[HASH_BYTES] byte hash;
-                    _ceu_vector_copy(&&hash,0, &&outer.tcp.buffer,0, HASH_BYTES);
-                    [[
-                        prv = assert(THIS.block.chain.cache[@hash], 'expected in cache')
-                        THIS.block[@i] = prv
-                    ]];
-                    $outer.tcp.buffer = $outer.tcp.buffer - HASH_BYTES;
-
-                    var[] byte str = [] .. [[ FC.tostring(THIS.block[@i].hash) ]] .. [0];
-                    _dbg_tcp(3, &&outer.tcp.handle, "server", "=> BLOCK_HASH[%d] : %s", i, &&str[0]);
-                end
-
-                // => TIMESTAMP + NONCE
-                do
-                    await UV_Stream_Read_N(&outer.tcp, 2*sizeof(u64));
-                    var u64 timestamp = GET_BE64TOH(outer.tcp.buffer,0);
-                    $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
-                    var u64 nonce = GET_BE64TOH(outer.tcp.buffer,0);
-                    $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
-                    [[
-                        THIS.block.timestamp = @timestamp
-                        THIS.block.nonce     = @nonce
-                    ]]
-                end
-
-                // => PUB
-                do
-                    // => PUB_HASH?
-                    await UV_Stream_Read_N(&outer.tcp, HASH_BYTES);
-                    var[HASH_BYTES] byte pub_hash;
-                    _ceu_vector_copy(&&pub_hash,0, &&outer.tcp.buffer,0, HASH_BYTES);
-                    [[
-                        pub_hash = @pub_hash
-                        cache = THIS.chain.up.pubs[pub_hash]
-                        THIS.block.pub = cache or {
-                            hash      = pub_hash,
-                            chain     = THIS.block.chain,
-                            timestamp = nil,
-                            nonce     = nil,
-                            payload   = nil,
-                        }
-                    ]]
-
-                    // <= PUB_HASH_ACK!
-                    var bool has_pub = [[ cache~=nil ]];
-                    if has_pub then
-                        outer.tcp.buffer = [{MESSAGE10_HAVE}];
-                        await UV_Stream_Write_N(&outer.tcp,_);
-                        continue;
-                    else
-                        outer.tcp.buffer = [{MESSAGE10_OK}];
-                        await UV_Stream_Write_N(&outer.tcp,_);
-                    end
-                end
-
-                // => TIMESTAMP + NONCE
-                do
-                    await UV_Stream_Read_N(&outer.tcp, 2*sizeof(u64));
-                    var u64 timestamp = GET_BE64TOH(outer.tcp.buffer,0);
-                    $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
-                    var u64 nonce = GET_BE64TOH(outer.tcp.buffer,0);
-                    $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
-                    [[
-                        THIS.block.pub.timestamp = @timestamp
-                        THIS.block.pub.nonce     = @nonce
-                    ]]
-                end
-
-                // <= LEN
-                // <= PAYLOAD
-                do
-                    await UV_Stream_Read_N(&outer.tcp, sizeof(u32));
-                    var u32 len = GET_BE32TOH(outer.tcp.buffer,0);
-                    $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u32);
-
-                    await UV_Stream_Read_N(&outer.tcp, len as usize);
-                    var[len] byte payload;
-                    _ceu_vector_copy(&&payload,0, &&outer.tcp.buffer,0, len);
-                    $outer.tcp.buffer = $outer.tcp.buffer - (len as usize);
-
-                    [[
-                        THIS.block.pub.payload = @payload
-                        ARGS = { pub=THIS.block.pub }
-                    ]]
-                    await Publication_Check();
-                end
-
-                [[ ARGS = { block=THIS.block } ]]
-                await Block_Check();
-                [[
-                    FC.head_new(THIS.block)
-                ]];
-            end
-        end
-
-        [[
-            THIS.block = nil
-        ]]
-        var int count = 0;
+    code/await Go (none) -> none
+        throws Exception.Uv
+    do
         loop do
-            if count >= FORK_LENGTHY then
-    //[[error'oioioi']]
-                var Exception.Freechains.Fork_Lengthy e = val Exception.Freechains.Fork_Lengthy(_);
-                throw e;
-            end
+            // => n
+            await UV_Stream_Read_N(&outer.tcp, 1);
+            var int n = outer.tcp.buffer[0];
+            $outer.tcp.buffer = $outer.tcp.buffer - 1;
 
-            await UV_Stream_Read_N(&tcp, 1);
-            var int has = tcp.buffer[0];
-            $tcp.buffer = $tcp.buffer - 1;
-            if has == 0 then
+            if n == 0 then
                 break;
             end
 
-            // => HASH
-
-            await UV_Stream_Read_N(&tcp, HASH_BYTES);
-            var[HASH_BYTES] byte hash;
-            _ceu_vector_copy(&&hash,0, &&tcp.buffer,0, HASH_BYTES);
             [[
-                THIS.hash = @hash;
+                THIS = {
+                    chain = ARGS.chain,
+                    node = {
+                        chain = ARGS.chain,
+                    },
+                }
             ]];
-            $tcp.buffer = $tcp.buffer - HASH_BYTES;
 
-            var bool has = [[ THIS.chain.cache[THIS.hash] ]];
-            if has then
-                tcp.buffer = [{MESSAGE10_HAVE}];
-                await UV_Stream_Write_N(&tcp,_);
-                await Go();
-                [[ THIS.block = ARGS.block ]];
-            else
-                tcp.buffer = [{MESSAGE10_OK}];
-                await UV_Stream_Write_N(&tcp,_);
+            // => NODE_HASH
+            do
+                await UV_Stream_Read_N(&outer.tcp, HASH_BYTES);
+                var[HASH_BYTES] byte hash;
+                _ceu_vector_copy(&&hash,0, &&outer.tcp.buffer,0, HASH_BYTES);
+                [[
+                    THIS.node.hash = @hash;
+                ]];
+                $outer.tcp.buffer = $outer.tcp.buffer - HASH_BYTES;
+
+                var[] byte str = [] .. [[ FC.tostring(THIS.node.hash) ]] .. [0];
+                _dbg_tcp(3, &&outer.tcp.handle, "server", "=> NODE_HASH : %s", &&str[0]);
             end
-        end
 
-        do finalize with
+            // => NODE[1].hash
+            // => ...
+            // => NODE[n].hash
+            var int i;
+            loop i in [1 -> n] do
+                await UV_Stream_Read_N(&outer.tcp, HASH_BYTES);
+                var[HASH_BYTES] byte hash;
+                _ceu_vector_copy(&&hash,0, &&outer.tcp.buffer,0, HASH_BYTES);
+                [[
+                    prv = assert(THIS.node.chain.cache[@hash], 'expected in cache')
+                    THIS.node[@i] = prv
+                ]];
+                $outer.tcp.buffer = $outer.tcp.buffer - HASH_BYTES;
+
+                var[] byte str = [] .. [[ FC.tostring(THIS.node[@i].hash) ]] .. [0];
+                _dbg_tcp(3, &&outer.tcp.handle, "server", "=> NODE_HASH[%d] : %s", i, &&str[0]);
+            end
+
+            // => TIMESTAMP + NONCE
+            do
+                await UV_Stream_Read_N(&outer.tcp, 2*sizeof(u64));
+                var u64 timestamp = GET_BE64TOH(outer.tcp.buffer,0);
+                $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
+                var u64 nonce = GET_BE64TOH(outer.tcp.buffer,0);
+                $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
+                [[
+                    THIS.node.timestamp = @timestamp
+                    THIS.node.nonce     = @nonce
+                ]]
+            end
+
+            // => PUB
+            do
+                // => PUB_HASH?
+                await UV_Stream_Read_N(&outer.tcp, HASH_BYTES);
+                var[HASH_BYTES] byte pub_hash;
+                _ceu_vector_copy(&&pub_hash,0, &&outer.tcp.buffer,0, HASH_BYTES);
+                [[
+                    pub_hash = @pub_hash
+                    cache = THIS.chain.up.pubs[pub_hash]
+                    THIS.node.pub = cache or {
+                        hash      = pub_hash,
+                        chain     = THIS.node.chain,
+                        timestamp = nil,
+                        nonce     = nil,
+                        payload   = nil,
+                    }
+                ]]
+
+                // <= PUB_HASH_ACK!
+                var bool has_pub = [[ cache~=nil ]];
+                if has_pub then
+                    outer.tcp.buffer = [1];
+                    await UV_Stream_Write_N(&outer.tcp,_);
+                    continue;
+                else
+                    outer.tcp.buffer = [0];
+                    await UV_Stream_Write_N(&outer.tcp,_);
+                end
+            end
+
+            // => TIMESTAMP + NONCE
+            do
+                await UV_Stream_Read_N(&outer.tcp, 2*sizeof(u64));
+                var u64 timestamp = GET_BE64TOH(outer.tcp.buffer,0);
+                $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
+                var u64 nonce = GET_BE64TOH(outer.tcp.buffer,0);
+                $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
+                [[
+                    THIS.node.pub.timestamp = @timestamp
+                    THIS.node.pub.nonce     = @nonce
+                ]]
+            end
+
+            // <= LEN
+            // <= PAYLOAD
+            do
+                await UV_Stream_Read_N(&outer.tcp, sizeof(u32));
+                var u32 len = GET_BE32TOH(outer.tcp.buffer,0);
+                $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u32);
+
+                await UV_Stream_Read_N(&outer.tcp, len as usize);
+                var[len] byte payload;
+                _ceu_vector_copy(&&payload,0, &&outer.tcp.buffer,0, len);
+                $outer.tcp.buffer = $outer.tcp.buffer - (len as usize);
+
+                [[
+                    THIS.node.pub.payload = @payload
+                    ARGS = { pub=THIS.node.pub }
+                ]]
+                await Publication_Check();
+            end
+
+            [[ ARGS = { node=THIS.node } ]]
+            await Node_Check();
+            [[
+                FC.head_new(THIS.node)
+            ]];
             [[ ARGS = { chain=THIS.chain } ]];
-            emit shared.chain_has_changed;
+            emit outer.shared.chain_has_changed;
         end
     end
 
-    [[ ARGS = THIS ]]
-    escape {MESSAGE10_OK};
+    loop do
+        await UV_Stream_Read_N(&tcp, 1);
+        var int has = tcp.buffer[0];
+        $tcp.buffer = $tcp.buffer - 1;
+        if has == 0 then
+            break;
+        end
 
+        // => HASH
+
+        await UV_Stream_Read_N(&tcp, HASH_BYTES);
+        var[HASH_BYTES] byte hash;
+        _ceu_vector_copy(&&hash,0, &&tcp.buffer,0, HASH_BYTES);
+        [[
+            THIS.hash = @hash;
+        ]];
+        $tcp.buffer = $tcp.buffer - HASH_BYTES;
+
+        var bool has = [[ THIS.chain.cache[THIS.hash] ]];
+        if has then
+            tcp.buffer = [1];
+            await UV_Stream_Write_N(&tcp,_);
+            await Go();
+        else
+            tcp.buffer = [0];
+            await UV_Stream_Write_N(&tcp,_);
+        end
+    end
 end
 
 #endif

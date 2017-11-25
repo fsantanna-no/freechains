@@ -1,7 +1,7 @@
 #ifndef _CLIENT_CEU
 #define _CLIENT_CEU
 
-code/await Send_10 (var& UV_Stream tcp) -> none
+code/await Send_10_Header (var& UV_Stream tcp) -> none
     // [[ ARGS = { chain={...} } ]]
     throws Exception.Uv, Exception.Freechains.Malformed
 do
@@ -28,16 +28,24 @@ do
         tcp.buffer = tcp.buffer .. [key_len as byte] .. key_str .. [zeros as byte];
         await UV_Stream_Write_N(&tcp,_);
     end
+end
 
+code/await Send_10_Nodes (var& UV_Stream tcp) -> none
+    // [[ ARGS = { chain={...} } ]]
+    throws Exception.Uv, Exception.Freechains.Malformed
+do
     ///////////////////////////////////////////////////////////////////////////
-    // BLOCKS
+    // NODES
     ///////////////////////////////////////////////////////////////////////////
 
-    // TODO: PoS: before/after each block? once per block?
+    // TODO: PoS: before/after each node? once per node?
     [[
-        THIS.toask = { }
-        THIS.asked = { }
-        THIS.togo  = { }
+        THIS = {
+            chain = ARGS.chain,
+            toask = {},
+            asked = {},
+            togo  = {},
+        }
         FC.children(THIS.toask, THIS.chain.head)
     ]]
 
@@ -71,10 +79,10 @@ do
             end
 
             // <= n
-            // <= BLOCK_HASH
-            // <= BLOCK[1].hash
+            // <= NODE_HASH
+            // <= NODE[1].hash
             // <= ...
-            // <= BLOCK[n].hash
+            // <= NODE[n].hash
             // <= TIMESTAMP + NONCE
             // <= PUB
             // <=   PUB_HASH?
@@ -89,18 +97,18 @@ do
             _ceu_assert(n <= 255, "too many children");
 
             // <= n
-            // <= BLOCK_HASH
+            // <= NODE_HASH
             var[] byte str = [] .. [[ FC.tostring(THIS.cur.hash) ]] .. [0];
-            _dbg_tcp(3, &&outer.tcp.handle, "client", "<= BLOCK_HASH : %s", &&str[0]);
+            _dbg_tcp(3, &&outer.tcp.handle, "client", "<= NODE_HASH : %s", &&str[0]);
             outer.tcp.buffer = [n] .. [[ THIS.cur.hash ]];
 
-            // <= BLOCK[1].hash
+            // <= NODE[1].hash
             // <= ...
-            // <= BLOCK[n].hash
+            // <= NODE[n].hash
             var int i;
             loop i in [1 -> n] do
                 var[] byte str = [] .. [[ FC.tostring(THIS.cur[1].hash) ]] .. [0];
-                _dbg_tcp(3, &&outer.tcp.handle, "client", "<= BLOCK_HASH[%d] : %s", i, &&str[0]);
+                _dbg_tcp(3, &&outer.tcp.handle, "client", "<= NODE_HASH[%d] : %s", i, &&str[0]);
                 outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.cur[@i].hash ]];
             end
 
@@ -124,7 +132,7 @@ do
                 await UV_Stream_Read_N(&outer.tcp, 1);
                 var int ret = outer.tcp.buffer[0];
                 $outer.tcp.buffer = $outer.tcp.buffer - 1;
-                if ret == {MESSAGE10_HAVE} then
+                if ret == 1 then
                     continue;
                 end
 
@@ -167,10 +175,7 @@ do
         await UV_Stream_Read_N(&tcp, 1);
         var byte ret = tcp.buffer[0];
         $tcp.buffer = $tcp.buffer - 1;
-        if ret == {MESSAGE10_HAVE} then
-            [[ ARGS = { togo=THIS.togo } ]];
-            await Go();
-        else/if ret == {MESSAGE10_OK} then
+        if ret == 0 then
             [[
                 THIS.togo[#THIS.togo+1] = THIS.cur
                 THIS.togo[THIS.cur] = 1
@@ -180,11 +185,9 @@ do
                     end
                 end
             ]]
-        else/if ret == {MESSAGE10_NOTSUB} then
-            escape;     // possible in the first ACK
         else
-            var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
-            throw e;
+            [[ ARGS = { togo=THIS.togo } ]];
+            await Go();
         end
     end
 end
@@ -198,11 +201,6 @@ do
             chain = ARGS.chain,
         }
     ]];
-
-{CLIENTS_ALIVE++;}
-do finalize with
-    {CLIENTS_ALIVE--;}
-end
 
     var[] byte ip   = [] .. [[ THIS.peer.address ]] .. [0];
     var   int  port = [[ THIS.peer.port ]];
@@ -220,14 +218,14 @@ end
         await c.ok;
         _dbg(2, "client:%p | connected to %s:%d", {&_ceu_mem}, &&ip[0], port);
 
-        [[ ARGS = THIS ]]
+        [[ ARGS = { chain=THIS.chain } ]]
+        await Send_10_Header(&c.stream);
 
-        await Send_10(&c.stream);
-#ifndef NO_PIGGYBACK
-        await UV_Stream_Read_N(&c.stream, MESSAGE_BYTES);
-        $c.stream.buffer = $c.stream.buffer - MESSAGE_BYTES;
-        await Recv_10(&shared, &c.stream);
-#endif
+        [[ ARGS = { chain=THIS.chain } ]]
+        await Send_10_Nodes(&c.stream);
+
+        [[ ARGS = { chain=THIS.chain } ]]
+        await Recv_10_Nodes(&shared, &c.stream);
     end
     if e1? then
         _dbg(3, "client:%p | %s", {&_ceu_mem}, e1!.message);
@@ -299,7 +297,7 @@ do
                 timestamp = ARGS.message.timestamp or now,
                 nonce     = ARGS.message.nonce or 0,
                 payload   = ARGS.message.payload,
-                removal   = ARGS.message.removal and assert(FC.chain_block_get(chain, ARGS.message.removal)),
+                removal   = ARGS.message.removal and assert(FC.chain_node_get(chain, ARGS.message.removal)),
                 hash      = nil,
             },
         }
@@ -315,31 +313,31 @@ do
         [[ ARGS = { chain=THIS.pub.chain } ]]
         CHAIN_LOCK(l, shared, "lock_write");
         [[
-            THIS.block = {
+            THIS.node = {
                 chain     = FC.chains[''][0],
                 timestamp = THIS.now,
                 nonce     = 0,
                 pub       = THIS.pub,
             }
-            FC.children(THIS.block, FC.chains[''][0].head)
+            FC.children(THIS.node, FC.chains[''][0].head)
 
             ARGS = THIS
         ]]
-        await Block_Hash();
+        await Node_Hash();
         [[
-            FC.head_new(THIS.block)
+            FC.head_new(THIS.node)
         ]]
     end
     par/and do
         loop do
             await shared.chain_has_been_transmitted;
-            var bool same = [[ ARGS.chain == THIS.block.chain ]];
+            var bool same = [[ ARGS.chain == THIS.node.chain ]];
             if same then
                 break;
             end
         end
     with
-        [[ ARGS = { chain=THIS.block.chain } ]];
+        [[ ARGS = { chain=THIS.node.chain } ]];
         emit shared.chain_has_changed;
     end
 end

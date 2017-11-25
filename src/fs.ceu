@@ -162,7 +162,7 @@ do
     end
 
     [[ ARGS={block=THIS.block} ]];
-    await Block_Check();
+    await Node_Check();
 
     [[
         ARGS = {

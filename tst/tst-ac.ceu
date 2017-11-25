@@ -73,44 +73,44 @@ end
 // BLOCK //
 
 [[
-    THIS.block = {
+    THIS.node = {
         chain     = FC.chains[''][0],
         timestamp = 0,
         nonce     = 0,
         pub       = THIS.pub,
     }
-    FC.children(THIS.block, FC.chains[''][0].head)
+    FC.children(THIS.node, FC.chains[''][0].head)
     ARGS = THIS
 ]]
-await Block_Hash();
+await Node_Hash();
 [[
-    FC.head_new(THIS.block)
-    --print('>>>', THIS.block.timestamp, THIS.block.nonce, FC.tostring(THIS.block.hash,true))
-    assert(THIS.block.hash == '\x5C\xC2\x3B\x48\x4D\xB2\xDA\xC8\xC5\xED\x28\x93\xBA\xFE\xB0\x64\xCC\x63\xA9\x57\xBC\x5A\x63\xB6\xEC\x2A\xE7\x93\xBB\x05\x71\xF7')
-    assert(THIS.block.timestamp == 0)
-    assert(THIS.block.nonce == 0)
-    assert(THIS.block.chain.head[THIS.block.hash])
+    FC.head_new(THIS.node)
+    --print('>>>', THIS.node.timestamp, THIS.node.nonce, FC.tostring(THIS.node.hash,true))
+    assert(THIS.node.hash == '\x5C\xC2\x3B\x48\x4D\xB2\xDA\xC8\xC5\xED\x28\x93\xBA\xFE\xB0\x64\xCC\x63\xA9\x57\xBC\x5A\x63\xB6\xEC\x2A\xE7\x93\xBB\x05\x71\xF7')
+    assert(THIS.node.timestamp == 0)
+    assert(THIS.node.nonce == 0)
+    assert(THIS.node.chain.head[THIS.node.hash])
 ]]
 
 do
     [[
-        prv = THIS.block[1]
-        THIS.block[1] = THIS.block
+        prv = THIS.node[1]
+        THIS.node[1] = THIS.node
     ]]
     var Exception.Freechains.Malformed? e;
     catch e do
         [[ ARGS = THIS ]]
-        await Block_Check();
+        await Node_Check();
     end
     _ceu_assert(e?, "bug found");
 
     [[
-        THIS.block[1] = prv
+        THIS.node[1] = prv
     ]]
     var Exception.Freechains.Malformed? f;
     catch f do
         [[ ARGS = THIS ]]
-        await Block_Check();
+        await Node_Check();
     end
     _ceu_assert(not f?, "bug found");
 end
@@ -155,23 +155,23 @@ loop i in [1 -> ms] do
     ]]
     await Publication_New();
     [[
-        THIS.block = {
+        THIS.node = {
             chain     = FC.chains[''][0],
             timestamp = 0,
             nonce     = 0,
             pub       = THIS.pub,
         }
-        FC.children(THIS.block, FC.chains[''][0].head)
+        FC.children(THIS.node, FC.chains[''][0].head)
         ARGS = THIS
     ]]
-    await Block_Hash();
+    await Node_Hash();
     [[
-        FC.head_new(THIS.block)
+        FC.head_new(THIS.node)
     ]]
 end
 
 [[
-    head = FC.chains[''][0].head[THIS.block.hash]
+    head = FC.chains[''][0].head[THIS.node.hash]
     assert(head.pub.payload == '333')
     assert(head[1].pub.payload == '222')
     assert(head[1][1].pub.payload == '111')
@@ -218,7 +218,7 @@ end
 
 [[
     THIS = {
-        block = nil,
+        node = nil,
     }
 ]]
 
@@ -238,23 +238,23 @@ loop i in [1 -> ms] do
     ]]
     await Publication_New();
     [[
-        old = THIS.block
-        THIS.block = {
-            chain     = (THIS.block or GENESIS).chain,
+        old = THIS.node
+        THIS.node = {
+            chain     = (THIS.node or GENESIS).chain,
             timestamp = 0,
             nonce     = 0,
             pub       = THIS.pub,
         }
         if old then
-            FC.children(THIS.block, { [old.hash]=old })
+            FC.children(THIS.node, { [old.hash]=old })
         else
-            FC.children(THIS.block, { [GENESIS.hash]=GENESIS })
+            FC.children(THIS.node, { [GENESIS.hash]=GENESIS })
         end
         ARGS = THIS
     ]]
-    await Block_Hash();
+    await Node_Hash();
     [[
-        FC.head_new(THIS.block)
+        FC.head_new(THIS.node)
     ]]
 end
 
@@ -321,29 +321,29 @@ loop i in [1 -> ms] do
     ]]
     await Publication_New();
     [[
-        old = THIS.block
-        THIS.block = {
-            chain     = THIS.block.chain,
+        old = THIS.node
+        THIS.node = {
+            chain     = THIS.node.chain,
             timestamp = 0,
             nonce     = 0,
             pub       = THIS.pub,
         }
         if old then
-            FC.children(THIS.block, { [old.hash]=old })
+            FC.children(THIS.node, { [old.hash]=old })
         else
-            FC.children(THIS.block, { [GENESIS.hash]=GENESIS })
+            FC.children(THIS.node, { [GENESIS.hash]=GENESIS })
         end
         ARGS = THIS
     ]]
-    await Block_Hash();
+    await Node_Hash();
     [[
-        FC.head_new(THIS.block)
+        FC.head_new(THIS.node)
     ]]
 end
 
 [[
     FC.dot( FC.chains[''][0].head, '/tmp/tst-ac-02.dot' )
-    --FC.dot( THIS.block, '/tmp/tst-ac-02.dot' )
+    --FC.dot( THIS.node, '/tmp/tst-ac-02.dot' )
 
     local tst = assert(io.open('tst/dots/tst-ac-02.dot')):read'*a'
     local tmp = assert(io.open('/tmp/tst-ac-02.dot')):read'*a'

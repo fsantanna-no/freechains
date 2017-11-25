@@ -16,10 +16,6 @@ do
             _printf("EXCEPTION %s\n", e!.message);
             emit shared.err_server(msg, e! as int);
         else
-            if ret != {MESSAGE10_OK} then
-                //[[ print('ERR', @ret) ]]
-                [[ FC.errs[#FC.errs+1] = @ret ]];
-            end
             [[ ARGS = { chain = THIS and THIS.chain } ]];
             emit shared.ok_server(msg, ret);
         end
@@ -33,7 +29,8 @@ do
             else
                 await (timeout)s;
             end
-            emit shared.err_server(msg, {MESSAGE10_TIMEOUT});
+            var Exception.Freechains.Timeout e_ = val Exception.Freechains.Timeout(_);
+            throw e_;
         with
             // => MESSAGE
             await UV_Stream_Read_N(&tcp, MESSAGE_BYTES);
@@ -52,62 +49,15 @@ do
             if ok then
                 if msg=={MESSAGE10} then
                     _dbg(3, "server | MESSAGE 10");
-                    do (tcp)
-                        var int out;
-                        out = do/out
-                            var int ret = await Recv_10(&outer.shared, &tcp);
-                            [[ THIS = {chain=ARGS.chain} ]];
-                            escape/out ret;
-                            // output: { ARGS={chain={...}} }
-                        end;
+                    do ()
+                        await Recv_10_Header(&outer.tcp);
+                        [[ THIS = { chain=ARGS.chain } ]];
 
-                        if out == {MESSAGE10_OK} then
-                            // broadcast new received head
-                            //await Client_10(&outer.shared);
-                        else/if out == {MESSAGE10_HAVE} then
-                            var bool me_greater = [[ ARGS.me_greater ]];
-                            var u16  port       = [[ (ARGS.me_greater and ARGS.port) or 0 ]];
-                            if me_greater and port!=0 then
-                                // send old head to out-of-date peer
-                                [[ ARGS = { chain=THIS.chain } ]]
-#if 0
-                                // TODO: should send only to peer, but don't know his server port
-                                await Client_10(&outer.shared);
-#else
-                                //CHAIN_LOCK(l, outer.shared, "lock_send");
-#if 0 // NEED-PUBLIC
-                                {
-                                    struct sockaddr_in name;
-                                    int namelen = sizeof(name);
-                                    ceu_assert(uv_tcp_getpeername((uv_tcp_t*)(@&&tcp.handle), (struct sockaddr*) &name, &namelen) == 0, "bug found: uv_tcp_getpeername");
-                                    char addr[16];
-                                    uv_inet_ntop(AF_INET, &name.sin_addr, addr, sizeof(addr));
-                                    //int port = ntohs(name.sin_port);
-                                }
-                                var[16] byte addr = []..({addr} as _char&&);
-                                $addr = $addr - 1;
-                                //var int port = {port};
-                                [[
-                                    ARGS = {
-                                        chain = THIS.chain,
-                                        peer  = {
-                                            address = @addr,
-                                            port    = @port,
-                                        },
-                                    }
-                                ]]
-                                await Peer_10(&outer.shared);
-#else
-#ifndef NO_PIGGYBACK
-                                [[ ARGS = { chain = THIS.chain } ]]
-                                await Send_10(&tcp);
-#endif
-#endif
-#endif
-                            end
-                        end
+                        [[ ARGS = { chain=THIS.chain } ]];
+                        await Recv_10_Nodes(&outer.shared, &outer.tcp);
 
-                        outer.ret = out;
+                        [[ ARGS = { chain=THIS.chain } ]];
+                        await Send_10_Nodes(&outer.tcp);
                     end
                 else/if msg=={MESSAGE20} then
                     _dbg(3, "server | MESSAGE 20");
