@@ -151,6 +151,7 @@ end
         await shared.chain_has_changed;                 \
     end
 
+#if 0
 #define CHAIN_LOCK(var_id,shared,lock_id)                       \
     [[ assert(ARGS and ARGS.chain) ]];                          \
     var& Chain_Lock var_id = spawn Chain_Lock(&shared,lock_id); \
@@ -192,6 +193,7 @@ do
     emit ok;
     await FOREVER;
 end
+#endif
 
 code/await Publication_New (none) -> none
     // input:  [[ ARGS={pub={TODO}} ]]

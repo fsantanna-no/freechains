@@ -120,7 +120,7 @@ do
     ]]
     do
         [[ ARGS = { chain=THIS.pub.chain } ]]
-        CHAIN_LOCK(l, shared, "lock_write");
+        //CHAIN_LOCK(l, shared, "lock_write");
         [[
             THIS.node = {
                 chain     = FC.chains[''][0],
