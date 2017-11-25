@@ -115,7 +115,7 @@ end
     local tst   = assert(io.open('tst/dots/tst-ae.dot')):read'*a'
     local tmp00 = assert(io.open('/tmp/tst-ae-00.dot')):read'*a'
     local tmp01 = assert(io.open('/tmp/tst-ae-01.dot')):read'*a'
-    assert(tst == tmp)
+    assert(tst==tmp00 and tst==tmp01)
 
     print'OK!'
 ]]
