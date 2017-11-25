@@ -218,4 +218,197 @@ do
     end
 end
 
+///////////////////////////////////////////////////////////////////////////////
+
+code/await Send_10_Header (var& UV_Stream tcp) -> none
+    // [[ ARGS = { chain={...} } ]]
+    throws Exception.Uv, Exception.Freechains.Malformed
+do
+    [[
+        THIS = {
+            chain = ARGS.chain,
+        }
+    ]]
+
+    ///////////////////////////////////////////////////////////////////////////
+    // HEADER
+    ///////////////////////////////////////////////////////////////////////////
+
+    // <= MESSAGE
+    // <= CHAIN_KEY_LEN
+    // <= CHAIN_KEY_STR
+    // <= CHAIN_ZEROS
+    do
+        tcp.buffer = [MESSAGE_MAGIC_0, MESSAGE_MAGIC_1, 0x01, 0x00];
+        var u8     key_len = [[ string.len(THIS.chain.key) ]];
+        var[] byte key_str = [] .. [[ THIS.chain.key ]];
+        var u8     zeros   = [[ THIS.chain.zeros ]];
+        _ceu_assert(key_len<CHAIN_KEY_BYTES, "bug found");
+        tcp.buffer = tcp.buffer .. [key_len as byte] .. key_str .. [zeros as byte];
+        await UV_Stream_Write_N(&tcp,_);
+    end
+end
+
+code/await Send_10_Nodes (var& UV_Stream tcp) -> none
+    // [[ ARGS = { chain={...} } ]]
+    throws Exception.Uv, Exception.Freechains.Malformed
+do
+    ///////////////////////////////////////////////////////////////////////////
+    // NODES
+    ///////////////////////////////////////////////////////////////////////////
+
+    // TODO: PoS: before/after each node? once per node?
+    [[
+        THIS = {
+            chain = ARGS.chain,
+            toask = {},
+            asked = {},
+            togo  = {},
+        }
+        FC.children(THIS.toask, THIS.chain.head)
+    ]]
+
+    code/await Go (none) -> none
+        throws Exception.Uv
+    do
+        [[ THIS = { togo=ARGS.togo } ]];
+        loop do
+            [[
+                THIS.cur = THIS.togo[#THIS.togo]
+            ]]
+            var bool has = [[ THIS.cur~=nil ]];
+            if not has then
+                outer.tcp.buffer = [0];
+                await UV_Stream_Write_N(&outer.tcp,_);
+                escape;
+            end
+
+            var bool is_ready = [[ #THIS.cur == THIS.togo[THIS.cur] ]];
+            if is_ready then
+                [[
+                    table.remove(THIS.togo)
+                ]]
+            else
+                [[
+                    THIS.togo[THIS.cur] = THIS.togo[THIS.cur] + 1
+                ]]
+                outer.tcp.buffer = [0];
+                await UV_Stream_Write_N(&outer.tcp,_);
+                escape;
+            end
+
+            // <= n
+            // <= NODE_HASH
+            // <= NODE[1].hash
+            // <= ...
+            // <= NODE[n].hash
+            // <= TIMESTAMP + NONCE
+            // <= PUB
+            // <=   PUB_HASH?
+            // =>   PUB_HASH ACK!
+            // <=   TIMESTAMP + NONCE
+            // <=   LEN
+            // <=   PAYLOAD
+            // <= REMOVED
+            // <=   TODO
+
+            var int n = [[ #THIS.cur ]];
+            _ceu_assert(n <= 255, "too many children");
+
+            // <= n
+            // <= NODE_HASH
+            var[] byte str = [] .. [[ FC.tostring(THIS.cur.hash) ]] .. [0];
+            _dbg_tcp(3, &&outer.tcp.handle, "client", "<= NODE_HASH : %s", &&str[0]);
+            outer.tcp.buffer = [n] .. [[ THIS.cur.hash ]];
+
+            // <= NODE[1].hash
+            // <= ...
+            // <= NODE[n].hash
+            var int i;
+            loop i in [1 -> n] do
+                var[] byte str = [] .. [[ FC.tostring(THIS.cur[1].hash) ]] .. [0];
+                _dbg_tcp(3, &&outer.tcp.handle, "client", "<= NODE_HASH[%d] : %s", i, &&str[0]);
+                outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.cur[@i].hash ]];
+            end
+
+            // <= TIMESTAMP + NONCE
+            do
+                var usize offset = $outer.tcp.buffer;
+                outer.tcp.buffer = outer.tcp.buffer..[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+                var u64 timestamp = [[ THIS.cur.timestamp ]];
+                var u64 nonce     = [[ THIS.cur.nonce     ]];
+                PUT_HTOBE64(outer.tcp.buffer, offset, timestamp);
+                PUT_HTOBE64(outer.tcp.buffer, offset+sizeof(u64), nonce);
+            end
+
+            // <= PUB
+            do
+                // <= PUB_HASH?
+                outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.cur.pub.hash ]];
+                await UV_Stream_Write_N(&outer.tcp,_);
+
+                // => PUB_HASH_ACK!
+                await UV_Stream_Read_N(&outer.tcp, 1);
+                var int ret = outer.tcp.buffer[0];
+                $outer.tcp.buffer = $outer.tcp.buffer - 1;
+                if ret == 1 then
+                    continue;
+                end
+
+                // <= PUB: TIMESTAMP+NONCE+LEN+PAYLOAD
+                do
+                    outer.tcp.buffer = [] .. [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+                                          .. [0,0,0,0]
+                                          .. [[ THIS.cur.pub.payload ]];
+
+                    var u64 timestamp   = [[ THIS.cur.pub.timestamp           ]];
+                    var u64 nonce       = [[ THIS.cur.pub.nonce               ]];
+                    var u32 payload_len = [[ string.len(THIS.cur.pub.payload) ]];
+                    PUT_HTOBE64(outer.tcp.buffer, 0, timestamp);
+                    PUT_HTOBE64(outer.tcp.buffer, sizeof(u64), nonce);
+                    PUT_HTOBE32(outer.tcp.buffer, 2*sizeof(u64), payload_len);
+                    await UV_Stream_Write_N(&outer.tcp,_);
+                end
+            end
+        end
+    end
+
+    loop do
+        var bool has_ask = [[ #THIS.toask > 0 ]];
+        if not has_ask then
+            tcp.buffer = [0];
+            await UV_Stream_Write_N(&tcp,_);
+            break;
+        end
+
+        [[
+            THIS.cur = table.remove(THIS.toask)
+            THIS.asked[THIS.cur] = true
+        ]]
+
+        // <= HASH
+        tcp.buffer = [1] .. [[ THIS.cur.hash ]];
+        await UV_Stream_Write_N(&tcp,_);
+
+        // => ACK-HASH
+        await UV_Stream_Read_N(&tcp, 1);
+        var byte ret = tcp.buffer[0];
+        $tcp.buffer = $tcp.buffer - 1;
+        if ret == 0 then
+            [[
+                THIS.togo[#THIS.togo+1] = THIS.cur
+                THIS.togo[THIS.cur] = 1
+                for _, a in ipairs(THIS.cur) do
+                    if not THIS.asked[a] then
+                        THIS.toask[#THIS.toask+1] = a
+                    end
+                end
+            ]]
+        else
+            [[ ARGS = { togo=THIS.togo } ]];
+            await Go();
+        end
+    end
+end
+
 #endif
