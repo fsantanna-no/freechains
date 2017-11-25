@@ -1,0 +1,35 @@
+    digraph graphname {
+        //rankdir=LR;  // Rank Direction Left to Right
+
+        nodesep=1.0 // increases the separation between nodes
+        edge [];
+        //splines = true;
+
+        n_9[label="99 4C A2 08/0"];
+n_8[label="aaa/1"];
+n_7[label="bbb/2"];
+n_6[label="ccc/3"];
+n_5[label="ddd/4"];
+n_4[label="eee/5"];
+n_3[label="fff/6"];
+n_2[label="ggg/7"];
+n_1[label="hhh/8"];
+n_12[label="111/1"];
+n_11[label="222/2"];
+n_10[label="333/3"];
+n_0[label="head/0"];
+        n_8 -> n_9
+n_7 -> n_8
+n_6 -> n_7
+n_5 -> n_6
+n_4 -> n_5
+n_3 -> n_4
+n_2 -> n_3
+n_1 -> n_2
+n_0 -> n_1
+n_12 -> n_9
+n_11 -> n_12
+n_10 -> n_11
+n_0 -> n_10
+    }
+    

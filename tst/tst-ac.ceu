@@ -15,7 +15,8 @@
         id    = id,
         up    = FC.chains[key],
         cfg   = nil,
-        head  = nil,
+        head  = {},
+        n     = 0,
     }
     FC.chains[key][zeros] = new
 ]]
@@ -26,8 +27,8 @@ do
     var[] byte chain_id = [] .. [[ FC.chains[''][0].id ]];
     _crypto_generichash(&&chain_hash[0],HASH_BYTES, &&chain_id[0],$chain_id, null,0);
     [[
-        FC.chains[''][0].head = FC.node{ chain=FC.chains[''][0], hash=@chain_hash }
-        GENESIS = FC.chains[''][0].head
+        GENESIS = FC.node{ chain=FC.chains[''][0], hash=@chain_hash }
+        FC.head_new(GENESIS)
     ]]
 end
 
@@ -72,23 +73,23 @@ end
 // BLOCK //
 
 [[
-    FC.chains[''][0].head = {
-        FC.chains[''][0].head,
+    THIS.block = {
         chain     = FC.chains[''][0],
         timestamp = 0,
         nonce     = 0,
         pub       = THIS.pub,
     }
-    THIS.block = FC.chains[''][0].head
+    FC.children(THIS.block, FC.chains[''][0].head)
     ARGS = THIS
 ]]
 await Block_Hash();
 [[
+    FC.head_new(THIS.block)
     --print('>>>', THIS.block.timestamp, THIS.block.nonce, FC.tostring(THIS.block.hash,true))
     assert(THIS.block.hash == '\x5C\xC2\x3B\x48\x4D\xB2\xDA\xC8\xC5\xED\x28\x93\xBA\xFE\xB0\x64\xCC\x63\xA9\x57\xBC\x5A\x63\xB6\xEC\x2A\xE7\x93\xBB\x05\x71\xF7')
     assert(THIS.block.timestamp == 0)
     assert(THIS.block.nonce == 0)
-    assert(THIS.block.chain.head == THIS.block)
+    assert(THIS.block.chain.head[THIS.block.hash])
 ]]
 
 do
@@ -154,21 +155,23 @@ loop i in [1 -> ms] do
     ]]
     await Publication_New();
     [[
-        FC.chains[''][0].head = {
-            FC.chains[''][0].head,
+        THIS.block = {
             chain     = FC.chains[''][0],
             timestamp = 0,
             nonce     = 0,
             pub       = THIS.pub,
         }
-        THIS.block = FC.chains[''][0].head
+        FC.children(THIS.block, FC.chains[''][0].head)
         ARGS = THIS
     ]]
     await Block_Hash();
+    [[
+        FC.head_new(THIS.block)
+    ]]
 end
 
 [[
-    head = FC.chains[''][0].head
+    head = FC.chains[''][0].head[THIS.block.hash]
     assert(head.pub.payload == '333')
     assert(head[1].pub.payload == '222')
     assert(head[1][1].pub.payload == '111')
@@ -235,28 +238,31 @@ loop i in [1 -> ms] do
     ]]
     await Publication_New();
     [[
+        old = THIS.block
         THIS.block = {
-            THIS.block or GENESIS,
             chain     = (THIS.block or GENESIS).chain,
             timestamp = 0,
             nonce     = 0,
             pub       = THIS.pub,
         }
+        if old then
+            FC.children(THIS.block, { [old.hash]=old })
+        else
+            FC.children(THIS.block, { [GENESIS.hash]=GENESIS })
+        end
         ARGS = THIS
     ]]
     await Block_Hash();
+    [[
+        FC.head_new(THIS.block)
+    ]]
 end
 
 [[
-    FC.chains[''][0].head = FC.node {
-        FC.chains[''][0].head, THIS.block,
-        chain = THIS.block.chain,
-        hash  = 'xxx',
-    }
     FC.dot( FC.chains[''][0].head, '/tmp/tst-ac-01.dot' )
 
-    local tst = assert(io.open('tst/tst-ac-01.dot')):read'*a'                  
-    local tmp = assert(io.open('/tmp/tst-ac-01.dot')):read'*a' 
+    local tst = assert(io.open('tst/dots/tst-ac-01.dot')):read'*a'
+    local tmp = assert(io.open('/tmp/tst-ac-01.dot')):read'*a'
     assert(tst == tmp)
 ]]
 
@@ -315,29 +321,32 @@ loop i in [1 -> ms] do
     ]]
     await Publication_New();
     [[
+        old = THIS.block
         THIS.block = {
-            THIS.block,
             chain     = THIS.block.chain,
             timestamp = 0,
             nonce     = 0,
             pub       = THIS.pub,
         }
+        if old then
+            FC.children(THIS.block, { [old.hash]=old })
+        else
+            FC.children(THIS.block, { [GENESIS.hash]=GENESIS })
+        end
         ARGS = THIS
     ]]
     await Block_Hash();
+    [[
+        FC.head_new(THIS.block)
+    ]]
 end
 
 [[
-    FC.chains[''][0].head = FC.node {
-        FC.chains[''][0].head, THIS.block,
-        chain = THIS.block.chain,
-        hash  = 'yyy',
-    }
     FC.dot( FC.chains[''][0].head, '/tmp/tst-ac-02.dot' )
     --FC.dot( THIS.block, '/tmp/tst-ac-02.dot' )
 
-    local tst = assert(io.open('tst/tst-ac-02.dot')):read'*a'                  
-    local tmp = assert(io.open('/tmp/tst-ac-02.dot')):read'*a' 
+    local tst = assert(io.open('tst/dots/tst-ac-02.dot')):read'*a'
+    local tmp = assert(io.open('/tmp/tst-ac-02.dot')):read'*a'
     assert(tst == tmp)
 
     print 'OK!'

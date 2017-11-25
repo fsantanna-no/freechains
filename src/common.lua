@@ -25,7 +25,7 @@ function FC.node (t)
     return t
 end
 
-function FC.head2t (t, head)
+function FC.children (t, head)
     for k,v in pairs(head) do
         t[#t+1] = v
     end
@@ -63,6 +63,7 @@ function FC.dot (A, path)
     for _,v in pairs(A) do
         head[#head+1] = v
     end
+    table.sort(head, function(a,b) return a.hash<b.hash end)
     dot_aux(head, t)
 
     local f = (path and assert(io.open(path,'w'))) or io.stdout

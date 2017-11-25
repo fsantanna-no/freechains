@@ -38,7 +38,7 @@ do
         THIS.toask = { }
         THIS.asked = { }
         THIS.togo  = { }
-        FC.head2t(THIS.toask, THIS.chain.head)
+        FC.children(THIS.toask, THIS.chain.head)
     ]]
 
     code/await Go (none) -> none
@@ -321,7 +321,7 @@ do
                 nonce     = 0,
                 pub       = THIS.pub,
             }
-            FC.head2t(THIS.block, FC.chains[''][0].head)
+            FC.children(THIS.block, FC.chains[''][0].head)
 
             ARGS = THIS
         ]]
