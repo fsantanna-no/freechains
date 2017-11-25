@@ -575,7 +575,7 @@ loop j in [zeros -> 0] do
                 end
 #endif
                 [[
-                    THIS.sub.head = FC.genesis(THIS.sub, @hash)
+                    THIS.sub.head = FC.node{ chain=THIS.sub, hash=@hash }
                 ]]
             end
 

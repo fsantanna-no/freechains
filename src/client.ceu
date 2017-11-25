@@ -69,79 +69,77 @@ do
                 escape;
             end
 
-            outer.tcp.buffer = [1];
-            await UV_Stream_Write_N(&outer.tcp,_);
-
+            // <= n
             // <= BLOCK_HASH
+            // <= BLOCK[1].hash
+            // <= ...
+            // <= BLOCK[n].hash
             // <= TIMESTAMP + NONCE
-            // <= TP: 0=join, 1=pub, 2=removed
-            // <= JOIN
-            // <=   BLOCK[1].hash
-            // <=   BLOCK[2].hash
             // <= PUB
-            // <=   BLOCK[1].hash
             // <=   PUB_HASH?
             // =>   PUB_HASH ACK!
-            // <=   PUB
-            // <=       TIMESTAMP + NONCE
-            // <=       LEN
-            // <=       PAYLOAD
+            // <=   TIMESTAMP + NONCE
+            // <=   LEN
+            // <=   PAYLOAD
             // <= REMOVED
-            // <=   BLOCK[1].hash
+            // <=   TODO
+
+            var int n = [[ #THIS.cur ]];
+            _ceu_assert(n <= 255, "too many children");
+
+            // <= n
+            // <= BLOCK_HASH
+            var[] byte str = [] .. [[ FC.tostring(THIS.cur.hash) ]] .. [0];
+            _dbg_tcp(3, &&outer.tcp.handle, "client", "<= BLOCK_HASH : %s", &&str[0]);
+            outer.tcp.buffer = [n] .. [[ THIS.cur.hash ]];
+
+            // <= BLOCK[1].hash
+            // <= ...
+            // <= BLOCK[n].hash
+            var int i;
+            loop i in [1 -> n] do
+                var[] byte str = [] .. [[ FC.tostring(THIS.cur[1].hash) ]] .. [0];
+                _dbg_tcp(3, &&outer.tcp.handle, "client", "<= BLOCK_HASH[%d] : %s", i, &&str[0]);
+                outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.cur[@i].hash ]];
+            end
+
+            // <= TIMESTAMP + NONCE
             do
-                var[] byte str = [] .. [[ FC.tostring(THIS.cur.hash) ]] .. [0];
-                _dbg_tcp(3, &&outer.tcp.handle, "client", "<= BLOCK_HASH : %s", &&str[0]);
-                outer.tcp.buffer = [] .. [[ THIS.cur.hash ]]
-                                      ..  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-                do
-                    var u64 timestamp = [[ THIS.cur.timestamp ]];
-                    var u64 nonce     = [[ THIS.cur.nonce     ]];
-                    PUT_HTOBE64(outer.tcp.buffer, HASH_BYTES, timestamp);
-                    PUT_HTOBE64(outer.tcp.buffer, HASH_BYTES+sizeof(u64), nonce);
+                var usize offset = $outer.tcp.buffer;
+                outer.tcp.buffer = outer.tcp.buffer..[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+                var u64 timestamp = [[ THIS.cur.timestamp ]];
+                var u64 nonce     = [[ THIS.cur.nonce     ]];
+                PUT_HTOBE64(outer.tcp.buffer, offset, timestamp);
+                PUT_HTOBE64(outer.tcp.buffer, offset+sizeof(u64), nonce);
+            end
+
+            // <= PUB
+            do
+                // <= PUB_HASH?
+                outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.cur.pub.hash ]];
+                await UV_Stream_Write_N(&outer.tcp,_);
+
+                // => PUB_HASH_ACK!
+                await UV_Stream_Read_N(&outer.tcp, 1);
+                var int ret = outer.tcp.buffer[0];
+                $outer.tcp.buffer = $outer.tcp.buffer - 1;
+                if ret == {MESSAGE10_HAVE} then
+                    continue;
                 end
 
-                var bool is_join = [[ THIS.cur.tp=='join' ]];
-                if is_join then
-                    outer.tcp.buffer = outer.tcp.buffer .. [ {NODE_JOIN} ];
-                    outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.cur[1].hash ]];
-                    outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.cur[2].hash ]];
-                else
-                    outer.tcp.buffer = outer.tcp.buffer .. [ {NODE_PUB} ];
+                // <= PUB: TIMESTAMP+NONCE+LEN+PAYLOAD
+                do
+                    outer.tcp.buffer = [] .. [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+                                          .. [0,0,0,0]
+                                          .. [[ THIS.cur.pub.payload ]];
 
-                    // <= BLOCK[1].hash
-                    var[] byte str = [] .. [[ FC.tostring(THIS.cur[1].hash) ]] .. [0];
-                    _dbg_tcp(3, &&outer.tcp.handle, "client", "<= BLOCK_HASH[1] : %s", &&str[0]);
-                    outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.cur[1].hash ]];
-
-                    // <= PUB
-                    do
-                        // <= PUB_HASH?
-                        outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.cur.pub.hash ]];
-                        await UV_Stream_Write_N(&outer.tcp,_);
-
-                        // => PUB_HASH_ACK!
-                        await UV_Stream_Read_N(&outer.tcp, 1);
-                        var int ret = outer.tcp.buffer[0];
-                        $outer.tcp.buffer = $outer.tcp.buffer - 1;
-                        if ret == {MESSAGE10_HAVE} then
-                            continue;
-                        end
-
-                        // <= PUB: TIMESTAMP+NONCE+LEN+PAYLOAD
-                        do
-                            outer.tcp.buffer = [] .. [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-                                                  .. [0,0,0,0]
-                                                  .. [[ THIS.cur.pub.payload ]];
-
-                            var u64 timestamp   = [[ THIS.cur.pub.timestamp           ]];
-                            var u64 nonce       = [[ THIS.cur.pub.nonce               ]];
-                            var u32 payload_len = [[ string.len(THIS.cur.pub.payload) ]];
-                            PUT_HTOBE64(outer.tcp.buffer, 0, timestamp);
-                            PUT_HTOBE64(outer.tcp.buffer, sizeof(u64), nonce);
-                            PUT_HTOBE32(outer.tcp.buffer, 2*sizeof(u64), payload_len);
-                            await UV_Stream_Write_N(&outer.tcp,_);
-                        end
-                    end
+                    var u64 timestamp   = [[ THIS.cur.pub.timestamp           ]];
+                    var u64 nonce       = [[ THIS.cur.pub.nonce               ]];
+                    var u32 payload_len = [[ string.len(THIS.cur.pub.payload) ]];
+                    PUT_HTOBE64(outer.tcp.buffer, 0, timestamp);
+                    PUT_HTOBE64(outer.tcp.buffer, sizeof(u64), nonce);
+                    PUT_HTOBE32(outer.tcp.buffer, 2*sizeof(u64), payload_len);
+                    await UV_Stream_Write_N(&outer.tcp,_);
                 end
             end
         end
@@ -316,7 +314,9 @@ do
         [[ ARGS = { chain=THIS.pub.chain } ]]
         CHAIN_LOCK(l, shared, "lock_write");
         [[
-            THIS.block = FC.pub { FC.chains[''][0].head,
+            THIS.block = {
+                FC.chains[''][0].head,
+                chain     = FC.chains[''][0],
                 timestamp = THIS.now,
                 nonce     = 0,
                 pub       = THIS.pub,

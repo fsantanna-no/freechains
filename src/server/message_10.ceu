@@ -82,10 +82,13 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
         throws Exception.Uv
     do
         loop do
+            // => n
             await UV_Stream_Read_N(&outer.tcp, 1);
-            var int ret = outer.tcp.buffer[0];
+            var int n = outer.tcp.buffer[0];
             $outer.tcp.buffer = $outer.tcp.buffer - 1;
-            if ret == 0 then
+
+            if n == 0 then
+                [[ ARGS = { block=THIS.block } ]];
                 break;
             end
 
@@ -98,7 +101,7 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
                 }
             ]];
 
-            // => HASH
+            // => BLOCK_HASH
             do
                 await UV_Stream_Read_N(&outer.tcp, HASH_BYTES);
                 var[HASH_BYTES] byte hash;
@@ -107,6 +110,27 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
                     THIS.block.hash = @hash;
                 ]];
                 $outer.tcp.buffer = $outer.tcp.buffer - HASH_BYTES;
+
+                var[] byte str = [] .. [[ FC.tostring(THIS.block.hash) ]] .. [0];
+                _dbg_tcp(3, &&outer.tcp.handle, "server", "=> BLOCK_HASH : %s", &&str[0]);
+            end
+
+            // => BLOCK[1].hash
+            // => ...
+            // => BLOCK[n].hash
+            var int i;
+            loop i in [1 -> n] do
+                await UV_Stream_Read_N(&outer.tcp, HASH_BYTES);
+                var[HASH_BYTES] byte hash;
+                _ceu_vector_copy(&&hash,0, &&outer.tcp.buffer,0, HASH_BYTES);
+                [[
+                    prv = assert(THIS.block.chain.cache[@hash], 'expected in cache')
+                    THIS.block[@i] = prv
+                ]];
+                $outer.tcp.buffer = $outer.tcp.buffer - HASH_BYTES;
+
+                var[] byte str = [] .. [[ FC.tostring(THIS.block[@i].hash) ]] .. [0];
+                _dbg_tcp(3, &&outer.tcp.handle, "server", "=> BLOCK_HASH[%d] : %s", i, &&str[0]);
             end
 
             // => TIMESTAMP + NONCE
@@ -122,102 +146,76 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
                 ]]
             end
 
-            // => TP
-            await UV_Stream_Read_N(&outer.tcp, 1);
-            var int tp = outer.tcp.buffer[0];
-            $outer.tcp.buffer = $outer.tcp.buffer - 1;
-
+            // => PUB
             do
-                var[] byte str = [] .. [[ FC.tostring(THIS.block.hash) ]] .. [0];
-                _dbg_tcp(3, &&outer.tcp.handle, "server", "=> BLOCK_HASH [%d] : %s", tp, &&str[0]);
-                //_dbg_tcp(3, &&outer.tcp.handle, "server", "=> TP/TIMESTAMP/NONCE : %d %ld %ld", tp,timestamp,nonce);
+                // => PUB_HASH?
+                await UV_Stream_Read_N(&outer.tcp, HASH_BYTES);
+                var[HASH_BYTES] byte pub_hash;
+                _ceu_vector_copy(&&pub_hash,0, &&outer.tcp.buffer,0, HASH_BYTES);
+                [[
+                    pub_hash = @pub_hash
+                    cache = THIS.chain.up.pubs[pub_hash]
+                    THIS.block.pub = cache or {
+                        hash      = pub_hash,
+                        chain     = THIS.block.chain,
+                        timestamp = nil,
+                        nonce     = nil,
+                        payload   = nil,
+                    }
+                ]]
+
+                // <= PUB_HASH_ACK!
+                var bool has_pub = [[ cache~=nil ]];
+                if has_pub then
+                    outer.tcp.buffer = [{MESSAGE10_HAVE}];
+                    await UV_Stream_Write_N(&outer.tcp,_);
+                    continue;
+                else
+                    outer.tcp.buffer = [{MESSAGE10_OK}];
+                    await UV_Stream_Write_N(&outer.tcp,_);
+                end
             end
 
-            if tp == {NODE_JOIN} then
-            else/if tp == {NODE_PUB} then
+            // => TIMESTAMP + NONCE
+            do
+                await UV_Stream_Read_N(&outer.tcp, 2*sizeof(u64));
+                var u64 timestamp = GET_BE64TOH(outer.tcp.buffer,0);
+                $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
+                var u64 nonce = GET_BE64TOH(outer.tcp.buffer,0);
+                $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
+                [[
+                    THIS.block.pub.timestamp = @timestamp
+                    THIS.block.pub.nonce     = @nonce
+                ]]
+            end
 
-                // =>   BLOCK[1].hash
-                do
-                    await UV_Stream_Read_N(&outer.tcp, HASH_BYTES);
-                    var[HASH_BYTES] byte hash;
-                    _ceu_vector_copy(&&hash,0, &&outer.tcp.buffer,0, HASH_BYTES);
-                    [[
-                        prv = assert(THIS.block.chain.cache[@hash], 'expected in cache')
-                        THIS.block[1] = assert(THIS.block.chain.cache[@hash], 'expected in cache')
-                    ]];
-                    $outer.tcp.buffer = $outer.tcp.buffer - HASH_BYTES;
-                end
+            // <= LEN
+            // <= PAYLOAD
+            do
+                await UV_Stream_Read_N(&outer.tcp, sizeof(u32));
+                var u32 len = GET_BE32TOH(outer.tcp.buffer,0);
+                $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u32);
 
-                do
-                    // => PUB_HASH?
-                    await UV_Stream_Read_N(&outer.tcp, HASH_BYTES);
-                    var[HASH_BYTES] byte pub_hash;
-                    _ceu_vector_copy(&&pub_hash,0, &&outer.tcp.buffer,0, HASH_BYTES);
-                    [[
-                        pub_hash = @pub_hash
-                        cache = THIS.chain.up.pubs[pub_hash]
-                        THIS.block.pub = cache or {
-                            hash      = pub_hash,
-                            chain     = THIS.block.chain,
-                            timestamp = nil,
-                            nonce     = nil,
-                            payload   = nil,
-                        }
-                    ]]
-
-                    // <= PUB_HASH_ACK!
-                    var bool has_pub = [[ cache~=nil ]];
-                    if has_pub then
-                        outer.tcp.buffer = [{MESSAGE10_HAVE}];
-                        await UV_Stream_Write_N(&outer.tcp,_);
-                        continue;
-                    else
-                        outer.tcp.buffer = [{MESSAGE10_OK}];
-                        await UV_Stream_Write_N(&outer.tcp,_);
-                    end
-                end
-
-                // => TIMESTAMP + NONCE
-                do
-                    await UV_Stream_Read_N(&outer.tcp, 2*sizeof(u64));
-                    var u64 timestamp = GET_BE64TOH(outer.tcp.buffer,0);
-                    $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
-                    var u64 nonce = GET_BE64TOH(outer.tcp.buffer,0);
-                    $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
-                    [[
-                        THIS.block.pub.timestamp = @timestamp
-                        THIS.block.pub.nonce     = @nonce
-                    ]]
-                end
-
-                // <= LEN
-                // <= PAYLOAD
-                do
-                    await UV_Stream_Read_N(&outer.tcp, sizeof(u32));
-                    var u32 len = GET_BE32TOH(outer.tcp.buffer,0);
-                    $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u32);
-
-                    await UV_Stream_Read_N(&outer.tcp, len as usize);
-                    var[len] byte payload;
-                    _ceu_vector_copy(&&payload,0, &&outer.tcp.buffer,0, len);
-                    $outer.tcp.buffer = $outer.tcp.buffer - (len as usize);
-
-                    [[
-                        THIS.block.pub.payload = @payload
-                        ARGS = { pub=THIS.block.pub }
-                    ]]
-                    await Publication_Check();
-                end
+                await UV_Stream_Read_N(&outer.tcp, len as usize);
+                var[len] byte payload;
+                _ceu_vector_copy(&&payload,0, &&outer.tcp.buffer,0, len);
+                $outer.tcp.buffer = $outer.tcp.buffer - (len as usize);
 
                 [[
-                    THIS.block = FC.pub(THIS.block)
-                    ARGS = { block=THIS.block }
+                    THIS.block.pub.payload = @payload
+                    ARGS = { pub=THIS.block.pub }
                 ]]
-                await Block_Check();
+                await Publication_Check();
             end
+
+            [[ ARGS = { block=THIS.block } ]]
+            await Block_Check();
         end
     end
 
+    [[
+        THIS.block = nil
+    ]]
     var int count = 0;
     loop do
         if count >= FORK_LENGTHY then
@@ -248,60 +246,28 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
             tcp.buffer = [{MESSAGE10_HAVE}];
             await UV_Stream_Write_N(&tcp,_);
             await Go();
+            [[ THIS.block = ARGS.block ]];
         else
             tcp.buffer = [{MESSAGE10_OK}];
             await UV_Stream_Write_N(&tcp,_);
         end
-
-#if 0
-        {BLOCKS_RECEIVED++;}
-
-        [[ ARGS = THIS ]]
-        await Message10_recv(&tcp);
-        var bool is_removed = [[ THIS.block.pub==true ]];
-        if not is_removed then
-            [[ ARGS = THIS ]]
-            await Block_Check();
-        end
-        [[
-            if THIS.chain.head.length <= THIS.block.length then
-                THIS.chain.head = THIS.block
-            end
-            THIS.block.prv.nxt = THIS.block
-        ]];
-#endif
     end
+
+    [[
+        if THIS.block ~= nil then
+            assert(THIS.block.chain == THIS.chain)
+            if THIS.block.chain.head.tp ~= 'genesis' then
+                THIS.block.chain.head = FC.join(THIS.block.chain.head, THIS.block)
+            else
+                THIS.block.chain.head = THIS.block
+            end
+        end
+    ]];
 
     do finalize with
         [[ ARGS = { chain=THIS.chain } ]];
         emit shared.chain_has_changed;
     end
-
-    // RECHAIN FORK
-
-    [[
-        ARGS = {
-            from = THIS.fork,
-            to   = { first=THIS.first, last=THIS.block },
-        }
-    ]]
-    await Chain_Fork();
-
-#if 0
-        [[
-            chain = FC.chain_flatten(THIS.chain.id)
-            print('===< '..@shared.port)
-            print(string.rep('<',79))
-            print(FC.tostring(chain))
-            print(string.rep('<',79))
-        ]];
-#endif
-
-    [[
-        --print('>>>', next(THIS.chain.removeds or {}))
-        assert(not next(THIS.chain.removeds or {}))
-        THIS.chain.removeds = nil
-    ]]
 end
 
 [[ ARGS = THIS ]]

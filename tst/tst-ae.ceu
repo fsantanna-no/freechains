@@ -5,9 +5,6 @@
 // 0->1
 ///////////////////////////////////////////////////////////////////////////////
 
-var[] byte chain1;
-var[] byte chain2;
-
 par/and do
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -75,13 +72,8 @@ par/and do
         await Client(&init.shared);
 
         [[
-            chain1 = FC.chain_tostring('||0|')
-            print'===> CLIENT'
-            print('>'..string.rep('=',78))
-            print(chain1)
-            print('<'..string.rep('=',78))
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-ae-00.dot' )
         ]];
-        chain1 = []..[[chain1]];
     end
 
 with
@@ -110,22 +102,16 @@ with
         ]];
 
         var& Init init = spawn Init();
-        AWAIT_CHAIN_LENGTH(init.shared, '', 0, 3);
+        AWAIT_CHAIN_LENGTH(init.shared, '', 0, 4);
 
         [[
-            chain2 = FC.chain_tostring('||0|')
-            print'===> SERVER'
-            print('>'..string.rep('=',78))
-            print(chain2)
-            print('<'..string.rep('=',78))
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-ae-01.dot' )
         ]];
-        chain2 = []..[[chain2]];
     end
 
 end
 
 [[
-    assert(@chain1 == @chain2)
     print'OK!'
 ]]
 
