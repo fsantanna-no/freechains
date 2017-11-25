@@ -210,6 +210,9 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
 
             [[ ARGS = { block=THIS.block } ]]
             await Block_Check();
+            [[
+                FC.head_new(THIS.block)
+            ]];
         end
     end
 
@@ -252,17 +255,6 @@ _ceu_assert(ret != {MESSAGE10_NOTSUB}, "NOTSUB");
             await UV_Stream_Write_N(&tcp,_);
         end
     end
-
-    [[
-        if THIS.block ~= nil then
-            assert(THIS.block.chain == THIS.chain)
-            if THIS.block.chain.head.tp ~= 'genesis' then
-                THIS.block.chain.head = FC.join(THIS.block.chain.head, THIS.block)
-            else
-                THIS.block.chain.head = THIS.block
-            end
-        end
-    ]];
 
     do finalize with
         [[ ARGS = { chain=THIS.chain } ]];

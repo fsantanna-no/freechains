@@ -25,6 +25,20 @@ function FC.node (t)
     return t
 end
 
+function FC.head2t (t, head)
+    for k,v in pairs(head) do
+        t[#t+1] = v
+    end
+end
+
+function FC.head_new (block)
+    block.chain.n = block.chain.n + 1
+    block.chain.head[block.hash] = block
+    for _,v in ipairs(block) do
+        block.chain.head[v.hash] = nil
+    end
+end
+
 local function dot_aux (A, t)
     if t.cache[A] then
         return
@@ -45,7 +59,11 @@ end
 
 function FC.dot (A, path)
     local t = { n=0, cache={}, nodes={}, conns={} }
-    dot_aux(A, t)
+    local head = { height=0, label='head' }
+    for _,v in pairs(A) do
+        head[#head+1] = v
+    end
+    dot_aux(head, t)
 
     local f = (path and assert(io.open(path,'w'))) or io.stdout
     f:write([[

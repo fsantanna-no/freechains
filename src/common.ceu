@@ -146,14 +146,14 @@ data UV_TCP_Server_Data with
 #endif
 end
 
-#define AWAIT_CHAIN_LENGTH(shared,key,zeros,len)                \
-    loop do                                                     \
-        var int len_ = [[ FC.chains[key][zeros].head.height ]]; \
-        [[ --print('>>>', FC.chains[key][zeros].head.height, @(len)) ]]; \
-        if len_ == (len) then                                   \
-            break;                                              \
-        end                                                     \
-        await shared.chain_has_changed;                         \
+#define AWAIT_CHAIN_N(shared,key,zeros,len)             \
+    loop do                                             \
+        [[ --print('>>> N', FC.chains[key][zeros].n) ]];  \
+        var int len_ = [[ FC.chains[key][zeros].n ]];   \
+        if len_ == (len) then                           \
+            break;                                      \
+        end                                             \
+        await shared.chain_has_changed;                 \
     end
 
 #define CHAIN_LOCK(var_id,shared,lock_id)                       \
@@ -553,7 +553,8 @@ loop j in [zeros -> 0] do
                         zeros = j,
                         id    = id,
                         up    = FC.chains[cfg.key],
-                        head  = nil,
+                        n     = 0,
+                        head  = {},
                     }
                     FC.chains[cfg.key][j] = THIS.sub
                 end
@@ -575,7 +576,7 @@ loop j in [zeros -> 0] do
                 end
 #endif
                 [[
-                    THIS.sub.head = FC.node{ chain=THIS.sub, hash=@hash }
+                    FC.head_new( FC.node{ chain=THIS.sub, hash=@hash } )
                 ]]
             end
 

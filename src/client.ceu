@@ -35,9 +35,10 @@ do
 
     // TODO: PoS: before/after each block? once per block?
     [[
-        THIS.toask = { THIS.chain.head }
+        THIS.toask = { }
         THIS.asked = { }
         THIS.togo  = { }
+        FC.head2t(THIS.toask, THIS.chain.head)
     ]]
 
     code/await Go (none) -> none
@@ -315,17 +316,19 @@ do
         CHAIN_LOCK(l, shared, "lock_write");
         [[
             THIS.block = {
-                FC.chains[''][0].head,
                 chain     = FC.chains[''][0],
                 timestamp = THIS.now,
                 nonce     = 0,
                 pub       = THIS.pub,
             }
-            FC.chains[''][0].head = THIS.block
+            FC.head2t(THIS.block, FC.chains[''][0].head)
 
             ARGS = THIS
         ]]
         await Block_Hash();
+        [[
+            FC.head_new(THIS.block)
+        ]]
     end
     par/and do
         loop do

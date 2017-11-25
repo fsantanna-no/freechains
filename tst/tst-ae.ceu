@@ -1,4 +1,4 @@
-//#define NO_PIGGYBACK
+#define NO_PIGGYBACK
 #include "common.ceu"
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -102,7 +102,7 @@ with
         ]];
 
         var& Init init = spawn Init();
-        AWAIT_CHAIN_LENGTH(init.shared, '', 0, 4);
+        AWAIT_CHAIN_N(init.shared, '', 0, 4);
 
         [[
             FC.dot( FC.chains[''][0].head, '/tmp/tst-ae-01.dot' )
