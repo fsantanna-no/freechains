@@ -1,11 +1,9 @@
+#define DETERMINISTIC
 #include "common.ceu"
 
 ///////////////////////////////////////////////////////////////////////////////
 // 0->1
 ///////////////////////////////////////////////////////////////////////////////
-
-var[] byte chain1;
-var[] byte chain2;
 
 par/and do
 
@@ -30,15 +28,11 @@ par/and do
             }
         ]];
         var& Init init = spawn Init();
-        AWAIT_CHAIN_LENGTH(init.shared, '', 0, 1);
+        AWAIT_CHAIN_N(init.shared, '', 0, 2);
+
         [[
-            chain2 = FC.chain_tostring('||0|')
-            print'===> SERVER'
-            print('>'..string.rep('=',78))
-            print(chain2)
-            print('<'..string.rep('=',78))
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-01-01.dot' )
         ]];
-        chain2 = []..[[chain2]];
     end
 
 with
@@ -79,20 +73,20 @@ with
             }
         ]]
         await Client(&init.shared);
+
         [[
-            chain1 = FC.chain_tostring('||0|')
-            print'===> CLIENT'
-            print('>'..string.rep('=',78))
-            print(chain1)
-            print('<'..string.rep('=',78))
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-01-00.dot' )
         ]];
-        chain1 = []..[[chain1]];
     end
 
 end
 
 [[
-    assert(@chain1 == @chain2)
+    local tst   = assert(io.open('tst/dots/tst-01.dot')):read'*a'
+    local tmp00 = assert(io.open('/tmp/tst-01-00.dot')):read'*a'
+    local tmp01 = assert(io.open('/tmp/tst-01-01.dot')):read'*a'
+    assert(tst==tmp00 and tst==tmp01)
+
     print'OK!'
 ]]
 

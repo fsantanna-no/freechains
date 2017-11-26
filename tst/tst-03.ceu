@@ -4,14 +4,6 @@
 // 0->1->2->0
 ///////////////////////////////////////////////////////////////////////////////
 
-var[] byte chain0;
-var[] byte chain1;
-var[] byte chain2;
-
-var int chain0_len = _;
-var int chain1_len = _;
-var int chain2_len = _;
-
 event none ok;
 
 par/and do
@@ -76,17 +68,11 @@ par/and do
         ]]
         await Client(&init.shared);
 
-        AWAIT_CHAIN_LENGTH(init.shared, '', 0, 4);
+        AWAIT_CHAIN_N(init.shared, '', 0, 5);
 
         [[
-            chain0 = FC.chain_flatten('||0|')
-            print'===> 0'
-            print('>'..string.rep('=',78))
-            print(FC.tostring(chain0))
-            print('<'..string.rep('=',78))
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-03-00.dot' )
         ]];
-        chain0 = []..[[FC.tostring(chain0)]];
-        chain0_len = [[#chain0]];
 
         emit ok;
     end
@@ -122,7 +108,7 @@ with
         ]];
 
         var& Init init = spawn Init();
-        AWAIT_CHAIN_LENGTH(init.shared, '', 0, 2);
+        AWAIT_CHAIN_N(init.shared, '', 0, 3);
 
         [[
             ARGS = {
@@ -152,16 +138,11 @@ with
         ]]
         await Client(&init.shared);
 
-        AWAIT_CHAIN_LENGTH(init.shared, '', 0, 4);
+        AWAIT_CHAIN_N(init.shared, '', 0, 5);
+
         [[
-            chain1 = FC.chain_flatten('||0|')
-            print'===> 1'
-            print('>'..string.rep('=',78))
-            print(FC.tostring(chain1))
-            print('<'..string.rep('=',78))
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-03-01.dot' )
         ]];
-        chain1 = []..[[FC.tostring(chain1)]];
-        chain1_len = [[#chain1]];
 
         emit ok;
     end
@@ -199,17 +180,11 @@ with
 
         var& Init init = spawn Init();
         par/and do
-            AWAIT_CHAIN_LENGTH(init.shared, '', 0, 4);
+            AWAIT_CHAIN_N(init.shared, '', 0, 5);
 
             [[
-                chain2 = FC.chain_flatten('||0|')
-                print'===> 2'
-                print('>'..string.rep('=',78))
-                print(FC.tostring(chain2))
-                print('<'..string.rep('=',78))
+                FC.dot( FC.chains[''][0].head, '/tmp/tst-03-02.dot' )
             ]];
-            chain2 = []..[[FC.tostring(chain2)]];
-            chain2_len = [[#chain2]];
             emit ok;
         with
             var int i;
@@ -222,9 +197,12 @@ with
 end
 
 [[
-    assert(@chain0_len==5 and @chain1_len==5 and @chain2_len==5)
-    assert(@chain0 == @chain1)
-    assert(@chain1 == @chain2)
+    local tst   = assert(io.open('tst/dots/tst-03.dot')):read'*a'
+    local tmp00 = assert(io.open('/tmp/tst-03-00.dot')):read'*a'
+    local tmp01 = assert(io.open('/tmp/tst-03-01.dot')):read'*a'
+    local tmp02 = assert(io.open('/tmp/tst-03-02.dot')):read'*a'
+    assert(tst==tmp00 and tst==tmp01 and tst==tmp02)
+
     print'OK!'
 ]]
 

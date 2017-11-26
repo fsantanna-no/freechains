@@ -1,0 +1,47 @@
+    digraph graphname {
+        //rankdir=LR;  // Rank Direction Left to Right
+
+        nodesep=1.0 // increases the separation between nodes
+        edge [];
+        //splines = true;
+
+        n_17[label="99 4C A2 08/0"];
+n_16[label="0.1/1"];
+n_15[label="0.2/2"];
+n_14[label="0.3/3"];
+n_13[label="0.4/4"];
+n_12[label="0.5/5"];
+n_11[label="0.6/6"];
+n_10[label="0.7/7"];
+n_9[label="0.8/8"];
+n_18[label="2.1/1"];
+n_8[label="2.2/9"];
+n_7[label="2.3/10"];
+n_6[label="2.4/11"];
+n_5[label="2.5/12"];
+n_4[label="2.6/13"];
+n_3[label="2.7/14"];
+n_2[label="2.8/15"];
+n_1[label="2.9/16"];
+n_0[label="head/0"];
+        n_16 -> n_17
+n_15 -> n_16
+n_14 -> n_15
+n_13 -> n_14
+n_12 -> n_13
+n_11 -> n_12
+n_10 -> n_11
+n_9 -> n_10
+n_8 -> n_9
+n_18 -> n_17
+n_8 -> n_18
+n_7 -> n_8
+n_6 -> n_7
+n_5 -> n_6
+n_4 -> n_5
+n_3 -> n_4
+n_2 -> n_3
+n_1 -> n_2
+n_0 -> n_1
+    }
+    

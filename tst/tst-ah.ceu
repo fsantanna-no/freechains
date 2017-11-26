@@ -53,6 +53,7 @@ par/and do
                 }
             ]]
             await Client(&init.shared);
+            await 100ms;
             [[
                 ARGS = {
                     message = {

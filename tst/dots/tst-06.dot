@@ -5,15 +5,11 @@
         edge [];
         //splines = true;
 
-        n_5[label="99 4C A2 08/0"];
-n_4[label="0.1/1"];
-n_3[label="1.1/2"];
-n_2[label="1.2/3"];
-n_1[label="0.2/4"];
+        n_3[label="99 4C A2 08/0"];
+n_2[label="same/1"];
+n_1[label="same/2"];
 n_0[label="head/0"];
-        n_4 -> n_5
-n_3 -> n_4
-n_2 -> n_3
+        n_2 -> n_3
 n_1 -> n_2
 n_0 -> n_1
     }

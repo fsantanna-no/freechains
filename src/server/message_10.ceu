@@ -142,43 +142,46 @@ do
                 if has_pub then
                     outer.tcp.buffer = [1];
                     await UV_Stream_Write_N(&outer.tcp,_);
-                    continue;
+                    escape;     // skip pub receive
                 else
                     outer.tcp.buffer = [0];
                     await UV_Stream_Write_N(&outer.tcp,_);
                 end
-            end
 
-            // => TIMESTAMP + NONCE
-            do
-                await UV_Stream_Read_N(&outer.tcp, 2*sizeof(u64));
-                var u64 timestamp = GET_BE64TOH(outer.tcp.buffer,0);
-                $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
-                var u64 nonce = GET_BE64TOH(outer.tcp.buffer,0);
-                $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
-                [[
-                    THIS.node.pub.timestamp = @timestamp
-                    THIS.node.pub.nonce     = @nonce
-                ]]
-            end
+                // => TIMESTAMP + NONCE
+                do
+                    await UV_Stream_Read_N(&outer.tcp, 2*sizeof(u64));
+                    var u64 timestamp = GET_BE64TOH(outer.tcp.buffer,0);
+                    $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
+                    var u64 nonce = GET_BE64TOH(outer.tcp.buffer,0);
+                    $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u64);
+                    [[
+                        THIS.node.pub.timestamp = @timestamp
+                        THIS.node.pub.nonce     = @nonce
+                    ]]
+                end
 
-            // <= LEN
-            // <= PAYLOAD
-            do
-                await UV_Stream_Read_N(&outer.tcp, sizeof(u32));
-                var u32 len = GET_BE32TOH(outer.tcp.buffer,0);
-                $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u32);
+                // <= LEN
+                // <= PAYLOAD
+                do
+                    await UV_Stream_Read_N(&outer.tcp, sizeof(u32));
+                    var u32 len = GET_BE32TOH(outer.tcp.buffer,0);
+                    $outer.tcp.buffer = $outer.tcp.buffer - sizeof(u32);
 
-                await UV_Stream_Read_N(&outer.tcp, len as usize);
-                var[len] byte payload;
-                _ceu_vector_copy(&&payload,0, &&outer.tcp.buffer,0, len);
-                $outer.tcp.buffer = $outer.tcp.buffer - (len as usize);
+                    await UV_Stream_Read_N(&outer.tcp, len as usize);
+                    var[len] byte payload;
+                    _ceu_vector_copy(&&payload,0, &&outer.tcp.buffer,0, len);
+                    $outer.tcp.buffer = $outer.tcp.buffer - (len as usize);
 
-                [[
-                    THIS.node.pub.payload = @payload
-                    ARGS = { pub=THIS.node.pub }
-                ]]
-                await Publication_Check();
+                    var[] byte str = [] .. payload .. [0];
+                    _dbg_tcp(3, &&outer.tcp.handle, "server", "=> PAYLOAD : %s", &&str[0]);
+
+                    [[
+                        THIS.node.pub.payload = @payload
+                        ARGS = { pub=THIS.node.pub }
+                    ]]
+                    await Publication_Check();
+                end
             end
 
             [[ ARGS = { node=THIS.node } ]]
@@ -355,12 +358,8 @@ do
                 await UV_Stream_Read_N(&outer.tcp, 1);
                 var int ret = outer.tcp.buffer[0];
                 $outer.tcp.buffer = $outer.tcp.buffer - 1;
-                if ret == 1 then
-                    continue;
-                end
-
-                // <= PUB: TIMESTAMP+NONCE+LEN+PAYLOAD
-                do
+                if ret == 0 then
+                    // <= PUB: TIMESTAMP+NONCE+LEN+PAYLOAD
                     outer.tcp.buffer = [] .. [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
                                           .. [0,0,0,0]
                                           .. [[ THIS.cur.pub.payload ]];
