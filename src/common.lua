@@ -47,6 +47,7 @@ local function dot_aux (A, t)
         t.n = t.n + 1
     end
 
+    table.sort(A, function(a,b) return a.hash<b.hash end)
     for _, a in ipairs(A) do
         dot_aux(a, t)
         t.conns[#t.conns+1] = t.cache[A]..' -> '..t.cache[a]

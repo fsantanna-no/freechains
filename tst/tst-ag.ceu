@@ -5,14 +5,6 @@
 // 0->1->2
 ///////////////////////////////////////////////////////////////////////////////
 
-var[] byte chain0;
-var[] byte chain1;
-var[] byte chain2;
-
-var int chain0_len = _;
-var int chain1_len = _;
-var int chain2_len = _;
-
 par/and do
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -69,14 +61,8 @@ par/and do
         await Client(&init.shared);
 
         [[
-            chain0 = FC.chain_flatten('||0|')
-            print('===> 0, #'..#chain0)
-            print('>'..string.rep('=',78))
-            print(FC.tostring(chain0))
-            print('<'..string.rep('=',78))
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-ag-00.dot' )
         ]];
-        chain0 = []..[[FC.tostring(chain0)]];
-        chain0_len = [[#chain0]];
     end
 with
 
@@ -142,16 +128,8 @@ with
         end
 
         [[
-            chain1 = FC.chain_flatten('||0|')
-            print('===> 1, #'..#chain1)
-            print('>'..string.rep('=',78))
-            print(FC.tostring(chain1))
-            print('<'..string.rep('=',78))
-            assert(chain1[4] and chain1[4].pub.payload == '2.1', #chain1)
-            assert(chain1[5] and chain1[5].pub.payload == '2.2', #chain1)
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-ag-01.dot' )
         ]];
-        chain1 = []..[[FC.tostring(chain1)]];
-        chain1_len = [[#chain1]];
     end
 with
 
@@ -182,23 +160,20 @@ with
         AWAIT_CHAIN_N(init.shared, '', 0, 5);
 
         [[
-            chain2 = FC.chain_flatten('||0|')
-            print('===> 3, #'..#chain2)
-            print('>'..string.rep('=',78))
-            print(FC.tostring(chain2))
-            print('<'..string.rep('=',78))
-            assert(chain2[4] and chain2[4].pub.payload == '2.1', #chain2)
-            assert(chain2[5] and chain2[5].pub.payload == '2.2', #chain2)
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-ag-02.dot' )
         ]];
-        chain2 = []..[[FC.tostring(chain2)]];
-        chain2_len = [[#chain2]];
     end
 end
 
 [[
-    assert(@chain0_len==3 and @chain1_len==5 and @chain2_len==5)
-    assert(@chain1 == @chain2)
+    local tst   = assert(io.open('tst/dots/tst-ag.dot')):read'*a'
+    --local tmp00 = assert(io.open('/tmp/tst-ag-00.dot')):read'*a'
+    local tmp01 = assert(io.open('/tmp/tst-ag-01.dot')):read'*a'
+    local tmp02 = assert(io.open('/tmp/tst-ag-02.dot')):read'*a'
+    assert(tst==tmp01 and tst==tmp02)
+
     print'OK!'
 ]]
+
 
 escape 0;

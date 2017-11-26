@@ -52,6 +52,12 @@ do
     code/await Go (none) -> none
         throws Exception.Uv
     do
+        [[
+            THIS = {
+                chain = ARGS.chain,
+            }
+        ]];
+
         loop do
             // => n
             await UV_Stream_Read_N(&outer.tcp, 1);
@@ -63,11 +69,8 @@ do
             end
 
             [[
-                THIS = {
-                    chain = ARGS.chain,
-                    node = {
-                        chain = ARGS.chain,
-                    },
+                THIS.node = {
+                    chain = THIS.chain,
                 }
             ]];
 
@@ -210,6 +213,7 @@ do
         if has then
             tcp.buffer = [1];
             await UV_Stream_Write_N(&tcp,_);
+            [[ ARGS = { chain=THIS.chain } ]]
             await Go();
         else
             tcp.buffer = [0];
