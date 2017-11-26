@@ -145,7 +145,7 @@ end
     loop do                                             \
         [[ --print('>>> N', FC.chains[key][zeros].n) ]];  \
         var int len_ = [[ FC.chains[key][zeros].n ]];   \
-        if len_ == (len) then                           \
+        if len_ >= (len) then                           \
             break;                                      \
         end                                             \
         await shared.chain_has_changed;                 \

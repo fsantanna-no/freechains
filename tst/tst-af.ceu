@@ -5,12 +5,6 @@
 // 0->1
 ///////////////////////////////////////////////////////////////////////////////
 
-var[] byte chain0;
-var[] byte chain1;
-
-var int chain0_len = _;
-var int chain1_len = _;
-
 par/and do
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -66,15 +60,11 @@ par/and do
         ]];
         await Client(&init.shared);
 
+        AWAIT_CHAIN_N(init.shared, '', 0, 5);
+
         [[
-            chain0 = FC.chain_flatten('||0|')
-            print('===> 0, #'..#chain0)
-            print('>'..string.rep('=',78))
-            print(FC.tostring(chain0))
-            print('<'..string.rep('=',78))
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-af-00.dot' )
         ]];
-        chain0 = []..[[FC.tostring(chain0)]];
-        chain0_len = [[#chain0]];
     end
 with
 
@@ -102,10 +92,10 @@ with
         ]]
 
         var& Init init = spawn Init();
-        AWAIT_CHAIN_LENGTH(init.shared, '', 0, 1);
+        AWAIT_CHAIN_N(init.shared, '', 0, 1);
 
         par/and do
-            AWAIT_CHAIN_LENGTH(init.shared, '', 0, 4);
+            AWAIT_CHAIN_N(init.shared, '', 0, 5);
         with
             [[
                 ARGS = {
@@ -137,22 +127,18 @@ with
         end
 
         [[
-            chain1 = FC.chain_flatten('||0|')
-            print('===> 1, #'..#chain1)
-            print('>'..string.rep('=',78))
-            print(FC.tostring(chain1))
-            print('<'..string.rep('=',78))
-            assert(chain1[4] and chain1[4].pub.payload == '2.1', #chain1)
-            assert(chain1[5] and chain1[5].pub.payload == '2.2', #chain1)
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-af-01.dot' )
         ]];
-        chain1 = []..[[FC.tostring(chain1)]];
-        chain1_len = [[#chain1]];
     end
 
 end
 
 [[
-    assert(@chain0_len==3 and @chain1_len==5)
+    local tst   = assert(io.open('tst/dots/tst-ae.dot')):read'*a'
+    local tmp00 = assert(io.open('/tmp/tst-ae-00.dot')):read'*a'
+    local tmp01 = assert(io.open('/tmp/tst-ae-01.dot')):read'*a'
+    assert(tst==tmp00 and tst==tmp01)
+
     print'OK!'
 ]]
 

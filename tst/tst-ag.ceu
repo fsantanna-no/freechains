@@ -107,10 +107,10 @@ with
         ]];
 
         var& Init init = spawn Init();
-        AWAIT_CHAIN_LENGTH(init.shared, '', 0, 1);
+        AWAIT_CHAIN_N(init.shared, '', 0, 2);
 
         par/and do
-            AWAIT_CHAIN_LENGTH(init.shared, '', 0, 4);
+            AWAIT_CHAIN_N(init.shared, '', 0, 5);
         with
             [[
                 ARGS = {
@@ -179,7 +179,7 @@ with
         ]];
 
         var& Init init = spawn Init();
-        AWAIT_CHAIN_LENGTH(init.shared, '', 0, 4);
+        AWAIT_CHAIN_N(init.shared, '', 0, 5);
 
         [[
             chain2 = FC.chain_flatten('||0|')
