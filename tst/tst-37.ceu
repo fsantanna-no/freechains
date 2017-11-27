@@ -1,3 +1,4 @@
+#define DETERMINISTIC
 #include "common.ceu"
 
 _srand(_time(null));
@@ -14,6 +15,7 @@ code/await Node (var int i) -> none
 do
     lua[] do
         var int local  = 8340+i;
+
         [[
             dofile 'src/common.lua'
             CFG = {
@@ -46,6 +48,7 @@ do
         await 100ms;
 
         do
+#if 0
             spawn do
                 var int  a;
                 var bool err;
@@ -54,7 +57,7 @@ do
 #if 0
 [[
 print(@i, '>'..string.rep('=',70))
-print(FC.chain_tostring('|tst-34|0|'))
+print(FC.chain_tostring('|tst-37|0|'))
 print(@i, '<'..string.rep('=',70))
 ]];
 #endif
@@ -64,9 +67,10 @@ print(@i, '<'..string.rep('=',70))
                     end
                 end
             end
+#endif
 
             var int j;
-            loop j in [1 -> N] do
+            loop j in [0 -> N[ do
                 // how much time between each message?
                 await (_rand() % (100*N*N)) ms;
                 [[
@@ -74,7 +78,7 @@ print(@i, '<'..string.rep('=',70))
                         message = {
                             version = '1.0',
                             chain = {
-                                key   = 'tst-34',
+                                key   = 'tst-37',
                                 zeros = 0,
                             },
                             payload = string.format('%03d',@i)..'.'..string.format('%03d',@j),
@@ -87,35 +91,32 @@ print(@i, '<'..string.rep('=',70))
 //[[print(@i, "CLIENTS") ]];
 
             // wait all messages to be received
-            loop do
-                await init.shared.ok;
-                var int length = [[ FC.chains['tst-34'][0].head.length ]];
-                if length == N*N then
-                    break;
-                end
-            end
+            AWAIT_CHAIN_N(init.shared, 'tst-37', 0, N*N+1);
 
             // wait for consensus
             loop do
-                watching init.shared.ok do
-                    await (2*N)s;
+                watching init.shared.ok_server do
+                    await (N)s;
+//_dbg(0, "server | shared.ok | 0.0.0.0:%d", port);
                     break;
                 end
-_dbg(0, "server | shared.ok | 0.0.0.0:%d", port);
             end
-_dbg(0, "server | END | 0.0.0.0:%d", port);
+        end
+//_dbg(0, "server | END | 0.0.0.0:%d", port);
 #if 0
 [[
 print(@i, '>'..string.rep('=',70))
-print(FC.chain_tostring('|tst-34|0|'))
+print(FC.chain_tostring('|tst-37|0|'))
 print(@i, '<'..string.rep('=',70))
 ]];
-#endif
 //[[print(@i, "END") ]];
-        end
 
-        [[ ARGS = { chain=FC.chains['tst-34'][0] } ]];
+        [[ ARGS = { chain=FC.chains['tst-37'][0] } ]];
         await FS_write_10();
+#endif
+        [[
+            FC.dot( FC.chains['tst-37'][0].head, '/tmp/tst-37-'..@i..'.dot' )
+        ]]
     end
 end
 
@@ -135,12 +136,12 @@ end
 //_ceu_dbg_assert({BLOCKS_RECEIVED} == N*N);
 
 // assert consensus
-[[ file1 = io.open('/tmp/freechains/8340/|tst-34|0|.chain'):read'*a' ]]
+[[ tst = assert(io.open('/tmp/tst-37-0.dot')):read'*a' ]]
 var int i;
-loop i in [0 -> N[ do
+loop i in [1 -> N[ do
     [[
-        file2 = io.open('/tmp/freechains/'..@(8340+i)..'/|tst-34|0|.chain'):read'*a'
-        assert(file1 == file2, 'differ')
+        tmp = assert(io.open('/tmp/tst-37-'..@i..'.dot')):read'*a'
+        assert(tst == tmp, 'differ')
     ]]
 end
 

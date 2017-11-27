@@ -1,3 +1,4 @@
+#define DETERMINISTIC
 #include "common.ceu"
 
 _srand(_time(null));
@@ -16,40 +17,39 @@ do
     lua[] do
         var int local  = 8340+i;
 
-        [=[
-if @i == 0 then
-    DBG_ON = true
-end
+        [[
             dofile 'src/common.lua'
-            dofile 'cfg/config.lua'
-
-            SERVER {
-                host = { '127.0.0.1', @local },
+            CFG = {
+                daemon = {
+                    address = '127.0.0.1',
+                    port    = @local,
+                },
+                no_persistency = true,
+                chains = {
+                    ['tst-38'] = {
+                        key   = 'tst-38',
+                        zeros = 0,
+                        peers = {},
+                    },
+                },
             }
 
-            peers = {}
+            peers = CFG.chains['tst-38'].peers
             for j=0, N-1 do
                 if j ~= @i then
                     peers[#peers+1] = {
-                        host = { '127.0.0.1', (8340+j) },
+                        address = '127.0.0.1',
+                        port    = 8340 + j,
                     }
                 end
             end
-
-            CLIENT {
-                peers = peers,
-            }
-        ]=]
+        ]]
 
         var& Init init = spawn Init();
         await 100ms;
 
-spawn do
-    every 1s do
-        //[[ print('>>>', @shared.port, APP.chains['||0|'].head.length, FC.tostring(APP.chains['||0|'].head.hash)) ]];
-    end
-end
         do
+#if 0
             spawn do
                 var int  a;
                 var bool err;
@@ -68,60 +68,55 @@ print(@i, '<'..string.rep('=',70))
                     end
                 end
             end
+#endif
 
             var int j;
             loop j in [1 -> M] do
                 // how much time between each message?
-                await (_rand() % (100*N)) ms;
+                await (_rand() % (100*N*N)) ms;
                 [[
-                    APP.messages = {}
-                    MESSAGE {
-                        version = '1.0',
-                        chain = {
-                            key   = 'tst-38',
-                            zeros = 0,
-                        },
-                        payload = string.format('%03d',@i)..'.'..string.format('%03d',@j),
+                    ARGS = {
+                        message = {
+                            version = '1.0',
+                            chain = {
+                                key   = 'tst-38',
+                                zeros = 0,
+                            },
+                            payload = string.format('%03d',@i)..'.'..string.format('%03d',@j),
+                        }
                     }
                 ]];
-                await ClientMessages(&init.shared);
+                await Client(&init.shared);
 //[[print(@i,@j, "clients") ]];
             end
 //[[print(@i, "CLIENTS") ]];
 
             // wait all messages to be received
-            loop do
-                await init.shared.ok;
-                var int length = [[ APP.chains['||0|'].head.length ]];
-                if length == N*M then
-                    break;
-                end
-            end
-_dbg(0, "server | MSGS | %s:%d", &&ip[0], port);
+            AWAIT_CHAIN_N(init.shared, 'tst-38', 0, N*N+1);
 
             // wait for consensus
             loop do
-                watching init.shared.ok do
+                watching init.shared.ok_server do
                     await (N)s;
+//_dbg(0, "server | shared.ok | 0.0.0.0:%d", port);
                     break;
                 end
-_dbg(0, "server | shared.ok | %s:%d", &&ip[0], port);
             end
-_dbg(0, "server | END | %s:%d", &&ip[0], port);
+        end
+//_dbg(0, "server | END | %s:%d", &&ip[0], port);
 #if 0
 [[
 print(@i, '>'..string.rep('=',70))
 print(GG.chain_tostring('||0|'))
 print(@i, '<'..string.rep('=',70))
 ]];
-#endif
 //[[print(@i, "END") ]];
-        end
 
         [[ ARGS = { chain=APP.chains['||0|'] } ]];
         await FS_write_10();
+#endif
         [[
-            os.execute('mv /tmp/freechains/\\|tst-38\\|0\\|.chain /tmp/'..string.format('%03d',@i)..'.chain')
+            FC.dot( FC.chains['tst-38'][0].head, '/tmp/tst-38-'..@i..'.dot' )
         ]]
     end
 end
@@ -142,12 +137,12 @@ end
 //_ceu_dbg_assert({BLOCKS_RECEIVED} == N*N);
 
 // assert consensus
-[[ file1 = io.open('/tmp/000.chain'):read'*a' ]]
+[[ tst = assert(io.open('/tmp/tst-38-0.dot')):read'*a' ]]
 var int i;
-loop i in [0 -> N[ do
+loop i in [1 -> N[ do
     [[
-        file2 = io.open('/tmp/'..string.format('%03d',@i)..'.chain'):read'*a'
-        assert(file1 == file2)
+        tmp = assert(io.open('/tmp/tst-38-'..@i..'.dot')):read'*a'
+        assert(tst == tmp, 'differ')
     ]]
 end
 

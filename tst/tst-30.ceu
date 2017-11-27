@@ -1,4 +1,4 @@
-#define NO_PIGGYBACK
+#define DETERMINISTIC
 #include "common.ceu"
 
 _srand(_time(null));
@@ -65,7 +65,7 @@ print(@i, '<'..string.rep('=',70))
 #endif
 
             var int j;
-            loop j in [1 -> N] do
+            loop j in [0 -> N[ do
                 // how much time between each message?
                 await (_rand() % (100*N*N)) ms;
                 [[
@@ -86,7 +86,7 @@ print(@i, '<'..string.rep('=',70))
 //[[print(@i, "CLIENTS") ]];
 
             // wait all messages to be received
-            AWAIT_CHAIN_LENGTH(init.shared, 'tst-30', 0, N*N);
+            AWAIT_CHAIN_N(init.shared, 'tst-30', 0, N*N+1);
 
             // wait for consensus
             loop do
@@ -96,18 +96,22 @@ print(@i, '<'..string.rep('=',70))
                     break;
                 end
             end
-#if 1
+        end
+
+#if 0
 [[
 print(@i, '>'..string.rep('=',70))
 print(FC.chain_tostring('|tst-30|0|'))
 print(@i, '<'..string.rep('=',70))
 ]];
-#endif
 //[[print(@i, "END") ]];
-        end
 
         [[ ARGS = { chain=FC.chains['tst-30'][0] } ]];
         await FS_write_10();
+#endif
+        [[
+            FC.dot( FC.chains['tst-30'][0].head, '/tmp/tst-30-'..@i..'.dot' )
+        ]]
     end
 end
 
@@ -127,12 +131,12 @@ end
 //_ceu_dbg_assert({BLOCKS_RECEIVED} == N*N);
 
 // assert consensus
-[[ file1 = io.open('/tmp/freechains/8340/|tst-30|0|.chain'):read'*a' ]]
+[[ tst = assert(io.open('/tmp/tst-30-0.dot')):read'*a' ]]
 var int i;
-loop i in [0 -> N[ do
+loop i in [1 -> N[ do
     [[
-        file2 = io.open('/tmp/freechains/'..@(8340+i)..'/|tst-30|0|.chain'):read'*a'
-        assert(file1 == file2, 'differ')
+        tmp = assert(io.open('/tmp/tst-30-'..@i..'.dot')):read'*a'
+        assert(tst == tmp, 'differ')
     ]]
 end
 
