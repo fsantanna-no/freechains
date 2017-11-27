@@ -123,12 +123,12 @@ do
         //CHAIN_LOCK(l, shared, "lock_write");
         [[
             THIS.node = {
-                chain     = FC.chains[''][0],
+                chain     = THIS.pub.chain,
                 timestamp = THIS.now,
                 nonce     = 0,
                 pub       = THIS.pub,
             }
-            FC.children(THIS.node, FC.chains[''][0].head)
+            FC.children(THIS.node, THIS.pub.chain.head)
 
             ARGS = THIS
         ]]

@@ -53,12 +53,7 @@ Ola Mundo!
         await Client(&init.shared);
 
         [[
-            CHAIN0 = FC.chain_flatten('||0|')
-            print'===> CLIENT'
-            print('>'..string.rep('=',78))
-            print(FC.chain_tostring('||0|'))
-            print('<'..string.rep('=',78))
-            print'OK 0/4!'
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-19-00.dot' )
         ]];
     end
 
@@ -89,18 +84,10 @@ with
         ]];
 
         var& Init init = spawn Init();
-        AWAIT_CHAIN_LENGTH(init.shared, '', 0, 1);
+        AWAIT_CHAIN_N(init.shared, '', 0, 2);
         [[
-            CHAIN1 = FC.chain_flatten('||0|')
-            print'===> SERVER'
-            print('>'..string.rep('=',78))
-            print(FC.chain_tostring('||0|'))
-            print('<'..string.rep('=',78))
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-19-01.dot' )
         ]];
-        [[
-            assert(#CHAIN1 == 2)
-            print'OK 1/4!'
-        ]]
     end
 
 with
@@ -132,16 +119,8 @@ with
         spawn Init();
         await 500ms;
         [[
-            CHAIN2 = FC.chain_flatten('||0|')
-            print'===> SERVER'
-            print('>'..string.rep('=',78))
-            print(FC.chain_tostring('||0|'))
-            print('<'..string.rep('=',78))
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-19-02.dot' )
         ]];
-        [[
-            assert(#CHAIN2 == 1)
-            print'OK 2/4!'
-        ]]
     end
 
 with
@@ -173,16 +152,8 @@ with
         spawn Init();
         await 500ms;
         [[
-            CHAIN3 = FC.chain_flatten('||0|')
-            print'===> SERVER'
-            print('>'..string.rep('=',78))
-            print(FC.chain_tostring('||0|'))
-            print('<'..string.rep('=',78))
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-19-03.dot' )
         ]];
-        [[
-            assert(#CHAIN3 == 1)
-            print'OK 3/4!'
-        ]]
     end
 
 with
@@ -208,17 +179,26 @@ with
 
         var& Init init = spawn Init();
 
-        await init.shared.ok_server;
+        await init.shared.err_server;
         [[
             assert(not FC.chains[''])
-            assert(#FC.errs==1 and FC.errs[1]==FC.MESSAGE10_NOTSUB)
+            assert(#FC.errs==1 and FC.errs[1]==FC['Exception.Freechains.Not_Subscribed'], FC.errs[1])
         ]];
-        [[
-            assert(CHAIN4 == nil)
-            print'OK 4/4!'
-        ]]
     end
 
 end
+
+[[
+    local tst00 = assert(io.open('tst/dots/tst-19-00.dot')):read'*a'
+    local tst02 = assert(io.open('tst/dots/tst-19-02.dot')):read'*a'
+    local tmp00 = assert(io.open('/tmp/tst-19-00.dot')):read'*a'
+    local tmp01 = assert(io.open('/tmp/tst-19-01.dot')):read'*a'
+    local tmp02 = assert(io.open('/tmp/tst-19-02.dot')):read'*a'
+    local tmp03 = assert(io.open('/tmp/tst-19-03.dot')):read'*a'
+    assert(tst00==tmp00 and tst00==tmp01)
+    assert(tst02==tmp02 and tst02==tmp03)
+
+    print'OK!'
+]]
 
 escape 0;

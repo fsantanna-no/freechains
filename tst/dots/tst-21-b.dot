@@ -1,0 +1,14 @@
+    digraph graphname {
+        //rankdir=LR;  // Rank Direction Left to Right
+
+        nodesep=1.0 // increases the separation between nodes
+        edge [];
+        //splines = true;
+
+        n_2[label="33 DF 99 3E/0"];
+n_1[label="'hello'/1"];
+n_0[label="head/0"];
+        n_1 -> n_2
+n_0 -> n_1
+    }
+    

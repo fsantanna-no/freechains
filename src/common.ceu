@@ -602,8 +602,8 @@ do
     [[
         FC = require 'freechains'
 
-        --FC['Exception.Freechains.Malformed'] = @@({CEU_DATA_Exception__dot__Freechains__dot__Malformed} as int)
-        --FC.MESSAGE10_NOTSUB = @@({MESSAGE10_NOTSUB} as int)
+        FC['Exception.Freechains.Malformed']      = @({CEU_DATA_Exception__dot__Freechains__dot__Malformed} as int)
+        FC['Exception.Freechains.Not_Subscribed'] = @({CEU_DATA_Exception__dot__Freechains__dot__Not_Subscribed} as int)
 
         CFG.daemon = CFG.daemon or {}
 
