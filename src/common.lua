@@ -13,26 +13,33 @@ local function max (a, b)
     return a>b and a or b
 end
 
-function FC.node (t)
-    t.height = -1
-    for _, a in ipairs(t) do
-        assert(a.chain == t[1].chain)
-        t.height = max(t.height, a.height)
+function FC.node (node)
+    assert(node.hash,  'missing hash')
+    assert(node.chain, 'missing chain')
+
+    local old = node.chain.cache[node.hash]
+    if not old then
+        node.chain.n = node.chain.n + 1
     end
-    t.height = t.height + 1
-    t.chain = assert(t.chain or (t[1] and t[1].chain))
-    t.chain.cache[assert(t.hash,'missing hash')] = t
-    return t
+    node.chain.cache[node.hash] = node
+
+    node.height = -1
+    for _, a in ipairs(node) do
+        assert(a.chain == node[1].chain)
+        node.height = max(node.height, a.height)
+    end
+    node.height = node.height + 1
+
+    return node
 end
 
-function FC.children (t, head)
+function FC.children (node, head)
     for k,v in pairs(head) do
-        t[#t+1] = v
+        node[#node+1] = v
     end
 end
 
 function FC.head_new (node)
-    node.chain.n = node.chain.n + 1
     node.chain.head[node.hash] = node
     for _,v in ipairs(node) do
         node.chain.head[v.hash] = nil
