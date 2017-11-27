@@ -39,7 +39,7 @@ par/and do
         ]]
 
         var& Init init = spawn Init();
-        await 200ms;
+        await 500ms;
 
         [[
             ARGS = {

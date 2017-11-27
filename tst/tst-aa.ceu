@@ -15,6 +15,7 @@
         up    = FC.chains[key],
         cfg   = nil,
         head  = nil,
+        n     = 0,
     }
     FC.chains[key][zeros] = new
 ]]
