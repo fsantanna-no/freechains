@@ -79,7 +79,7 @@ else
             var bool has = [[ has ]];
 // TODO: how not to send all chains in all levels? Even if head=base? (I don't really know if they are empty in other peers.)
             //if has then
-                emit outer.shared.chain_has_changed;
+                emit outer.shared.go_client_10_pos(0);
             //end
         end
     end

@@ -49,9 +49,9 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
 
 // TODO: may loose messages if they arrive while on Write below
     // one trail writes to buffer
-    // anoter trail calls Write (must awake after first from chain_has_changed)
+    // anoter trail calls Write (must awake after first from go_client_10_pos)
 loop do
-    await outer.shared.chain_has_changed;
+    await outer.shared.go_client_10_pos;
             var bool is_base = [[ ARGS.chain.head == ARGS.chain.base ]];
             if is_base then
                 continue;         // do not output genesis

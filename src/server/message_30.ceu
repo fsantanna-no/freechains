@@ -40,7 +40,7 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
         },
     }
 ]]
-await Client(&outer.shared);
+emit outer.shared.go_client_10_pre(0);
 
 // <= MSG
 //outer.tcp.buffer = []..[[ FC.tostring(msg,'plain') ]];

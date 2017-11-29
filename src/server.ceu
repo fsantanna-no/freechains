@@ -6,18 +6,17 @@ do
     _dbg(3, "server | new handler");
 
     var int msg = 0;
-    var int ret = 0;
 
     var Exception? e;
 
     do finalize with
         if e? then
             [[ FC.errs[#FC.errs+1] = @(e! as int) ]];
-            _printf("EXCEPTION %s\n", e!.message);
+            _dbg(0, "server | EXCEPTION | %s\n", e!.message);
             emit shared.err_server(msg, e! as int);
         else
             [[ ARGS = { chain = THIS and THIS.chain } ]];
-            emit shared.ok_server(msg, ret);
+            emit shared.ok_server(msg);
         end
     end
 

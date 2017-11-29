@@ -190,7 +190,7 @@ do
                 FC.head_new(THIS.node)
             ]];
             [[ ARGS = { chain=THIS.chain } ]];
-            emit outer.shared.chain_has_changed;
+            emit outer.shared.go_client_10_pos(0);
         end
     end
 
