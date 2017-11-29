@@ -5,6 +5,8 @@
 // 0->1
 ///////////////////////////////////////////////////////////////////////////////
 
+event none ok;
+
 par/and do
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -43,9 +45,10 @@ par/and do
                 }
             }
         ]]
-        await Client(&init.shared);
-        await 100ms;
+        await Client_10(&init.shared);
+        emit ok;
 
+        await 200ms;
         [[
             ARGS = {
                 message = {
@@ -58,12 +61,12 @@ par/and do
                 }
             }
         ]];
-        await Client(&init.shared);
+        await Client_10(&init.shared);
 
         AWAIT_CHAIN_N(init.shared, '', 0, 5);
-
         [[
             FC.dot( FC.chains[''][0].head, '/tmp/tst-af-00.dot' )
+            print 'OK 1/2'
         ]];
     end
 with
@@ -92,7 +95,6 @@ with
         ]]
 
         var& Init init = spawn Init();
-        AWAIT_CHAIN_N(init.shared, '', 0, 1);
 
         par/and do
             AWAIT_CHAIN_N(init.shared, '', 0, 5);
@@ -109,8 +111,9 @@ with
                     }
                 }
             ]];
-            await Client(&init.shared);
-            await 200ms;
+            await Client_10(&init.shared);
+
+            await ok;
             [[
                 ARGS = {
                     message = {
@@ -123,11 +126,13 @@ with
                     }
                 }
             ]];
-            await Client(&init.shared);
+            await Client_10(&init.shared);
         end
 
+        await 100ms;
         [[
             FC.dot( FC.chains[''][0].head, '/tmp/tst-af-01.dot' )
+            print 'OK 2/2'
         ]];
     end
 
