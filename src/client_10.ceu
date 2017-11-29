@@ -203,9 +203,9 @@ do
         every n in shared.go_client_10_pos do
             [[
                 if THIS.pending[ARGS.chain] == nil then
-                    THIS.pending[ARGS.chain] = @n
                     THIS.pending[#THIS.pending+1] = ARGS.chain
                 end
+                THIS.pending[ARGS.chain] = @n
             ]]
         end
     with
