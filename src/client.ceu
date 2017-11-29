@@ -137,18 +137,8 @@ do
             FC.head_new(THIS.node)
         ]]
     end
-    par/and do
-        loop do
-            await shared.chain_has_been_transmitted;
-            var bool same = [[ ARGS.chain == THIS.node.chain ]];
-            if same then
-                break;
-            end
-        end
-    with
-        [[ ARGS = { chain=THIS.node.chain } ]];
-        emit shared.chain_has_changed;
-    end
+    [[ ARGS = { chain=THIS.node.chain } ]];
+    emit shared.chain_has_changed;
 end
 
 #endif
