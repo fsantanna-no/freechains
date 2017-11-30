@@ -48,7 +48,7 @@ par/and do
             await Client_10(&init.shared);
         with
             // inject error on nonce
-            await UV_STREAM_CONNECT;
+            await init.shared.ok_client_10_pre;
             [[
                 _,node = next(FC.chains[''][22].head)
                 node.nonce = node.nonce + 1
@@ -86,10 +86,11 @@ with
         ]];
 
         var& Init init = spawn Init();
-        await init.shared.err_server;
+        var int err;
+        (_,err) = await init.shared.err_server until (err == {CEU_DATA_Exception__dot__Freechains__dot__Malformed});
         [[
             FC.dot( FC.chains[''][22].head, '/tmp/tst-23-01.dot' )
-            assert(#FC.errs==1 and FC.errs[1]==FC['Exception.Freechains.Malformed'], #FC.errs)
+            --assert(#FC.errs==1 and FC.errs[1]==FC['Exception.Freechains.Malformed'], #FC.errs)
             print'OK!'
         ]];
     end
