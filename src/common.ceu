@@ -233,7 +233,7 @@ do
 
     var u64 timestamp = [[ THIS.pub.timestamp ]];
     var u64 nonce     = [[ THIS.pub.nonce     ]];
-#if 0
+#if 1
     await async/thread (zeros,pln,hash, timestamp,nonce)
 #endif
     do
@@ -357,7 +357,7 @@ do
 
     var u64 timestamp = [[ THIS.node.timestamp ]];
     var u64 nonce     = [[ THIS.node.nonce     ]];
-#if 0
+#if 1
     await async/thread (zeros,pln,hash, timestamp,nonce)
 #endif
     do
@@ -439,59 +439,6 @@ do
     [[
         FC.node(THIS.node)
     ]]
-end
-
-code/await Chain_Fork (none) -> none
-    // input:  [[ ARGS={from=., to={first=.,last=.} ]]
-do
-    [[
-        THIS = {
-            from = ARGS.from,
-            to   = ARGS.to,
-        }
-    ]]
-    loop do
-        var bool has = [[ THIS.from~=nil ]];
-        if not has then
-            break;
-        end
-
-        [[
-            found = false
-            cur = THIS.to.first
-            while true do
-                if cur.pub.hash == THIS.from.pub.hash then
-                    found = true
-                    break
-                end
-                if cur == THIS.to.last then
-                    break
-                end
-                cur = cur.nxt
-            end
-        ]]
-        var bool found = [[ found ]];
-        if not found then
-            [[
-                --print('>>>', FC.tostring(THIS.from.hash), THIS.from.pub.payload)
-                assert(THIS.from.chain == THIS.to.first.chain)
-                THIS.node = {
-                    timestamp   = 0,    -- TODO: 64-bit timestamp
-                    nonce       = 0,
-                    chain       = THIS.from.chain,
-                    pub = THIS.from.pub,
-                    hash        = nil,
-                    prv         = nil,
-                    nxt         = nil,
-                    length      = nil,
-                }
-                ARGS = THIS
-            ]]
-            //await Node_Hash_Link();
-        end
-
-        [[ THIS.from = THIS.from.nxt ]]
-    end
 end
 
 #include "fs.ceu"

@@ -45,7 +45,7 @@ Ola Mundo!
                 }
             }
         ]=];
-        await Client(&init.shared);
+        await Client_10(&init.shared);
 
         [[
             FC.dot( FC.chains['hello'][0].head, '/tmp/tst-20-00.dot' )

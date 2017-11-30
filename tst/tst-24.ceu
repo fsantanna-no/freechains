@@ -51,7 +51,7 @@ par/and do
                 }
             }
         ]];
-        await Client(&init.shared);
+        await Client_10(&init.shared);
 
         [[
             ARGS = {
@@ -65,7 +65,7 @@ par/and do
                 }
             }
         ]];
-        await Client(&init.shared);
+        await Client_10(&init.shared);
 
         [[
             ARGS = {
@@ -79,7 +79,7 @@ par/and do
                 }
             }
         ]];
-        await Client(&init.shared);
+        await Client_10(&init.shared);
 
         [[
             ARGS = {
@@ -93,7 +93,7 @@ par/and do
                 }
             }
         ]];
-        await Client(&init.shared);
+        await Client_10(&init.shared);
 
         [[
             FC.dot( FC.chains[''][21].head, '/tmp/tst-24-21-00.dot' )

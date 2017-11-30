@@ -50,10 +50,11 @@ Ola Mundo!
                 }
             }
         ]=];
-        await Client(&init.shared);
+        await Client_10(&init.shared);
 
         [[
             FC.dot( FC.chains[''][0].head, '/tmp/tst-19-00.dot' )
+            print'0/4'
         ]];
     end
 
@@ -87,6 +88,7 @@ with
         AWAIT_CHAIN_N(init.shared, '', 0, 2);
         [[
             FC.dot( FC.chains[''][0].head, '/tmp/tst-19-01.dot' )
+            print'1/4'
         ]];
     end
 
@@ -120,6 +122,7 @@ with
         await 500ms;
         [[
             FC.dot( FC.chains[''][0].head, '/tmp/tst-19-02.dot' )
+            print'2/4'
         ]];
     end
 
@@ -153,6 +156,7 @@ with
         await 500ms;
         [[
             FC.dot( FC.chains[''][0].head, '/tmp/tst-19-03.dot' )
+            print'3/4'
         ]];
     end
 
@@ -183,6 +187,7 @@ with
         [[
             assert(not FC.chains[''])
             assert(#FC.errs==1 and FC.errs[1]==FC['Exception.Freechains.Not_Subscribed'], FC.errs[1])
+            print'4/4'
         ]];
     end
 

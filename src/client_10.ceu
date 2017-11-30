@@ -19,7 +19,6 @@ code/await Client_10 (var& UV_TCP_Server_Data shared) -> none do
 end
 
 code/await Peer_10 (var& UV_TCP_Server_Data shared) -> none
-    throws Exception.Uv, Exception.Freechains
     // [[ ARGS = { peer={...}, chain={...} } ]]
 do
     [[
@@ -29,27 +28,38 @@ do
         }
     ]];
 
-    var[] byte ip   = [] .. [[ THIS.peer.address ]] .. [0];
-    var   int  port = [[ THIS.peer.port ]];
-    _dbg(2, "client:%p | connecting to %s:%d", {&_ceu_mem}, &&ip[0], port);
-
-    var& UV_TCP_Connect c = spawn UV_TCP_Connect(&&ip[0], port, _);
+    var Exception? e;
 
     do finalize with
-        _dbg(2, "client:%p | disconnected from %s:%d", {&_ceu_mem}, &&ip[0], port);
+        if e? then
+            [[ FC.errs[#FC.errs+1] = @(e! as int) ]];
+            _dbg(0, "client | EXCEPTION | %s\n", e!.message);
+        end
     end
 
-    await c.ok;
-    _dbg(2, "client:%p | connected to %s:%d", {&_ceu_mem}, &&ip[0], port);
+    catch e do
+        var[] byte ip   = [] .. [[ THIS.peer.address ]] .. [0];
+        var   int  port = [[ THIS.peer.port ]];
+        _dbg(2, "client:%p | connecting to %s:%d", {&_ceu_mem}, &&ip[0], port);
 
-    [[ ARGS = { chain=THIS.chain } ]]
-    await Send_10_Header(&c.stream);
+        var& UV_TCP_Connect c = spawn UV_TCP_Connect(&&ip[0], port, _);
 
-    [[ ARGS = { chain=THIS.chain } ]]
-    await Send_10_Nodes(&c.stream);
+        do finalize with
+            _dbg(2, "client:%p | disconnected from %s:%d", {&_ceu_mem}, &&ip[0], port);
+        end
 
-    [[ ARGS = { chain=THIS.chain } ]]
-    await Recv_10_Nodes(&shared, &c.stream);
+        await c.ok;
+        _dbg(2, "client:%p | connected to %s:%d", {&_ceu_mem}, &&ip[0], port);
+
+        [[ ARGS = { chain=THIS.chain } ]]
+        await Send_10_Header(&c.stream);
+
+        [[ ARGS = { chain=THIS.chain } ]]
+        await Send_10_Nodes(&c.stream);
+
+        [[ ARGS = { chain=THIS.chain } ]]
+        await Recv_10_Nodes(&shared, &c.stream);
+    end
 end
 
 code/await Client_10_Pos (var& UV_TCP_Server_Data shared, var int n) -> none

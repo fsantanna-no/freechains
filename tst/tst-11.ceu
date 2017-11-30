@@ -51,7 +51,7 @@ par/and do
                     }
                 }
             ]];
-            await Client(&init.shared);
+            await Client_10(&init.shared);
             emit e;
             emit ok;
         with
@@ -140,7 +140,7 @@ with
                     }
                 }
             ]]
-            await Client(&init.shared);
+            await Client_10(&init.shared);
             [[
                 ARGS = {
                     message = {
@@ -153,7 +153,7 @@ with
                     }
                 }
             ]]
-            await Client(&init.shared);
+            await Client_10(&init.shared);
             [[
                 ARGS = {
                     message = {
@@ -166,7 +166,7 @@ with
                     }
                 }
             ]];
-            await Client(&init.shared);
+            await Client_10(&init.shared);
             emit ok;
         with
             await ok;

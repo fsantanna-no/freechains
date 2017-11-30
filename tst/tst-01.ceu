@@ -73,7 +73,7 @@ with
                 }
             }
         ]]
-        await Client(&init.shared);
+        await Client_10(&init.shared);
 
         [[
             FC.dot( FC.chains[''][0].head, '/tmp/tst-01-00.dot' )

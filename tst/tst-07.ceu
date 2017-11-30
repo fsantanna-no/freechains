@@ -44,7 +44,7 @@ par/and do
                 }
             }
         ]];
-        await Client(&init.shared);
+        await Client_10(&init.shared);
 
         var int i;
         loop i in [0 -> 10[ do
@@ -53,7 +53,7 @@ par/and do
                     chain = assert(FC.chains[''][0]),
                 }
             ]];
-            await Client_10(&init.shared);
+            await Client_10_Pos(&init.shared,0);
         end
 
         [[
@@ -86,7 +86,7 @@ with
             }
         ]];
         spawn Init();
-        await 500ms;
+        await 2s;
 
         [[
             FC.dot( FC.chains[''][0].head, '/tmp/tst-07-01.dot' )

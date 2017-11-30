@@ -57,7 +57,7 @@ par/and do
                     }
                 }
             ]];
-            await Client(&init.shared);
+            await Client_10(&init.shared);
         end
         [[
             FC.dot( FC.chains[''][0].head, '/tmp/tst-13-00.dot' )
@@ -139,7 +139,7 @@ with
                     }
                 }
             ]];
-            await Client(&init.shared);
+            await Client_10(&init.shared);
         end
         [[
             FC.dot( FC.chains[''][0].head, '/tmp/tst-13-02.dot' )

@@ -60,7 +60,7 @@ par/and do
                 }
             }
         ]];
-        await Client(&init.shared);
+        await Client_10(&init.shared);
 
         [[
             ARGS = {
@@ -74,7 +74,7 @@ par/and do
                 }
             }
         ]];
-        await Client(&init.shared);
+        await Client_10(&init.shared);
 
         emit ok;
 

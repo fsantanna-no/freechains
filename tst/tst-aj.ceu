@@ -53,6 +53,9 @@ par/and do
             }
         ]];
         await Client_10(&init.shared);
+        [[
+            print'0/2'
+        ]]
     end
 with
 
@@ -84,6 +87,7 @@ with
 
         [[
             FC.dot( FC.chains[''][0].head, '/tmp/tst-aj-01.dot' )
+            print'1/2'
         ]];
     end
 
@@ -129,8 +133,8 @@ with
                 }
             }
         ]]
-        emit init.shared.go_client_10_pre(0);
-        //await Client_10(&init.shared);
+        //emit init.shared.go_client_10_pre(0);
+        await Client_10(&init.shared);
         [[
             ARGS = {
                 message = {
@@ -146,6 +150,7 @@ with
 
         [[
             FC.dot( FC.chains[''][0].head, '/tmp/tst-aj-02.dot' )
+            print'2/2'
         ]];
     end
 
