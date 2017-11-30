@@ -1,7 +1,7 @@
 #ifndef _COMMON_CEU
 #define _COMMON_CEU
 
-#define DBG 0
+#define DBG 9
 
 #include "c.ceu"
 #include "uv/uv.ceu"
@@ -136,6 +136,8 @@ data UV_TCP_Server_Data with
 
     event int       ok_server;
     event (int,int) err_server;
+
+    var int n = -1;
 end
 
 #define AWAIT_CHAIN_N(shared,key,zeros,len)             \
@@ -334,12 +336,12 @@ do
     var u8 zeros = [[ THIS.node.chain.zeros ]];
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                     [[ THIS.node.pub.hash ]] ..
-                     [[ THIS.node[1].hash ]];
+                     [[ THIS.node.pub.hash ]];
 
-    var bool is_join = [[ THIS.node.tp == 'join' ]];
-    if is_join then
-        pln = pln .. [[ THIS.node[2].hash ]];
+    var int n = [[ #THIS.node ]];
+    var int i;
+    loop i in [1 -> n] do
+        pln = pln .. [[ THIS.node[@i].hash ]];
     end
 
     // show async/thread progress
@@ -414,12 +416,12 @@ do
     end
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                     [[ THIS.node.pub.hash ]] ..
-                     [[ THIS.node[1].hash ]];
+                     [[ THIS.node.pub.hash ]];
 
-    var bool is_join = [[ THIS.node.tp == 'join' ]];
-    if is_join then
-        pln = pln .. [[ THIS.node[2].hash ]];
+    var int n = [[ #THIS.node ]];
+    var int i;
+    loop i in [1 -> n] do
+        pln = pln .. [[ THIS.node[@i].hash ]];
     end
 
     do
@@ -467,7 +469,7 @@ code/await Subscribe (var& UV_TCP_Server_Data shared) -> none do
         var int zeros = [[cfg.zeros]];
         var int j;
         //loop j in [zeros -> 255] do
-loop j in [zeros -> 30] do
+loop j in [zeros -> 22] do
             [[
                 j = @j
                 has = FC.chains[cfg.key][j]
@@ -570,6 +572,8 @@ do
         _dbg(0, "server | persistency in %s", &&path[0]);
     end
 
+    await Subscribe(&shared);
+
     spawn do
         var int  msg;
         var int  ret;
@@ -600,7 +604,6 @@ do
 
     spawn Clients_10(&shared);
 
-    await Subscribe(&shared);
     await async do end; // with "no_persistency", no files are loaded and no awaits happen until here
     emit ok;
 

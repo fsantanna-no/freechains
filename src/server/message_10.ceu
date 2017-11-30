@@ -97,7 +97,7 @@ do
                 var[HASH_BYTES] byte hash;
                 _ceu_vector_copy(&&hash,0, &&outer.tcp.buffer,0, HASH_BYTES);
                 [[
-                    prv = assert(THIS.node.chain.cache[@hash], 'expected in cache')
+                    prv = assert(THIS.node.chain.cache[@hash], 'expected in cache: '..FC.tostring(@hash)..' <- '..FC.tostring(THIS.node.hash))
                     THIS.node[@i] = prv
                 ]];
                 $outer.tcp.buffer = $outer.tcp.buffer - HASH_BYTES;
@@ -187,6 +187,7 @@ do
             [[ ARGS = { node=THIS.node } ]]
             await Node_Check();
             [[
+                print('RECV', @(outer.shared.n), FC.tostring(THIS.node.hash))
                 FC.head_new(THIS.node)
             ]];
             [[ ARGS = { chain=THIS.chain } ]];
@@ -211,14 +212,17 @@ do
             THIS.hash = @hash;
         ]];
         $tcp.buffer = $tcp.buffer - HASH_BYTES;
+[[print(outer.shared.n, 'EU TENHO '..FC.tostring(THIS.hash)..'?')]]
 
         var bool has = [[ THIS.chain.cache[THIS.hash] ]];
         if has then
+[[print(outer.shared.n, 'EU SIM!', FC.tostring(THIS.hash))]]
             tcp.buffer = [1];
             await UV_Stream_Write_N(&tcp,_);
             [[ ARGS = { chain=THIS.chain } ]]
             await Go();
         else
+[[print(outer.shared.n, 'EU NAO!', FC.tostring(THIS.hash))]]
             tcp.buffer = [0];
             await UV_Stream_Write_N(&tcp,_);
         end
@@ -333,7 +337,7 @@ do
             // <= NODE[n].hash
             var int i;
             loop i in [1 -> n] do
-                var[] byte str = [] .. [[ FC.tostring(THIS.cur[1].hash) ]] .. [0];
+                var[] byte str = [] .. [[ FC.tostring(THIS.cur[@i].hash) ]] .. [0];
                 _dbg_tcp(3, &&outer.tcp.handle, "client", "<= NODE_HASH[%d] : %s", i, &&str[0]);
                 outer.tcp.buffer = outer.tcp.buffer .. [[ THIS.cur[@i].hash ]];
             end
@@ -391,6 +395,7 @@ do
 
         // <= HASH
         tcp.buffer = [1] .. [[ THIS.cur.hash ]];
+[[print('VC TEM '..FC.tostring(THIS.cur.hash)..'?')]]
         await UV_Stream_Write_N(&tcp,_);
 
         // => ACK-HASH
@@ -398,6 +403,7 @@ do
         var byte ret = tcp.buffer[0];
         $tcp.buffer = $tcp.buffer - 1;
         if ret == 0 then
+[[print('VC NAO!', FC.tostring(THIS.cur.hash))]]
             [[
                 THIS.togo[#THIS.togo+1] = THIS.cur
                 THIS.togo[THIS.cur] = 1
@@ -408,6 +414,7 @@ do
                 end
             ]]
         else
+[[print('VC SIM!', FC.tostring(THIS.cur.hash))]]
             [[ ARGS = { togo=THIS.togo } ]];
             await Go();
         end

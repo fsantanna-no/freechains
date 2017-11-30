@@ -37,6 +37,13 @@ function FC.children (node, head)
     for k,v in pairs(head) do
         node[#node+1] = v
     end
+    table.sort(node, function(a,b) return a.hash<b.hash end)
+
+    local t = {}
+    for _, a in ipairs(node) do
+        t[#t+1] = FC.tostring(a.hash)
+    end
+    print('CHILDREN', table.concat(t,','))
 end
 
 function FC.head_new (node)
@@ -54,7 +61,6 @@ local function dot_aux (A, t)
         t.n = t.n + 1
     end
 
-    table.sort(A, function(a,b) return a.hash<b.hash end)
     for _, a in ipairs(A) do
         dot_aux(a, t)
         t.conns[#t.conns+1] = t.cache[A]..' -> '..t.cache[a]
