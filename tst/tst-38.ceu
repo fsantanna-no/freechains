@@ -8,8 +8,14 @@ _srand(_time(null));
 // - all to all
 ///////////////////////////////////////////////////////////////////////////////
 
-#define N 20
-#define M  1
+#define N 50
+#define M  5
+
+spawn do
+    every 1s do
+        [[print'...']]
+    end
+end
 
 code/await Node (var int i) -> none
     throws Exception.Lua
@@ -37,10 +43,12 @@ do
             peers = CFG.chains['tst-38'].peers
             for j=0, N-1 do
                 if j ~= @i then
+if math.random(8) == 1 then
                     peers[#peers+1] = {
                         address = '127.0.0.1',
                         port    = 8340 + j,
                     }
+end
                 end
             end
         ]]

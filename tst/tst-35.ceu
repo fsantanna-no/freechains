@@ -8,6 +8,12 @@ _srand(_time(null));
 
 #define N 20
 
+spawn do
+    every 1s do
+        [[print'...']]
+    end
+end
+
 code/await Node (var int i) -> none
     throws Exception.Lua
 do

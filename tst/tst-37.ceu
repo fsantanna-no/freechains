@@ -10,6 +10,12 @@ _srand(_time(null));
 
 #define N 50
 
+spawn do
+    every 1s do
+        [[print'...']]
+    end
+end
+
 code/await Node (var int i) -> none
     throws Exception.Lua
 do
@@ -36,10 +42,12 @@ do
             peers = CFG.chains['tst-37'].peers
             for j=0, N-1 do
                 if j ~= @i then
+if math.random(8) == 1 then
                     peers[#peers+1] = {
                         address = '127.0.0.1',
                         port    = 8340 + j,
                     }
+end
                 end
             end
         ]]
@@ -79,7 +87,7 @@ print(@i, '<'..string.rep('=',70))
             var int j;
             loop j in [0 -> N[ do
                 // how much time between each message?
-                await (_rand() % 100) ms;
+                await (_rand() % 10000) ms;
                 [[
                     ARGS = {
                         message = {

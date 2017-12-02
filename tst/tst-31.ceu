@@ -100,7 +100,7 @@ print(@i, '<'..string.rep('=',70))
             // wait for consensus
             loop do
                 watching init.shared.ok_server do
-                    await (N)s;
+                    await (2*N)s;
 //_dbg(0, "server | shared.ok | 0.0.0.0:%d", port);
                     [[ print('>>>', @local, 'STOP', FC.chains['tst-31'][0].n) ]];
                     break;
