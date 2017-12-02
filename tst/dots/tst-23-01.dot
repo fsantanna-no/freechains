@@ -5,8 +5,8 @@
         edge [];
         //splines = true;
 
-        n_1[label="75 5C 03 6D/0"];
-n_0[label="head/0"];
-        n_0 -> n_1
+        n_000[label="head/0"];
+n_001[label="75 5C 03 6D/0"];
+        n_000 -> n_001
     }
     

@@ -6,33 +6,12 @@ var int client_10_n = 0;
 code/await Client_10 (var& UV_TCP_Server_Data shared) -> none do
     outer.client_10_n = outer.client_10_n + 1;
     var int n = outer.client_10_n;
-[[print('N = '..@n)]];
     par/and do
         par/or do
             var int n_;
-#if 0
             (n_,_) = await shared.err_client_10_pos until n_==n;
-#else
-            loop do
-                (n_,_) = await shared.err_client_10_pos;
-[[print('n = '..@n_)]];
-                if n_ == n then
-                    break;
-                end
-            end
-#endif
         with
-#if 0
             var int n_ = await shared.ok_client_10_pos until n_==n;
-#else
-            loop do
-                var int n_ = await shared.ok_client_10_pos;
-[[print('n = '..@n_)]];
-                if n_ == n then
-                    break;
-                end
-            end
-#endif
         end
     with
         emit shared.go_client_10_pre(n);
@@ -208,7 +187,6 @@ do
             ]]
             await Node_Hash();
             [[
-                print('CREATE', @(shared.n), FC.tostring(THIS.node.hash))
                 FC.head_new(THIS.node)
             ]]
         end

@@ -1,7 +1,7 @@
 #ifndef _COMMON_CEU
 #define _COMMON_CEU
 
-#define DBG 9
+#define DBG 0
 
 #include "c.ceu"
 #include "uv/uv.ceu"
@@ -325,9 +325,7 @@ code/await Node_Hash (none) -> none
     // effect: [[ ARGS={node={DONE}} ]]
 do
     [[
-        THIS = {
-            node = ARGS.node,
-        }
+        THIS = ARGS
     ]];
 
     var[HASH_BYTES] byte hash;
@@ -389,7 +387,7 @@ do
         THIS.node.timestamp = @timestamp
         THIS.node.nonce     = @nonce
         THIS.node.hash      = @hash
-        FC.node(THIS.node)
+        THIS.node = FC.node(THIS.node)
     ]];
 end
 
@@ -401,11 +399,7 @@ code/await Node_Check (none) -> none
     // input: [[ ARGS={node={DONE}} ]]
     throws Exception.Freechains.Malformed
 do
-    [[
-        THIS = {
-            node = ARGS.node,
-        }
-    ]];
+    [[ THIS = ARGS ]];
 
     var[HASH_BYTES] byte hash = [] .. [[ THIS.node.hash ]];
 
@@ -439,7 +433,7 @@ do
     end
 
     [[
-        FC.node(THIS.node)
+        THIS.node = FC.node(THIS.node)
     ]]
 end
 

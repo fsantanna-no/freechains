@@ -184,10 +184,9 @@ do
                 end
             end
 
-            [[ ARGS = { node=THIS.node } ]]
+            [[ ARGS = THIS ]]
             await Node_Check();
             [[
-                print('RECV', @(outer.shared.n), FC.tostring(THIS.node.hash))
                 FC.head_new(THIS.node)
             ]];
             [[ ARGS = { chain=THIS.chain } ]];
@@ -212,20 +211,16 @@ do
             THIS.hash = @hash;
         ]];
         $tcp.buffer = $tcp.buffer - HASH_BYTES;
-[[print(outer.shared.n, 'EU TENHO '..FC.tostring(THIS.hash)..'?')]]
 
         var bool has = [[ THIS.chain.cache[THIS.hash] ]];
         if has then
-[[print(outer.shared.n, 'EU SIM!', FC.tostring(THIS.hash))]]
             tcp.buffer = [1];
-            await UV_Stream_Write_N(&tcp,_);
-            [[ ARGS = { chain=THIS.chain } ]]
-            await Go();
         else
-[[print(outer.shared.n, 'EU NAO!', FC.tostring(THIS.hash))]]
             tcp.buffer = [0];
-            await UV_Stream_Write_N(&tcp,_);
         end
+        await UV_Stream_Write_N(&tcp,_);
+        [[ ARGS = { chain=THIS.chain } ]]
+        await Go();
     end
 end
 
@@ -268,45 +263,35 @@ do
     // NODES
     ///////////////////////////////////////////////////////////////////////////
 
-    // TODO: PoS: before/after each node? once per node?
-    [[
-        THIS = {
-            chain = ARGS.chain,
-            toask = {},
-            asked = {},
-            togo  = {},
-        }
-        FC.children(THIS.toask, THIS.chain.head)
-    ]]
-
     code/await Go (none) -> none
         throws Exception.Uv
     do
-        [[ THIS = { togo=ARGS.togo } ]];
+        [[ THIS = ARGS ]];
         loop do
             [[
                 THIS.cur = THIS.togo[#THIS.togo]
+                go = false
+                if THIS.cur then
+                    --THIS.togo[THIS.cur] = THIS.togo[THIS.cur] + 1
+                    go = true
+                    for _,v in ipairs(THIS.cur) do
+                        if not THIS.asked[v] then
+                            go = false
+                            break
+                        end
+                    end
+                end
             ]]
-            var bool has = [[ THIS.cur~=nil ]];
-            if not has then
+            var bool go = [[ go ]];
+            if not go then
                 outer.tcp.buffer = [0];
                 await UV_Stream_Write_N(&outer.tcp,_);
                 escape;
             end
 
-            var bool is_ready = [[ #THIS.cur == THIS.togo[THIS.cur] ]];
-            if is_ready then
-                [[
-                    table.remove(THIS.togo)
-                ]]
-            else
-                [[
-                    THIS.togo[THIS.cur] = THIS.togo[THIS.cur] + 1
-                ]]
-                outer.tcp.buffer = [0];
-                await UV_Stream_Write_N(&outer.tcp,_);
-                escape;
-            end
+            [[
+                table.remove(THIS.togo)
+            ]]
 
             // <= n
             // <= NODE_HASH
@@ -380,43 +365,71 @@ do
         end
     end
 
-    loop do
-        var bool has_ask = [[ #THIS.toask > 0 ]];
+     // TODO: PoS: before/after each node? once per node?
+    [[
+        THIS = {
+            chain = ARGS.chain,
+            toask = {},
+            asked = {},
+            togo  = {},
+        }
+        FC.children(THIS.toask, THIS.chain.head)
+    ]]
+
+   loop do
+        [[
+            THIS.cur = nil
+            while true do
+                if #THIS.toask == 0 then
+                    break
+                end
+
+                cur = table.remove(THIS.toask) -- next to ask
+                if not THIS.asked[cur] then
+                    THIS.cur = cur
+                    THIS.asked[cur] = true     -- dont ask for this one again (avoid diamonds in the graph)
+                    break
+                end
+            end
+        ]]
+
+        var bool has_ask = [[ THIS.cur ~= nil ]];
         if not has_ask then
-            tcp.buffer = [0];
+            tcp.buffer = [0];                   // no more nodes to offer
             await UV_Stream_Write_N(&tcp,_);
             break;
         end
 
-        [[
-            THIS.cur = table.remove(THIS.toask)
-            THIS.asked[THIS.cur] = true
-        ]]
-
-        // <= HASH
+        // <= HASH (ask)
         tcp.buffer = [1] .. [[ THIS.cur.hash ]];
-[[print('VC TEM '..FC.tostring(THIS.cur.hash)..'?')]]
         await UV_Stream_Write_N(&tcp,_);
 
-        // => ACK-HASH
+        // => ACK-HASH (answer)
         await UV_Stream_Read_N(&tcp, 1);
         var byte ret = tcp.buffer[0];
         $tcp.buffer = $tcp.buffer - 1;
+
+        [[ THIS.go = true ]]
         if ret == 0 then
-[[print('VC NAO!', FC.tostring(THIS.cur.hash))]]
             [[
-                THIS.togo[#THIS.togo+1] = THIS.cur
-                THIS.togo[THIS.cur] = 1
+                THIS.togo[#THIS.togo+1] = THIS.cur      -- send it complete later
+                --THIS.togo[THIS.cur] = 0
                 for _, a in ipairs(THIS.cur) do
                     if not THIS.asked[a] then
-                        THIS.toask[#THIS.toask+1] = a
+                        THIS.toask[#THIS.toask+1] = a   -- first ask for its children
+                        THIS.go = false
                     end
                 end
             ]]
-        else
-[[print('VC SIM!', FC.tostring(THIS.cur.hash))]]
-            [[ ARGS = { togo=THIS.togo } ]];
+        end
+
+        var bool go = [[ THIS.go ]];
+        if go then
+            [[ ARGS = THIS ]];
             await Go();
+        else
+            tcp.buffer = [0];
+            await UV_Stream_Write_N(&tcp,_);
         end
     end
 end

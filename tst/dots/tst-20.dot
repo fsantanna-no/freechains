@@ -5,11 +5,11 @@
         edge [];
         //splines = true;
 
-        n_2[label="33 DF 99 3E/0"];
-n_1[label="Ola Mundo!
+        n_000[label="head/0"];
+n_001[label="Ola Mundo!
 /1"];
-n_0[label="head/0"];
-        n_1 -> n_2
-n_0 -> n_1
+n_002[label="33 DF 99 3E/0"];
+        n_000 -> n_001
+n_001 -> n_002
     }
     

@@ -43,27 +43,6 @@ do
         await 100ms;
 
         do
-#if 0
-            spawn do
-                var int  a;
-                var bool err;
-                var int  c;
-                every (a,err,c) in init.shared.ok do
-#if 0
-[[
-print(@i, '>'..string.rep('=',70))
-print(FC.chain_tostring('|tst-29|0|'))
-print(@i, '<'..string.rep('=',70))
-]];
-#endif
-
-                    if err then
-                        _printf("server | err | %d %d %d\n", a,err,c);
-                    end
-                end
-            end
-#endif
-
             var int j;
             loop j in [0 -> N[ do
                 // how much time between each message?
@@ -80,8 +59,9 @@ print(@i, '<'..string.rep('=',70))
                         }
                     }
                 ]];
-                await Client(&init.shared);
-//[[print(@i,@j, "clients") ]];
+//[[print('>>>', @i,@j, "clients") ]];
+                await Client_10(&init.shared);
+//[[print('<<<', @i,@j, "clients") ]];
             end
 
             // wait all messages to be received
@@ -90,18 +70,13 @@ print(@i, '<'..string.rep('=',70))
             // wait for consensus
             loop do
                 watching init.shared.ok_server do
-                    await (N*N)s;
+                    await (N)s;
                     break;
                 end
             end
         end
 
 #if 0
-[[
-print(@i, '>'..string.rep('=',70))
-print(FC.chain_tostring('|tst-29|0|'))
-print(@i, '<'..string.rep('=',70))
-]];
         [[ ARGS = { chain=FC.chains['tst-29'][0] } ]];
         await FS_write_10();
 #endif

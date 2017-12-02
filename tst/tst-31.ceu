@@ -40,6 +40,8 @@ do
         ]]
 
         var& Init init = spawn Init();
+        init.shared.n = i;
+        await init.ok;
 
         spawn do
             every 5s do
@@ -87,7 +89,7 @@ print(@i, '<'..string.rep('=',70))
                         }
                     }
                 ]];
-                await Client(&init.shared);
+                await Client_10(&init.shared);
 //[[print(@i,@j, "clients") ]];
             end
 //[[print(@i, "CLIENTS") ]];

@@ -73,7 +73,7 @@ print(@i, '<'..string.rep('=',70))
             var int j;
             loop j in [1 -> M] do
                 // how much time between each message?
-                await (_rand() % (100*N*N)) ms;
+                await (_rand() % 100) ms;
                 [[
                     ARGS = {
                         message = {
@@ -86,7 +86,7 @@ print(@i, '<'..string.rep('=',70))
                         }
                     }
                 ]];
-                await Client(&init.shared);
+                await Client_10(&init.shared);
 //[[print(@i,@j, "clients") ]];
             end
 //[[print(@i, "CLIENTS") ]];

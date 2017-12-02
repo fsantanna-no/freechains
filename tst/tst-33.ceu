@@ -10,6 +10,12 @@ _srand(_time(null));
 
 #define N 6
 
+spawn do
+    every 1s do
+        _printf("...\n\n");
+    end
+end
+
 code/await Node (var int i) -> none
     throws Exception.Lua
 do
@@ -72,7 +78,7 @@ print(@i, '<'..string.rep('=',70))
             var int j;
             loop j in [0 -> N[ do
                 // how much time between each message?
-                await (_rand() % (100*N*N)) ms;
+                await (_rand() % 100) ms;
                 [[
                     ARGS = {
                         message = {
@@ -85,7 +91,7 @@ print(@i, '<'..string.rep('=',70))
                         }
                     }
                 ]];
-                await Client(&init.shared);
+                await Client_10(&init.shared);
 //[[print(@i,@j, "clients") ]];
             end
 //[[print(@i, "CLIENTS") ]];
@@ -96,7 +102,7 @@ print(@i, '<'..string.rep('=',70))
             // wait for consensus
             loop do
                 watching init.shared.ok_server do
-                    await (N)s;
+                    await (2*N)s;
 //_dbg(0, "server | shared.ok | 0.0.0.0:%d", port);
                     break;
                 end

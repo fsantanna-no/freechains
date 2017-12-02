@@ -18,9 +18,10 @@ function FC.node (node)
     assert(node.chain, 'missing chain')
 
     local old = node.chain.cache[node.hash]
-    if not old then
-        node.chain.n = node.chain.n + 1
+    if old then
+        return old
     end
+    node.chain.n = node.chain.n + 1
     node.chain.cache[node.hash] = node
 
     node.height = -1
@@ -43,7 +44,6 @@ function FC.children (node, head)
     for _, a in ipairs(node) do
         t[#t+1] = FC.tostring(a.hash)
     end
-    print('CHILDREN', table.concat(t,','))
 end
 
 function FC.head_new (node)
@@ -57,7 +57,7 @@ local function dot_aux (A, t)
     if t.cache[A] then
         return
     else
-        t.cache[A] = 'n_'..t.n
+        t.cache[A] = 'n_'..string.format('%03d',t.n)
         t.n = t.n + 1
     end
 
@@ -66,6 +66,7 @@ local function dot_aux (A, t)
         t.conns[#t.conns+1] = t.cache[A]..' -> '..t.cache[a]
     end
 
+    --local label = A.label or (A.hash and FC.tostring(A.hash)) or t.cache[A]
     local label = A.label or (A.pub and A.pub.payload) or (A.hash and FC.tostring(A.hash)) or t.cache[A]
     --t.nodes[#t.nodes+1] = t.cache[A]..'[label="'..label..'/'..A.height..'", shape='..SHAPE[A.tp]..'];'
     t.nodes[#t.nodes+1] = t.cache[A]..'[label="'..label..'/'..A.height..'"];'
@@ -78,7 +79,11 @@ function FC.dot (A, path)
         head[#head+1] = v
     end
     table.sort(head, function(a,b) return a.hash<b.hash end)
+    --table.sort(head, function(a,b) return a.pub.payload<b.pub.payload end)
     dot_aux(head, t)
+
+    table.sort(t.nodes)
+    table.sort(t.conns)
 
     local f = (path and assert(io.open(path,'w'))) or io.stdout
     f:write([[
