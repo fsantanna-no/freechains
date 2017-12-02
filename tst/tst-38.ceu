@@ -46,6 +46,13 @@ do
         ]]
 
         var& Init init = spawn Init();
+
+        spawn do
+            every 5s do
+                [[ print('>>>', @local, FC.chains['tst-38'][0].n) ]];
+            end
+        end
+
         await 100ms;
 
         do
@@ -99,6 +106,7 @@ print(@i, '<'..string.rep('=',70))
                 watching init.shared.ok_server do
                     await (N)s;
 //_dbg(0, "server | shared.ok | 0.0.0.0:%d", port);
+                    [[ print('>>>', @local, 'STOP', FC.chains['tst-38'][0].n) ]];
                     break;
                 end
             end
