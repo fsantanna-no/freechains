@@ -187,7 +187,11 @@ do
             [[ ARGS = THIS ]]
             await Node_Check();
             [[
-                FC.head_new(THIS.node)
+                if THIS.node.__from_cache then
+                    -- maybe I already received it concurrently
+                else
+                    FC.head_new(THIS.node)
+                end
             ]];
             [[ ARGS = { chain=THIS.chain } ]];
             emit outer.shared.go_client_10_pos(0);

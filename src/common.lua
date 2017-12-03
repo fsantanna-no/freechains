@@ -19,6 +19,7 @@ function FC.node (node)
 
     local old = node.chain.cache[node.hash]
     if old then
+        old.__from_cache = true
         return old
     end
     node.chain.n = node.chain.n + 1
@@ -38,7 +39,6 @@ function FC.children (node, head)
     for k,v in pairs(head) do
         node[#node+1] = v
     end
-    table.sort(node, function(a,b) return a.hash<b.hash end)
 
     local t = {}
     for _, a in ipairs(node) do
@@ -57,10 +57,13 @@ local function dot_aux (A, t)
     if t.cache[A] then
         return
     else
-        t.cache[A] = 'n_'..string.format('%03d',t.n)
+        --t.cache[A] = 'n_'..string.gsub(FC.tostring(A.hash),' ','_')
+        t.cache[A] = 'n_'..string.format('%03d',A.height)..'_'..string.format('%03d',t.n)
         t.n = t.n + 1
     end
 
+    --table.sort(A, function(a,b) return a.pub.payload<b.pub.payload end)
+    table.sort(A, function(a,b) return a.hash<b.hash end)
     for _, a in ipairs(A) do
         dot_aux(a, t)
         t.conns[#t.conns+1] = t.cache[A]..' -> '..t.cache[a]
@@ -74,10 +77,12 @@ end
 
 function FC.dot (A, path)
     local t = { n=0, cache={}, nodes={}, conns={} }
-    local head = { height=0, label='head' }
+    local head = { height=-1, label='head' }
     for _,v in pairs(A) do
         head[#head+1] = v
+        head.height = max(head.height, v.height)
     end
+    head.height = head.height + 1
     table.sort(head, function(a,b) return a.hash<b.hash end)
     --table.sort(head, function(a,b) return a.pub.payload<b.pub.payload end)
     dot_aux(head, t)

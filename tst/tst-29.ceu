@@ -70,7 +70,7 @@ do
             // wait for consensus
             loop do
                 watching init.shared.ok_server do
-                    await (N)s;
+                    await (2*N)s;
                     break;
                 end
             end
