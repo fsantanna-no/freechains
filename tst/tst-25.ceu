@@ -40,7 +40,7 @@ var& Init init = spawn Init();
         }
     }
 ]]
-await Client(&init.shared);
+await Client_10(&init.shared);
 
 [[
     ARGS = {
@@ -54,7 +54,7 @@ await Client(&init.shared);
         }
     }
 ]];
-await Client(&init.shared);
+await Client_10(&init.shared);
 
 [[
     ARGS = {
@@ -68,7 +68,7 @@ await Client(&init.shared);
         }
     }
 ]]
-await Client(&init.shared);
+await Client_10(&init.shared);
 
 [[
     ARGS = {
@@ -82,20 +82,15 @@ await Client(&init.shared);
         }
     }
 ]];
-await Client(&init.shared);
+await Client_10(&init.shared);
 
 [[
-    print('>'..string.rep('=',78))
-    print(FC.chain_tostring('|tst-25|0|'))
-    print('<'..string.rep('=',78))
+    FC.write(FC.chains['tst-25'][0].head, '/tmp/tst-25-00.chain')
 ]];
 
-[[ ARGS={ chain=FC.chains['tst-25'][0] } ]];
-await FS_write_10();
-
 [[
-local src   = assert(io.open('tst/|tst-25|0|.chain')):read'*a'
-local build = assert(io.open('/tmp/freechains/8330/|tst-25|0|.chain')):read'*a'
+local src   = assert(io.open('tst/chains/tst-25-00.chain')):read'*a'
+local build = assert(io.open('/tmp/tst-25-00.chain')):read'*a'
 assert(src == build)
 print 'OK!'
 ]];

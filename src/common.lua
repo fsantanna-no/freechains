@@ -108,6 +108,60 @@ function FC.dot (A, path)
     f:close()
 end
 
+local function write_aux (A, t)
+    if t.cache[A] then
+        return
+    else
+        t.cache[A] = true
+    end
+
+    local out = {
+        chain     = nil,
+        height    = nil,
+        --
+        hash      = A.hash,
+        nonce     = A.nonce,
+        timestamp = A.timestamp,
+
+        pub = A.pub and {
+            chain     = nil,
+            --
+            hash      = A.pub.hash,
+            nonce     = A.pub.nonce,
+            timestamp = A.pub.timestamp,
+            payload   = A.pub.payload,
+        } or nil,
+    }
+    for i, v in ipairs(A) do
+        write_aux(v, t)
+        out[i] = v.hash
+    end
+    t.nodes[#t.nodes+1] = FC.tostring(out,'plain')
+end
+
+function FC.write (A, path)
+    local t = { cache={}, nodes={} }
+
+    table.sort(A, function(a,b) return a.hash<b.hash end)
+    --table.sort(A, function(a,b) return a.pub.payload<b.pub.payload end)
+
+    local head = {}
+    for _,v in pairs(A) do
+        head[#head+1] = v.hash
+        write_aux(v, t)
+    end
+
+    local f = (path and assert(io.open(path,'w'))) or io.stdout
+    f:write([[
+        return {
+            head = ]]..FC.tostring(head,'plain')..[[,
+            ]] .. table.concat(t.nodes,',\n') .. [[
+        }
+    ]])
+    f:close()
+end
+
+
 -------------------------------------------------------------------------------
 
 function FC.chain_block_get (chain, hash)
