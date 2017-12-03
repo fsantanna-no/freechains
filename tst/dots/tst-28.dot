@@ -1,0 +1,22 @@
+    digraph graphname {
+        //rankdir=LR;  // Rank Direction Left to Right
+
+        nodesep=1.0 // increases the separation between nodes
+        edge [];
+        //splines = true;
+
+        n_000[label="head/0"];
+n_001[label="555/5"];
+n_002[label="444/4"];
+n_003[label="333/3"];
+n_004[label="222/2"];
+n_005[label="111/1"];
+n_006[label="0B 35 0B A9/0"];
+        n_000 -> n_001
+n_001 -> n_002
+n_002 -> n_003
+n_003 -> n_004
+n_004 -> n_005
+n_005 -> n_006
+    }
+    

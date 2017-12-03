@@ -11,9 +11,6 @@
 //  - 555
 ///////////////////////////////////////////////////////////////////////////////
 
-var[] byte chain0;
-var[] byte chain1;
-
 par/and do
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -22,8 +19,14 @@ par/and do
 
     lua[] do
         [[
-            dofile 'src/common.lua'
+            os.execute('mkdir -p /tmp/freechains/8340/')
+            os.execute('cp tst/chains/tst-25-00.chain /tmp/freechains/8340/\\|tst-25\\|0\\|.chain')
             CFG = {
+                daemon = {
+                    address = '127.0.0.1',
+                    port    = '8340',
+                    backlog = 128,
+                },
                 chains = {
                     ['tst-25'] = {
                         key   = 'tst-25',
@@ -54,16 +57,11 @@ par/and do
                 }
             }
         ]]
-        await Client(&init.shared);
+        await Client_10(&init.shared);
 
         [[
-            CHAIN0 = FC.chain_flatten('|tst-25|0|')
-            print'===> CLIENT'
-            print('>'..string.rep('=',78))
-            print(FC.chain_tostring('|tst-25|0|'))
-            print('<'..string.rep('=',78))
+            FC.dot( FC.chains['tst-25'][0].head, '/tmp/tst-28-00.dot' )
         ]];
-        chain0 = []..[[FC.tostring(CHAIN0)]];
     end
 
 with
@@ -92,26 +90,21 @@ with
         ]];
 
         var& Init init = spawn Init();
-        AWAIT_CHAIN_LENGTH(init.shared, 'tst-25', 0, 5);
+        AWAIT_CHAIN_N(init.shared, 'tst-25', 0, 6);
         [[
-            CHAIN1 = FC.chain_flatten('|tst-25|0|')
-            print'===> SERVER'
-            print('>'..string.rep('=',78))
-            print(FC.chain_tostring('|tst-25|0|'))
-            print('<'..string.rep('=',78))
+            FC.dot( FC.chains['tst-25'][0].head, '/tmp/tst-28-01.dot' )
         ]];
-        chain1 = []..[[FC.tostring(CHAIN1)]];
-        [[
-            assert( #CHAIN1==6 and CHAIN1[6].pub.payload=='555' )
-            print'OK! 1/2'
-        ]]
     end
 
 end
 
 [[
-    assert(@chain0 == @chain1)
-    print'OK! 2/2'
+    local tst   = assert(io.open('tst/dots/tst-28.dot')):read'*a'
+    local tmp00 = assert(io.open('/tmp/tst-28-00.dot')):read'*a'
+    local tmp01 = assert(io.open('/tmp/tst-28-01.dot')):read'*a'
+    assert(tst==tmp00 and tst==tmp01)
+
+    print'OK!'
 ]]
 
 escape 0;
