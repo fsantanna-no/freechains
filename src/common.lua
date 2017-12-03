@@ -169,6 +169,34 @@ end
 
 -------------------------------------------------------------------------------
 
+function FC.read (chain, path)
+    function Node (node)
+        node.chain = chain
+        if node.pub then
+            node.pub.chain = chain
+        end
+        chain.cache[node.hash] = node
+
+        node.height = -1
+        for i, hash in ipairs(node) do
+            node[i] = assert(chain.cache[hash])
+            node.height = max(node.height, node[i].height)
+        end
+        node.height = node.height + 1
+    end
+
+    function Head (t)
+        chain.head = {}
+        for _, hash in ipairs(t) do
+            chain.head[hash] = assert(chain.cache[hash])
+        end
+    end
+
+    dofile(path)
+end
+
+-------------------------------------------------------------------------------
+
 function FC.chain_block_get (chain, hash)
     local cur = chain.head
     while cur do
