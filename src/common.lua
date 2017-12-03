@@ -39,6 +39,8 @@ function FC.children (node, head)
     for k,v in pairs(head) do
         node[#node+1] = v
     end
+    table.sort(node, function(a,b) return a.hash<b.hash end)
+            -- TODO-01: remover este
 
     local t = {}
     for _, a in ipairs(node) do
@@ -58,12 +60,15 @@ local function dot_aux (A, t)
         return
     else
         --t.cache[A] = 'n_'..string.gsub(FC.tostring(A.hash),' ','_')
-        t.cache[A] = 'n_'..string.format('%03d',A.height)..'_'..string.format('%03d',t.n)
+        t.cache[A] = 'n_'..string.format('%03d',t.n)
+        --t.cache[A] = 'n_'..string.format('%03d',A.height)..'_'..string.format('%03d',t.n)
+            -- TODO-01: usar este em vez do sem o height
         t.n = t.n + 1
     end
 
     --table.sort(A, function(a,b) return a.pub.payload<b.pub.payload end)
-    table.sort(A, function(a,b) return a.hash<b.hash end)
+    --table.sort(A, function(a,b) return a.hash<b.hash end)
+            -- TODO-01: usar este em vez de em FC.children
     for _, a in ipairs(A) do
         dot_aux(a, t)
         t.conns[#t.conns+1] = t.cache[A]..' -> '..t.cache[a]
@@ -82,7 +87,8 @@ function FC.dot (A, path)
         head[#head+1] = v
         head.height = max(head.height, v.height)
     end
-    head.height = head.height + 1
+    head.height = 0 --head.height + 1
+                        -- TODO-01: usar este em vez do "0"
     table.sort(head, function(a,b) return a.hash<b.hash end)
     --table.sort(head, function(a,b) return a.pub.payload<b.pub.payload end)
     dot_aux(head, t)
@@ -107,6 +113,8 @@ function FC.dot (A, path)
     ]])
     f:close()
 end
+
+-------------------------------------------------------------------------------
 
 local function write_aux (A, t)
     if t.cache[A] then
@@ -136,7 +144,7 @@ local function write_aux (A, t)
         write_aux(v, t)
         out[i] = v.hash
     end
-    t.nodes[#t.nodes+1] = FC.tostring(out,'plain')
+    t.nodes[#t.nodes+1] = 'Node('..FC.tostring(out,'plain')..')'
 end
 
 function FC.write (A, path)
@@ -153,14 +161,11 @@ function FC.write (A, path)
 
     local f = (path and assert(io.open(path,'w'))) or io.stdout
     f:write([[
-        return {
-            head = ]]..FC.tostring(head,'plain')..[[,
-            ]] .. table.concat(t.nodes,',\n') .. [[
-        }
+        ]] .. table.concat(t.nodes,'\n') .. [[
+        Head(]]..FC.tostring(head,'plain')..[[)
     ]])
     f:close()
 end
-
 
 -------------------------------------------------------------------------------
 
