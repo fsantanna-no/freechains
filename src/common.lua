@@ -147,14 +147,14 @@ local function write_aux (A, t)
     t.nodes[#t.nodes+1] = 'Node('..FC.tostring(out,'plain')..')'
 end
 
-function FC.write (A, path)
+function FC.write (chain, path)
     local t = { cache={}, nodes={} }
 
-    table.sort(A, function(a,b) return a.hash<b.hash end)
-    --table.sort(A, function(a,b) return a.pub.payload<b.pub.payload end)
+    table.sort(chain.head, function(a,b) return a.hash<b.hash end)
+    --table.sort(chain.head, function(a,b) return a.pub.payload<b.pub.payload end)
 
     local head = {}
-    for _,v in pairs(A) do
+    for _,v in pairs(chain.head) do
         head[#head+1] = v.hash
         write_aux(v, t)
     end

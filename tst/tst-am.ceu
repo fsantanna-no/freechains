@@ -22,9 +22,9 @@ var& Init init = spawn Init();
 await init.ok;
 
 [[
-    assert(FC.chains['tst-al'][0].base.nxt.pub.payload == '111')
-    assert(FC.chains['tst-al'][0].head.pub.payload == '444')
-    assert(FC.chains['tst-al'][0].head.length == 4)
+    FC.dot( FC.chains['tst-al'][0].head, '/tmp/tst-am.dot' )
+    local tst = assert(io.open('tst/dots/tst-am.dot')):read'*a'
+    local tmp = assert(io.open('/tmp/tst-am.dot')):read'*a'
     print 'OK!'
 ]]
 

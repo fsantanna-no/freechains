@@ -437,7 +437,7 @@ do
     ]]
 end
 
-#include "fs.ceu"
+//#include "fs.ceu"
 
 code/await Subscribe (var& UV_TCP_Server_Data shared) -> none do
     [[
@@ -507,15 +507,9 @@ loop j in [zeros -> 22] do
             // no problem if it fails
             var bool should_read = [[ not CFG.no_persistency ]];
             if should_read then
-                var Exception? e;
-                catch e do
-                    [[
-                        ARGS = {
-                            chain = THIS.sub
-                        }
-                    ]]
-                    await FS_read_10();
-                end
+                [[
+                    pcall(FC.read, THIS.sub, CFG.dir..'/'..THIS.sub.id..'.chain')
+                ]]
             end
 
             // TODO: how not to send all chains in all levels?

@@ -23,7 +23,7 @@ await 100ms;
 
 [[
     FC.read(FC.chains['tst-25'][0], 'tst/chains/tst-25-00.chain')
-    FC.write(FC.chains['tst-25'][0].head, '/tmp/tst-26-00.chain')
+    FC.write(FC.chains['tst-25'][0], '/tmp/tst-26-00.chain')
     local src   = assert(io.open('tst/chains/tst-25-00.chain')):read'*a'
     local build = assert(io.open('/tmp/tst-26-00.chain')):read'*a'
     assert(src == build)

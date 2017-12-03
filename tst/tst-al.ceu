@@ -33,7 +33,7 @@ var& Init init = spawn Init();
         }
     }
 ]]
-await Client(&init.shared);
+await Client_10(&init.shared);
 [[
     ARGS = {
         message = {
@@ -46,7 +46,7 @@ await Client(&init.shared);
         }
     }
 ]];
-await Client(&init.shared);
+await Client_10(&init.shared);
 [[
     ARGS = {
         message = {
@@ -59,7 +59,7 @@ await Client(&init.shared);
         }
     }
 ]]
-await Client(&init.shared);
+await Client_10(&init.shared);
 [[
     ARGS = {
         message = {
@@ -72,10 +72,11 @@ await Client(&init.shared);
         }
     }
 ]];
-await Client(&init.shared);
+await Client_10(&init.shared);
 
-[[ ARGS={ chain=FC.chains['tst-al'][0] } ]];
-await FS_write_10();
+[[
+    FC.write(FC.chains['tst-al'][0], '/tmp/freechains/8330/|tst-al|0|.chain')
+]];
 
 [[ print'OK' ]];
 

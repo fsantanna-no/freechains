@@ -85,7 +85,7 @@ await Client_10(&init.shared);
 await Client_10(&init.shared);
 
 [[
-    FC.write(FC.chains['tst-25'][0].head, '/tmp/tst-25-00.chain')
+    FC.write(FC.chains['tst-25'][0], '/tmp/tst-25-00.chain')
 ]];
 
 [[
