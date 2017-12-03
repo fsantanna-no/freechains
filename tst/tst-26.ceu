@@ -1,14 +1,6 @@
-#define DETERMINISTIC
 #include "common.ceu"
 
-///////////////////////////////////////////////////////////////////////////////
-// Read from "tst-25.chain"
-//  - 111,222
-//  - 333,444
-///////////////////////////////////////////////////////////////////////////////
-
 [[
-    dofile 'src/common.lua'
     CFG = {
         no_persistency = true,
         chains = {
@@ -26,111 +18,17 @@
     }
 ]];
 
-var& Init init = spawn Init();
+spawn Init();
+await 100ms;
 
 [[
-    ARGS = {
-        message = {
-            version = '1.0',
-            chain = {
-                key   = 'tst-25',
-                zeros = 0,
-            },
-            payload = '111',
-        },
-    }
+    dofile 'src/common.lua'
+    FC.read(FC.chains['tst-25'][0], 'tst/chains/tst-25-00.chain')
+    FC.write(FC.chains['tst-25'][0].head, '/tmp/tst-26-00.chain')
+    local src   = assert(io.open('tst/chains/tst-25-00.chain')):read'*a'
+    local build = assert(io.open('/tmp/tst-26-00.chain')):read'*a'
+    assert(src == build)
+    print 'OK!'
 ]]
-await Client(&init.shared);
-
-[[
-    ARGS = {
-        message = {
-            version = '1.0',
-            chain = {
-                key   = 'tst-25',
-                zeros = 0,
-            },
-            payload = '222',
-        },
-    }
-]]
-await Client(&init.shared);
-
-[[
-    ARGS = {
-        message = {
-            version = '1.0',
-            chain = {
-                key   = 'tst-25',
-                zeros = 0,
-            },
-            payload = '333',
-        },
-    }
-]]
-await Client(&init.shared);
-
-[[
-    ARGS = {
-        message = {
-            version = '1.0',
-            chain = {
-                key   = 'tst-25',
-                zeros = 0,
-            },
-            payload = '444',
-        },
-    }
-]];
-await Client(&init.shared);
-
-[[
-    head1 = FC.chains['tst-25'][0].head
-]]
-
-[[
-    ARGS = {
-        chain = FC.chains['tst-25'][0]
-    }
-]]
-await FS_read_10();
-[[
-    head2 = ARGS.chain.head
-    --old = FC.chains['|tst-25|0|'].head_hash
-    --FC.chains['|tst-25|0|'].head_hash = ARGS.head_hash
-    --print('>'..string.rep('=',78))
-    --print(GG.chain_tostring('|tst-25|0|'))
-    --print('<'..string.rep('=',78))
-    --FC.chains['|tst-25|0|'].head_hash = old
-]];
-
-#if 0
-[[
-    print('>'..string.rep('=',78))
-    print(GG.chain_tostring('|tst-25|0|'))
-    print('<'..string.rep('=',78))
-]];
-
-[[
-    chain     = FC.chains['|tst-25|0|']
-    head_hash = chain.head_hash
-    base      = GG.chain_head_base_size(head_hash).base
-]];
-#endif
-
-[[
-while head1.prv do
-    assert(head2)
-
-    local pub1 = head1.pub
-    local pub2 = head2.pub
-    assert(pub1.nonce   == pub2.nonce)
-    assert(pub1.payload == pub2.payload)
-
-    head1 = head1.prv
-    head2 = head2.prv
-end
-print 'OK!'
-]];
 
 escape 0;
