@@ -6,9 +6,6 @@
 
 event none ok;
 
-var[] byte chain1;
-var[] byte chain2;
-
 par/and do
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -46,16 +43,11 @@ par/and do
             }
         ]]
         spawn Subscribe(&init.shared);
-        AWAIT_CHAIN_LENGTH(init.shared,"tst-25",0,4);
+        AWAIT_CHAIN_N(init.shared,"tst-25",0,5);
         emit ok;
         [[
-            chain1 = FC.chain_tostring('|tst-25|0|')
-            print'===> CLIENT'
-            print('>'..string.rep('=',78))
-            print(chain1)
-            print('<'..string.rep('=',78))
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-bd-00.dot' )
         ]];
-        chain1 = []..[[chain1]];
     end
 
 with
@@ -91,16 +83,11 @@ with
         ]];
         [[ os.execute('cp tst/\\|tst-25\\|0\\|.chain /tmp/freechains/8341/') ]]
         var& Init init = spawn Init();
-        AWAIT_CHAIN_LENGTH(init.shared,"tst-25",0,4);
+        AWAIT_CHAIN_N(init.shared,"tst-25",0,5);
 
         [[
-            chain2 = FC.chain_tostring('|tst-25|0|')
-            print'===> SERVER'
-            print('>'..string.rep('=',78))
-            print(chain2)
-            print('<'..string.rep('=',78))
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-bd-01.dot' )
         ]];
-        chain2 = []..[[chain2]];
         par/and do
             emit ok;
         with
@@ -111,7 +98,11 @@ with
 end
 
 [[
-    assert(@chain1 == @chain2)
+    local tst   = assert(io.open('tst/dots/tst-bd.dot')):read'*a'
+    local tmp00 = assert(io.open('/tmp/tst-bd-00.dot')):read'*a'
+    local tmp01 = assert(io.open('/tmp/tst-bd-01.dot')):read'*a'
+    assert(tst==tmp00 and tst==tmp01)
+
     print'OK!'
 ]]
 

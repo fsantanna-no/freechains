@@ -61,7 +61,7 @@ with
                 },
             }
         ]];
-        [[ os.execute('cp tst/\\|tst-25\\|0\\|.chain /tmp/freechains/8341/chains') ]]
+        [[ os.execute('cp tst/tst-25-00.chain /tmp/freechains/8341/chains/\\|tst-25\\|0\\|.chain') ]]
         var& Init init = spawn Init();
         await init.ok;
         emit ok;

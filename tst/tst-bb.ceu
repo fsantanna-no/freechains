@@ -6,9 +6,6 @@
 
 event none ok;
 
-var[] byte chain1;
-var[] byte chain2;
-
 par/and do
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -51,21 +48,16 @@ par/and do
                 }
             }
         ]]
-        await Client(&init.shared);
-        AWAIT_CHAIN_LENGTH(init.shared,"",0,1);
+        await Client_10(&init.shared);
+        AWAIT_CHAIN_N(init.shared,"",0,2);
         par/and do
             emit ok;
         with
             await ok;
         end
         [[
-            chain1 = FC.chain_tostring('||0|')
-            print'===> CLIENT'
-            print('>'..string.rep('=',78))
-            print(chain1)
-            print('<'..string.rep('=',78))
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-bb-00.dot' )
         ]];
-        chain1 = []..[[chain1]];
     end
 
 with
@@ -99,22 +91,22 @@ with
             }
         ]];
         var& Init init = spawn Init();
-        await init.shared.ok;
+        await init.ok;
+        AWAIT_CHAIN_N(init.shared,"",0,2);
         emit ok;
         [[
-            chain2 = FC.chain_tostring('||0|')
-            print'===> SERVER'
-            print('>'..string.rep('=',78))
-            print(chain2)
-            print('<'..string.rep('=',78))
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-bb-01.dot' )
         ]];
-        chain2 = []..[[chain2]];
     end
 
 end
 
 [[
-    assert(@chain1 == @chain2)
+    local tst   = assert(io.open('tst/dots/tst-bb.dot')):read'*a'
+    local tmp00 = assert(io.open('/tmp/tst-bb-00.dot')):read'*a'
+    local tmp01 = assert(io.open('/tmp/tst-bb-01.dot')):read'*a'
+    assert(tst==tmp00 and tst==tmp01)
+
     print'OK!'
 ]]
 
