@@ -487,7 +487,18 @@ loop j in [zeros -> 22] do
                 continue;   // from main.subscribe
             end
 
-            do
+            // try to load from file
+            // no problem if it fails
+            var bool had_read = false;
+            var bool should_read = [[ not CFG.no_persistency ]];
+            if should_read then
+                [[
+                    ok = pcall(FC.read, THIS.sub, CFG.dir..'/'..THIS.sub.id..'.chain')
+                ]]
+                had_read = [[ ok ]];
+            end
+
+            if not had_read then
                 var[HASH_BYTES] byte hash;
                 _ceu_vector_setlen(&&hash, HASH_BYTES, 1);
                 var[] byte id = [] .. [[ THIS.sub.id ]];
@@ -500,15 +511,6 @@ loop j in [zeros -> 22] do
 #endif
                 [[
                     FC.head_new( FC.node{ chain=THIS.sub, hash=@hash } )
-                ]]
-            end
-
-            // try to load from file
-            // no problem if it fails
-            var bool should_read = [[ not CFG.no_persistency ]];
-            if should_read then
-                [[
-                    pcall(FC.read, THIS.sub, CFG.dir..'/'..THIS.sub.id..'.chain')
                 ]]
             end
 
@@ -560,8 +562,6 @@ do
         _dbg(0, "server | persistency in %s", &&path[0]);
     end
 
-    await Subscribe(&shared);
-
     spawn do
         var int  msg;
         var int  ret;
@@ -591,6 +591,8 @@ do
     end
 
     spawn Clients_10(&shared);
+
+    await Subscribe(&shared);   // subscribe after clients are up
 
     await async do end; // with "no_persistency", no files are loaded and no awaits happen until here
     emit ok;

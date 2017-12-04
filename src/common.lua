@@ -176,6 +176,7 @@ function FC.read (chain, path)
             node.pub.chain = chain
         end
         chain.cache[node.hash] = node
+        chain.n = chain.n + 1
 
         node.height = -1
         for i, hash in ipairs(node) do
