@@ -52,11 +52,6 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
     // anoter trail calls Write (must awake after first from go_client_10_pos)
 loop do
     await outer.shared.ok_node;
-    var bool is_gen = [[ #ARGS.node == 0 ]];
-    if is_gen then
-        continue;         // do not output genesis
-    end
-
     [[
         listen = THIS.msg.chain
         received = ARGS.chain

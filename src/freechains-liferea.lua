@@ -71,7 +71,7 @@ end
 
 -- removal
 if not cmd then
-    key, zeros, block, cmd = string.match(res, '^([^/]*)/([^/]*)/([^/]*)/%?cmd=(removal)')
+    key, zeros, node, cmd = string.match(res, '^([^/]*)/([^/]*)/([^/]*)/%?cmd=(removal)')
 end
 
 -- atom
@@ -245,6 +245,7 @@ log:write('>>>.'..new_key..'.\n')
     }, DAEMON)
 
 elseif cmd == 'removal' then
+    error'TODO'
     FC.send(0x0300, {
         chain = {
             key   = key,
@@ -296,34 +297,25 @@ elseif cmd == 'atom' then
     else
         entries = {}
 
-        for i=CHAIN.zeros, 255 do
-            head = FC.send(0x0200, {
-                chain = { key=CHAIN.key, zeros=i },
-            }, DAEMON)
-            if not head then
-                goto i_continue
+        local function one (i, node)
+            if (CHAIN.last.atom[i] or {})[node.hash] then
+                return
             end
-            cur = head
-            while cur.prv~=nil and cur.hash~=CHAIN.last.atom[i] do
-                if not cur.pub then
-                    goto cur_continue
-                end
-                payload = (cur.pub.payload or ('Removed publication: '..cur.pub.removal))
 
+            if node.pub then
+                payload = node.pub.payload --or ('Removed publication: '..node.pub.removal))
                 title = FC.escape(string.match(payload,'([^\n]*)'))
 
-                if cur.pub.payload then
-                    payload = payload .. [[
+                payload = payload .. [[
 
 
 -------------------------------------------------------------------------------
 
-- [X](freechains:/]]..CHAIN.key..'/'..i..'/'..cur.pub.hash..[[/?cmd=republish)
+- [X](freechains:/]]..CHAIN.key..'/'..i..'/'..node.pub.hash..[[/?cmd=republish)
 Republish Contents
-- [X](freechains:/]]..CHAIN.key..'/'..i..'/'..cur.hash..[[/?cmd=removal)
+- [X](freechains:/]]..CHAIN.key..'/'..i..'/'..node.hash..[[/?cmd=removal)
 Inappropriate Contents
 ]]
-                end
 
                 -- freechains links
                 payload = string.gsub(payload, '(%[.-%]%(freechains:)(/.-%))', '%1//'..daemon..'%2')
@@ -347,21 +339,37 @@ Inappropriate Contents
                 entry = TEMPLATES.entry
                 entry = gsub(entry, '__TITLE__',     '['..i..'] '..title)
                 entry = gsub(entry, '__CHAIN_ID__',  CHAIN.key..'/'..i)
-                entry = gsub(entry, '__HASH__',      cur.hash)
-                entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', cur.pub.timestamp/1000000))
+                entry = gsub(entry, '__HASH__',      node.hash)
+                entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', node.pub.timestamp/1000000))
                 entry = gsub(entry, '__CONTENT__',   payload)
                 entries[#entries+1] = entry
+            end
 
-                ::cur_continue::
-                cur = FC.send(0x0200, {
+            for _, hash in ipairs(node) do
+                childs = FC.send(0x0200, {    -- GET
                     chain = { key=CHAIN.key, zeros=i },
-                    block = cur.prv,
+                    node  = hash,
                 }, DAEMON)
+                assert(#childs == 1)
+                one(i, childs[1])
             end
-            if head.prv ~= nil then  -- avoids polluting the cfg
-                CHAIN.last.atom[i] = head.hash
+        end
+
+        --for i=CHAIN.zeros, 255 do
+for i=CHAIN.zeros, 30 do
+            head = FC.send(0x0200, {    -- GET
+                chain = { key=CHAIN.key, zeros=i },
+            }, DAEMON)
+
+            local hashes = {}
+            for j, node in ipairs(head) do
+                one(i, node)
+                hashes[j] = node.hash
             end
-            ::i_continue::
+
+            if #head[1] > 0 then  -- avoids polluting CFG if only genesis so for
+                CHAIN.last.atom[i] = hashes
+            end
         end
         FC.send(0x0500, CFG, DAEMON)
 
