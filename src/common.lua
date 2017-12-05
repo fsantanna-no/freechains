@@ -132,12 +132,13 @@ local function write_aux (A, t)
         timestamp = A.timestamp,
 
         pub = A.pub and {
-            chain     = nil,
+            chain      = nil,
             --
-            hash      = A.pub.hash,
-            nonce     = A.pub.nonce,
-            timestamp = A.pub.timestamp,
-            payload   = A.pub.payload,
+            hash       = A.pub.hash,
+            nonce      = A.pub.nonce,
+            timestamp  = A.pub.timestamp,
+            payload    = A.pub.payload,
+            --remove_src = A.pub.remove_src and A.pub.remove_src.hash,
         } or nil,
     }
     for i, v in ipairs(A) do

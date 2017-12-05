@@ -202,7 +202,6 @@ do
         THIS = {
             pub = ARGS.pub,
         }
-        assert(THIS.pub.removal or string.len(THIS.pub.payload)>0)
     ]];
 
     var[HASH_BYTES] byte hash;
@@ -211,14 +210,19 @@ do
     var u8 zeros = [[ THIS.pub.chain.zeros ]];
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                     [[ THIS.pub.chain.key ]]   ..
-                     [[ (THIS.pub.removal and THIS.pub.removal.pub.payload) or THIS.pub.payload ]];
+                     [[ THIS.pub.chain.key ]];
 
-    // when removing, append the original payload hash to avoid nonce reuse
-    var bool is_removal = [[ THIS.pub.removal~=nil ]];
+#if 0
+    var bool is_removal = [[ THIS.pub.remove_dst~=nil ]];
     if is_removal then
-        pln = pln .. [[ THIS.pub.removal.pub.hash ]];
+        pln = pln .. [[ THIS.pub.remove_dst.pub.hash ]]
+                  .. [[ string.rep('\0',string.len(THIS.pub.remove_dst.pub.payload)) ]];
+    else
+        pln = pln .. [[ THIS.pub.payload ]];
     end
+#else
+    pln = pln .. [[ THIS.pub.payload ]];
+#endif
 
     // show async/thread progress
     var int ms = 0;
@@ -266,6 +270,13 @@ do
         THIS.pub.nonce     = @nonce
         THIS.pub.hash      = @hash
         THIS.pub.chain.up.pubs[THIS.pub.hash] = THIS.pub
+
+        --remove_dst = THIS.pub.remove_dst
+        --if remove_dst then
+            --remove_dst.pub.remove_src = THIS.pub
+            --remove_dst.pub.payload = string.len(remove_dst.pub.payload)
+        --end
+
         ARGS = THIS
     ]];
 end
@@ -293,8 +304,7 @@ do
     end
 
     var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
-                     [[ THIS.pub.chain.key ]]   ..
-                     [[ (THIS.pub.removal and THIS.pub.removal.pub.payload) or THIS.pub.payload ]];
+                     [[ THIS.pub.chain.key ]];
     do
         var u64 timestamp = [[ THIS.pub.timestamp ]];
         var u64 nonce     = [[ THIS.pub.nonce     ]];
@@ -302,11 +312,17 @@ do
         PUT_HTOBE64(pln, sizeof(u64), nonce);
     end
 
-    // when removing, append the original pub hash to avoid nonce reuse
-    var bool is_removal = [[ THIS.pub.removal~=nil ]];
+#if 0
+    var bool is_removal = [[ THIS.pub.remove_dst~=nil ]];
     if is_removal then
-        pln = pln .. [[ THIS.pub.removal.pub.hash ]];
+        pln = pln .. [[ THIS.pub.remove_dst.pub.hash ]]
+                  .. [[ string.rep('\0',string.len(THIS.pub.remove_dst.pub.payload)) ]];
+    else
+        pln = pln .. [[ THIS.pub.payload ]];
     end
+#else
+    pln = pln .. [[ THIS.pub.payload ]];
+#endif
 
     _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
     var bool ok = [[ THIS.pub.hash == @hash ]];
@@ -317,6 +333,12 @@ do
 
     [[
         THIS.pub.chain.up.pubs[THIS.pub.hash] = THIS.pub
+
+        --remove_dst = THIS.pub.remove_dst
+        --if remove_dst then
+            --remove_dst.pub.remove_src = THIS.pub
+            --remove_dst.pub.payload = string.len(remove_dst.pub.payload)
+        --end
     ]]
 end
 
@@ -463,7 +485,7 @@ code/await Subscribe (var& UV_TCP_Server_Data shared) -> none do
         var int zeros = [[cfg.zeros]];
         var int j;
         //loop j in [zeros -> 255] do
-loop j in [zeros -> 22] do
+loop j in [zeros -> 30] do
             [[
                 j = @j
                 has = FC.chains[cfg.key][j]

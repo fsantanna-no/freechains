@@ -126,7 +126,7 @@ do
                 timestamp = ARGS.message.timestamp,
                 nonce     = ARGS.message.nonce,
                 payload   = ARGS.message.payload,
-                removal   = ARGS.message.removal,
+                --remove    = ARGS.message.remove,
             }
         }
     ]]
@@ -156,21 +156,16 @@ do
 
             THIS.now = now
             THIS.pub = {
-                chain     = THIS.chain,
-                timestamp = THIS.pub.timestamp or now,
-                nonce     = THIS.pub.nonce or 0,
-                payload   = THIS.pub.payload,
-                removal   = THIS.pub.removal and assert(FC.chain_node_get(THIS.chain, THIS.pub.removal)),
-                hash      = nil,
+                chain      = THIS.chain,
+                timestamp  = THIS.pub.timestamp or now,
+                nonce      = THIS.pub.nonce or 0,
+                payload    = THIS.pub.payload,
+                --remove_dst = THIS.pub.remove and assert(THIS.chain.cache[THIS.pub.remove]) or nil,
+                hash       = nil,
             }
             ARGS = THIS
         ]]
         await Publication_New();
-        [[
-            if THIS.pub.removal then
-                THIS.pub.removal.pub = nil
-            end
-        ]]
         do
             //[[ ARGS = { chain=THIS.chain } ]]
             //CHAIN_LOCK(l, shared, "lock_write");
