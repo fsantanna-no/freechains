@@ -21,15 +21,17 @@ par/and do
                     address = '127.0.0.1',
                     port    = '8340'
                 },
+                chains = {},
                 no_persistency = true,
-                chains = {
-                },
             }
         ]];
         var& Init init = spawn Init();
         await init.ok;
-        emit ok;
-        await ok;
+        par/and do
+            emit ok;
+        with
+            //await ok;
+        end
         [[
             CFG.chains['tst-25'] = {
                 key   = 'tst-25',
@@ -46,7 +48,7 @@ par/and do
         AWAIT_CHAIN_N(init.shared,"tst-25",0,5);
         emit ok;
         [[
-            FC.dot( FC.chains[''][0].head, '/tmp/tst-bd-00.dot' )
+            FC.dot( FC.chains['tst-25'][0].head, '/tmp/tst-bd-00.dot' )
         ]];
     end
 
@@ -81,12 +83,12 @@ with
                 },
             }
         ]];
-        [[ os.execute('cp tst/\\|tst-25\\|0\\|.chain /tmp/freechains/8341/') ]]
+        [[ os.execute('cp tst/chains/tst-25-00.chain /tmp/freechains/8341/\\|tst-25\\|0\\|.chain') ]]
         var& Init init = spawn Init();
         AWAIT_CHAIN_N(init.shared,"tst-25",0,5);
 
         [[
-            FC.dot( FC.chains[''][0].head, '/tmp/tst-bd-01.dot' )
+            FC.dot( FC.chains['tst-25'][0].head, '/tmp/tst-bd-01.dot' )
         ]];
         par/and do
             emit ok;
