@@ -1,0 +1,19 @@
+{
+   [1] = {
+      [1] = "994CA2080CA23252F8744A0926B9F49D560F2666C1ABBC96A02FFCA8EABF29FB";
+      ["chain"] = {
+         ["key"] = "";
+         ["zeros"] = 0;
+      };
+      ["hash"] = "F6A47B57564701411A379FE93DA123CCA8B4CA16BCE275F832A0F67E03CB1872";
+      ["nonce"] = 0;
+      ["pub"] = {
+         ["hash"] = "0CBDD18B16EC73E227DBB9A66DAD5FAF58257B05B5A644EB83873E7EFEBC1F3A";
+         ["nonce"] = 0;
+         ["payload"] = "Hello World!";
+         ["timestamp"] = 0;
+      };
+      ["timestamp"] = 0;
+   };
+}
+

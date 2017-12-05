@@ -160,8 +160,8 @@ for i=(zeros or 30), (zeros or 0), -1 do
                 key   = key,
                 zeros = i,
             },
-            block = hash,
-            pub   = hash,
+            node = hash,
+            pub  = hash,
         }, DAEMON)
         if ret and ret.prv then
             break

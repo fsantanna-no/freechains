@@ -9,8 +9,8 @@
  *          key   = <string>,
  *          zeros = <number>,
  *      }
- *      block = <hash>,     -- or pub or nothing
- *      pub   = <hash>,     -- or block or nothing
+ *      node = <hash>,     -- or pub or nothing
+ *      pub  = <hash>,     -- or node or nothing
  *
  *      // TODO
  *      from=1,   to=10   or
@@ -50,48 +50,46 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
     --print('>>>', FC.tostring(msg,'plain'))
 
     chain = assert(FC.chains[msg.chain.key][msg.chain.zeros])
-    block = chain.head
+    node = chain.head
 
-    msg.block = msg.block and FC.hex2hash(msg.block)
-    msg.pub   = msg.pub   and FC.hex2hash(msg.pub)
+    nodes = msg.node and { FC.hex2hash(msg.node) }
+    --msg.pub  = msg.pub  and error'TODO' and FC.hex2hash(msg.pub)
 
-    -- find block or pub hash
-    if msg.block or msg.pub then
-        while true do
-            if block.hash==msg.block or (block.pub and (block.pub.hash==msg.pub)) then
-                break
-            end
-            if block == chain.base then
-                block = nil
-                break
-            end
-            block = block.prv
+    if not nodes then
+        nodes = {}
+        for hash in pairs(chain.head) do
+            nodes[#nodes+1] = hash
         end
     end
 
-    if block then
-        ret = {
-            chain     = { key=chain.key, zeros=chain.zeros },
-            hash      = FC.hash2hex(block.hash),
-            prv       = block.prv and FC.hash2hex(block.prv.hash) or nil,
-            timestamp = block.timestamp,
-            nonce     = block.nonce,
-            pub       = block.pub and {
-                hash      = FC.hash2hex(block.pub.hash),
-                timestamp = block.pub.timestamp,
-                nonce     = block.pub.nonce,
-                payload   = block.pub.payload,
-                removal   = block.pub.removal and FC.hash2hex(block.pub.removal.hash),
-            } or nil,
-        }
-    else
-        ret = nil
+    RET = {}
+    for _, hash in ipairs(nodes) do
+        node = chain.cache[hash]
+        if node then
+            ret = {
+                chain     = { key=chain.key, zeros=chain.zeros },
+                hash      = FC.hash2hex(node.hash),
+                timestamp = node.timestamp,
+                nonce     = node.nonce,
+                pub       = node.pub and {
+                    hash      = FC.hash2hex(node.pub.hash),
+                    timestamp = node.pub.timestamp,
+                    nonce     = node.pub.nonce,
+                    payload   = node.pub.payload,
+                    --removal   = node.pub.removal and FC.hash2hex(node.pub.removal.hash),
+                } or nil,
+            }
+            for _, child in ipairs(node) do
+                ret[#ret+1] = FC.hash2hex(child.hash)
+            end
+            RET[#RET+1] = ret
+        end
     end
 ]]
 
 // <= MSG
 //[[ print('RET', FC.tostring(ret,'plain')) ]];
-outer.tcp.buffer = []..[[ FC.tostring(ret,'plain') ]];
+outer.tcp.buffer = []..[[ FC.tostring(RET,'plain') ]];
 await UV_Stream_Write_N(&outer.tcp,_);
 
 #endif

@@ -27,8 +27,29 @@ one:
 	    --cc --cc-args="-lm -llua5.3 -luv -lsodium -g"                         \
 	         --cc-output=/tmp/$$(basename $(CEU_SRC) .ceu);
 
-tests: tests-cli tests-nat tests-p2p
+pre:
+	ceu --pre --pre-args="-I$(CEU_DIR)/include -I$(CEU_UV_DIR)/include -Isrc/" \
+	          --pre-input=tst/tst-ae.ceu --pre-output=/tmp/x.ceu
+
+c:
+	ceu --cc --cc-input=/tmp/x.c --cc-args="-lm -llua5.3 -luv -lsodium -g"                         \
+	         --cc-output=/tmp/x;
+
+tests: tests-get tests-cli tests-nat tests-p2p
 	# OK
+
+tests-get:
+	-freechains --port=8400 daemon stop 2>/dev/null
+	rm -Rf /tmp/freechains/8400/
+	cp cfg/config-tests.lua.bak cfg/config-tests.lua
+	freechains --port=8400 daemon start cfg/config-tests.lua 2>&1 > /tmp/freechains-tests-get.out &
+	sleep 0.5
+	freechains --port=8400 configure set deterministic=true
+	freechains --port=8400 publish /0 +"Hello World!"
+	freechains --port=8400 get /0 > /tmp/freechains-tests-get-1.out
+	freechains --port=8400 get /0 994CA2080CA23252F8744A0926B9F49D560F2666C1ABBC96A02FFCA8EABF29FB > /tmp/freechains-tests-get-2.out
+	diff /tmp/freechains-tests-get-1.out  tst/out/freechains-tests-get-1.out
+	diff /tmp/freechains-tests-get-2.out  tst/out/freechains-tests-get-2.out
 
 tests-cli:
 	-killall liferea 2>/dev/null
@@ -43,16 +64,16 @@ tests-cli:
 	freechains --port=8400 listen 2>/dev/null > /tmp/freechains-tests-cli.out &
 	sleep 0.5
 	freechains --port=8400 publish /0 +"Hello World!"
-	freechains --port=8400 publish /0 +"to be removed"
+	#freechains --port=8400 publish /0 +"to be removed"
 	freechains --port=8400 publish /0 +"Hello World! (again)"
-	freechains --port=8400 remove /0 F989AA3AED4CD364E537AACEEDDDCFC9033B4B98113ABFF4AE4373D38D4992D9
+	#freechains --port=8400 remove /0 F989AA3AED4CD364E537AACEEDDDCFC9033B4B98113ABFF4AE4373D38D4992D9
 	freechains --port=8400 publish /5 +"work = 5"
-	#freechains-liferea freechains://localhost:8400//?cmd=atom | grep -v "<updated>" > /tmp/freechains-tests-cli.atom
+	freechains-liferea freechains://localhost:8400//?cmd=atom | grep -v "<updated>" > /tmp/freechains-tests-cli.atom
 	freechains --port=8400 subscribe new/10
 	freechains --port=8400 publish new/0 +"NOT SEEN"
 	freechains --port=8400 publish new/10 +"new = 10"
 	sleep 0.5
-	diff /tmp/freechains-tests-cli.out  tst/freechains-tests-cli.out
+	diff /tmp/freechains-tests-cli.out  tst/out/freechains-tests-cli.out
 	diff /tmp/freechains-tests-cli.atom tst/freechains-tests-cli.atom
 	diff /tmp/freechains/8400/          tst/freechains-tests-cli/
 	freechains --port=8400 subscribe aaa/10
@@ -171,6 +192,38 @@ tests-p2p:
 	freechains --port=8402 daemon stop
 	freechains --port=8403 daemon stop
 	freechains --port=8404 daemon stop
+
+tmp:
+	#for i in tst/tst-29.ceu tst/tst-3[0-6].ceu ; do
+	#for i in tst/tst-ao.ceu ; do
+	for i in tst/tst-[a-b]*.ceu tst/tst-[0-3]*.ceu ; do \
+	    echo;                                            \
+	    echo "#####################################";    \
+	    echo File: "$$i";                                \
+	    echo "#####################################";    \
+	    make CEU_SRC=$$i one && /tmp/$$(basename $$i .ceu) || exit 1; \
+	done
+
+tmp-run:
+	while true ; do      \
+	    (echo "=== 29" && \
+	    /tmp/tst-29   && \
+	    echo "=== 30" && \
+	    /tmp/tst-30   && \
+	    echo "=== 31" && \
+	    /tmp/tst-31   && \
+	    echo "=== 32" && \
+	    /tmp/tst-32   && \
+	    echo "=== 33" && \
+	    /tmp/tst-33   && \
+	    echo "=== 34" && \
+	    /tmp/tst-34   && \
+	    echo "=== 35" && \
+	    /tmp/tst-35   && \
+	    echo "=== 36" && \
+	    /tmp/tst-36)  || \
+		break ;     \
+	done
 
 tests-full:
 	for i in tst/tst-[0-2]*.ceu tst/tst-[a-b]*.ceu tst/tst-3[0-3].ceu ; do \

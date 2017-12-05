@@ -271,6 +271,9 @@ function FC.hex2hash (hex)
     local ret = ''
     for i=1, string.len(hex), 2 do
         local n = tonumber('0x'..string.sub(hex,i,i+1))
+        if not n then
+            return nil
+        end
         ret = ret .. string.char(n)
     end
     return ret
