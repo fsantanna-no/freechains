@@ -17,7 +17,7 @@
  *      prv       = <hash>,
  *      timestamp = <number>,
  *      nonce     = <number>,
- *      removal   = <has>,      -- or pub
+ *      --removal   = <has>,      -- or pub
  *      pub       = {           -- or removal
  *          hash      = <hash>,
  *          timestamp = <number>,
@@ -51,46 +51,48 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
     // one trail writes to buffer
     // anoter trail calls Write (must awake after first from go_client_10_pos)
 loop do
-    await outer.shared.go_client_10_pos;
-            var bool is_base = [[ ARGS.chain.head == ARGS.chain.base ]];
-            if is_base then
-                continue;         // do not output genesis
-            end
+    await outer.shared.ok_node;
+    var bool is_gen = [[ #ARGS.node == 0 ]];
+    if is_gen then
+        continue;         // do not output genesis
+    end
 
-            [[
-                listen = THIS.msg.chain
-                received = ARGS.chain
-                if listen==nil or
-                   (listen.key==received.key and (listen.zeros==nil or
-                                                  (listen.zeros<=received.zeros)))
-                then
-                    block = ARGS.chain.head
-                    ret = {
-                        chain     = { key=received.key, zeros=received.zeros },
-                        hash      = FC.hash2hex(block.hash),
-                        prv       = block.prv and FC.hash2hex(block.prv.hash) or nil,
-                        timestamp = block.timestamp,
-                        nonce     = block.nonce,
-                        pub       = block.pub and {
-                            hash      = FC.hash2hex(block.pub.hash),
-                            timestamp = block.pub.timestamp,
-                            nonce     = block.pub.nonce,
-                            payload   = block.pub.payload,
-                            removal   = block.pub.removal and FC.hash2hex(block.pub.removal.hash),
-                        } or nil,
-                    }
-                else
-                    ret = nil
-                end
-            ]]
-            var bool has_ret = [[ ret~=nil ]];
-            if has_ret then
-                // <= MSG
-                //[[ print('RET', FC.tostring(ret,'plain')) ]];
-                [[ ret = FC.tostring(ret,'plain') ]];
-                outer.tcp.buffer = []..[[ string.len(ret) ]]..[{'\n'}]..[[ ret ]];
-                await UV_Stream_Write_N(&outer.tcp,_);
+    [[
+        listen = THIS.msg.chain
+        received = ARGS.chain
+        if listen==nil or
+           (listen.key==received.key and (listen.zeros==nil or
+                                          (listen.zeros<=received.zeros)))
+        then
+            node = ARGS.node
+            ret = {
+                chain     = { key=received.key, zeros=received.zeros },
+                hash      = FC.hash2hex(node.hash),
+                timestamp = node.timestamp,
+                nonce     = node.nonce,
+                pub       = node.pub and {
+                    hash      = FC.hash2hex(node.pub.hash),
+                    timestamp = node.pub.timestamp,
+                    nonce     = node.pub.nonce,
+                    payload   = node.pub.payload,
+                    --removal   = node.pub.removal and FC.hash2hex(node.pub.removal.hash),
+                } or nil,
+            }
+            for _, child in ipairs(node) do
+                ret[#ret+1] = FC.hash2hex(child.hash)
             end
+        else
+            ret = nil
+        end
+    ]]
+    var bool has_ret = [[ ret~=nil ]];
+    if has_ret then
+        // <= MSG
+        //[[ print('RET', FC.tostring(ret,'plain')) ]];
+        [[ ret = FC.tostring(ret,'plain') ]];
+        outer.tcp.buffer = []..[[ string.len(ret) ]]..[{'\n'}]..[[ ret ]];
+        await UV_Stream_Write_N(&outer.tcp,_);
+    end
 end
 
 #endif

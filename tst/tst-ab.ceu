@@ -81,7 +81,7 @@ end
     THIS.node = FC.chains[''][1].head
     ARGS = THIS
 ]]
-await Node_Hash();
+await Node_New();
 [[
     --print('>>>', THIS.node.timestamp, THIS.node.nonce, FC.tostring(THIS.node.hash,true))
     assert(THIS.node.hash == '\x6F\xD2\xCC\xE9\x82\xAF\x49\xAB\xB5\xDD\x6B\x6A\x06\x76\x83\x57\x1C\x9E\xB0\x83\x37\x98\x87\xC6\xC4\x91\xB0\xA7\x24\x36\x7C\x91')
@@ -164,7 +164,7 @@ loop i in [1 -> ms] do
         THIS.node = FC.chains[''][1].head
         ARGS = THIS
     ]]
-    await Node_Hash();
+    await Node_New();
 end
 
 [[

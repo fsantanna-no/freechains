@@ -42,6 +42,52 @@ do
     end
 end
 
+/*
+ * Verifies if the hash has the expected leading zeros and if the pub
+ * hash and back hash match the hash.
+ */
+code/await Node_Check (none) -> none
+    // input: [[ ARGS={node={DONE}} ]]
+    throws Exception.Freechains.Malformed
+do
+    [[ THIS = ARGS ]];
+
+    var[HASH_BYTES] byte hash = [] .. [[ THIS.node.hash ]];
+
+    var u8 zeros = [[ THIS.node.chain.zeros ]];
+    if zeros > _leading_zeros(&&hash[0],HASH_BYTES) then
+        var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+        throw e;
+    end
+
+    var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
+                     [[ THIS.node.pub.hash ]];
+
+    var int n = [[ #THIS.node ]];
+    var int i;
+    loop i in [1 -> n] do
+        pln = pln .. [[ THIS.node[@i].hash ]];
+    end
+
+    do
+        var u64 timestamp = [[ THIS.node.timestamp ]];
+        var u64 nonce     = [[ THIS.node.nonce     ]];
+        PUT_HTOBE64(pln, 0, timestamp);
+        PUT_HTOBE64(pln, sizeof(u64), nonce);
+    end
+
+    _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
+    var bool ok = [[ THIS.node.hash == @hash ]];
+    if not ok then
+        var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+        throw e;
+    end
+
+    [[
+        THIS.node = FC.node(THIS.node)
+    ]]
+end
+
 code/await Recv_10_Nodes (var& UV_TCP_Server_Data shared, var& UV_Stream tcp) -> none
     throws Exception.Uv
 do
@@ -186,15 +232,25 @@ do
 
             [[ ARGS = THIS ]]
             await Node_Check();
-            [[
-                if THIS.node.__from_cache then
-                    -- maybe I already received it concurrently
-                else
+            var bool from_cache = [[ THIS.node.__from_cache ]];
+            if from_cache then
+                // maybe I already received it concurrently
+            else
+                [[
                     FC.head_new(THIS.node)
-                end
-            ]];
-            [[ ARGS = { chain=THIS.chain } ]];
-            emit outer.shared.go_client_10_pos(0);
+                ]]
+
+                [[
+                    ARGS = {
+                        chain = THIS.chain,
+                        node  = THIS.node,
+                    }
+                ]];
+                emit outer.shared.ok_node;
+
+                [[ ARGS = { chain=THIS.chain } ]];
+                emit outer.shared.go_client_10_pos(0);
+            end
         end
     end
 

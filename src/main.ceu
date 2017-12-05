@@ -11,23 +11,14 @@
 
 var& Init fc = spawn Init();
 
-var int msg;
-var int ret;
-loop do
-    par/or do
-        (msg,ret) = await fc.shared.ok_server;
-    with
-        (msg,ret) = await fc.shared.ok_client;
-    end
-    if msg == {MESSAGE10} then
-        if ret == {MESSAGE10_OK} then
-            [[
-                --print('>>>', CFG.execute)
-                os.execute(CFG.execute)
-            ]];
-        end
-    else/if msg == {MESSAGE70} then
-        break;
+par/or do
+    var int msg = await fc.shared.ok_server until (msg == {MESSAGE70});
+with
+    every fc.shared.ok_node do
+        [[
+            print('>>>', CFG.execute)
+            os.execute(CFG.execute)
+        ]];
     end
 end
 

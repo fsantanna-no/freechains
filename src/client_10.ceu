@@ -116,6 +116,77 @@ do
     end
 end
 
+code/await Node_New (none) -> none
+    // input:  [[ ARGS={node={TODO}} ]]
+    // effect: [[ ARGS={node={DONE}} ]]
+do
+    [[
+        THIS = ARGS
+    ]];
+
+    var[HASH_BYTES] byte hash;
+    _ceu_vector_setlen(&&hash, HASH_BYTES, 1);
+
+    var u8 zeros = [[ THIS.node.chain.zeros ]];
+
+    var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
+                     [[ THIS.node.pub.hash ]];
+
+    var int n = [[ #THIS.node ]];
+    var int i;
+    loop i in [1 -> n] do
+        pln = pln .. [[ THIS.node[@i].hash ]];
+    end
+
+    // show async/thread progress
+    var int ms = 0;
+#if 1
+    spawn do
+        every 100ms do
+            ms = ms + 1;
+            //_printf("[%d]",ms);
+            _printf(".");
+            _fflush(_stdout);
+        end
+    end
+#endif
+
+    var u64 timestamp = [[ THIS.node.timestamp ]];
+    var u64 nonce     = [[ THIS.node.nonce     ]];
+#if 1
+    await async/thread (zeros,pln,hash, timestamp,nonce)
+#endif
+    do
+        var u64 n = do
+            var u64 n_ = 0;
+            loop timestamp in [timestamp -> 0xFFffFFffFFffFFff] do
+                PUT_HTOBE64(pln, 0, timestamp);
+
+                loop nonce in [nonce -> 0xFFffFFffFFffFFff] do
+                    PUT_HTOBE64(pln, sizeof(u64), nonce);
+
+                    _ceu_assert(n_ < 0xFFffFFffFFffFFff, "bug found");
+                    n_ = n_ + 1;
+
+                    _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
+                    if zeros <= _leading_zeros(&&hash[0],HASH_BYTES) then
+                        escape n_;
+                    end
+                end
+            end
+            _ceu_assert(0, "bug found");
+        end;
+        _dbg(3, "client: POW rounds: %d\n", n);
+    end
+
+    [[
+        THIS.node.timestamp = @timestamp
+        THIS.node.nonce     = @nonce
+        THIS.node.hash      = @hash
+        THIS.node = FC.node(THIS.node)
+    ]];
+end
+
 code/await Client_10_Pre (var& UV_TCP_Server_Data shared, var int n) -> none
     // [[ ARGS = { message={...} } ]]
 do
@@ -180,10 +251,18 @@ do
 
                 ARGS = THIS
             ]]
-            await Node_Hash();
+            await Node_New();
             [[
                 FC.head_new(THIS.node)
             ]]
+
+            [[
+                ARGS = {
+                    chain = THIS.chain,
+                    node  = THIS.node,
+                }
+            ]];
+            emit shared.ok_node;
         end
         [[ ARGS = { chain=THIS.chain } ]];
         emit shared.go_client_10_pos(n);
