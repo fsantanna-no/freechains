@@ -486,6 +486,18 @@ do
         end
     end
 #endif
+    spawn do
+        every shared.ok_node do
+            var bool should_write = [[ not CFG.no_persistency ]];
+            if should_write then
+                [[
+                    assert(CFG.dir, 'missing persistency directory')
+                    os.execute('mkdir -p '..CFG.dir)
+                    FC.write(ARGS.chain, CFG.dir..'/'..ARGS.chain.id..'.chain')
+                ]]
+            end
+        end
+    end
 
     // TODO: HACK-01: avoid fixing all tests
     pool[1] UV_TCP_Server server;

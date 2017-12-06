@@ -326,12 +326,6 @@ do
                 THIS.pending[THIS.chain] = nil
             ]]
 
-            var bool should_write = [[ not CFG.no_persistency ]];
-            if should_write then
-                [[ ARGS = { chain=THIS.chain } ]]
-                //await FS_write_10();
-            end
-
             [[ ARGS = { chain=THIS.chain } ]]
             var int n = [[ THIS.n ]];
             await Client_10_Pos(&shared, n);
