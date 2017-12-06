@@ -169,7 +169,7 @@ tests-p2p:
 	freechains --port=8401 configure set "chains[''].peers"+="{address='127.0.0.1',port=8404}"
 	freechains --port=8404 configure set "chains[''].peers"+="{address='127.0.0.1',port=8402}"
 	freechains --port=8402 configure set "chains[''].peers"+="{address='127.0.0.1',port=8404}"
-	sleep 0.5
+	sleep 2
 	
 	# Check consensus 3
 	# (8404 wins, so his messages should appear first)
@@ -177,7 +177,8 @@ tests-p2p:
 	diff /tmp/freechains/8400 /tmp/freechains/8402
 	diff /tmp/freechains/8400 /tmp/freechains/8403
 	diff /tmp/freechains/8400 /tmp/freechains/8404
-	cat -v /tmp/freechains/8400/\|\|0\|.chain | tr '\n' ' ' | grep -q "from 8404.*from 8402.*from 8400"
+	#cat -v /tmp/freechains/8400/\|\|0\|.chain | tr '\n' ' ' | grep -q "from 8404.*from 8402.*from 8400"
+	cat -v /tmp/freechains/8400/\|\|0\|.chain | tr '\n' ' ' | grep -q "1/3.*2/3.*3/3"
 	
 	###
 	

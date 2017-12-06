@@ -151,14 +151,18 @@ end
 function FC.write (chain, path)
     local t = { cache={}, nodes={} }
 
-    table.sort(chain.head, function(a,b) return a.hash<b.hash end)
-    --table.sort(chain.head, function(a,b) return a.pub.payload<b.pub.payload end)
-
     local head = {}
     for _,v in pairs(chain.head) do
-        head[#head+1] = v.hash
-        write_aux(v, t)
+        head[#head+1] = v
     end
+    table.sort(head, function(a,b) return a.hash<b.hash end)
+    --table.sort(head, function(a,b) return a.pub.payload<b.pub.payload end)
+
+    for i,v in ipairs(head) do
+        write_aux(v, t)
+        head[i] = v.hash
+    end
+
 
     local f = (path and assert(io.open(path,'w'))) or io.stdout
     f:write([[

@@ -4,26 +4,16 @@
                     freechains://
                 </id>
                         <entry>
-                <title>[0] Removed publication: F989AA3AED4CD364E537AACEEDDDCFC9033B4B98113ABFF4AE4373D38D4992D9</title>
-                <id>
-                    freechains://0/075BC11717F327A0EBAE9D8E478EA6EDEB6106CFDFB02C7B13FB2CCB159D52C3/
-                </id>
-                <published>1970-01-01T00:00:00Z</published>
-                <content type="html">&lt;p&gt;Removed publication: F989AA3AED4CD364E537AACEEDDDCFC9033B4B98113ABFF4AE4373D38D4992D9&lt;&#47;p&gt;
-</content>
-            </entry>
-        
-            <entry>
                 <title>[0] Hello World! (again)</title>
                 <id>
-                    freechains://0/E56E43DA423749CB552D710B6326FB1093A866F44274ADC7D3D83B5046D2988C/
+                    freechains://0/8D48985F803475289A573BF29BBD3F7DFFD833B19E477A454C970BA5C21C9868/
                 </id>
                 <published>1970-01-01T00:00:00Z</published>
                 <content type="html">&lt;p&gt;Hello World! (again)&lt;&#47;p&gt;
 &lt;hr &#47;&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&quot;freechains:&#47;&#47;localhost:8400&#47;&#47;0&#47;E1C8C103DC73088B947D51A0412A8AF4B9FE41A8B9545DA9990CB6FDDEFF6C4D&#47;?cmd=republish&quot;&gt;X&lt;&#47;a&gt; Republish Contents&lt;&#47;li&gt;
-&lt;li&gt;&lt;a href=&quot;freechains:&#47;&#47;localhost:8400&#47;&#47;0&#47;E56E43DA423749CB552D710B6326FB1093A866F44274ADC7D3D83B5046D2988C&#47;?cmd=removal&quot;&gt;X&lt;&#47;a&gt; Inappropriate Contents&lt;&#47;li&gt;
+&lt;li&gt;&lt;a href=&quot;freechains:&#47;&#47;localhost:8400&#47;&#47;0&#47;8D48985F803475289A573BF29BBD3F7DFFD833B19E477A454C970BA5C21C9868&#47;?cmd=removal&quot;&gt;X&lt;&#47;a&gt; Inappropriate Contents&lt;&#47;li&gt;
 &lt;&#47;ul&gt;
 </content>
             </entry>
