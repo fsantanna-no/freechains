@@ -203,43 +203,6 @@ end
 
 -------------------------------------------------------------------------------
 
-function FC.chain_block_get (chain, hash)
-    local cur = chain.head
-    while cur do
-        if cur.hash == hash then
-            return cur
-        end
-        cur = cur.prv
-    end
-    return nil
-end
-
-function FC.chain_flatten (id)
-    local key,zeros = string.match(id,'|(.*)|(.*)|')
-    local chain = assert(FC.chains[key][tonumber(zeros)])
-    local cur = chain.head
-    local T = {}
-    while cur do
-        local t = {
-            hash = FC.tostring(cur.hash),
-            length = cur.length,
-            pub = cur.pub and {
-                hash    = cur.pub.hash,
-                payload = cur.pub.payload,
-            },
-        }
-        table.insert(T, 1, t)
-        cur = cur.prv
-    end
-    return T
-end
-
-function FC.chain_tostring (id)
-    return FC.tostring(FC.chain_flatten(id))
-end
-
--------------------------------------------------------------------------------
-
 function FC.cfg_write ()
     local f = assert(io.open(arg[1],'w'))
     for k,v in pairs(CFG) do
