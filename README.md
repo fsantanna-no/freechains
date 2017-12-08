@@ -1,18 +1,48 @@
-Freechains: Let's redistribute de Internet!
+# Freechains: Let's redistribute the Internet!
 
-Freechains is...
+Freechains is a decentralized topic-based publish-subscribe system.
 
-# Install
+A peer publishes a message to a topic and all other connected peers that are
+subscribed to that topic eventually receive the message.
 
-## Software Packages
+Each topic is a multi-layered blockchain in a peer-to-peer network.
+Publishing requires proof of work
+
+## Goals
+
+The system should be decentralized, fair, free (*as-in-speech*), free 
+(*as-in-beer*), privacy aware, secure, persistent, SPAM resistant, and 
+scalable:
+
+## Goals
+
+The system should be decentralized, fair, free (*as-in-speech*), free 
+(*as-in-beer*), privacy aware, secure, persistent, SPAM resistant, and 
+scalable:
+
+1. The system **should not be** controlled by an authority (or a minority).
+2. Users **should be** equally able to publish content.
+3. Publishing **should not be** censorable.
+4. Publishing and reading **should be** free of charge (as much as possible).
+5. Publications **should be** hideable from unwanted users.
+6. Publications **should be** verifiable and **should not be** modifiable.
+7. Publications **should be** permanently available.
+8. The system **should be** resistant to SPAM.
+9. The system **should be** scalable to the size of the Internet.
+
+## Install
+
+Tried on Ubuntu and Raspbian.
+
+### Software Packages
 
 ```
 $ sudo apt-get install git gcc libuv1-dev lua5.3 lua5.3-dev lua-lpeg  # Céu
-$ sudo apt-get install libsodium-dev                                  # Freechains
-$ sudo apt-get install liferea lua-socket zenity pandoc               # GUI
+$ sudo apt-get install lua-socket libsodium-dev                       # Freechains
+$ sudo apt-get install liferea zenity pandoc                          # GUI
 ```
 
-## Source Repositories
+### Source Repositories
 
 ```
 $ mkdir ceu
@@ -36,9 +66,9 @@ $ make tests
 $ make tests-full       # (optional, takes a lot of time)
 ```
 
-# Use
+## Use
 
-## Command Line
+### Command Line
 
 - Start the `freechains` daemon:
 
@@ -99,11 +129,11 @@ This creates a peer-to-peer mesh with the form `8330 <-> 8331 <-> 8332`,
 allowing nodes `8330` and `8332` to communicate even though they are not
 directly connected.
 
-## Liferea GUI
+### Liferea GUI
 
 Liferea is a RSS reader adapted to freechains.
 
-### Setup
+#### Setup
 
 - Delete default feeds:
 
@@ -141,7 +171,7 @@ $ gsettings set net.sf.liferea browser 'freechains-liferea %s'
 
 You should see the posts published from the command line above.
 
-### GUI
+#### GUI
 
 You can operate the chains from the Liferea GUI itself.
 
