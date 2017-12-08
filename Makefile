@@ -1,5 +1,4 @@
-CEU_DIR    = $(error set absolute path to "<ceu>" repository)
-CEU_UV_DIR = $(error set absolute path to "<ceu-libuv>" repository)
+include Makefile.dirs
 
 main:
 	make CEU_SRC=src/main.ceu one
@@ -113,7 +112,7 @@ tests-p2p:
 	freechains --port=8400 daemon start /tmp/config-8400.lua &
 	freechains --port=8401 daemon start /tmp/config-8401.lua &
 	freechains --port=8402 daemon start /tmp/config-8402.lua &
-	sleep 0.1
+	sleep 0.5
 	
 	# Connect 8400 <-> 8401 <-> 8402:
 	freechains --port=8400 configure set "chains[''].peers"+="{address='127.0.0.1',port=8401}"
@@ -140,7 +139,7 @@ tests-p2p:
 	# Start fourth node, 8400 <-> 8401 <-> 8402 <-> 8403:
 	cp cfg/config-tests.lua.bak /tmp/config-8403.lua
 	freechains --port=8403 daemon start /tmp/config-8403.lua &
-	sleep 0.1
+	sleep 0.5
 	freechains --port=8402 configure set "chains[''].peers"+="{address='127.0.0.1',port=8403}"
 	freechains --port=8403 configure set "chains[''].peers"+="{address='127.0.0.1',port=8402}"
 	sleep 0.5
@@ -154,13 +153,13 @@ tests-p2p:
 	# Start fifth node alone
 	cp cfg/config-tests.lua.bak /tmp/config-8403.lua
 	freechains --port=8404 daemon start /tmp/config-8403.lua &
-	sleep 0.1
+	sleep 0.5
 	
 	# Publish to reach longest chain
 	freechains --port=8404 publish /0 +"Hello World (from 8404 1/3)"
 	freechains --port=8404 publish /0 +"Hello World (from 8404 2/3)"
 	freechains --port=8404 publish /0 +"Hello World (from 8404 3/3)"
-	sleep 0.1
+	sleep 0.5
 	
 	# Connect with 1/2
 	#             /-8404-\
@@ -196,8 +195,8 @@ tests-p2p:
 
 tmp:
 	#for i in tst/tst-29.ceu tst/tst-3[0-6].ceu ; do
-	#for i in tst/tst-ao.ceu ; do
-	for i in tst/tst-[a-b]*.ceu tst/tst-[0-3]*.ceu ; do \
+	#for i in tst/tst-[a-b]*.ceu tst/tst-[0-3]*.ceu ; do
+	for i in tst/tst-an.ceu ; do \
 	    echo;                                            \
 	    echo "#####################################";    \
 	    echo File: "$$i";                                \

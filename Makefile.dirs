@@ -1,0 +1,2 @@
+CEU_DIR    = $(error set absolute path to "<ceu>" repository)
+CEU_UV_DIR = $(error set absolute path to "<ceu-libuv>" repository)
