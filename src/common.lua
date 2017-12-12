@@ -259,20 +259,28 @@ end -- https://github.com/kernelsauce/turbo/blob/master/turbo/escape.lua
 
 -------------------------------------------------------------------------------
 
+local function byte (v, n)
+    local m = 0
+    for i=0, n do
+        m = v % 256
+        v = math.floor(v / 256)
+    end
+    return m
+end
+
 local socket = require 'socket'
 function FC.send (tp, msg, daemon)
     daemon = daemon or FC.daemon
     local c = assert(socket.connect(daemon.address,daemon.port))
     msg = FC.tostring(msg, 'plain')
-    local buffer = 'PS'..string.char((tp>>8) & 0xFF)
-                       ..string.char(tp      & 0xFF)
+    --local buffer = 'PS'..string.char((tp>>8)&0xFF, tp&0xFF)
+    local buffer = 'PS'..string.char(byte(tp,1), byte(tp,0))
     do
         local len = string.len(msg)
         assert(len <= 0xFFFFFFFF)
-        buffer = buffer..string.char((len>>24) & 0xFF)
-                       ..string.char((len>>16) & 0xFF)
-                       ..string.char((len>> 8) & 0xFF)
-                       ..string.char(len       & 0xFF)
+        --buffer = buffer..string.char((len>>24)&0xFF, (len>>16)&0xFF,
+                                     --(len>> 8)&0xFF, (len>> 0)&0xFF)
+        buffer = buffer..string.char(byte(len,3), byte(len,2), byte(len,1), byte(len,0))
     end
     buffer = buffer .. msg
     assert(c:send(buffer))
@@ -288,9 +296,46 @@ function FC.send (tp, msg, daemon)
         local ret = c:receive('*a')
         --print('<<<', string.format('%q',ret))
         c:close()
-        return assert(load('return '..tostring(ret)))()
+        if _VERSION == 'Lua 5.1' then
+            return assert(loadstring('return '..tostring(ret)))()
+        else
+            return assert(load('return '..tostring(ret)))()
+        end
     end
 end
+
+local function one (node, cache, daemon)
+    if cache[node.hash] then
+        return
+    end
+
+    coroutine.yield(node)
+
+    for _, hash in ipairs(node) do
+        local childs = FC.send(0x0200, {    -- GET
+            chain = { key=node.chain.key, zeros=node.chain.zeros },
+            node  = hash,
+        }, daemon)
+        assert(#childs == 1)
+        one(childs[1], cache, daemon)
+    end
+end
+
+function FC.get_iter (chain, cache, daemon)
+    return coroutine.wrap(
+        function ()
+            local head = FC.send(0x0200, {    -- GET
+                chain = { key=chain.key, zeros=chain.zeros },
+            }, daemon)
+
+            for i, node in ipairs(head) do
+                one(node, cache, daemon)
+            end
+        end
+    )
+end
+
+-------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
 -- 3rd-party code

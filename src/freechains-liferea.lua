@@ -297,16 +297,16 @@ elseif cmd == 'atom' then
     else
         entries = {}
 
-        local function one (i, node)
-            if (CHAIN.last.atom[i] or {})[node.hash] then
-                return
-            end
+        --for i=CHAIN.zeros, 255 do
+for i=CHAIN.zeros, 30 do
+            CHAIN.last.atom[i] = CHAIN.last.atom[i] or {}
+            for node in FC.get_iter({key=CHAIN.key,zeros=i},CHAIN.last.atom[i],DAEMON) do
+                CHAIN.last.atom[i][node.hash] = true
+                if node.pub then
+                    payload = node.pub.payload --or ('Removed publication: '..node.pub.removal))
+                    title = FC.escape(string.match(payload,'([^\n]*)'))
 
-            if node.pub then
-                payload = node.pub.payload --or ('Removed publication: '..node.pub.removal))
-                title = FC.escape(string.match(payload,'([^\n]*)'))
-
-                payload = payload .. [[
+                    payload = payload .. [[
 
 
 -------------------------------------------------------------------------------
@@ -317,61 +317,41 @@ Republish Contents
 Inappropriate Contents
 ]]
 
-                -- freechains links
-                payload = string.gsub(payload, '(%[.-%]%(freechains:)(/.-%))', '%1//'..daemon..'%2')
+                    -- freechains links
+                    payload = string.gsub(payload, '(%[.-%]%(freechains:)(/.-%))', '%1//'..daemon..'%2')
 
-                -- markdown
+                    -- markdown
 --if false then
-                do
-                    local tmp = os.tmpname()
-                    local md = assert(io.popen('pandoc -r markdown -w html > '..tmp, 'w'))
-                    md:write(payload)
-                    assert(md:close())
-                    local html = assert(io.open(tmp))
-                    payload = html:read('*a')
-                    html:close()
-                    os.remove(tmp)
-                end
+                    do
+                        local tmp = os.tmpname()
+                        local md = assert(io.popen('pandoc -r markdown -w html > '..tmp, 'w'))
+                        md:write(payload)
+                        assert(md:close())
+                        local html = assert(io.open(tmp))
+                        payload = html:read('*a')
+                        html:close()
+                        os.remove(tmp)
+                    end
 --end
 
-                payload = FC.escape(payload)
+                    payload = FC.escape(payload)
 
-                entry = TEMPLATES.entry
-                entry = gsub(entry, '__TITLE__',     '['..i..'] '..title)
-                entry = gsub(entry, '__CHAIN_ID__',  CHAIN.key..'/'..i)
-                entry = gsub(entry, '__HASH__',      node.hash)
-                entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', node.pub.timestamp/1000000))
-                entry = gsub(entry, '__CONTENT__',   payload)
-                entries[#entries+1] = entry
+                    entry = TEMPLATES.entry
+                    entry = gsub(entry, '__TITLE__',     '['..i..'] '..title)
+                    entry = gsub(entry, '__CHAIN_ID__',  CHAIN.key..'/'..i)
+                    entry = gsub(entry, '__HASH__',      node.hash)
+                    entry = gsub(entry, '__PUBLISHED__', os.date('!%Y-%m-%dT%H:%M:%SZ', node.pub.timestamp/1000000))
+                    entry = gsub(entry, '__CONTENT__',   payload)
+                    entries[#entries+1] = entry
+                end
             end
 
-            for _, hash in ipairs(node) do
-                childs = FC.send(0x0200, {    -- GET
-                    chain = { key=CHAIN.key, zeros=i },
-                    node  = hash,
-                }, DAEMON)
-                assert(#childs == 1)
-                one(i, childs[1])
+            -- avoids polluting CFG if only genesis so far
+            local k = assert(next(CHAIN.last.atom[i]))  -- at least genesis
+            if not next(CHAIN.last.atom[i],k) then
+                CHAIN.last.atom[i] = nil
             end
         end
-
-        --for i=CHAIN.zeros, 255 do
-for i=CHAIN.zeros, 30 do
-            head = FC.send(0x0200, {    -- GET
-                chain = { key=CHAIN.key, zeros=i },
-            }, DAEMON)
-
-            local hashes = {}
-            for j, node in ipairs(head) do
-                one(i, node)
-                hashes[j] = node.hash
-            end
-
-            if #head[1] > 0 then  -- avoids polluting CFG if only genesis so for
-                CHAIN.last.atom[i] = hashes
-            end
-        end
-        FC.send(0x0500, CFG, DAEMON)
 
         -- MENU
         do
@@ -401,6 +381,10 @@ for i=CHAIN.zeros, 30 do
 
     f = io.stdout --assert(io.open(dir..'/'..key..'.xml', 'w'))
     f:write(feed)
+
+    -- configure: save last.atom
+    FC.send(0x0500, CFG, DAEMON)
+
     goto END
 
 end
