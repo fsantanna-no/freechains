@@ -3,10 +3,6 @@ chains = {
     [''] = {
         key   = '',
         zeros = 0,
-        last  = {
-            output = {},
-            atom   = {},
-        },
         peers = {
 --[[
             {

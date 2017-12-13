@@ -36,10 +36,6 @@ outer.tcp.buffer = outer.tcp.buffer..[0];
 outer.tcp.buffer[$outer.tcp.buffer-1] = {' '};
 [[
     assert(load('msg = '..@outer.tcp.buffer))()
-    msg.chain.last = {
-        output = {},
-        atom   = {},
-    }
     --print('>>>', FC.tostring(msg,'plain'))
 
     OLD = CFG.chains[msg.chain.key]
