@@ -203,6 +203,78 @@ do
     ]];
 end
 
+#if 0
+code/await Remove_New (none) -> none
+    // input:  [[ ARGS={rem={TODO}} ]]
+    // output: [[ ARGS={rem={DONE}} ]]
+do
+    [[
+        THIS = {
+            rem = ARGS.rem,
+        }
+    ]];
+
+    var[HASH_BYTES] byte hash;
+    _ceu_vector_setlen(&&hash,HASH_BYTES,1);
+
+    var u8 zeros = [[ THIS.rem.chain.zeros ]];
+
+    var[] byte pln = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ..
+                     [[ THIS.rem.pub.hash ]] ..
+                     [[ string.rep('\0',THIS.rem.pub.len)) ]];
+
+    // show async/thread progress
+    var int ms = 0;
+#if 1
+    spawn do
+        every 100ms do
+            ms = ms + 1;
+            //_printf("(%d)",ms);
+            _printf(".");
+            _fflush(_stdout);
+        end
+    end
+#endif
+
+    var u64 timestamp = [[ THIS.rem.timestamp ]];
+    var u64 nonce     = [[ THIS.rem.nonce     ]];
+#if 1
+    await async/thread (zeros,pln,hash, timestamp,nonce)
+#endif
+    do
+        var u64 n = do
+            var u64 n_ = 0;
+            loop timestamp in [timestamp -> 0xFFffFFffFFffFFff] do
+                PUT_HTOBE64(pln, 0, timestamp);
+
+                loop nonce in [nonce -> 0xFFffFFffFFffFFff] do
+                    PUT_HTOBE64(pln, sizeof(u64), nonce);
+
+                    _ceu_assert(n_ < 0xFFffFFffFFffFFff, "bug found");
+                    n_ = n_ + 1;
+
+                    _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
+                    if zeros <= _leading_zeros(&&hash[0],HASH_BYTES) then
+                        escape n_;
+                    end
+                end
+            end
+            _ceu_assert(0, "bug found");
+        end;
+        _dbg(3, "client: POW rounds: %d\n", n);
+    end
+
+    [[
+        THIS.rem.timestamp = @timestamp
+        THIS.rem.nonce     = @nonce
+        THIS.rem.hash      = @hash
+        THIS.rem.chain.up.rems[THIS.rem.hash] = THIS.rem
+
+        ARGS = THIS
+    ]];
+end
+#endif
+
 code/await Node_New (none) -> none
     // input:  [[ ARGS={node={TODO}} ]]
     // effect: [[ ARGS={node={DONE}} ]]
@@ -238,10 +310,16 @@ do
     end
 #endif
 
+    var   bool has_key_shared = [[ THIS.node.chain.cfg.key_shared ~= nil ]];
+    var[] byte key_shared;
+    if has_key_shared then
+        key_shared = []..[[ THIS.node.chain.cfg.key_shared ]];
+    end
+
     var u64 timestamp = [[ THIS.node.timestamp ]];
     var u64 nonce     = [[ THIS.node.nonce     ]];
 #if 1
-    await async/thread (zeros,pln,hash, timestamp,nonce)
+    await async/thread (zeros,pln,hash, has_key_shared,key_shared, timestamp,nonce)
 #endif
     do
         var u64 n = do
@@ -255,7 +333,12 @@ do
                     _ceu_assert(n_ < 0xFFffFFffFFffFFff, "bug found");
                     n_ = n_ + 1;
 
-                    _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
+                    if has_key_shared then
+                        _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, &&key_shared[0],$key_shared);
+                    else
+                        _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
+                    end
+
                     if zeros <= _leading_zeros(&&hash[0],HASH_BYTES) then
                         escape n_;
                     end
@@ -279,13 +362,11 @@ code/await Client_10_Pre (var& UV_TCP_Server_Data shared, var int n) -> none
 do
     [[
         THIS = {
-            chain = ARGS.message.chain,
-            pub   = {
-                timestamp = ARGS.message.timestamp,
-                nonce     = ARGS.message.nonce,
-                payload   = ARGS.message.payload,
-                --remove    = ARGS.message.remove,
-            }
+            chain     = ARGS.message.chain,
+            timestamp = ARGS.message.timestamp,
+            nonce     = ARGS.message.nonce,
+            payload   = ARGS.message.payload,
+            --remove    = ARGS.message.remove,
         }
     ]]
 
@@ -315,15 +396,30 @@ do
             THIS.now = now
             THIS.pub = {
                 chain      = THIS.chain,
-                timestamp  = THIS.pub.timestamp or now,
-                nonce      = THIS.pub.nonce or 0,
-                payload    = THIS.pub.payload,
-                --remove_dst = THIS.pub.remove and assert(THIS.chain.cache[THIS.pub.remove]) or nil,
+                timestamp  = THIS.timestamp or now,
+                nonce      = THIS.nonce or 0,
+                payload    = THIS.payload,
+                --remove_dst = THIS.remove and assert(THIS.chain.cache[THIS.remove]) or nil,
                 hash       = nil,
             }
             ARGS = THIS
         ]]
         await Publication_New();
+#if 0
+        [[
+            THIS.rem = {
+                chain      = THIS.chain,
+                timestamp  = THIS.timestamp or now,
+                nonce      = THIS.nonce or 0,
+                pub = {
+                    hash = THIS.pub.hash,
+                    len  = string.len(THIS.pub.payload),
+                },
+            }
+            ARGS = THIS
+        ]];
+        await Remove_New();
+#endif
         do
             //[[ ARGS = { chain=THIS.chain } ]]
             //CHAIN_LOCK(l, shared, "lock_write");

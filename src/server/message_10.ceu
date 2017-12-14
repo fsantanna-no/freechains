@@ -137,7 +137,16 @@ do
         PUT_HTOBE64(pln, sizeof(u64), nonce);
     end
 
-    _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
+    do
+        var bool has_key_shared = [[ THIS.node.chain.cfg.key_shared ~= nil ]];
+        if has_key_shared then
+            var[] byte key_shared = []..[[ THIS.node.chain.cfg.key_shared ]];
+            _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, &&key_shared[0],$key_shared);
+        else
+            _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
+        end
+    end
+
     var bool ok = [[ THIS.node.hash == @hash ]];
     if not ok then
         var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);

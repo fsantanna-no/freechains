@@ -17,6 +17,10 @@
 #define CHAIN_KEY_BYTES 256
 #define FORK_LENGTHY    100
 
+#if HASH_BYTES == crypto_generichash_BYTES
+#   error "invalid hash size
+#endif
+
 #define THIS FC[@(&&{*_ceu_mem})]
 
 native/nohold ___dbg, ___dbg_tcp;
@@ -187,6 +191,7 @@ loop j in [zeros -> 30] do
                         cache = {},
                         key   = cfg.key,
                         zeros = j,
+                        cfg   = cfg,
                         id    = id,
                         up    = FC.chains[cfg.key],
                         n     = 0,
