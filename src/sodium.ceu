@@ -1,8 +1,11 @@
 #ifndef _SODIUM_CEU
 #define _SODIUM_CEU
 
-native/pure
-    _crypto_generichash;
+native/nohold
+    _crypto_generichash,
+    _crypto_sign_detached,
+    _crypto_sign_verify_detached,
+;
 
 native/pre do
     ##include <sodium.h>

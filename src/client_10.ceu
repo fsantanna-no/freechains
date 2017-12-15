@@ -310,16 +310,19 @@ do
     end
 #endif
 
-    var   bool has_key_shared = [[ THIS.node.chain.cfg.key_shared ~= nil ]];
-    var[] byte key_shared;
+    var[] byte key;
+    var bool has_key_shared  = [[ THIS.node.chain.up.cfg.key_shared  ~= nil ]];
+    var bool has_key_private = [[ THIS.node.chain.up.cfg.key_private ~= nil ]];
     if has_key_shared then
-        key_shared = []..[[ THIS.node.chain.cfg.key_shared ]];
+        key = []..[[ THIS.node.chain.up.cfg.key_shared ]];
+    else/if has_key_private then
+        key = []..[[ FC.hex2hash(THIS.node.chain.up.cfg.key_private) ]];
     end
 
     var u64 timestamp = [[ THIS.node.timestamp ]];
     var u64 nonce     = [[ THIS.node.nonce     ]];
 #if 1
-    await async/thread (zeros,pln,hash, has_key_shared,key_shared, timestamp,nonce)
+    await async/thread (zeros,pln,hash, key,has_key_shared, timestamp,nonce)
 #endif
     do
         var u64 n = do
@@ -334,7 +337,7 @@ do
                     n_ = n_ + 1;
 
                     if has_key_shared then
-                        _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, &&key_shared[0],$key_shared);
+                        _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, &&key[0],$key);
                     else
                         _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
                     end
@@ -355,6 +358,13 @@ do
         THIS.node.hash      = @hash
         THIS.node = FC.node(THIS.node)
     ]];
+
+    if has_key_private then
+        var[SIG_BYTES] byte sig = [];
+        _ceu_vector_setlen(&&sig, SIG_BYTES, 1);
+        _crypto_sign_detached(&&sig[0], null, &&pln[0],$pln, &&key[0]);
+        [[ THIS.node.sig = @sig ]];
+    end
 end
 
 code/await Client_10_Pre (var& UV_TCP_Server_Data shared, var int n) -> none

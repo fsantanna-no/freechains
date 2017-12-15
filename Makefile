@@ -226,7 +226,7 @@ tmp-run:
 	done
 
 tests-full:
-	for i in tst/tst-[0-2]*.ceu tst/tst-[a-b]*.ceu tst/tst-3[0-3].ceu ; do \
+	for i in tst/tst-[0-2]*.ceu tst/tst-[a-c]*.ceu tst/tst-3[0-3].ceu ; do \
 	    echo;                                            \
 	    echo "#####################################";    \
 	    echo File: "$$i";                                \

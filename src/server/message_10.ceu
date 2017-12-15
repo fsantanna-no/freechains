@@ -138,19 +138,30 @@ do
     end
 
     do
-        var bool has_key_shared = [[ THIS.node.chain.cfg.key_shared ~= nil ]];
+        var bool has_key_shared = [[ THIS.node.chain.up.cfg.key_shared ~= nil ]];
+        var bool has_key_public = [[ THIS.node.chain.up.cfg.key_public ~= nil ]];
         if has_key_shared then
-            var[] byte key_shared = []..[[ THIS.node.chain.cfg.key_shared ]];
+            var[] byte key_shared = []..[[ THIS.node.chain.up.cfg.key_shared ]];
             _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, &&key_shared[0],$key_shared);
         else
             _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
         end
-    end
 
-    var bool ok = [[ THIS.node.hash == @hash ]];
-    if not ok then
-        var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
-        throw e;
+        var bool ok = [[ THIS.node.hash == @hash ]];
+        if not ok then
+            var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+            throw e;
+        end
+
+        if has_key_public then
+            var[] byte sig = []..[[ assert(THIS.node.sig, 'expected sig') ]];
+            var[] byte key = []..[[ FC.hex2hash(THIS.node.chain.up.cfg.key_public) ]];
+            var int ret = _crypto_sign_verify_detached(&&sig[0], &&pln[0],$pln, &&key[0]);
+            if ret != 0 then
+                var Exception.Freechains.Malformed e = val Exception.Freechains.Malformed(_);
+                throw e;
+            end
+        end
     end
 
     [[
@@ -212,11 +223,11 @@ do
                 await UV_Stream_Read_N(&outer.tcp, HASH_BYTES);
                 var[HASH_BYTES] byte hash;
                 _ceu_vector_copy(&&hash,0, &&outer.tcp.buffer,0, HASH_BYTES);
+                $outer.tcp.buffer = $outer.tcp.buffer - HASH_BYTES;
                 [[
                     prv = assert(THIS.node.chain.cache[@hash], 'expected in cache: '..FC.tostring(@hash)..' <- '..FC.tostring(THIS.node.hash))
                     THIS.node[@i] = prv
                 ]];
-                $outer.tcp.buffer = $outer.tcp.buffer - HASH_BYTES;
 
                 var[] byte str = [] .. [[ FC.tostring(THIS.node[@i].hash) ]] .. [0];
                 _dbg_tcp(3, &&outer.tcp.handle, "server", "=> NODE_HASH[%d] : %s", i, &&str[0]);
@@ -233,6 +244,19 @@ do
                     THIS.node.timestamp = @timestamp
                     THIS.node.nonce     = @nonce
                 ]]
+            end
+
+            // => SIG
+            do
+                var bool has_key_public = [[ THIS.node.chain.up.cfg.key_public ~= nil ]];
+                if has_key_public then
+                    await UV_Stream_Read_N(&outer.tcp, SIG_BYTES);
+                    var[SIG_BYTES] byte sig;
+                    _ceu_vector_copy(&&sig,0, &&outer.tcp.buffer,0, SIG_BYTES);
+                    $outer.tcp.buffer = $outer.tcp.buffer - SIG_BYTES;
+                    [[ THIS.node.sig = @sig ]];
+                    _dbg_tcp(3, &&outer.tcp.handle, "server", "=> SIG");
+                end
             end
 
             // => PUB
@@ -429,6 +453,7 @@ do
             // <= ...
             // <= NODE[n].hash
             // <= TIMESTAMP + NONCE
+            // <= SIG
             // <= PUB
             // <=   PUB_HASH?
             // =>   PUB_HASH ACK!
@@ -465,6 +490,13 @@ do
                 var u64 nonce     = [[ THIS.cur.nonce     ]];
                 PUT_HTOBE64(outer.tcp.buffer, offset, timestamp);
                 PUT_HTOBE64(outer.tcp.buffer, offset+sizeof(u64), nonce);
+            end
+
+            // <= SIG
+            var bool has_key_private = [[ THIS.cur.chain.up.cfg.key_private ~= nil ]];
+            if has_key_private then
+                _dbg_tcp(3, &&outer.tcp.handle, "client", "<= SIG");
+                outer.tcp.buffer = outer.tcp.buffer .. [[ assert(THIS.cur.sig, 'missing sig') ]];
             end
 
             // <= PUB

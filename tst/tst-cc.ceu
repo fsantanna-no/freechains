@@ -1,0 +1,99 @@
+#define DETERMINISTIC
+
+#include "common.ceu"
+
+///////////////////////////////////////////////////////////////////////////////
+// 0->1
+//  - public key
+///////////////////////////////////////////////////////////////////////////////
+
+par/and do
+
+///////////////////////////////////////////////////////////////////////////////
+// 1
+///////////////////////////////////////////////////////////////////////////////
+
+    lua[] do
+        [[
+            CFG = {
+                daemon = {
+                    address = '127.0.0.1',
+                    port    = '8341'
+                },
+                no_persistency = true,
+                chains = {
+                    [''] = {
+                        key   = '',
+                        zeros = 0,
+                        key_public = '89BC9897BF4BD5E5491B0604A9087C6FDF6F5A3DAB30E5ABA4EF9E1D90F63C46',
+
+                    },
+                },
+            }
+        ]];
+        var& Init init = spawn Init();
+        AWAIT_CHAIN_N(init.shared, '', 0, 2);
+
+        [[
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-cc-01.dot' )
+        ]];
+    end
+
+with
+
+///////////////////////////////////////////////////////////////////////////////
+// 0
+///////////////////////////////////////////////////////////////////////////////
+
+    lua[] do
+        [[
+            CFG = {
+                no_persistency = true,
+                chains = {
+                    [''] = {
+                        key   = '',
+                        zeros = 0,
+                        key_public  = '89BC9897BF4BD5E5491B0604A9087C6FDF6F5A3DAB30E5ABA4EF9E1D90F63C46',
+                        key_private = '24A14567A3FD04F201EA6E16F2702C2D7035704C3E230A73B3C767B9149DB45F89BC9897BF4BD5E5491B0604A9087C6FDF6F5A3DAB30E5ABA4EF9E1D90F63C46',
+                        peers = {
+                            {
+                                address = '127.0.0.1',
+                                port    = '8341'
+                            },
+                        },
+                    },
+                },
+            }
+        ]];
+        var& Init init = spawn Init();
+        [[
+            ARGS = {
+                message = {
+                    version = '1.0',
+                    chain = {
+                        key   = '',
+                        zeros = 0,
+                    },
+                    payload = 'Ola Mundo!',
+                }
+            }
+        ]]
+        await Client_10(&init.shared);
+
+        [[
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-cc-00.dot' )
+        ]];
+    end
+
+end
+
+[[
+    local tst   = assert(io.open('tst/dots/tst-cc.dot')):read'*a'
+    local tmp00 = assert(io.open('/tmp/tst-cc-00.dot')):read'*a'
+    local tmp01 = assert(io.open('/tmp/tst-cc-01.dot')):read'*a'
+    assert(tst==tmp00 and tst==tmp01)
+
+    print'OK!'
+]]
+
+escape 0;

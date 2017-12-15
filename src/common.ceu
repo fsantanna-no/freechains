@@ -13,13 +13,19 @@
 #define MESSAGE_MAGIC_1 {'S'}
 
 #define HASH_BYTES      32
+#define SIG_BYTES       64
 #define NONCE_BYTES     16
 #define CHAIN_KEY_BYTES 256
 #define FORK_LENGTHY    100
 
-#if HASH_BYTES == crypto_generichash_BYTES
-#   error "invalid hash size
-#endif
+native/pre do
+    ##if HASH_BYTES != crypto_generichash_BYTES
+    ##   error "invalid hash size"
+    ##endif
+    ##if SIG_BYTES != crypto_sign_BYTES
+    ##   error "invalid sig size"
+    ##endif
+end
 
 #define THIS FC[@(&&{*_ceu_mem})]
 
@@ -170,10 +176,12 @@ code/await Subscribe (var& UV_TCP_Server_Data shared) -> none do
     loop i in [1 -> n] do
         [[
             cfg = THIS.chains[@i]
+            assert( (not (cfg.key_shared and cfg.key_public)) and
+                    ((not cfg.key_private) or cfg.key_public) )
             --assert(not FC.chains[cfg.key])
             FC.chains[cfg.key] = FC.chains[cfg.key] or {
                 key  = cfg.key,
-                --cfg  = cfg,
+                cfg  = cfg,
                 pubs = { [string.rep('\0',@HASH_BYTES)]=true }, -- have all removeds
             }
         ]]
@@ -191,7 +199,7 @@ loop j in [zeros -> 30] do
                         cache = {},
                         key   = cfg.key,
                         zeros = j,
-                        cfg   = cfg,
+                        --cfg   = cfg,
                         id    = id,
                         up    = FC.chains[cfg.key],
                         n     = 0,
