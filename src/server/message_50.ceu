@@ -47,6 +47,8 @@ if is_get then
     await UV_Stream_Write_N(&outer.tcp,_);
 
 else
+    await Subscribe(&outer.shared);
+#if 0
     // TODO: broadcasts everything if anything at all changes
     // could broadcast only a chain with changing peers
 
@@ -83,6 +85,7 @@ else
             //end
         end
     end
+#endif
 
 end
 

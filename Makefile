@@ -34,7 +34,7 @@ c:
 	ceu --cc --cc-input=/tmp/x.c --cc-args="-lm -llua5.3 -luv -lsodium -g"                         \
 	         --cc-output=/tmp/x;
 
-tests: tests-get tests-cli tests-nat tests-p2p
+tests: tests-get tests-cli tests-nat tests-p2p tests-shared
 	# OK
 
 tests-get:
@@ -79,6 +79,58 @@ tests-cli:
 	freechains --port=8400 subscribe bbb/10
 	freechains --port=8400 configure get > /dev/null
 	freechains --port=8400 daemon stop
+
+tests-shared:
+	-freechains --port=8400 daemon stop 2>/dev/null
+	-freechains --port=8401 daemon stop 2>/dev/null
+	-freechains --port=8402 daemon stop 2>/dev/null
+	rm -Rf /tmp/freechains/84*
+	
+	# Setup configuration files:
+	cp cfg/config-tests.lua.bak /tmp/config-8400.lua
+	cp cfg/config-tests.lua.bak /tmp/config-8401.lua
+	cp cfg/config-tests.lua.bak /tmp/config-8402.lua
+	
+	# Start three nodes:
+	freechains --port=8400 daemon start /tmp/config-8400.lua &
+	freechains --port=8401 daemon start /tmp/config-8401.lua &
+	freechains --port=8402 daemon start /tmp/config-8402.lua &
+	sleep 0.5
+	
+	# Connect ALL:
+	freechains --port=8400 configure set "chains[''].peers"+="{address='127.0.0.1',port=8401}"
+	freechains --port=8400 configure set "chains[''].peers"+="{address='127.0.0.1',port=8402}"
+	freechains --port=8401 configure set "chains[''].peers"+="{address='127.0.0.1',port=8400}"
+	freechains --port=8401 configure set "chains[''].peers"+="{address='127.0.0.1',port=8402}"
+	freechains --port=8402 configure set "chains[''].peers"+="{address='127.0.0.1',port=8400}"
+	freechains --port=8402 configure set "chains[''].peers"+="{address='127.0.0.1',port=8401}"
+	
+	# Set SHARED for 8400/8401:
+	freechains --port=8400 configure set "chains[''].key_shared"="'senha-secreta'"
+	freechains --port=8401 configure set "chains[''].key_shared"="'senha-secreta'"
+	
+	# Publish to /0
+	freechains --port=8400 publish /0 +"from 8400"   # 8402 cannot check
+	sleep 0.5
+	freechains --port=8402 publish /0 +"from 8402"   # 8400/8401 cannot check
+	sleep 0.5
+	freechains --port=8401 publish /0 +"from 8401"   # 8402 cannot check
+	sleep 0.5
+	
+	# Check consensus 1
+	grep -q  "from 8400" /tmp/freechains/8400/\|\|0\|.chain
+	grep -q  "from 8401" /tmp/freechains/8400/\|\|0\|.chain
+	cat -v /tmp/freechains/8400/\|\|0\|.chain | tr '\n' ' ' | grep -qv "from 8402"
+	diff /tmp/freechains/8400 /tmp/freechains/8401
+	#
+	cat -v /tmp/freechains/8402/\|\|0\|.chain | tr '\n' ' ' | grep -qv "from 8400"
+	cat -v /tmp/freechains/8402/\|\|0\|.chain | tr '\n' ' ' | grep -qv "from 8401"
+	grep -q  "from 8402" /tmp/freechains/8402/\|\|0\|.chain
+	
+	# Cleanup
+	freechains --port=8400 daemon stop
+	freechains --port=8401 daemon stop
+	freechains --port=8402 daemon stop
 
 tests-nat:
 	rm -Rf /tmp/freechains/840[0-1]/
@@ -202,27 +254,6 @@ tmp:
 	    echo File: "$$i";                                \
 	    echo "#####################################";    \
 	    make CEU_SRC=$$i one && /tmp/$$(basename $$i .ceu) || exit 1; \
-	done
-
-tmp-run:
-	while true ; do      \
-	    (echo "=== 29" && \
-	    /tmp/tst-29   && \
-	    echo "=== 30" && \
-	    /tmp/tst-30   && \
-	    echo "=== 31" && \
-	    /tmp/tst-31   && \
-	    echo "=== 32" && \
-	    /tmp/tst-32   && \
-	    echo "=== 33" && \
-	    /tmp/tst-33   && \
-	    echo "=== 34" && \
-	    /tmp/tst-34   && \
-	    echo "=== 35" && \
-	    /tmp/tst-35   && \
-	    echo "=== 36" && \
-	    /tmp/tst-36)  || \
-		break ;     \
 	done
 
 tests-full:

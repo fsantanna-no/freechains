@@ -182,9 +182,9 @@ code/await Subscribe (var& UV_TCP_Server_Data shared) -> none do
             --assert(not FC.chains[cfg.key])
             FC.chains[cfg.key] = FC.chains[cfg.key] or {
                 key  = cfg.key,
-                cfg  = cfg,
                 pubs = { [string.rep('\0',@HASH_BYTES)]=true }, -- have all removeds
             }
+            FC.chains[cfg.key].cfg = cfg
         ]]
         var int zeros = [[cfg.zeros]];
         var int j;
@@ -192,8 +192,9 @@ code/await Subscribe (var& UV_TCP_Server_Data shared) -> none do
 loop j in [zeros -> 30] do
             [[
                 j = @j
-                has = FC.chains[cfg.key][j]
-                if not has then
+                had = (FC.chains[cfg.key][j] ~= nil)
+                THIS.sub = FC.chains[cfg.key][j]
+                if not had then
                     assert(not FC.chains[cfg.key][j])
                     local id = '|'..cfg.key..'|'..j..'|'
                     THIS.sub = {
@@ -209,36 +210,35 @@ loop j in [zeros -> 30] do
                     FC.chains[cfg.key][j] = THIS.sub
                 end
             ]]
-            var bool has = [[has]];
-            if has then
-                continue;   // from main.subscribe
-            end
 
-            // try to load from file
-            // no problem if it fails
-            var bool had_read = false;
-            var bool should_read = [[ not CFG.no_persistency ]];
-            if should_read then
-                [[
-                    ok = pcall(FC.read, THIS.sub, CFG.dir..'/'..THIS.sub.id..'.chain')
-                ]]
-                had_read = [[ ok ]];
-            end
-
-            if not had_read then
-                var[HASH_BYTES] byte hash;
-                _ceu_vector_setlen(&&hash, HASH_BYTES, 1);
-                var[] byte id = [] .. [[ THIS.sub.id ]];
-                _crypto_generichash(&&hash[0],HASH_BYTES, &&id[0],$id, null,0);
-#if 0
-                do
-                    var[] byte str = [] .. [[ FC.tostring(@hash) ]] .. [0];
-                    _dbg(3, "|| CHAIN_HASH : %s", &&str[0]);
+            var bool had = [[had]];
+            if not had then
+                // try to load from file
+                // no problem if it fails
+                var bool had_read = false;
+                var bool should_read = [[ not CFG.no_persistency ]];
+                if should_read then
+                    [[
+                        ok = pcall(FC.read, THIS.sub, CFG.dir..'/'..THIS.sub.id..'.chain')
+                    ]]
+                    had_read = [[ ok ]];
                 end
+
+                if not had_read then
+                    var[HASH_BYTES] byte hash;
+                    _ceu_vector_setlen(&&hash, HASH_BYTES, 1);
+                    var[] byte id = [] .. [[ THIS.sub.id ]];
+                    _crypto_generichash(&&hash[0],HASH_BYTES, &&id[0],$id, null,0);
+#if 0
+                    do
+                        var[] byte str = [] .. [[ FC.tostring(@hash) ]] .. [0];
+                        _dbg(3, "|| CHAIN_HASH : %s", &&str[0]);
+                    end
 #endif
-                [[
-                    FC.head_new( FC.node{ chain=THIS.sub, hash=@hash } )
-                ]]
+                    [[
+                        FC.head_new( FC.node{ chain=THIS.sub, hash=@hash } )
+                    ]]
+                end
             end
 
             // TODO: how not to send all chains in all levels?
