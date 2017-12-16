@@ -174,9 +174,9 @@ tests-p2p:
 	
 	# Publish to /0
 	freechains --port=8402 publish /0 +"Hello World (from 8402)"  # 8402->8401->8400
-	sleep 0.5
+	sleep 2
 	freechains --port=8400 publish /0 +"Hello World (from 8400)"  # 8400->8401->8402
-	sleep 0.5
+	sleep 2
 	
 	# Check consensus 1
 	grep -q "from 8402" /tmp/freechains/8400/\|\|0\|.chain
@@ -220,7 +220,7 @@ tests-p2p:
 	freechains --port=8401 configure set "chains[''].peers"+="{address='127.0.0.1',port=8404}"
 	freechains --port=8404 configure set "chains[''].peers"+="{address='127.0.0.1',port=8402}"
 	freechains --port=8402 configure set "chains[''].peers"+="{address='127.0.0.1',port=8404}"
-	sleep 2
+	sleep 4
 	
 	# Check consensus 3
 	# (8404 wins, so his messages should appear first)
