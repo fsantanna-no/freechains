@@ -73,13 +73,14 @@ native/pre do
     };
 
     enum {
+        MESSAGE00 = 0x0000,     // STOP freechains
         MESSAGE10 = 0x0100,     // broadcast chain
         MESSAGE20 = 0x0200,     // GET a chain state
         MESSAGE30 = 0x0300,     // PUBLISH to a chain
         MESSAGE40 = 0x0400,     // SUBSCRIBE to a chain
         MESSAGE50 = 0x0500,     // CONFIGURE freechains
         MESSAGE60 = 0x0600,     // LISTEN for new nodes
-        MESSAGE70 = 0x0700,     // STOP freechains
+        MESSAGE70 = 0x0700,     // KEY management
     };
 
     void __dbg (int level, const char* fmt, ...) {

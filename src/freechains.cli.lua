@@ -110,7 +110,7 @@ Commands:
 
     # LISTEN
 
-    Listen for new blocks.
+    Listens for new blocks.
 
     $ freechains listen [<chain>[/<work>]]
 
@@ -119,6 +119,16 @@ Commands:
         chain       chain to listen for blocks (default: all chains)
 
         work        minimum block work (default: `0`)
+
+    # KEY
+
+    Manages keys.
+
+    $ freechains key derive <passphrase>
+
+    Arguments
+
+        passphrase  very long passphrase (never forget this!) (minimum?)
 
 Options:
 
@@ -234,6 +244,43 @@ elseif cmd == 'configure' then
 
     CFG = FC.send(0x0500, nil, DAEMON)
 
+--[[
+    if sub == 'sync' then
+        ASR(#arg == 2)
+
+        -- passphrase
+        io.stdout:write('Passphrase (minimum of 32 characters): ')
+        local passphrase = io.read()
+        --assert(string.len(passphrase) >= 32)
+
+        -- peer
+        io.stdout:write('Peer (IP:port): ')
+        local peer = io.read()
+        local address, port = string.match(peer, '([^:]*):(.*)')
+        if not address then
+            address = peer
+        end
+
+        -- filename
+        io.stdout:write('Configuration File [cfg/config.lua]: ')
+        local filename = io.read()
+        if filename == '' then
+            filename = 'cfg/config.lua'
+        end
+
+        -- write
+        CFG = {
+            sync = {
+                passphrase = passphrase,
+                peer = {
+                    address = assert(address),
+                    port    = port and assert(tonumber(port)) or 8330,
+                },
+            },
+        }
+        FC.cfg_write(filename)
+]]
+
     if sub=='get' and #arg==2 then
         print(FC.tostring(CFG,'plain'))
     else
@@ -292,8 +339,18 @@ elseif cmd == 'daemon' then
         os.execute('freechains-daemon '..cfg..' '..DAEMON.address..' '..DAEMON.port)
     else
         ASR(sub == 'stop')
-        FC.send(0x0700, '', DAEMON)
+        FC.send(0x0000, '', DAEMON)
     end
+
+elseif cmd == 'key' then
+    ASR(#arg == 3)
+    local _, sub, passphrase = table.unpack(arg)
+    ASR(sub == 'derive')
+
+    local ret = FC.send(0x0700, {
+        passphrase = passphrase,
+    }, DAEMON)
+    print(FC.tostring(ret,'plain'))
 
 else
     ASR(false)

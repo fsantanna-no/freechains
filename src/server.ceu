@@ -46,7 +46,10 @@ do
             $tcp.buffer = $tcp.buffer - MESSAGE_BYTES;
 
             if ok then
-                if msg=={MESSAGE10} then
+                if msg=={MESSAGE00} then
+                    _dbg(3, "server | MESSAGE 00");
+                    // nothing, main.ceu will terminate
+                else/if msg=={MESSAGE10} then
                     _dbg(3, "server | MESSAGE 10");
                     do ()
                         await Recv_10_Header(&outer.tcp);
@@ -85,7 +88,9 @@ do
                     end
                 else/if msg=={MESSAGE70} then
                     _dbg(3, "server | MESSAGE 70");
-                    // nothing, main.ceu will terminate
+                    do ()
+                        #include "server/message_70.ceu"
+                    end
                 end
             else
                 var Exception.Freechains.Unsupported e_ = val Exception.Freechains.Unsupported(_);

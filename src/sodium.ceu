@@ -5,10 +5,51 @@ native/nohold
     _crypto_generichash,
     _crypto_sign_detached,
     _crypto_sign_verify_detached,
+    _sodium_passphrase2keys,
 ;
 
 native/pre do
     ##include <sodium.h>
+
+    int sodium_passphrase2keys (byte* passphrase, usize passphrase_len, byte* pk, byte* sk) {
+        unsigned char seed[crypto_sign_SEEDBYTES];
+#if 0
+        {
+            ceu_assert(crypto_sign_SEEDBYTES >= crypto_generichash_BYTES, "bug found");
+            int ret = crypto_generichash(seed, crypto_sign_SEEDBYTES,
+                                         (unsigned char*)passphrase, passphrase_len,
+                                         NULL, 0);
+            ceu_assert(ret == 0, "bug found");
+        }
+#else
+        {
+            if (crypto_sign_SEEDBYTES<crypto_pwhash_BYTES_MIN ||
+                crypto_sign_SEEDBYTES>crypto_pwhash_BYTES_MAX) {
+                return -1;
+            }
+
+            byte salt[crypto_pwhash_SALTBYTES];
+            for (int i=0; i<crypto_pwhash_SALTBYTES; i++) {
+                salt[i] = 0x00;
+            }
+
+            int ret = crypto_pwhash(seed, crypto_sign_SEEDBYTES,
+                                    passphrase, passphrase_len,
+                                    salt,
+                                    crypto_pwhash_OPSLIMIT_INTERACTIVE,
+                                    crypto_pwhash_MEMLIMIT_INTERACTIVE,
+                                    crypto_pwhash_ALG_DEFAULT);
+            if (ret != 0) {
+                return ret;
+            }
+        }
+#endif
+
+        {
+            int ret = crypto_sign_seed_keypair(pk, sk, seed);
+            return ret;
+        }
+    }
 end
 
 #endif

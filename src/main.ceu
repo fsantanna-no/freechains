@@ -12,7 +12,7 @@
 var& Init fc = spawn Init();
 
 par/or do
-    var int msg = await fc.shared.ok_server until (msg == {MESSAGE70});
+    var int msg = await fc.shared.ok_server until (msg == {MESSAGE00});
 with
     every fc.shared.ok_node do
         [[
