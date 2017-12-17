@@ -401,7 +401,9 @@ do
         [[
             THIS.chain = assert(FC.chains[THIS.chain.key][THIS.chain.zeros], 'not subscribed to |'..THIS.chain.key..'|'..THIS.chain.zeros..'|')
             if THIS.chain.up.cfg.key_public then
-                assert(THIS.key_private)
+                assert(THIS.key_private ~= nil, 'expected private key')
+            else
+                assert(THIS.key_private == nil)
             end
 
             if CFG.deterministic then
@@ -453,11 +455,15 @@ do
                 ARGS = THIS
             ]]
             await Node_New();
-            [[
-                FC.head_new(THIS.node)
-            ]]
+
+            var bool needs_sign = [[ THIS.chain.up.cfg.key_public ~= nil ]];
+            if needs_sign then
+                [[ ARGS = THIS ]];
+                await Node_Check();
+            end
 
             [[
+                FC.head_new(THIS.node)
                 ARGS = {
                     chain = THIS.chain,
                     node  = THIS.node,

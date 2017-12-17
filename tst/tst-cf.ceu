@@ -1,0 +1,58 @@
+#define DETERMINISTIC
+
+#include "common.ceu"
+
+///////////////////////////////////////////////////////////////////////////////
+// 0
+//  - wrong private key
+///////////////////////////////////////////////////////////////////////////////
+
+    lua[] do
+        [[
+            CFG = {
+                no_persistency = true,
+                chains = {
+                    [''] = {
+                        key   = '',
+                        zeros = 0,
+                        key_public = '89BC9897BF4BD5E5491B0604A9087C6FDF6F5A3DAB30E5ABA4EF9E1D90F63C46',
+                        peers = {
+                            {
+                                address = '127.0.0.1',
+                                port    = '8341'
+                            },
+                        },
+                    },
+                },
+            }
+        ]];
+        var& Init init = spawn Init();
+        [[
+            ARGS = {
+                message = {
+                    version = '1.0',
+                    chain = {
+                        key   = '',
+                        zeros = 0,
+                    },
+                    payload = 'Ola Mundo!',
+                    key_private = 'EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE',
+                }
+            }
+        ]]
+        await Client_10(&init.shared);
+
+        [[
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-cf.dot' )
+        ]];
+    end
+
+[[
+    local tst = assert(io.open('tst/dots/tst-cf.dot')):read'*a'
+    local tmp = assert(io.open('/tmp/tst-cf.dot')):read'*a'
+    assert(tst==tmp)
+
+    print'OK!'
+]]
+
+escape 0;
