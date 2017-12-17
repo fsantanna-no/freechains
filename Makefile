@@ -115,7 +115,7 @@ tests-shared:
 	freechains --port=8402 publish /0 +"from 8402"   # 8400/8401 cannot check
 	sleep 0.5
 	freechains --port=8401 publish /0 +"from 8401"   # 8402 cannot check
-	sleep 0.5
+	sleep 1
 	
 	# Check consensus 1
 	grep -q  "from 8400" /tmp/freechains/8400/\|\|0\|.chain
@@ -126,6 +126,59 @@ tests-shared:
 	cat -v /tmp/freechains/8402/\|\|0\|.chain | tr '\n' ' ' | grep -qv "from 8400"
 	cat -v /tmp/freechains/8402/\|\|0\|.chain | tr '\n' ' ' | grep -qv "from 8401"
 	grep -q  "from 8402" /tmp/freechains/8402/\|\|0\|.chain
+	
+	# Cleanup
+	freechains --port=8400 daemon stop
+	freechains --port=8401 daemon stop
+	freechains --port=8402 daemon stop
+
+tests-public:
+	-freechains --port=8400 daemon stop 2>/dev/null
+	-freechains --port=8401 daemon stop 2>/dev/null
+	-freechains --port=8402 daemon stop 2>/dev/null
+	rm -Rf /tmp/freechains/84*
+	
+	# Setup configuration files:
+	cp cfg/config-tests.lua.bak /tmp/config-8400.lua
+	cp cfg/config-tests.lua.bak /tmp/config-8401.lua
+	cp cfg/config-tests.lua.bak /tmp/config-8402.lua
+	
+	# Start three nodes:
+	freechains --port=8400 daemon start /tmp/config-8400.lua &
+	freechains --port=8401 daemon start /tmp/config-8401.lua &
+	freechains --port=8402 daemon start /tmp/config-8402.lua &
+	sleep 0.5
+	
+	# Connect ALL:
+	freechains --port=8400 configure set "chains[''].peers"+="{address='127.0.0.1',port=8401}"
+	freechains --port=8400 configure set "chains[''].peers"+="{address='127.0.0.1',port=8402}"
+	freechains --port=8401 configure set "chains[''].peers"+="{address='127.0.0.1',port=8400}"
+	freechains --port=8401 configure set "chains[''].peers"+="{address='127.0.0.1',port=8402}"
+	freechains --port=8402 configure set "chains[''].peers"+="{address='127.0.0.1',port=8400}"
+	freechains --port=8402 configure set "chains[''].peers"+="{address='127.0.0.1',port=8401}"
+	
+	# Set PUBLIC for 8400/8401:
+	freechains --port=8400 configure set "chains[''].key_public"="'89BC9897BF4BD5E5491B0604A9087C6FDF6F5A3DAB30E5ABA4EF9E1D90F63C46'"
+	freechains --port=8401 configure set "chains[''].key_public"="'89BC9897BF4BD5E5491B0604A9087C6FDF6F5A3DAB30E5ABA4EF9E1D90F63C46'"
+	freechains --port=8402 configure set "chains[''].key_public"="'EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE'"
+	sleep 1
+	
+	# Wrong key
+	freechains --port=8400 publish --sign='EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE' /0 +"from 8400"
+	sleep 0.5
+	! ls /tmp/freechains/8400/\|\|0\|.chain
+	
+	# Publish to /0
+	freechains --port=8400 publish --sign='24A14567A3FD04F201EA6E16F2702C2D7035704C3E230A73B3C767B9149DB45F89BC9897BF4BD5E5491B0604A9087C6FDF6F5A3DAB30E5ABA4EF9E1D90F63C46' /0 +"from 8400"
+	freechains --port=8401 publish --sign='24A14567A3FD04F201EA6E16F2702C2D7035704C3E230A73B3C767B9149DB45F89BC9897BF4BD5E5491B0604A9087C6FDF6F5A3DAB30E5ABA4EF9E1D90F63C46' /0 +"from 8401"
+	sleep 1
+	
+	# Check consensus 1
+	grep -q  "from 8400" /tmp/freechains/8400/\|\|0\|.chain
+	grep -q  "from 8401" /tmp/freechains/8400/\|\|0\|.chain
+	diff /tmp/freechains/8400 /tmp/freechains/8401
+	#
+	! ls /tmp/freechains/8402/\|\|0\|.chain
 	
 	# Cleanup
 	freechains --port=8400 daemon stop
@@ -143,7 +196,7 @@ tests-nat:
 	freechains --port=8400 daemon start /tmp/config-8400.lua &
 	sleep 0.5
 	freechains --port=8400 configure set "chains[''].peers"+="{address='127.0.0.1',port=8401}"
-	sleep 0.5
+	sleep 1
 	grep -q "from 8401" /tmp/freechains/8400/\|\|0\|.chain
 	diff /tmp/freechains/8400 /tmp/freechains/8401
 
@@ -248,7 +301,7 @@ tests-p2p:
 tmp:
 	#for i in tst/tst-29.ceu tst/tst-3[0-6].ceu ; do
 	#for i in tst/tst-[a-b]*.ceu tst/tst-[0-3]*.ceu ; do
-	for i in tst/tst-an.ceu ; do \
+	for i in tst/tst-cf.ceu ; do \
 	    echo;                                            \
 	    echo "#####################################";    \
 	    echo File: "$$i";                                \
@@ -266,7 +319,7 @@ tests-full:
 	done
 
 tests-full-run:
-	for i in tst/tst-[0-2]*.ceu tst/tst-[a-b]*.ceu tst/tst-3[0-3].ceu ; do \
+	for i in tst/tst-[0-2]*.ceu tst/tst-[a-c]*.ceu tst/tst-3[0-3].ceu ; do \
 	    echo;                                            \
 	    echo "#####################################";    \
 	    echo File: "$$i";                                \

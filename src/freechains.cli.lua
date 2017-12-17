@@ -63,6 +63,10 @@ Commands:
         +string     string to publish
         '-'         publish from stdin
 
+    Options:
+
+        --sign=<key-private>    signs publication
+
 
     # REMOVE
 
@@ -199,6 +203,7 @@ elseif cmd == 'publish' then
             zeros = ASR(tonumber(zeros)),
         },
         payload = payload,
+        key_private = opts.sign,
     }, DAEMON)
 
 elseif cmd == 'remove' then

@@ -32,11 +32,12 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
     --print('>>>', FC.tostring(msg,'plain'))
     ARGS = {
         message = {
-            chain     = msg.chain,
-            timestamp = msg.timestamp,
-            nonce     = msg.nonce,
-            payload   = msg.payload,
-            removal   = msg.removal and FC.hex2hash(msg.removal) or nil,
+            chain       = msg.chain,
+            timestamp   = msg.timestamp,
+            nonce       = msg.nonce,
+            payload     = msg.payload,
+            removal     = msg.removal and FC.hex2hash(msg.removal) or nil,
+            key_private = msg.key_private,
         },
     }
 ]]
