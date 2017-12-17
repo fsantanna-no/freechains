@@ -38,6 +38,7 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
             payload     = msg.payload,
             removal     = msg.removal and FC.hex2hash(msg.removal) or nil,
             key_private = msg.key_private,
+            encrypt     = msg.encrypt,
         },
     }
 ]]

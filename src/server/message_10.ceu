@@ -141,8 +141,11 @@ do
         var bool has_key_shared = [[ THIS.node.chain.up.cfg.key_shared ~= nil ]];
         var bool has_key_public = [[ THIS.node.chain.up.cfg.key_public ~= nil ]];
         if has_key_shared then
+            var[{crypto_generichash_KEYBYTES}] byte pwhash_shared;
+            _ceu_vector_setlen(&&pwhash_shared, {crypto_generichash_KEYBYTES}, 1);
             var[] byte key_shared = []..[[ THIS.node.chain.up.cfg.key_shared ]];
-            _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, &&key_shared[0],$key_shared);
+            _ceu_assert(_sodium_passphrase2pwhash(&&pwhash_shared[0], {crypto_generichash_KEYBYTES}, &&key_shared[0], $key_shared) == 0, "bug found");
+            _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, &&pwhash_shared[0],$pwhash_shared);
         else
             _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
         end

@@ -146,7 +146,18 @@ do
         pln = pln .. [[ THIS.pub.payload ]];
     end
 #else
-    pln = pln .. [[ THIS.pub.payload ]];
+    var bool should_encrypt = [[ THIS.pub.encrypt ]];
+    if should_encrypt then
+        var usize idx = $pln;
+        _ceu_vector_setlen(&&pln, $pln+{crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES}, 1);
+        pln = pln .. [[ THIS.pub.payload ]];
+        var usize len = [[ string.len(THIS.pub.payload) ]];
+        var[] byte key = []..[[ assert(THIS.pub.key_private or THIS.pub.chain.up.cfg.key_shared) ]];
+        _ceu_assert(_sodium_encrypt(&&pln[idx], len, &&key[0], $key) == 0, "bug found");
+        [[ THIS.pub.payload = string.sub(@pln, @idx+1) ]];
+    else
+        pln = pln .. [[ THIS.pub.payload ]];
+    end
 #endif
 
     // show async/thread progress
@@ -313,19 +324,18 @@ do
     end
 #endif
 
-    var[] byte key;
+    var[{crypto_generichash_KEYBYTES}] byte pwhash_shared;
     var bool has_key_shared  = [[ THIS.node.chain.up.cfg.key_shared  ~= nil ]];
-    var bool has_key_private = [[ THIS.node.key_private ~= nil ]];
     if has_key_shared then
-        key = []..[[ THIS.node.chain.up.cfg.key_shared ]];
-    else/if has_key_private then
-        key = []..[[ FC.hex2hash(THIS.node.key_private) ]];
+        _ceu_vector_setlen(&&pwhash_shared, {crypto_generichash_KEYBYTES}, 1);
+        var[] byte key_shared = []..[[ THIS.node.chain.up.cfg.key_shared ]];
+        _ceu_assert(_sodium_passphrase2pwhash(&&pwhash_shared[0], {crypto_generichash_KEYBYTES}, &&key_shared[0], $key_shared) == 0, "bug found");
     end
 
     var u64 timestamp = [[ THIS.node.timestamp ]];
     var u64 nonce     = [[ THIS.node.nonce     ]];
 #if 1
-    await async/thread (zeros,pln,hash, key,has_key_shared, timestamp,nonce)
+    await async/thread (zeros,pln,hash, has_key_shared,pwhash_shared, timestamp,nonce)
 #endif
     do
         var u64 n = do
@@ -340,7 +350,7 @@ do
                     n_ = n_ + 1;
 
                     if has_key_shared then
-                        _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, &&key[0],$key);
+                        _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, &&pwhash_shared[0],$pwhash_shared);
                     else
                         _crypto_generichash(&&hash[0],HASH_BYTES, &&pln[0],$pln, null,0);
                     end
@@ -362,10 +372,12 @@ do
         THIS.node = FC.node(THIS.node)
     ]];
 
+    var bool has_key_private = [[ THIS.node.key_private ~= nil ]];
     if has_key_private then
+        var[] byte key_private = []..[[ FC.hex2hash(THIS.node.key_private) ]];
         var[SIG_BYTES] byte sig = [];
         _ceu_vector_setlen(&&sig, SIG_BYTES, 1);
-        _crypto_sign_detached(&&sig[0], null, &&pln[0],$pln, &&key[0]);
+        _crypto_sign_detached(&&sig[0], null, &&pln[0],$pln, &&key_private[0]);
         [[ THIS.node.sig = @sig ]];
     end
 end
@@ -380,6 +392,7 @@ do
             nonce       = ARGS.message.nonce,
             payload     = ARGS.message.payload,
             key_private = ARGS.message.key_private,
+            encrypt     = ARGS.message.encrypt,
             --remove    = ARGS.message.remove,
         }
     ]]
@@ -405,6 +418,9 @@ do
             else
                 assert(THIS.key_private == nil)
             end
+            if THIS.encrypt then
+                assert(THIS.key_private or THIS.chain.up.cfg.key_shared)
+            end
 
             if CFG.deterministic then
                 now = 0
@@ -414,12 +430,14 @@ do
 
             THIS.now = now
             THIS.pub = {
-                chain      = THIS.chain,
-                timestamp  = THIS.timestamp or now,
-                nonce      = THIS.nonce or 0,
-                payload    = THIS.payload,
+                chain       = THIS.chain,
+                timestamp   = THIS.timestamp or now,
+                nonce       = THIS.nonce or 0,
+                payload     = THIS.payload,
                 --remove_dst = THIS.remove and assert(THIS.chain.cache[THIS.remove]) or nil,
-                hash       = nil,
+                hash        = nil,
+                key_private = THIS.key_private,
+                encrypt     = THIS.encrypt,
             }
             ARGS = THIS
         ]]
@@ -449,6 +467,7 @@ do
                     nonce       = 0,
                     pub         = THIS.pub,
                     key_private = THIS.key_private,
+                    encrypt     = THIS.encrypt,
                 }
                 FC.children(THIS.node, THIS.chain.head)
 

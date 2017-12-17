@@ -5,13 +5,39 @@ native/nohold
     _crypto_generichash,
     _crypto_sign_detached,
     _crypto_sign_verify_detached,
+    _sodium_encrypt,
+    _sodium_passphrase2pwhash,
     _sodium_passphrase2keys,
 ;
 
 native/pre do
     ##include <sodium.h>
 
-    int sodium_passphrase2keys (byte* passphrase, usize passphrase_len, byte* pk, byte* sk) {
+    int sodium_passphrase2pwhash (byte* pwhash, usize pwhash_len, byte* passphrase, usize passphrase_len)
+    {
+#if 0
+            if (pwhash_len     < crypto_pwhash_BYTES_MIN  ||
+                pwhash_len     > crypto_pwhash_BYTES_MAX  ||
+                passphrase_len < crypto_pwhash_PASSWD_MIN ||
+                passphrase_len > crypto_pwhash_PASSWD_MAX )
+            {
+                return -1;
+            }
+#endif
+
+            byte salt[crypto_pwhash_SALTBYTES];
+            memset(salt, 0, crypto_pwhash_SALTBYTES);
+
+            return crypto_pwhash(pwhash, pwhash_len,
+                                 passphrase, passphrase_len,
+                                 salt,
+                                 crypto_pwhash_OPSLIMIT_INTERACTIVE,
+                                 crypto_pwhash_MEMLIMIT_INTERACTIVE,
+                                 crypto_pwhash_ALG_DEFAULT);
+    }
+
+    int sodium_passphrase2keys (byte* passphrase, usize passphrase_len, byte* pk, byte* sk)
+    {
         unsigned char seed[crypto_sign_SEEDBYTES];
 #if 0
         {
@@ -21,35 +47,63 @@ native/pre do
                                          NULL, 0);
             ceu_assert(ret == 0, "bug found");
         }
+        return crypto_sign_seed_keypair(pk, sk, seed);
 #else
-        {
-            if (crypto_sign_SEEDBYTES<crypto_pwhash_BYTES_MIN ||
-                crypto_sign_SEEDBYTES>crypto_pwhash_BYTES_MAX) {
-                return -1;
-            }
-
-            byte salt[crypto_pwhash_SALTBYTES];
-            for (int i=0; i<crypto_pwhash_SALTBYTES; i++) {
-                salt[i] = 0x00;
-            }
-
-            int ret = crypto_pwhash(seed, crypto_sign_SEEDBYTES,
-                                    passphrase, passphrase_len,
-                                    salt,
-                                    crypto_pwhash_OPSLIMIT_INTERACTIVE,
-                                    crypto_pwhash_MEMLIMIT_INTERACTIVE,
-                                    crypto_pwhash_ALG_DEFAULT);
-            if (ret != 0) {
-                return ret;
-            }
-        }
-#endif
-
-        {
-            int ret = crypto_sign_seed_keypair(pk, sk, seed);
+        int ret = sodium_passphrase2pwhash(seed, crypto_sign_SEEDBYTES, passphrase, passphrase_len);
+        if (ret != 0) {
             return ret;
         }
+        return crypto_sign_seed_keypair(pk, sk, seed);
+#endif
     }
+
+    int sodium_encrypt (byte* buf, usize plain_len, byte* passphrase, usize passphrase_len)
+    {
+        byte key[crypto_secretbox_KEYBYTES];
+        int ret = sodium_passphrase2pwhash(key, crypto_secretbox_KEYBYTES, passphrase, passphrase_len);
+        if (ret != 0) {
+            return ret;
+        }
+
+#ifdef DETERMINISTIC
+        memset(buf, 0, crypto_secretbox_NONCEBYTES);
+#else
+        randombytes_buf(buf, crypto_secretbox_NONCEBYTES);
+#endif
+        ret = crypto_secretbox_easy(buf+crypto_secretbox_NONCEBYTES,
+                                    buf+crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES, plain_len,
+                                    buf, key);
+        return ret;
+    }
+
+#if 0
+    int sodium_decrypt (byte* buf, usize plain_len, byte* key) {
+        randombytes_buf(buf, crypto_secretbox_NONCEBYTES);
+        int ret = crypto_secretbox_easy(buf+crypto_secretbox_NONCEBYTES,
+                                        buf+crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES, plain_len,
+                                        buf, key);
+        return crypto_secretbox_open_easy(plain, c+crypto_secretbox_NONCEBYTES, crypto_secretbox_MACBYTES+4, c, key);
+    }
+
+    #define MESSAGE ((const unsigned char *) "test")
+    #define LEN (crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 4)
+
+    // use private key as secret
+    assert(crypto_sign_SECRETKEYBYTES >= crypto_secretbox_KEYBYTES);
+    unsigned char key[crypto_secretbox_KEYBYTES] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+
+    // SALT + CIPHER
+    unsigned char c[LEN];
+
+    unsigned char m[5];
+    {
+        int ret = crypto_secretbox_open_easy(m, c+crypto_secretbox_NONCEBYTES, crypto_secretbox_MACBYTES+4, c, key);
+        assert(ret == 0);
+        m[4] = '\0';
+    }
+    printf(">>> %d %d %s\n", crypto_secretbox_KEYBYTES, crypto_secretbox_NONCEBYTES, m);
+#endif
+
 end
 
 #endif

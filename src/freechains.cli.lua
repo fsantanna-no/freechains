@@ -65,7 +65,9 @@ Commands:
 
     Options:
 
-        --sign=<key-private>    signs publication
+        --sign=<key-private>    signs publication (chain must have `key_public`)
+        --encrypt               encrypts publication (chain must either have `key_shared` or `key_public`)
+                                    `--sign=<key-private>` is required for chains with `key_public`
 
 
     # REMOVE
@@ -202,8 +204,9 @@ elseif cmd == 'publish' then
             key   = key,
             zeros = ASR(tonumber(zeros)),
         },
-        payload = payload,
+        payload     = payload,
         key_private = opts.sign,
+        encrypt     = opts.encrypt,
     }, DAEMON)
 
 elseif cmd == 'remove' then
