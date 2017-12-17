@@ -46,6 +46,11 @@ Commands:
         block-hash  exact block hash
         pub-hash    exact publication hash
 
+    Options:
+
+        --decrypt[=<key-private>]   decrypts publication (chain must either have `key_shared` or `key_public`)
+                                    `=<key-private>` is required for chains with `key_public`
+
 
     # PUBLISH
 
@@ -176,8 +181,9 @@ for i=(zeros or 30), (zeros or 0), -1 do
                 key   = key,
                 zeros = i,
             },
-            node = hash,
-            pub  = hash,
+            node    = hash,
+            pub     = hash,
+            decrypt = opts.decrypt,
         }, DAEMON)
         if ret and ret.prv then
             break
@@ -204,9 +210,9 @@ elseif cmd == 'publish' then
             key   = key,
             zeros = ASR(tonumber(zeros)),
         },
-        payload     = payload,
-        key_private = opts.sign,
-        encrypt     = opts.encrypt,
+        payload = payload,
+        sign    = opts.sign,
+        encrypt = opts.encrypt,
     }, DAEMON)
 
 elseif cmd == 'remove' then

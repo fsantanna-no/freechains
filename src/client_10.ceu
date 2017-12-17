@@ -152,7 +152,7 @@ do
         _ceu_vector_setlen(&&pln, $pln+{crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES}, 1);
         pln = pln .. [[ THIS.pub.payload ]];
         var usize len = [[ string.len(THIS.pub.payload) ]];
-        var[] byte key = []..[[ assert(THIS.pub.key_private or THIS.pub.chain.up.cfg.key_shared) ]];
+        var[] byte key = []..[[ assert(THIS.pub.sign or THIS.pub.chain.up.cfg.key_shared) ]];
         _ceu_assert(_sodium_encrypt(&&pln[idx], len, &&key[0], $key) == 0, "bug found");
         [[ THIS.pub.payload = string.sub(@pln, @idx+1) ]];
     else
@@ -372,9 +372,9 @@ do
         THIS.node = FC.node(THIS.node)
     ]];
 
-    var bool has_key_private = [[ THIS.node.key_private ~= nil ]];
-    if has_key_private then
-        var[] byte key_private = []..[[ FC.hex2hash(THIS.node.key_private) ]];
+    var bool should_sign = [[ THIS.node.sign ~= nil ]];
+    if should_sign then
+        var[] byte key_private = []..[[ FC.hex2hash(THIS.node.sign) ]];
         var[SIG_BYTES] byte sig = [];
         _ceu_vector_setlen(&&sig, SIG_BYTES, 1);
         _crypto_sign_detached(&&sig[0], null, &&pln[0],$pln, &&key_private[0]);
@@ -387,13 +387,13 @@ code/await Client_10_Pre (var& UV_TCP_Server_Data shared, var int n) -> none
 do
     [[
         THIS = {
-            chain       = ARGS.message.chain,
-            timestamp   = ARGS.message.timestamp,
-            nonce       = ARGS.message.nonce,
-            payload     = ARGS.message.payload,
-            key_private = ARGS.message.key_private,
-            encrypt     = ARGS.message.encrypt,
-            --remove    = ARGS.message.remove,
+            chain     = ARGS.message.chain,
+            timestamp = ARGS.message.timestamp,
+            nonce     = ARGS.message.nonce,
+            payload   = ARGS.message.payload,
+            sign      = ARGS.message.sign,
+            encrypt   = ARGS.message.encrypt,
+            --remove  = ARGS.message.remove,
         }
     ]]
 
@@ -414,12 +414,12 @@ do
         [[
             THIS.chain = assert(FC.chains[THIS.chain.key][THIS.chain.zeros], 'not subscribed to |'..THIS.chain.key..'|'..THIS.chain.zeros..'|')
             if THIS.chain.up.cfg.key_public then
-                assert(THIS.key_private ~= nil, 'expected private key')
+                assert(THIS.sign ~= nil, 'expected private key')
             else
-                assert(THIS.key_private == nil)
+                assert(THIS.sign == nil)
             end
             if THIS.encrypt then
-                assert(THIS.key_private or THIS.chain.up.cfg.key_shared)
+                assert(THIS.sign or THIS.chain.up.cfg.key_shared)
             end
 
             if CFG.deterministic then
@@ -430,14 +430,14 @@ do
 
             THIS.now = now
             THIS.pub = {
-                chain       = THIS.chain,
-                timestamp   = THIS.timestamp or now,
-                nonce       = THIS.nonce or 0,
-                payload     = THIS.payload,
+                chain     = THIS.chain,
+                timestamp = THIS.timestamp or now,
+                nonce     = THIS.nonce or 0,
+                payload   = THIS.payload,
                 --remove_dst = THIS.remove and assert(THIS.chain.cache[THIS.remove]) or nil,
-                hash        = nil,
-                key_private = THIS.key_private,
-                encrypt     = THIS.encrypt,
+                hash      = nil,
+                sign      = THIS.sign,
+                encrypt   = THIS.encrypt,
             }
             ARGS = THIS
         ]]
@@ -462,12 +462,12 @@ do
             //CHAIN_LOCK(l, shared, "lock_write");
             [[
                 THIS.node = {
-                    chain       = THIS.chain,
-                    timestamp   = THIS.now,
-                    nonce       = 0,
-                    pub         = THIS.pub,
-                    key_private = THIS.key_private,
-                    encrypt     = THIS.encrypt,
+                    chain     = THIS.chain,
+                    timestamp = THIS.now,
+                    nonce     = 0,
+                    pub       = THIS.pub,
+                    sign      = THIS.sign,
+                    encrypt   = THIS.encrypt,
                 }
                 FC.children(THIS.node, THIS.chain.head)
 
