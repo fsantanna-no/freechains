@@ -53,8 +53,7 @@ with
                     [''] = {
                         key   = '',
                         zeros = 0,
-                        key_public  = '89BC9897BF4BD5E5491B0604A9087C6FDF6F5A3DAB30E5ABA4EF9E1D90F63C46',
-                        key_private = '24A14567A3FD04F201EA6E16F2702C2D7035704C3E230A73B3C767B9149DB45F89BC9897BF4BD5E5491B0604A9087C6FDF6F5A3DAB30E5ABA4EF9E1D90F63C46',
+                        key_public = '89BC9897BF4BD5E5491B0604A9087C6FDF6F5A3DAB30E5ABA4EF9E1D90F63C46',
                         peers = {
                             {
                                 address = '127.0.0.1',
@@ -75,6 +74,7 @@ with
                         zeros = 0,
                     },
                     payload = 'Ola Mundo!',
+                    key_private = '24A14567A3FD04F201EA6E16F2702C2D7035704C3E230A73B3C767B9149DB45F89BC9897BF4BD5E5491B0604A9087C6FDF6F5A3DAB30E5ABA4EF9E1D90F63C46',
                 }
             }
         ]]

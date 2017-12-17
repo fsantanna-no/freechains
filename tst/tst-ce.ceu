@@ -32,10 +32,10 @@ par/and do
             }
         ]];
         var& Init init = spawn Init();
-        AWAIT_CHAIN_N(init.shared, '', 0, 2);
+        await 500ms;
 
         [[
-            FC.dot( FC.chains[''][0].head, '/tmp/tst-cc-01.dot' )
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-ce-01.dot' )
         ]];
     end
 
@@ -74,23 +74,29 @@ with
                         zeros = 0,
                     },
                     payload = 'Ola Mundo!',
-                    key_private = '24A14567A3FD04F201EA6E16F2702C2D7035704C3E230A73B3C767B9149DB45F89BC9897BF4BD5E5491B0604A9087C6FDF6F5A3DAB30E5ABA4EF9E1D90F63C46',
+                    --key_private = '24A14567A3FD04F201EA6E16F2702C2D7035704C3E230A73B3C767B9149DB45F89BC9897BF4BD5E5491B0604A9087C6FDF6F5A3DAB30E5ABA4EF9E1D90F63C46',
                 }
             }
         ]]
-        await Client_10(&init.shared);
+        par/and do
+            var int err;
+            (_,err) = await init.shared.err_client_10_pre;
+            _ceu_assert(err == {CEU_DATA_Exception__dot__Lua}, "bug found");
+        with
+            await Client_10(&init.shared);
+        end
 
         [[
-            FC.dot( FC.chains[''][0].head, '/tmp/tst-cc-00.dot' )
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-ce-00.dot' )
         ]];
     end
 
 end
 
 [[
-    local tst   = assert(io.open('tst/dots/tst-cc.dot')):read'*a'
-    local tmp00 = assert(io.open('/tmp/tst-cc-00.dot')):read'*a'
-    local tmp01 = assert(io.open('/tmp/tst-cc-01.dot')):read'*a'
+    local tst   = assert(io.open('tst/dots/tst-ce.dot')):read'*a'
+    local tmp00 = assert(io.open('/tmp/tst-ce-00.dot')):read'*a'
+    local tmp01 = assert(io.open('/tmp/tst-ce-01.dot')):read'*a'
     assert(tst==tmp00 and tst==tmp01)
 
     print'OK!'

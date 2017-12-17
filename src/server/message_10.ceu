@@ -493,7 +493,7 @@ do
             end
 
             // <= SIG
-            var bool has_key_private = [[ THIS.cur.chain.up.cfg.key_private ~= nil ]];
+            var bool has_key_private = [[ THIS.cur.key_private ~= nil ]];
             if has_key_private then
                 _dbg_tcp(3, &&outer.tcp.handle, "client", "<= SIG");
                 outer.tcp.buffer = outer.tcp.buffer .. [[ assert(THIS.cur.sig, 'missing sig') ]];
