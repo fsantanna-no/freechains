@@ -34,7 +34,7 @@ c:
 	ceu --cc --cc-input=/tmp/x.c --cc-args="-lm -llua5.3 -luv -lsodium -g"                         \
 	         --cc-output=/tmp/x;
 
-tests: tests-get tests-cli tests-nat tests-p2p tests-shared
+tests: tests-get tests-cli tests-nat tests-p2p tests-shared tests-public tests-encrypt
 	# OK
 
 tests-get:
@@ -115,7 +115,7 @@ tests-shared:
 	freechains --port=8402 publish /0 +"from 8402"   # 8400/8401 cannot check
 	sleep 0.5
 	freechains --port=8401 publish /0 +"from 8401"   # 8402 cannot check
-	sleep 1
+	sleep 3
 	
 	# Check consensus 1
 	grep -q  "from 8400" /tmp/freechains/8400/\|\|0\|.chain
@@ -164,8 +164,9 @@ tests-public:
 	sleep 1
 	
 	# Wrong key
+	sleep 1
 	freechains --port=8400 publish --sign='EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE' /0 +"from 8400"
-	sleep 0.5
+	sleep 1
 	! ls /tmp/freechains/8400/\|\|0\|.chain
 	
 	# Publish to /0
@@ -184,6 +185,69 @@ tests-public:
 	freechains --port=8400 daemon stop
 	freechains --port=8401 daemon stop
 	freechains --port=8402 daemon stop
+
+tests-encrypt: tests-encrypt-shared tests-encrypt-public
+	#
+tests-encrypt-shared:
+	-freechains --port=8400 daemon stop 2>/dev/null
+	-freechains --port=8401 daemon stop 2>/dev/null
+	rm -Rf /tmp/freechains/84*
+	
+	# Setup configuration files:
+	cp cfg/config-tests.lua.bak /tmp/config-8400.lua
+	cp cfg/config-tests.lua.bak /tmp/config-8401.lua
+	
+	# Start two nodes:
+	freechains --port=8400 daemon start /tmp/config-8400.lua &
+	freechains --port=8401 daemon start /tmp/config-8401.lua &
+	sleep 0.5
+	
+	# Connect ALL:
+	freechains --port=8400 configure set "chains[''].peers"+="{address='127.0.0.1',port=8401}"
+	freechains --port=8401 configure set "chains[''].peers"+="{address='127.0.0.1',port=8400}"
+	
+	# Set SHARED for 8400/8401:
+	freechains --port=8400 configure set "chains[''].key_shared"="'senha-secreta'"
+	freechains --port=8401 configure set "chains[''].key_shared"="'senha-secreta'"
+	
+	# Publish to /0 with --encrypt
+	freechains --port=8400 publish /0 --encrypt +"from 8400"
+	sleep 2
+	freechains --port=8401 get /0 --decrypt | grep "from 8400"
+	
+	# Cleanup
+	freechains --port=8400 daemon stop
+	freechains --port=8401 daemon stop
+tests-encrypt-public:
+	-freechains --port=8400 daemon stop 2>/dev/null
+	-freechains --port=8401 daemon stop 2>/dev/null
+	rm -Rf /tmp/freechains/84*
+	
+	# Setup configuration files:
+	cp cfg/config-tests.lua.bak /tmp/config-8400.lua
+	cp cfg/config-tests.lua.bak /tmp/config-8401.lua
+	
+	# Start two nodes:
+	freechains --port=8400 daemon start /tmp/config-8400.lua &
+	freechains --port=8401 daemon start /tmp/config-8401.lua &
+	sleep 0.5
+	
+	# Connect ALL:
+	freechains --port=8400 configure set "chains[''].peers"+="{address='127.0.0.1',port=8401}"
+	freechains --port=8401 configure set "chains[''].peers"+="{address='127.0.0.1',port=8400}"
+	
+	# Set PUBLIC for 8400/8401:
+	freechains --port=8400 configure set "chains[''].key_public"="'89BC9897BF4BD5E5491B0604A9087C6FDF6F5A3DAB30E5ABA4EF9E1D90F63C46'"
+	freechains --port=8401 configure set "chains[''].key_public"="'89BC9897BF4BD5E5491B0604A9087C6FDF6F5A3DAB30E5ABA4EF9E1D90F63C46'"
+	
+	# Publish to /0 with --encrypt
+	freechains --port=8400 publish --sign='24A14567A3FD04F201EA6E16F2702C2D7035704C3E230A73B3C767B9149DB45F89BC9897BF4BD5E5491B0604A9087C6FDF6F5A3DAB30E5ABA4EF9E1D90F63C46' --encrypt /0 +"from 8400"
+	sleep 2
+	freechains --port=8401 get /0 --decrypt='24A14567A3FD04F201EA6E16F2702C2D7035704C3E230A73B3C767B9149DB45F89BC9897BF4BD5E5491B0604A9087C6FDF6F5A3DAB30E5ABA4EF9E1D90F63C46' | grep "from 8400"
+	
+	# Cleanup
+	freechains --port=8400 daemon stop
+	freechains --port=8401 daemon stop
 
 tests-nat:
 	rm -Rf /tmp/freechains/840[0-1]/
@@ -301,7 +365,7 @@ tests-p2p:
 tmp:
 	#for i in tst/tst-29.ceu tst/tst-3[0-6].ceu ; do
 	#for i in tst/tst-[a-b]*.ceu tst/tst-[0-3]*.ceu ; do
-	for i in tst/tst-cf.ceu ; do \
+	for i in tst/tst-c*.ceu ; do \
 	    echo;                                            \
 	    echo "#####################################";    \
 	    echo File: "$$i";                                \

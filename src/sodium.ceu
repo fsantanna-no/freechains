@@ -5,6 +5,7 @@ native/nohold
     _crypto_generichash,
     _crypto_sign_detached,
     _crypto_sign_verify_detached,
+    _sodium_decrypt,
     _sodium_encrypt,
     _sodium_passphrase2pwhash,
     _sodium_passphrase2keys,
@@ -76,34 +77,17 @@ native/pre do
         return ret;
     }
 
-#if 0
-    int sodium_decrypt (byte* buf, usize plain_len, byte* key) {
-        randombytes_buf(buf, crypto_secretbox_NONCEBYTES);
-        int ret = crypto_secretbox_easy(buf+crypto_secretbox_NONCEBYTES,
-                                        buf+crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES, plain_len,
-                                        buf, key);
-        return crypto_secretbox_open_easy(plain, c+crypto_secretbox_NONCEBYTES, crypto_secretbox_MACBYTES+4, c, key);
-    }
-
-    #define MESSAGE ((const unsigned char *) "test")
-    #define LEN (crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 4)
-
-    // use private key as secret
-    assert(crypto_sign_SECRETKEYBYTES >= crypto_secretbox_KEYBYTES);
-    unsigned char key[crypto_secretbox_KEYBYTES] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-
-    // SALT + CIPHER
-    unsigned char c[LEN];
-
-    unsigned char m[5];
+    int sodium_decrypt (byte* buf, usize buf_len, byte* passphrase, usize passphrase_len)
     {
-        int ret = crypto_secretbox_open_easy(m, c+crypto_secretbox_NONCEBYTES, crypto_secretbox_MACBYTES+4, c, key);
-        assert(ret == 0);
-        m[4] = '\0';
+        byte key[crypto_secretbox_KEYBYTES];
+        int ret = sodium_passphrase2pwhash(key, crypto_secretbox_KEYBYTES, passphrase, passphrase_len);
+        if (ret != 0) {
+            return ret;
+        }
+        return crypto_secretbox_open_easy(buf+crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES,
+                                          buf+crypto_secretbox_NONCEBYTES, buf_len-crypto_secretbox_NONCEBYTES,
+                                          buf, key);
     }
-    printf(">>> %d %d %s\n", crypto_secretbox_KEYBYTES, crypto_secretbox_NONCEBYTES, m);
-#endif
-
 end
 
 #endif

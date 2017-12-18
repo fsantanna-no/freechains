@@ -11,6 +11,7 @@
  *      }
  *      node = <hash>,     -- or pub or nothing
  *      pub  = <hash>,     -- or node or nothing
+ *      decrypt = nil or true or <string>,
  *
  *      // TODO
  *      from=1,   to=10   or
@@ -63,29 +64,49 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
     end
 
     RET = {}
-    for _, hash in ipairs(nodes) do
-        node = chain.cache[hash]
-        if node then
-            ret = {
-                chain     = { key=chain.key, zeros=chain.zeros },
-                hash      = FC.hash2hex(node.hash),
-                timestamp = node.timestamp,
-                nonce     = node.nonce,
-                pub       = node.pub and {
-                    hash      = FC.hash2hex(node.pub.hash),
-                    timestamp = node.pub.timestamp,
-                    nonce     = node.pub.nonce,
-                    payload   = node.pub.payload,
-                    --removal   = node.pub.removal and FC.hash2hex(node.pub.removal.hash),
-                } or nil,
-            }
-            for _, child in ipairs(node) do
-                ret[#ret+1] = FC.hash2hex(child.hash)
-            end
-            RET[#RET+1] = ret
-        end
-    end
 ]]
+
+var int n = [[ #nodes ]];
+var int i;
+loop i in [1 -> n] do
+    [[
+        hash = nodes[@i]
+        node = chain.cache[hash]
+    ]]
+    var bool has = [[ node ~= nil ]];
+    if not has then
+        continue;
+    end
+
+    [[
+        ret = {
+            chain     = { key=chain.key, zeros=chain.zeros },
+            hash      = FC.hash2hex(node.hash),
+            timestamp = node.timestamp,
+            nonce     = node.nonce,
+            pub       = node.pub and {
+                hash      = FC.hash2hex(node.pub.hash),
+                timestamp = node.pub.timestamp,
+                nonce     = node.pub.nonce,
+                payload   = node.pub.payload,
+                --removal   = node.pub.removal and FC.hash2hex(node.pub.removal.hash),
+            } or nil,
+        }
+        for _, child in ipairs(node) do
+            ret[#ret+1] = FC.hash2hex(child.hash)
+        end
+        RET[#RET+1] = ret
+    ]]
+
+    var bool should_decrypt = [[ msg.decrypt ~= nil ]];
+    if should_decrypt then
+        var[] byte buf = []..[[ node.pub.payload ]];
+        var[] byte key = []..[[ type(msg.decrypt)=='string' and msg.decrypt or chain.up.cfg.key_shared ]];
+        _ceu_assert(_sodium_decrypt(&&buf[0], $buf, &&key[0], $key) == 0, "bug found");
+        [[ ret.pub.payload = string.sub(@buf,@({1+crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES} as usize)) ]];
+[[ print('>>>', @key, ret.pub.payload) ]]
+    end
+end
 
 // <= MSG
 //[[ print('RET', FC.tostring(ret,'plain')) ]];

@@ -48,8 +48,8 @@ Commands:
 
     Options:
 
-        --decrypt[=<key-private>]   decrypts publication (chain must either have `key_shared` or `key_public`)
-                                    `=<key-private>` is required for chains with `key_public`
+        --decrypt=[<key-private>]   decrypts publication (chain must either have `key_shared` or `key_public`)
+                                        `=<key-private>` is required for chains with `key_public`
 
 
     # PUBLISH
