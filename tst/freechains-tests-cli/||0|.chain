@@ -1,5 +1,6 @@
         Node({
    ["hash"] = "™L¢\8\12¢2RøtJ\9&¹ôV\15&fÁ«¼– /ü¨ê¿)û";
+   ["seq"] = 1;
 }
 )
 Node({
@@ -12,6 +13,7 @@ Node({
       ["payload"] = "NOT SEEN BY LISTEN (seen by liferea)";
       ["timestamp"] = 0;
    };
+   ["seq"] = 2;
    ["timestamp"] = 0;
 }
 )
@@ -25,6 +27,7 @@ Node({
       ["payload"] = "Hello World!";
       ["timestamp"] = 0;
    };
+   ["seq"] = 3;
    ["timestamp"] = 0;
 }
 )
@@ -38,10 +41,12 @@ Node({
       ["payload"] = "Hello World! (again)";
       ["timestamp"] = 0;
    };
+   ["seq"] = 4;
    ["timestamp"] = 0;
 }
 )        Head({
    [1] = "H˜_€4u(šW;ò›½?}ÿØ3±GzEL—\11¥Â\28˜h";
 }
 )
+        Seq(4)
     

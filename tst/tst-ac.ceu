@@ -15,7 +15,7 @@
         id    = id,
         up    = FC.chains[key],
         head  = {},
-        n     = 0,
+        seq   = 0,
     }
     FC.chains[key][zeros] = new
     FC.chains[key].cfg = {}

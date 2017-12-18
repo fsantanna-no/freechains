@@ -156,11 +156,11 @@ end
 #define AWAIT_CHAIN_N(shared,key,zeros,len)             \
     loop do                                             \
         [[ --print('>>> N', FC.chains[key][zeros].n) ]];  \
-        var int len_ = [[ FC.chains[key][zeros].n ]];   \
+        var int len_ = [[ FC.chains[key][zeros].seq ]]; \
         if len_ >= (len) then                           \
             break;                                      \
         end                                             \
-        await shared.go_client_10_pos;                 \
+        await shared.go_client_10_pos;                  \
     end
 
 code/await Subscribe (var& UV_TCP_Server_Data shared) -> none do
@@ -204,7 +204,7 @@ loop j in [zeros -> 30] do
                         --cfg   = cfg,
                         id    = id,
                         up    = FC.chains[cfg.key],
-                        n     = 0,
+                        seq   = 0, -- genesis will be 1
                         head  = {},
                     }
                     FC.chains[cfg.key][j] = THIS.sub

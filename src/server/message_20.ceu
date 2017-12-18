@@ -81,6 +81,7 @@ loop i in [1 -> n] do
     [[
         ret = {
             chain     = { key=chain.key, zeros=chain.zeros },
+            seq       = node.seq,
             hash      = FC.hash2hex(node.hash),
             timestamp = node.timestamp,
             nonce     = node.nonce,

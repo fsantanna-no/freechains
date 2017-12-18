@@ -13,6 +13,7 @@
          ["payload"] = "Hello World!";
          ["timestamp"] = 0;
       };
+      ["seq"] = 2;
       ["timestamp"] = 0;
    };
 }

@@ -1,5 +1,6 @@
         Node({
    ["hash"] = "Ô¥şz¶c[NÒï°H©–™\18B…wL%wñm·\31vK¢-\20";
+   ["seq"] = 1;
 }
 )
 Node({
@@ -12,10 +13,12 @@ Node({
       ["payload"] = "new = 10";
       ["timestamp"] = 0;
    };
+   ["seq"] = 2;
    ["timestamp"] = 0;
 }
 )        Head({
    [1] = "\0=œ:‡•ğ{qL\\™¨df‚$R~\\N|¼B›]\12\16¬İ";
 }
 )
+        Seq(2)
     

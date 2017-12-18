@@ -1,5 +1,6 @@
         Node({
    ["hash"] = "\0115\11©N-–Âåí Þý¼KT\18Ëñ–0'øØþ«Bß™øEÓ";
+   ["seq"] = 1;
 }
 )
 Node({
@@ -12,6 +13,7 @@ Node({
       ["payload"] = "111";
       ["timestamp"] = 0;
    };
+   ["seq"] = 2;
    ["timestamp"] = 0;
 }
 )
@@ -26,6 +28,7 @@ S\16’B·ô<•\24i\20Q•‰U‡";
       ["payload"] = "222";
       ["timestamp"] = 0;
    };
+   ["seq"] = 3;
    ["timestamp"] = 0;
 }
 )
@@ -41,6 +44,7 @@ S\16’B·ô<•\24i\20Q•‰U‡";
       ["payload"] = "333";
       ["timestamp"] = 0;
    };
+   ["seq"] = 4;
    ["timestamp"] = 0;
 }
 )
@@ -55,10 +59,12 @@ Node({
       ["payload"] = "444";
       ["timestamp"] = 0;
    };
+   ["seq"] = 5;
    ["timestamp"] = 0;
 }
 )        Head({
    [1] = "É(lT,ZÕP²Á2Æ\30H-’3µ{T¹\22H.t¡mÓðóyž";
 }
 )
+        Seq(5)
     

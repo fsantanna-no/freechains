@@ -299,13 +299,14 @@ elseif cmd == 'atom' then
 
         CFG.external = CFG.external or {}
         CFG.external.liferea = CFG.external.liferea or {}
+        T = CFG.external.liferea
 
         --for i=CHAIN.zeros, 255 do
 for i=CHAIN.zeros, 30 do
             local chain_id = '|'..CHAIN.key..'|'..i..'|'
-            CFG.external.liferea[chain_id] = CFG.external.liferea[chain_id] or {}
-            for node in FC.get_iter({key=CHAIN.key,zeros=i}, CFG.external.liferea[chain_id], DAEMON) do
-                CFG.external.liferea[chain_id][node.hash] = true
+            T[chain_id] = T[chain_id] or 0
+            for node in FC.get_iter({key=CHAIN.key,zeros=i}, T[chain_id], DAEMON) do
+                T[chain_id] = (node.seq>T[chain_id] and node.seq) or T[chain_id]
                 if node.pub then
                     payload = node.pub.payload --or ('Removed publication: '..node.pub.removal))
                     title = FC.escape(string.match(payload,'([^\n]*)'))
@@ -351,8 +352,7 @@ Inappropriate Contents
             end
 
             -- avoids polluting CFG if only genesis so far
-            local k = assert(next(CFG.external.liferea[chain_id]))  -- at least genesis
-            if not next(CFG.external.liferea[chain_id],k) then
+            if T[chain_id] > 0 then
                 CFG.external.liferea[chain_id] = nil
             end
         end

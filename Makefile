@@ -34,7 +34,7 @@ c:
 	ceu --cc --cc-input=/tmp/x.c --cc-args="-lm -llua5.3 -luv -lsodium -g"                         \
 	         --cc-output=/tmp/x;
 
-tests: tests-get tests-cli tests-nat tests-p2p tests-shared tests-public tests-encrypt
+tests: tests-get tests-cli tests-nat tests-p2p tests-shared tests-public tests-encrypt tests-seq
 	# OK
 
 tests-get:
@@ -121,7 +121,7 @@ tests-shared:
 	grep -q  "from 8400" /tmp/freechains/8400/\|\|0\|.chain
 	grep -q  "from 8401" /tmp/freechains/8400/\|\|0\|.chain
 	cat -v /tmp/freechains/8400/\|\|0\|.chain | tr '\n' ' ' | grep -qv "from 8402"
-	diff /tmp/freechains/8400 /tmp/freechains/8401
+	diff -I '["seq"]' /tmp/freechains/8400 /tmp/freechains/8401
 	#
 	cat -v /tmp/freechains/8402/\|\|0\|.chain | tr '\n' ' ' | grep -qv "from 8400"
 	cat -v /tmp/freechains/8402/\|\|0\|.chain | tr '\n' ' ' | grep -qv "from 8401"
@@ -177,7 +177,7 @@ tests-public:
 	# Check consensus 1
 	grep -q  "from 8400" /tmp/freechains/8400/\|\|0\|.chain
 	grep -q  "from 8401" /tmp/freechains/8400/\|\|0\|.chain
-	diff /tmp/freechains/8400 /tmp/freechains/8401
+	diff -I '["seq"]' /tmp/freechains/8400 /tmp/freechains/8401
 	#
 	! ls /tmp/freechains/8402/\|\|0\|.chain
 	
@@ -262,7 +262,7 @@ tests-nat:
 	freechains --port=8400 configure set "chains[''].peers"+="{address='127.0.0.1',port=8401}"
 	sleep 1
 	grep -q "from 8401" /tmp/freechains/8400/\|\|0\|.chain
-	diff /tmp/freechains/8400 /tmp/freechains/8401
+	diff -I '["seq"]' /tmp/freechains/8400 /tmp/freechains/8401
 
 tests-p2p:
 	-freechains --port=8400 daemon stop 2>/dev/null
@@ -300,8 +300,8 @@ tests-p2p:
 	grep -q "from 8400" /tmp/freechains/8400/\|\|0\|.chain
 	#grep -q "from 8402.*from 8400" /tmp/freechains/8400/\|\|0\|.chain
 	cat -v /tmp/freechains/8400/\|\|0\|.chain | tr '\n' ' ' | grep -q "from 8402.*from 8400"
-	diff /tmp/freechains/8400 /tmp/freechains/8401
-	diff /tmp/freechains/8400 /tmp/freechains/8402
+	diff -I '["seq"]' /tmp/freechains/8400 /tmp/freechains/8401
+	diff -I '["seq"]' /tmp/freechains/8400 /tmp/freechains/8402
 	
 	###
 	
@@ -315,7 +315,7 @@ tests-p2p:
 	# (it should receive both messages)
 	
 	# Check consensus 2
-	diff /tmp/freechains/8400 /tmp/freechains/8403
+	diff -I '["seq"]' /tmp/freechains/8400 /tmp/freechains/8403
 	
 	###
 	
@@ -341,10 +341,10 @@ tests-p2p:
 	
 	# Check consensus 3
 	# (8404 wins, so his messages should appear first)
-	diff /tmp/freechains/8400 /tmp/freechains/8401
-	diff /tmp/freechains/8400 /tmp/freechains/8402
-	diff /tmp/freechains/8400 /tmp/freechains/8403
-	diff /tmp/freechains/8400 /tmp/freechains/8404
+	diff -I '["seq"]' /tmp/freechains/8400 /tmp/freechains/8401
+	diff -I '["seq"]' /tmp/freechains/8400 /tmp/freechains/8402
+	diff -I '["seq"]' /tmp/freechains/8400 /tmp/freechains/8403
+	diff -I '["seq"]' /tmp/freechains/8400 /tmp/freechains/8404
 	#cat -v /tmp/freechains/8400/\|\|0\|.chain | tr '\n' ' ' | grep -q "from 8404.*from 8402.*from 8400"
 	cat -v /tmp/freechains/8400/\|\|0\|.chain | tr '\n' ' ' | grep -q "1/3.*2/3.*3/3"
 	
@@ -362,10 +362,22 @@ tests-p2p:
 	freechains --port=8403 daemon stop
 	freechains --port=8404 daemon stop
 
+tests-seq:
+	-freechains --port=8400 daemon stop 2>/dev/null
+	rm -Rf /tmp/freechains/8400
+	cp cfg/config-tests.lua.bak /tmp/config-8400.lua
+	freechains --port=8400 daemon start /tmp/config-8400.lua &
+	sleep 0.5
+	freechains --port=8400 get /0 | grep -q "seq.*1"
+	freechains --port=8400 publish /0 +"Hello World!"
+	sleep 0.5
+	freechains --port=8400 get /0 | grep -q "seq.*2"
+	freechains --port=8400 daemon stop
+
 tmp:
 	#for i in tst/tst-29.ceu tst/tst-3[0-6].ceu ; do
 	#for i in tst/tst-[a-b]*.ceu tst/tst-[0-3]*.ceu ; do
-	for i in tst/tst-c*.ceu ; do \
+	for i in tst/tst-[b-c]*.ceu ; do \
 	    echo;                                            \
 	    echo "#####################################";    \
 	    echo File: "$$i";                                \

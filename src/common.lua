@@ -22,7 +22,8 @@ function FC.node (node)
         old.__from_cache = true
         return old
     end
-    node.chain.n = node.chain.n + 1
+    node.chain.seq = node.chain.seq + 1
+    node.seq = node.chain.seq
     node.chain.cache[node.hash] = node
 
     node.height = -1
@@ -127,6 +128,7 @@ local function write_aux (A, t)
         chain     = nil,
         height    = nil,
         --
+        seq       = A.seq,
         hash      = A.hash,
         nonce     = A.nonce,
         timestamp = A.timestamp,
@@ -168,6 +170,7 @@ function FC.write (chain, path)
     f:write([[
         ]] .. table.concat(t.nodes,'\n') .. [[
         Head(]]..FC.tostring(head,'plain')..[[)
+        Seq(]]..chain.seq..[[)
     ]])
     f:close()
 end
@@ -181,7 +184,7 @@ function FC.read (chain, path)
             node.pub.chain = chain
         end
         chain.cache[node.hash] = node
-        chain.n = chain.n + 1
+        --chain.n = chain.n + 1
 
         node.height = -1
         for i, hash in ipairs(node) do
@@ -196,6 +199,10 @@ function FC.read (chain, path)
         for _, hash in ipairs(t) do
             chain.head[hash] = assert(chain.cache[hash])
         end
+    end
+
+    function Seq (seq)
+        chain.seq = seq
     end
 
     dofile(path)
@@ -304,8 +311,8 @@ function FC.send (tp, msg, daemon)
     end
 end
 
-local function one (node, cache, daemon)
-    if cache[node.hash] then
+local function one (node, seq, daemon)
+    if node.seq <= seq then
         return
     end
 
@@ -317,11 +324,11 @@ local function one (node, cache, daemon)
             node  = hash,
         }, daemon)
         assert(#childs == 1)
-        one(childs[1], cache, daemon)
+        one(childs[1], seq, daemon)
     end
 end
 
-function FC.get_iter (chain, cache, daemon)
+function FC.get_iter (chain, seq, daemon)
     return coroutine.wrap(
         function ()
             local head = FC.send(0x0200, {    -- GET
@@ -329,7 +336,7 @@ function FC.get_iter (chain, cache, daemon)
             }, daemon)
 
             for i, node in ipairs(head) do
-                one(node, cache, daemon)
+                one(node, seq, daemon)
             end
         end
     )

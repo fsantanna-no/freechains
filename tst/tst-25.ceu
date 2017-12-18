@@ -89,10 +89,10 @@ await Client_10(&init.shared);
 ]];
 
 [[
-local src   = assert(io.open('tst/chains/tst-25-00.chain')):read'*a'
-local build = assert(io.open('/tmp/tst-25-00.chain')):read'*a'
-assert(src == build)
-print 'OK!'
+    local src   = assert(io.open('tst/chains/tst-25-00.chain')):read'*a'
+    local build = assert(io.open('/tmp/tst-25-00.chain')):read'*a'
+    assert(src == build, 'files differ')
+    print 'OK!'
 ]];
 
 escape 0;
