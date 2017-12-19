@@ -131,15 +131,18 @@ Commands:
 
         work        minimum block work (default: `0`)
 
-    # KEY
 
-    Manages keys.
+    # CRYPTO
 
-    $ freechains key derive <passphrase>
+    Manages cryptography.
 
-    Arguments
+    $ freechains crypto create (shared|public-private|public|private)
 
-        passphrase  very long passphrase (never forget this!) (minimum?)
+    Options:
+
+        --passphrase=<passphrase>   deterministic creation from passphrase (minimum length?)
+                                        (should be very long! never forget this!)
+
 
 Options:
 
@@ -356,15 +359,38 @@ elseif cmd == 'daemon' then
         FC.send(0x0000, '', DAEMON)
     end
 
-elseif cmd == 'key' then
-    ASR(#arg == 3)
-    local _, sub, passphrase = table.unpack(arg)
-    ASR(sub == 'derive')
+elseif cmd == 'crypto' then
+    local _, sub, key = table.unpack(arg)
 
-    local ret = FC.send(0x0700, {
-        passphrase = passphrase,
-    }, DAEMON)
-    print(FC.tostring(ret,'plain'))
+    if sub == 'create' then
+        ASR(#arg == 3)
+        ASR(sub == 'create')
+
+        if key=='public' or key=='private' then
+            ASR(opts.passphrase, 'missing `--passphrase`')
+        end
+
+        local ret = FC.send(0x0700, {
+            create     = key,
+            passphrase = opts.passphrase,
+        }, DAEMON)
+
+        if key == 'public-private' then
+            print(ret.public)
+            print(ret.private)
+        elseif key == 'public' then
+            print(ret.public)
+        elseif key == 'private' then
+            print(ret.private)
+        else
+            assert(key == 'shared')
+            print(ret)
+        end
+    elseif sub == 'encrypt' then
+    elseif sub == 'decrypt' then
+    else
+        ASR(false)
+    end
 
 else
     ASR(false)
