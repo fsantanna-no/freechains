@@ -11,7 +11,6 @@
  *      }
  *      node = <hash>,     -- or pub or nothing
  *      pub  = <hash>,     -- or node or nothing
- *      decrypt = nil or true or <string>,
  *
  *      // TODO
  *      from=1,   to=10   or
@@ -98,17 +97,6 @@ loop i in [1 -> n] do
         end
         RET[#RET+1] = ret
     ]]
-
-    var bool should_decrypt = [[ msg.decrypt ~= nil ]];
-    if should_decrypt then
-        var[] byte buf = []..[[ node.pub.payload ]];
-        var bool is_shared = [[ chain.up.cfg.key_shared ~= nil ]];
-        if is_shared then
-            var[] byte key = []..[[ FC.hex2hash(chain.up.cfg.key_shared) ]];
-            _ceu_assert(_sodium_symetric_decrypt(&&buf[0], $buf, &&key[0]) == 0, "bug found");
-            [[ ret.pub.payload = string.sub(@buf,@({1+crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES} as usize)) ]];
-        end
-    end
 end
 
 // <= MSG

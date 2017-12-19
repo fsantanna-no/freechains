@@ -46,17 +46,12 @@ Commands:
         block-hash  exact block hash
         pub-hash    exact publication hash
 
-    Options:
-
-        --decrypt=[<key-private>]   decrypts publication (chain must either have `key_shared` or `key_public`)
-                                        `=<key-private>` is required for chains with `key_public`
-
 
     # PUBLISH
 
     Publishes to a chain.
 
-    $ freechains publish <chain>/<work> (<file> | +<string> | -)
+    $ freechains publish <chain>/<work> (<file>|+<string>|-)
 
     Arguments:
 
@@ -71,8 +66,6 @@ Commands:
     Options:
 
         --sign=<key-private>    signs publication (chain must have `key_public`)
-        --encrypt               encrypts publication (chain must either have `key_shared` or `key_public`)
-                                    `--sign=<key-private>` is required for chains with `key_public`
 
 
     # REMOVE
@@ -136,12 +129,24 @@ Commands:
 
     Manages cryptography.
 
+    create: Creates a cryptographic key.
+
     $ freechains crypto create (shared|public-private|public|private)
 
     Options:
 
         --passphrase=<passphrase>   deterministic creation from passphrase (minimum length?)
                                         (should be very long! never forget this!)
+
+    encrypt: Encrypts a payload.
+
+    $ freechains crypto encrypt (shared|public|private) key (<file>|+<string>|-)
+
+    Arguments:
+
+        file        file to encrypt
+        +string     string to encrypt
+        '-'         encrypt from stdin
 
 
 Options:
@@ -186,7 +191,6 @@ for i=(zeros or 30), (zeros or 0), -1 do
             },
             node    = hash,
             pub     = hash,
-            decrypt = opts.decrypt,
         }, DAEMON)
         if ret and ret.prv then
             break
@@ -215,7 +219,6 @@ elseif cmd == 'publish' then
         },
         payload = payload,
         sign    = opts.sign,
-        encrypt = opts.encrypt,
     }, DAEMON)
 
 elseif cmd == 'remove' then
@@ -360,34 +363,50 @@ elseif cmd == 'daemon' then
     end
 
 elseif cmd == 'crypto' then
-    local _, sub, key = table.unpack(arg)
+    local _, sub, tp = table.unpack(arg)
 
     if sub == 'create' then
         ASR(#arg == 3)
-        ASR(sub == 'create')
 
-        if key=='public' or key=='private' then
+        if tp=='public' or tp=='private' then
             ASR(opts.passphrase, 'missing `--passphrase`')
         end
 
         local ret = FC.send(0x0700, {
-            create     = key,
+            create     = tp,
             passphrase = opts.passphrase,
         }, DAEMON)
 
-        if key == 'public-private' then
+        if tp == 'public-private' then
             print(ret.public)
             print(ret.private)
-        elseif key == 'public' then
+        elseif tp == 'public' then
             print(ret.public)
-        elseif key == 'private' then
+        elseif tp == 'private' then
             print(ret.private)
         else
-            assert(key == 'shared')
+            assert(tp == 'shared')
             print(ret)
         end
-    elseif sub == 'encrypt' then
-    elseif sub == 'decrypt' then
+
+    elseif sub=='encrypt' or sub=='decrypt' then
+        ASR(#arg == 5)
+        local _,_,_,key,payload = table.unpack(arg)
+        if payload == '-' then
+            payload = io.stdin:read('*a')
+        elseif string.sub(payload,1,1) == '+' then
+            payload = string.sub(payload,2)
+        else
+            payload = ASR(io.open(payload)):read('*a')
+        end
+
+        local ret = FC.send(0x0700, {
+            [sub]   = tp,
+            key     = key,
+            payload = payload,
+        }, DAEMON)
+        io.stdout:write(tostring(ret))
+
     else
         ASR(false)
     end

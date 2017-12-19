@@ -7,12 +7,21 @@
  *  msg = {
  *      create     = <string>, -- 'shared' or 'public-private'
  *      passphrase = <string>,
+ *
+ *      encrypt    = <string>, -- 'shared' or 'public-private'
+ *      decrypt    = <string>, -- 'shared' or 'public-private'
+ *      key        = <string>,
+ *      payload    = <string>,
  *  }
  *
+ *  -- create
  *  ret = {
  *      public  = <string>,
  *      private = <string>,
  *  }
+ *
+ *  -- encrypt/decrypt
+ *  ret = <string>      -- payload
  */
 
 // echo -n -e "PS\x07\x00\x00\x00\x00\x0F{passphrase=''}" | nc localhost 8500
@@ -30,17 +39,20 @@ await UV_Stream_Read_N(&outer.tcp, (len as usize));
 [[
     assert(load('msg = '..@outer.tcp.buffer))()
     print('>>>', FC.tostring(msg,'plain'))
-    assert(msg.create)
 ]]
 
-do
+var bool is_create  = [[ msg.create  ~= nil ]];
+var bool is_encrypt = [[ msg.encrypt ~= nil ]];
+var bool is_decrypt = [[ msg.decrypt ~= nil ]];
+
+if is_create then
     var[] byte passphrase = []..[[ assert(msg.passphrase, 'TODO: omit passphrase / random key') ]];
 
     var bool is_shared = [[ msg.create == 'shared' ]];
     if is_shared then
-        var[{crypto_generichash_KEYBYTES}] byte ret;
-        _ceu_vector_setlen(&&ret, {crypto_generichash_KEYBYTES}, 1);
-        _ceu_assert(_sodium_passphrase2pwhash(&&ret[0], {crypto_generichash_KEYBYTES}, &&passphrase[0], $passphrase) == 0, "bug found");
+        var[{crypto_secretbox_KEYBYTES}] byte ret;
+        _ceu_vector_setlen(&&ret, {crypto_secretbox_KEYBYTES}, 1);
+        _ceu_assert(_sodium_passphrase2pwhash(&&ret[0], {crypto_secretbox_KEYBYTES}, &&passphrase[0], $passphrase) == 0, "bug found");
         [[
             RET = FC.hash2hex(@ret)
         ]]
@@ -59,6 +71,31 @@ do
             }
         ]]
     end
+
+else/if is_encrypt or is_decrypt then
+    var[] byte key = []..[[ FC.hex2hash(msg.key) ]];
+    var bool is_shared = [[ msg.encrypt=='shared' or msg.decrypt=='shared' ]];
+    if is_shared then
+        [[ assert(string.len(@key) == @({crypto_secretbox_KEYBYTES} as int), 'invalid shared key length') ]];
+        if is_encrypt then
+            var[] byte  buf;
+            var   usize len = [[ string.len(msg.payload) ]];
+            _ceu_vector_setlen(&&buf, {crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES}, 1);
+            buf = buf .. [[ msg.payload ]];
+            _ceu_assert(_sodium_symetric_encrypt(&&buf[0], len, &&key[0]) == 0, "bug found");
+            [[
+                RET = @buf
+            ]]
+        else
+            var[] byte buf = []..[[ msg.payload ]];
+            _ceu_assert(_sodium_symetric_decrypt(&&buf[0], $buf, &&key[0]) == 0, "bug found");
+            [[
+                RET = string.sub(@buf,@({1+crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES} as usize))
+            ]];
+        end
+    else
+    end
+
 end
 
 // <= MSG
