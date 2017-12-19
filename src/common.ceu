@@ -80,7 +80,7 @@ native/pre do
         MESSAGE40 = 0x0400,     // SUBSCRIBE to a chain
         MESSAGE50 = 0x0500,     // CONFIGURE freechains
         MESSAGE60 = 0x0600,     // LISTEN for new nodes
-        MESSAGE70 = 0x0700,     // KEY management
+        MESSAGE70 = 0x0700,     // CRYPTO management
     };
 
     void __dbg (int level, const char* fmt, ...) {

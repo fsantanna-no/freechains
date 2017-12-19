@@ -106,8 +106,8 @@ tests-shared:
 	freechains --port=8402 configure set "chains[''].peers"+="{address='127.0.0.1',port=8401}"
 	
 	# Set SHARED for 8400/8401:
-	freechains --port=8400 configure set "chains[''].key_shared"="'senha-secreta'"
-	freechains --port=8401 configure set "chains[''].key_shared"="'senha-secreta'"
+	freechains --port=8400 configure set "chains[''].key_shared"="'`freechains --port=8400 crypto create shared --passphrase=senha-secreta`'"
+	freechains --port=8401 configure set "chains[''].key_shared"="'`freechains --port=8401 crypto create shared --passphrase=senha-secreta`'"
 	
 	# Publish to /0
 	freechains --port=8400 publish /0 +"from 8400"   # 8402 cannot check
@@ -377,7 +377,7 @@ tests-seq:
 tmp:
 	#for i in tst/tst-29.ceu tst/tst-3[0-6].ceu ; do
 	#for i in tst/tst-[a-b]*.ceu tst/tst-[0-3]*.ceu ; do
-	for i in tst/tst-[b-c]*.ceu ; do \
+	for i in tst/tst-a*.ceu ; do \
 	    echo;                                            \
 	    echo "#####################################";    \
 	    echo File: "$$i";                                \

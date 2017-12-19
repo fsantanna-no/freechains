@@ -5,8 +5,8 @@ native/nohold
     _crypto_generichash,
     _crypto_sign_detached,
     _crypto_sign_verify_detached,
-    _sodium_decrypt,
-    _sodium_encrypt,
+    _sodium_symetric_decrypt,
+    _sodium_symetric_encrypt,
     _sodium_passphrase2pwhash,
     _sodium_passphrase2keys,
 ;
@@ -16,7 +16,7 @@ native/pre do
 
     int sodium_passphrase2pwhash (byte* pwhash, usize pwhash_len, byte* passphrase, usize passphrase_len)
     {
-#if 0
+#if 1
             if (pwhash_len     < crypto_pwhash_BYTES_MIN  ||
                 pwhash_len     > crypto_pwhash_BYTES_MAX  ||
                 passphrase_len < crypto_pwhash_PASSWD_MIN ||
@@ -58,32 +58,20 @@ native/pre do
 #endif
     }
 
-    int sodium_encrypt (byte* buf, usize plain_len, byte* passphrase, usize passphrase_len)
+    int sodium_symetric_encrypt (byte* buf, usize plain_len, byte* key)
     {
-        byte key[crypto_secretbox_KEYBYTES];
-        int ret = sodium_passphrase2pwhash(key, crypto_secretbox_KEYBYTES, passphrase, passphrase_len);
-        if (ret != 0) {
-            return ret;
-        }
-
 #ifdef DETERMINISTIC
         memset(buf, 0, crypto_secretbox_NONCEBYTES);
 #else
         randombytes_buf(buf, crypto_secretbox_NONCEBYTES);
 #endif
-        ret = crypto_secretbox_easy(buf+crypto_secretbox_NONCEBYTES,
-                                    buf+crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES, plain_len,
-                                    buf, key);
-        return ret;
+        return crypto_secretbox_easy(buf+crypto_secretbox_NONCEBYTES,
+                                     buf+crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES, plain_len,
+                                     buf, key);
     }
 
-    int sodium_decrypt (byte* buf, usize buf_len, byte* passphrase, usize passphrase_len)
+    int sodium_symetric_decrypt (byte* buf, usize buf_len, byte* key)
     {
-        byte key[crypto_secretbox_KEYBYTES];
-        int ret = sodium_passphrase2pwhash(key, crypto_secretbox_KEYBYTES, passphrase, passphrase_len);
-        if (ret != 0) {
-            return ret;
-        }
         return crypto_secretbox_open_easy(buf+crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES,
                                           buf+crypto_secretbox_NONCEBYTES, buf_len-crypto_secretbox_NONCEBYTES,
                                           buf, key);

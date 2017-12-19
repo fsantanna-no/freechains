@@ -102,10 +102,12 @@ loop i in [1 -> n] do
     var bool should_decrypt = [[ msg.decrypt ~= nil ]];
     if should_decrypt then
         var[] byte buf = []..[[ node.pub.payload ]];
-        var[] byte key = []..[[ type(msg.decrypt)=='string' and msg.decrypt or chain.up.cfg.key_shared ]];
-        _ceu_assert(_sodium_decrypt(&&buf[0], $buf, &&key[0], $key) == 0, "bug found");
-        [[ ret.pub.payload = string.sub(@buf,@({1+crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES} as usize)) ]];
-[[ print('>>>', @key, ret.pub.payload) ]]
+        var bool is_shared = [[ chain.up.cfg.key_shared ~= nil ]];
+        if is_shared then
+            var[] byte key = []..[[ FC.hex2hash(chain.up.cfg.key_shared) ]];
+            _ceu_assert(_sodium_symetric_decrypt(&&buf[0], $buf, &&key[0]) == 0, "bug found");
+            [[ ret.pub.payload = string.sub(@buf,@({1+crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES} as usize)) ]];
+        end
     end
 end
 
