@@ -7,6 +7,8 @@ native/nohold
     _crypto_sign_verify_detached,
     _sodium_passphrase2pwhash,
     _sodium_passphrase2keys,
+    _sodium_pubpvt_decrypt,
+    _sodium_pubpvt_encrypt,
     _sodium_sealed_decrypt,
     _sodium_sealed_encrypt,
     _sodium_shared_decrypt,
@@ -78,33 +80,44 @@ native/pre do
 
     int sodium_shared_encrypt (byte* buf, usize plain_len, byte* shared)
     {
+        byte* nonce  = &buf[0];
+        byte* cipher = &buf[crypto_secretbox_NONCEBYTES];
+        byte* plain  = &buf[crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES];
+
 #ifdef DETERMINISTIC
-        memset(buf, 0, crypto_secretbox_NONCEBYTES);
+        memset(nonce, 0, crypto_secretbox_NONCEBYTES);
 #else
-        randombytes_buf(buf, crypto_secretbox_NONCEBYTES);
+        randombytes_buf(nonce, crypto_secretbox_NONCEBYTES);
 #endif
-        return crypto_secretbox_easy(buf+crypto_secretbox_NONCEBYTES,
-                                     buf+crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES, plain_len,
-                                     buf, shared);
+        return crypto_secretbox_easy(cipher, plain, plain_len, nonce, shared);
     }
 
     int sodium_shared_decrypt (byte* buf, usize buf_len, byte* shared)
     {
-        return crypto_secretbox_open_easy(buf+crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES,
-                                          buf+crypto_secretbox_NONCEBYTES, buf_len-crypto_secretbox_NONCEBYTES,
-                                          buf, shared);
+        byte* nonce  = &buf[0];
+        byte* cipher = &buf[crypto_secretbox_NONCEBYTES];
+        byte* plain  = &buf[crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES];
+
+        return crypto_secretbox_open_easy(plain, cipher, buf_len-crypto_secretbox_NONCEBYTES,
+                                          nonce, shared);
     }
 
     int sodium_sealed_encrypt (byte* buf, usize plain_len, byte* pub)
     {
+        byte* seal  = &buf[0];
+        byte* plain = &buf[crypto_box_SEALBYTES];
+
         byte pub_[crypto_box_PUBLICKEYBYTES];
         int ret = crypto_sign_ed25519_pk_to_curve25519(pub_, pub);
         if (ret != 0) { return ret; }
-        return crypto_box_seal(buf, buf+crypto_box_SEALBYTES, plain_len, pub_);
+        return crypto_box_seal(seal, plain, plain_len, pub_);
     }
 
     int sodium_sealed_decrypt (byte* buf, usize buf_len, byte* pub, byte* pvt)
     {
+        byte* seal  = &buf[0];
+        byte* plain = &buf[crypto_box_SEALBYTES];
+
         byte pub_[crypto_box_PUBLICKEYBYTES];
         byte pvt_[crypto_box_SECRETKEYBYTES];
         int ret = crypto_sign_ed25519_pk_to_curve25519(pub_, pub);
@@ -112,12 +125,15 @@ native/pre do
         ret = crypto_sign_ed25519_sk_to_curve25519(pvt_, pvt);
         if (ret != 0) { return ret; }
 
-        return crypto_box_seal_open(buf+crypto_box_SEALBYTES, buf, buf_len, pub_, pvt_);
+        return crypto_box_seal_open(plain, seal, buf_len, pub_, pvt_);
     }
 
-#if 0
-    int sodium_pvtpub_encrypt (byte* buf, usize plain_len, byte* pub, byte* pvt)
+    int sodium_pubpvt_encrypt (byte* buf, usize plain_len, byte* pub, byte* pvt)
     {
+        byte* nonce  = &buf[0];
+        byte* cipher = &buf[crypto_box_NONCEBYTES];
+        byte* plain  = &buf[crypto_box_NONCEBYTES+crypto_box_MACBYTES];
+
         byte pub_[crypto_box_PUBLICKEYBYTES];
         byte pvt_[crypto_box_SECRETKEYBYTES];
         int ret = crypto_sign_ed25519_pk_to_curve25519(pub_, pub);
@@ -126,30 +142,30 @@ native/pre do
         if (ret != 0) { return ret; }
 
 #ifdef DETERMINISTIC
-        memset(buf, 0, crypto_box_NONCEBYTES);
+        memset(nonce, 0, crypto_box_NONCEBYTES);
 #else
-        randombytes_buf(buf, crypto_secretbox_NONCEBYTES);
+        randombytes_buf(nonce, crypto_box_NONCEBYTES);
 #endif
 
-        return crypto_box_easy(buf+crypto_box_NONCEBYTES,
-                               buf+crypto_box_NONCEBYTES+crypto_box_MACBYTES, plain_len,
-                               buf, pub_, pvt_);
+        return crypto_box_easy(cipher, plain, plain_len, nonce, pub_, pvt_);
     }
 
-    int sodium_pvtpub_decrypt (byte* buf, usize buf_len, byte* pvt, byte* pub)
+    int sodium_pubpvt_decrypt (byte* buf, usize buf_len, byte* pub, byte* pvt)
     {
-        byte pvt_[crypto_box_SECRETKEYBYTES];
+        byte* nonce  = &buf[0];
+        byte* cipher = &buf[crypto_box_NONCEBYTES];
+        byte* plain  = &buf[crypto_box_NONCEBYTES+crypto_box_MACBYTES];
+
         byte pub_[crypto_box_PUBLICKEYBYTES];
-        int ret = crypto_sign_ed25519_sk_to_curve25519(pvt_, pvt);
+        byte pvt_[crypto_box_SECRETKEYBYTES];
+        int ret = crypto_sign_ed25519_pk_to_curve25519(pub_, pub);
         if (ret != 0) { return ret; }
-        ret = crypto_sign_ed25519_pk_to_curve25519(pub_, pub);
+        ret = crypto_sign_ed25519_sk_to_curve25519(pvt_, pvt);
         if (ret != 0) { return ret; }
 
-        return crypto_box_open_easy(buf+crypto_box_NONCEBYTES+crypto_box_MACBYTES,
-                                    buf+crypto_box_NONCEBYTES, buf_len-crypto_box_NONCEBYTES,
-                                    buf, pub_, pvt_);
+        return crypto_box_open_easy(plain, cipher, buf_len-crypto_box_NONCEBYTES,
+                                    nonce, pub_, pvt_);
     }
-#endif
 end
 
 #endif

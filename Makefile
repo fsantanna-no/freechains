@@ -186,7 +186,11 @@ tests-public:
 	freechains --port=8401 daemon stop
 	freechains --port=8402 daemon stop
 
-tests-encrypt: tests-encrypt-shared tests-encrypt-public
+tests-encrypt: tests-encrypt-shared #TODO-tests-encrypt-public
+	-freechains --port=8400 daemon stop 2>/dev/null
+	cp cfg/config-tests.lua.bak /tmp/config-8400.lua
+	freechains --port=8400 daemon start /tmp/config-8400.lua &
+	lua5.3 tst/tst-crypto.lua
 	#
 tests-encrypt-shared:
 	-freechains --port=8400 daemon stop 2>/dev/null
@@ -224,7 +228,7 @@ tests-encrypt-shared:
 	# Cleanup
 	freechains --port=8400 daemon stop
 	freechains --port=8401 daemon stop
-tests-encrypt-public:
+TODO-tests-encrypt-public:
 	-freechains --port=8400 daemon stop 2>/dev/null
 	-freechains --port=8401 daemon stop 2>/dev/null
 	rm -Rf /tmp/freechains/84*

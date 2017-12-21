@@ -110,7 +110,7 @@ else/if is_encrypt or is_decrypt then
             var[] byte pub = []..[[ FC.hex2hash(msg.pub) ]];
             var[] byte pvt = []..[[ FC.hex2hash(msg.pvt) ]];
             [[ assert(string.len(@pub) == @({crypto_sign_PUBLICKEYBYTES} as int), 'invalid public key length') ]];
-            [[ assert(string.len(@pvt)  == @({crypto_sign_SECRETKEYBYTES} as int), 'invalid private key length') ]];
+            [[ assert(string.len(@pvt) == @({crypto_sign_SECRETKEYBYTES} as int), 'invalid private key length') ]];
             var[] byte buf = []..[[ msg.payload ]];
             _ceu_assert(_sodium_sealed_decrypt(&&buf[0], $buf, &&pub[0], &&pvt[0]) == 0, "bug found");
             [[
@@ -118,25 +118,26 @@ else/if is_encrypt or is_decrypt then
             ]];
         end
     else
-#if 0
-        [[ assert(string.len(@key) == @({crypto_box_KEYBYTES} as int), 'invalid shared key length') ]];
+        var[] byte pub = []..[[ FC.hex2hash(msg.pub) ]];
+        var[] byte pvt = []..[[ FC.hex2hash(msg.pvt) ]];
+        [[ assert(string.len(@pub) == @({crypto_sign_PUBLICKEYBYTES} as int), 'invalid public key length') ]];
+        [[ assert(string.len(@pvt) == @({crypto_sign_SECRETKEYBYTES} as int), 'invalid private key length') ]];
         if is_encrypt then
             var[] byte  buf;
             var   usize len = [[ string.len(msg.payload) ]];
             _ceu_vector_setlen(&&buf, {crypto_box_NONCEBYTES+crypto_box_MACBYTES}, 1);
             buf = buf .. [[ msg.payload ]];
-            _ceu_assert(_sodium_symetric_encrypt(&&buf[0], len, &&key[0]) == 0, "bug found");
+            _ceu_assert(_sodium_pubpvt_encrypt(&&buf[0], len, &&pub[0], &&pvt[0]) == 0, "bug found");
             [[
                 RET = @buf
             ]]
         else
             var[] byte buf = []..[[ msg.payload ]];
-            _ceu_assert(_sodium_symetric_decrypt(&&buf[0], $buf, &&key[0]) == 0, "bug found");
+            _ceu_assert(_sodium_pubpvt_decrypt(&&buf[0], $buf, &&pub[0], &&pvt[0]) == 0, "bug found");
             [[
                 RET = string.sub(@buf,@({1+crypto_box_NONCEBYTES+crypto_box_MACBYTES} as usize))
             ]];
         end
-#endif
     end
 
 end

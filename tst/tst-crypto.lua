@@ -59,4 +59,29 @@ local ret = FC.send(0x0700, {
 
 assert(ret == 'Ola Mundo!')
 
+-- PUBLIC-PRIVATE
+
+local other = FC.send(0x0700, {
+    create     = 'public-private',
+    passphrase = 'other',
+}, DAEMON)
+
+local ret = FC.send(0x0700, {
+    encrypt = 'public-private',
+    pub     = pubpvt.public,
+    pvt     = other.private,
+    payload = 'Ola Mundo!',
+}, DAEMON)
+
+assert(ret ~= 'Ola Mundo!')
+
+local ret = FC.send(0x0700, {
+    decrypt = 'public-private',
+    pub     = other.public,
+    pvt     = pubpvt.private,
+    payload = ret,
+}, DAEMON)
+
+assert(ret == 'Ola Mundo!')
+
 
