@@ -190,8 +190,10 @@ tests-encrypt: tests-encrypt-shared #TODO-tests-encrypt-public
 	-freechains --port=8400 daemon stop 2>/dev/null
 	cp cfg/config-tests.lua.bak /tmp/config-8400.lua
 	freechains --port=8400 daemon start /tmp/config-8400.lua &
+	sleep 0.5
 	lua5.3 tst/tst-crypto.lua
-	#
+	freechains --port=8400 daemon stop
+
 tests-encrypt-shared:
 	-freechains --port=8400 daemon stop 2>/dev/null
 	-freechains --port=8401 daemon stop 2>/dev/null
