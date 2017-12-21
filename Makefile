@@ -158,8 +158,8 @@ tests-public:
 	freechains --port=8402 configure set "chains[''].peers"+="{address='127.0.0.1',port=8401}"
 	
 	# Set PUBLIC for 8400/8401:
-	freechains --port=8400 configure set "chains[''].key_public"="'`freechains --port=8400 crypto create public --passphrase=senha-secreta`'"
-	freechains --port=8401 configure set "chains[''].key_public"="'`freechains --port=8401 crypto create public --passphrase=senha-secreta`'"
+	freechains --port=8400 configure set "chains[''].key_public"="'`freechains --port=8400 crypto create x-public --passphrase=senha-secreta`'"
+	freechains --port=8401 configure set "chains[''].key_public"="'`freechains --port=8401 crypto create x-public --passphrase=senha-secreta`'"
 	freechains --port=8402 configure set "chains[''].key_public"="'EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE'"
 	sleep 1
 	
@@ -170,8 +170,8 @@ tests-public:
 	! ls /tmp/freechains/8400/\|\|0\|.chain
 	
 	# Publish to /0
-	freechains --port=8400 publish --sign="`freechains --port=8400 crypto create private --passphrase=senha-secreta`" /0 +"from 8400"
-	freechains --port=8401 publish --sign="`freechains --port=8401 crypto create private --passphrase=senha-secreta`" /0 +"from 8401"
+	freechains --port=8400 publish --sign="`freechains --port=8400 crypto create x-private --passphrase=senha-secreta`" /0 +"from 8400"
+	freechains --port=8401 publish --sign="`freechains --port=8401 crypto create x-private --passphrase=senha-secreta`" /0 +"from 8401"
 	sleep 1
 	
 	# Check consensus 1

@@ -131,7 +131,7 @@ Commands:
 
     create: Creates a cryptographic key.
 
-    $ freechains crypto create (shared|public-private|public|private)
+    $ freechains crypto create (shared|public-private)
 
     Options:
 
@@ -375,7 +375,7 @@ elseif cmd == 'crypto' then
     if sub == 'create' then
         ASR(#arg == 3)
 
-        if tp=='public' or tp=='private' then
+        if tp=='x-public' or tp=='x-private' then
             ASR(opts.passphrase, 'missing `--passphrase`')
         end
 
@@ -387,9 +387,9 @@ elseif cmd == 'crypto' then
         if tp == 'public-private' then
             print(ret.public)
             print(ret.private)
-        elseif tp == 'public' then
+        elseif tp == 'x-public' then
             print(ret.public)
-        elseif tp == 'private' then
+        elseif tp == 'x-private' then
             print(ret.private)
         else
             assert(tp == 'shared')
