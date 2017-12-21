@@ -5,11 +5,25 @@ native/nohold
     _crypto_generichash,
     _crypto_sign_detached,
     _crypto_sign_verify_detached,
-    _sodium_symetric_decrypt,
-    _sodium_symetric_encrypt,
     _sodium_passphrase2pwhash,
     _sodium_passphrase2keys,
+    _sodium_sealed_decrypt,
+    _sodium_sealed_encrypt,
+    _sodium_shared_decrypt,
+    _sodium_shared_encrypt,
 ;
+
+#if 1
+{
+    ceu_assert(
+        crypto_sign_ed25519_PUBLICKEYBYTES == crypto_sign_PUBLICKEYBYTES &&
+        crypto_sign_ed25519_SECRETKEYBYTES == crypto_sign_SECRETKEYBYTES &&
+        crypto_scalarmult_curve25519_BYTES == crypto_box_PUBLICKEYBYTES  &&
+        crypto_scalarmult_curve25519_BYTES == crypto_box_SECRETKEYBYTES,
+        "bug found"
+    );
+}
+#endif
 
 native/pre do
     ##include <sodium.h>
@@ -37,7 +51,7 @@ native/pre do
                                  crypto_pwhash_ALG_DEFAULT);
     }
 
-    int sodium_passphrase2keys (byte* passphrase, usize passphrase_len, byte* pk, byte* sk)
+    int sodium_passphrase2keys (byte* passphrase, usize passphrase_len, byte* pub, byte* pvt)
     {
         unsigned char seed[crypto_sign_SEEDBYTES];
 #if 0
@@ -48,17 +62,21 @@ native/pre do
                                          NULL, 0);
             ceu_assert(ret == 0, "bug found");
         }
-        return crypto_sign_seed_keypair(pk, sk, seed);
+        return crypto_sign_seed_keypair(pub, pvt, seed);
 #else
         int ret = sodium_passphrase2pwhash(seed, crypto_sign_SEEDBYTES, passphrase, passphrase_len);
         if (ret != 0) {
             return ret;
         }
-        return crypto_sign_seed_keypair(pk, sk, seed);
+#if 0
+        return crypto_box_seed_keypair(pub, pvt, seed);
+#else
+        return crypto_sign_seed_keypair(pub, pvt, seed);
+#endif
 #endif
     }
 
-    int sodium_symetric_encrypt (byte* buf, usize plain_len, byte* key)
+    int sodium_shared_encrypt (byte* buf, usize plain_len, byte* shared)
     {
 #ifdef DETERMINISTIC
         memset(buf, 0, crypto_secretbox_NONCEBYTES);
@@ -67,15 +85,71 @@ native/pre do
 #endif
         return crypto_secretbox_easy(buf+crypto_secretbox_NONCEBYTES,
                                      buf+crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES, plain_len,
-                                     buf, key);
+                                     buf, shared);
     }
 
-    int sodium_symetric_decrypt (byte* buf, usize buf_len, byte* key)
+    int sodium_shared_decrypt (byte* buf, usize buf_len, byte* shared)
     {
         return crypto_secretbox_open_easy(buf+crypto_secretbox_NONCEBYTES+crypto_secretbox_MACBYTES,
                                           buf+crypto_secretbox_NONCEBYTES, buf_len-crypto_secretbox_NONCEBYTES,
-                                          buf, key);
+                                          buf, shared);
     }
+
+    int sodium_sealed_encrypt (byte* buf, usize plain_len, byte* pub)
+    {
+        byte pub_[crypto_box_PUBLICKEYBYTES];
+        int ret = crypto_sign_ed25519_pk_to_curve25519(pub_, pub);
+        if (ret != 0) { return ret; }
+        return crypto_box_seal(buf, buf+crypto_box_SEALBYTES, plain_len, pub_);
+    }
+
+    int sodium_sealed_decrypt (byte* buf, usize buf_len, byte* pub, byte* pvt)
+    {
+        byte pub_[crypto_box_PUBLICKEYBYTES];
+        byte pvt_[crypto_box_SECRETKEYBYTES];
+        int ret = crypto_sign_ed25519_pk_to_curve25519(pub_, pub);
+        if (ret != 0) { return ret; }
+        ret = crypto_sign_ed25519_sk_to_curve25519(pvt_, pvt);
+        if (ret != 0) { return ret; }
+
+        return crypto_box_seal_open(buf+crypto_box_SEALBYTES, buf, buf_len, pub_, pvt_);
+    }
+
+#if 0
+    int sodium_pvtpub_encrypt (byte* buf, usize plain_len, byte* pub, byte* pvt)
+    {
+        byte pub_[crypto_box_PUBLICKEYBYTES];
+        byte pvt_[crypto_box_SECRETKEYBYTES];
+        int ret = crypto_sign_ed25519_pk_to_curve25519(pub_, pub);
+        if (ret != 0) { return ret; }
+        ret = crypto_sign_ed25519_sk_to_curve25519(pvt_, pvt);
+        if (ret != 0) { return ret; }
+
+#ifdef DETERMINISTIC
+        memset(buf, 0, crypto_box_NONCEBYTES);
+#else
+        randombytes_buf(buf, crypto_secretbox_NONCEBYTES);
+#endif
+
+        return crypto_box_easy(buf+crypto_box_NONCEBYTES,
+                               buf+crypto_box_NONCEBYTES+crypto_box_MACBYTES, plain_len,
+                               buf, pub_, pvt_);
+    }
+
+    int sodium_pvtpub_decrypt (byte* buf, usize buf_len, byte* pvt, byte* pub)
+    {
+        byte pvt_[crypto_box_SECRETKEYBYTES];
+        byte pub_[crypto_box_PUBLICKEYBYTES];
+        int ret = crypto_sign_ed25519_sk_to_curve25519(pvt_, pvt);
+        if (ret != 0) { return ret; }
+        ret = crypto_sign_ed25519_pk_to_curve25519(pub_, pub);
+        if (ret != 0) { return ret; }
+
+        return crypto_box_open_easy(buf+crypto_box_NONCEBYTES+crypto_box_MACBYTES,
+                                    buf+crypto_box_NONCEBYTES, buf_len-crypto_box_NONCEBYTES,
+                                    buf, pub_, pvt_);
+    }
+#endif
 end
 
 #endif

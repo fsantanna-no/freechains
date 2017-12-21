@@ -207,13 +207,19 @@ tests-encrypt-shared:
 	freechains --port=8401 configure set "chains[''].peers"+="{address='127.0.0.1',port=8400}"
 	
 	# Set SHARED for 8400/8401:
-	freechains --port=8400 configure set "chains[''].key_shared"="'senha-secreta'"
-	freechains --port=8401 configure set "chains[''].key_shared"="'senha-secreta'"
+	freechains --port=8400 configure set "chains[''].key_shared"="'`freechains --port=8400 crypto create shared --passphrase=senha-secreta`'"
+	freechains --port=8401 configure set "chains[''].key_shared"="'`freechains --port=8401 crypto create shared --passphrase=senha-secreta`'"
 	
 	# Publish to /0 with --encrypt
-	freechains --port=8400 publish /0 --encrypt +"from 8400"
+	echo -n "from 8400" > /tmp/freechains/8400/msg.1
+	freechains --port=8400 crypto encrypt shared EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE /tmp/freechains/8400/msg.1 > /tmp/freechains/8400/msg.2
+	freechains --port=8400 publish /0 /tmp/freechains/8400/msg.2
 	sleep 2
-	freechains --port=8401 get /0 --decrypt | grep "from 8400"
+	lua5.3 -e "io.stdout:write( (`freechains --port=8401 get /0`)[1].pub.payload )" > /tmp/freechains/8400/msg.3
+	freechains --port=8400 crypto decrypt shared EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE /tmp/freechains/8400/msg.3 > /tmp/freechains/8400/msg.4
+	diff /tmp/freechains/8400/msg.[23]
+	diff /tmp/freechains/8400/msg.[14]
+	grep -q "from 8400" /tmp/freechains/8400/msg.1
 	
 	# Cleanup
 	freechains --port=8400 daemon stop

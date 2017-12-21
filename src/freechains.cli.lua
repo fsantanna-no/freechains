@@ -140,7 +140,14 @@ Commands:
 
     encrypt: Encrypts a payload.
 
-    $ freechains crypto encrypt (shared|public|private) key (<file>|+<string>|-)
+    $ freechains crypto encrypt (shared|seal|public-private) key [key] (<file>|+<string>|-)
+        # encrypt shared key:             use shared key to encrypt
+        # encrypt sealed pub:             use recipient public key to encrypt
+        # encrypt public-private pub pvt: use recipient public key to encrypt and sender private to sign
+
+        # decrypt shared key:             use shared key to decrypt
+        # decrypt sealed pub pvt:         use recipient public key to ??? and use recipient private key to decrypt
+        # decrypt public-private pub pvt: use sender public key to verify and recipient private key to decrypt
 
     Arguments:
 
@@ -390,8 +397,17 @@ elseif cmd == 'crypto' then
         end
 
     elseif sub=='encrypt' or sub=='decrypt' then
-        ASR(#arg == 5)
-        local _,_,_,key,payload = table.unpack(arg)
+        local _,key,pub,pvt,payload
+
+        if tp == 'shared' then
+            ASR(#arg == 5)
+            _,_,_,key,payload = table.unpack(arg)
+        elseif tp=='sealed' and sub=='encrypt' then
+            _,_,_,pub,payload = table.unpack(arg)
+        else
+            _,_,_,pub,pvt,payload = table.unpack(arg)
+        end
+
         if payload == '-' then
             payload = io.stdin:read('*a')
         elseif string.sub(payload,1,1) == '+' then
@@ -402,8 +418,10 @@ elseif cmd == 'crypto' then
 
         local ret = FC.send(0x0700, {
             [sub]   = tp,
-            key     = key,
             payload = payload,
+            key     = key,
+            pub     = pub,
+            pvt     = pvt,
         }, DAEMON)
         io.stdout:write(tostring(ret))
 
