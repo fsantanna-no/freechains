@@ -1,9 +1,9 @@
 #include "common.ceu"
 
 ///////////////////////////////////////////////////////////////////////////////
-// 1<-0->2
+// 1<-0->2->1
 //  - close the connection "1" during last message
-//      - 0.3 is not received by "1"
+//      - 0.3 is not received by "1" from "0", but from "2"
 ///////////////////////////////////////////////////////////////////////////////
 
 par/and do
@@ -59,13 +59,13 @@ par/and do
                     }
                 }
             ]];
-            var&? Client c = spawn Client(&init.shared);
+            var&? Client_10 c = spawn Client_10(&init.shared);
 
             // close 1st connection for 3rd message
             if i == 3 then
                 // 2nd message
                 var int j;
-                loop j in [1 -> 1] do
+                loop j in [1 -> 2] do
                     // 4 connections
                     //  client -> server = 2
                     //  client -> server = 2
@@ -79,8 +79,9 @@ par/and do
             end
             await c;
         end
+
         [[
-            FC.dot( FC.chains[''][0].head, '/tmp/tst-16-00.dot' )
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-18-00.dot' )
         ]];
     end
 
@@ -111,9 +112,10 @@ with
         ]];
 
         var& Init init = spawn Init();
-        AWAIT_CHAIN_N(init.shared, '', 0, 3);
+        AWAIT_CHAIN_N(init.shared, '', 0, 4);
+
         [[
-            FC.dot( FC.chains[''][0].head, '/tmp/tst-16-01.dot' )
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-18-01.dot' )
         ]];
     end
 
@@ -133,10 +135,14 @@ with
                     backlog = 128,
                 },
                 no_persistency = true,
+                zeros_raise = TODO,     -- global and per-chain
                 chains = {
                     [''] = {
                         key   = '',
                         zeros = 0,
+                        peers = {
+                            { address='127.0.0.1', port=8341 },
+                        },
                     },
                 },
             }
@@ -145,19 +151,19 @@ with
         var& Init init = spawn Init();
         AWAIT_CHAIN_N(init.shared, '', 0, 4);
         [[
-            FC.dot( FC.chains[''][0].head, '/tmp/tst-16-02.dot' )
+            FC.dot( FC.chains[''][0].head, '/tmp/tst-18-02.dot' )
         ]];
+        await 100ms;
     end
 
 end
 
 [[
-    local tst00 = assert(io.open('tst/dots/tst-16-00.dot')):read'*a'
-    local tst01 = assert(io.open('tst/dots/tst-16-01.dot')):read'*a'
-    local tmp00 = assert(io.open('/tmp/tst-16-00.dot')):read'*a'
-    local tmp01 = assert(io.open('/tmp/tst-16-01.dot')):read'*a'
-    local tmp02 = assert(io.open('/tmp/tst-16-02.dot')):read'*a'
-    assert(tst00==tmp00 and tst00==tmp02 and tst01==tmp01)
+    local tst   = assert(io.open('tst/dots/tst-18.dot')):read'*a'
+    local tmp00 = assert(io.open('/tmp/tst-18-00.dot')):read'*a'
+    local tmp01 = assert(io.open('/tmp/tst-18-01.dot')):read'*a'
+    local tmp02 = assert(io.open('/tmp/tst-18-02.dot')):read'*a'
+    assert(tst==tmp00 and tst==tmp01 and tst==tmp02)
 
     print'OK!'
 ]]

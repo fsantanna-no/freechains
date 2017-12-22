@@ -47,7 +47,7 @@ par/and do
                     }
                 }
             ]];
-            var&? Client c = spawn Client(&init.shared);
+            var&? Client_10 c = spawn Client_10(&init.shared);
             if i == 3 then
                 await UV_STREAM_CONNECT;
                 kill c;
