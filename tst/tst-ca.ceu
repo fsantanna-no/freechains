@@ -25,7 +25,7 @@ par/and do
                     [''] = {
                         key   = '',
                         zeros = 0,
-                        key_shared = 'senha-secreta',
+                        key_shared = '1EAEE8461C97F0C8E8111D5A301AA4F876A4D07B6F7B76C8EDFB5FFED7E3C3AD',
                     },
                 },
             }
@@ -52,7 +52,7 @@ with
                     [''] = {
                         key   = '',
                         zeros = 0,
-                        key_shared = 'senha-secreta',
+                        key_shared = '1EAEE8461C97F0C8E8111D5A301AA4F876A4D07B6F7B76C8EDFB5FFED7E3C3AD',
                         peers = {
                             {
                                 address = '127.0.0.1',
