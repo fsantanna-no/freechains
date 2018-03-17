@@ -17,6 +17,7 @@ one:
 	          --pre-input=$(CEU_SRC)                                           \
 	    --ceu --ceu-features-lua=true --ceu-features-thread=true               \
 	          --ceu-features-trace=true --ceu-features-exception=true          \
+	          --ceu-features-dynamic=true --ceu-features-pool=true \
 	          --ceu-err-uncaught-exception-main=pass --ceu-err-uncaught-exception-lua=pass \
 	          --ceu-err-unused=pass --ceu-err-uninitialized=pass               \
 	          --ceu-line-directives=true \
