@@ -47,8 +47,8 @@ $ sudo apt-get install liferea zenity pandoc                          # GUI
 ```
 $ mkdir ceu
 $ cd ceu/
-$ git clone https://github.com/fsantanna/ceu
-$ git clone https://github.com/fsantanna/ceu-libuv
+$ git clone https://github.com/ceu-lang/ceu
+$ git clone https://github.com/ceu-lang/ceu-libuv
 $ git clone https://github.com/Freechains/freechains
 
 $ cd ceu/
