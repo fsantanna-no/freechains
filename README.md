@@ -52,8 +52,13 @@ $ git clone https://github.com/fsantanna/ceu-libuv
 $ git clone https://github.com/Freechains/freechains
 
 $ cd ceu/
+$ git checkout 5066118e82ea6f1ff1a5402cd2ff210bdb810a2b
 $ make
 $ sudo make install
+$ cd ..
+
+$ cd ceu-libuv/
+$ git checkout v0.30
 $ cd ..
 
 $ vi ceu-libuv/Makefile                 # set directories by hand

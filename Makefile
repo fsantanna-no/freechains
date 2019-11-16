@@ -231,6 +231,7 @@ tests-encrypt-shared:
 	# Cleanup
 	freechains --port=8400 daemon stop
 	freechains --port=8401 daemon stop
+
 TODO-tests-encrypt-public:
 	-freechains --port=8400 daemon stop 2>/dev/null
 	-freechains --port=8401 daemon stop 2>/dev/null
