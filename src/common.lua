@@ -43,6 +43,7 @@ function FC.children (node, head)
     table.sort(node, function(a,b) return a.hash<b.hash end)
             -- TODO-01: remover este
 
+    -- TODO: dead code???
     local t = {}
     for _, a in ipairs(node) do
         t[#t+1] = FC.tostring(a.hash)
