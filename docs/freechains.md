@@ -86,6 +86,7 @@ zeros
 
 - Lua Table:
     - `message_30.ceu34:`
+
 ```
 pub = {
     chain     = ...,        -- chain to publish
@@ -96,6 +97,7 @@ pub = {
     encrypt   = ...,        -- none, shared, public
 }
 ```
+
 - `client_10.ceu`
     - `[402]` verifies if server follows chain key/zeros
     - `[403]` verifies chain crypto (none, public, shared)
@@ -103,6 +105,7 @@ pub = {
         - `[137]` concatenates timestamp+nonce+key+payload
         - `[173]` iterates over timestamp/nonce
         - `[182]` finds 256-bit hash with expected zeros
+
 ```
 0       1       2       3       4       5       6       7       8
 [-------------------------  timestamp  -------------------------]
@@ -119,7 +122,9 @@ pub = {
 48...
 [-- payload --]
 ```
+
     - `[450]` creates new node in the chain with the publication
+
 ```
 node = {
     chain     = ...,        -- chain to publish
@@ -136,14 +141,17 @@ node = {
 
         - `[459]` backlink to head nodes
             - `[common.lua:39]` sorted by backlink hash
+
 ```
 h1  <---\
 ... <----| node
 hN  <---/
 ```
+
         - `[294]` concatenates timestamp+nonce+pub_hash+backs_hashes
         - `[330]` iterates over timestamp/nonce
         - `[339]` finds 256-bit hash with expected zeros (use shared key if available)
+
 ```
 0       1       2       3       4       5       6       7       8
 [-------------------------  timestamp  -------------------------]
@@ -178,6 +186,7 @@ hN  <---/
 16...
 [-- backs-N --]
 ```
+
         - `[359]` TODO: `FC.node`
             - `[common.lua:16]` TODO: seq? height?
         - `[362]` TODO: `node.sign`
