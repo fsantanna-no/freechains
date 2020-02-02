@@ -123,6 +123,7 @@ pub = {
 [-- payload --]
 ```
 
+-
     - `[450]` creates new node in the chain with the publication
 
 ```
@@ -139,6 +140,8 @@ node = {
 }
 ```
 
+-
+    -
         - `[459]` backlink to head nodes
             - `[common.lua:39]` sorted by backlink hash
 
@@ -148,6 +151,8 @@ h1  <---\
 hN  <---/
 ```
 
+-
+    -
         - `[294]` concatenates timestamp+nonce+pub_hash+backs_hashes
         - `[330]` iterates over timestamp/nonce
         - `[339]` finds 256-bit hash with expected zeros (use shared key if available)
@@ -186,6 +191,9 @@ hN  <---/
 16...
 [-- backs-N --]
 ```
+
+-
+    -
 
         - `[359]` TODO: `FC.node`
             - `[common.lua:16]` TODO: seq? height?
